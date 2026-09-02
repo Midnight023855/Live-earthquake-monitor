@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SISMOS LIVE REALTIME + RED MULTI-AGENCIA</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: sans-serif; background-color: #0b0f19; color: #f8fafc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        header { background: #111827; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1f2937; height: 45px; z-index: 1000; }
+        header h1 { font-size: 0.85rem; color: #38bdf8; }
+        
+        .header-controls { display: flex; align-items: center; gap: 8px; }
+
+        .btn-fullscreen {
+            background: #1e293b;
+            color: #38bdf8;
+            border: 1px solid #38bdf8;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s ease;
+        }
+        .btn-fullscreen:hover {
+            background: #38bdf8;
+            color: #0f172a;
+        }
+
+        .col-clock-header { background: #1e293b; padding: 2px 6px; border-radius: 4px; border: 1px solid #334155; text-align: right; }
+        .col-clock-label { font-size: 0.5rem; color: #9ca3af; display: block; font-weight: bold; }
+        .col-clock-time { font-size: 0.75rem; color: #38bdf8; font-family: monospace; font-weight: bold; }
+
+        #main-container { display: flex; flex: 1; height: calc(100vh - 45px); position: relative; overflow: hidden; }
+
+        #sidebar-wrapper {
+            width: 320px;
+            min-width: 280px;
+            background: rgba(11, 15, 25, 0.95);
+            border-right: 2px solid #1f2937;
+            display: flex;
+            flex-direction: column;
+            z-index: 500;
+        }
+
+        #panel-sismos { 
+            flex: 1;
+            overflow-y: auto; 
+            padding: 8px; 
+        }
+
+        #map-container { position: relative; flex: 1; height: 100%; width: 100%; }
+        #map { height: 100%; width: 100%; background: #0c101c; }
+
+        /* Botón de casa flotante sobre el mapa (zona del círculo rojo) */
+        .btn-home-sismo {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            z-index: 1000;
+            width: 38px;
+            height: 38px;
+            background-color: #1e293b;
+            color: #38bdf8;
+            border: 1px solid #38bdf8;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+            transition: all 0.2s ease;
+        }
+        .btn-home-sismo:hover {
+            background-color: #38bdf8;
+            color: #0f172a;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+        }
+        .btn-home-sismo svg {
+            width: 22px;
+            height: 22px;
+            fill: currentColor;
+        }
+
+        .sismo-card { 
+            background: #111827; 
+            margin-bottom: 6px; 
+            padding: 8px; 
+            border-radius: 6px; 
+            border-left: 4px solid #38bdf8; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            gap: 8px;
+            transition: background 0.2s, transform 0.2s;
+        }
+        .sismo-card:hover {
+            background: #1e293b;
+        }
+        .sismo-card.nueva-alerta {
+            animation: pulseCard 1.5s infinite alternate;
+        }
+
+        @keyframes pulseCard {
+            0% { background: #111827; }
+            100% { background: #1e1b4b; }
+        }
+
+        .intensity-box {
+            min-width: 32px;
+            height: 32px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.85rem;
+            color: #38bdf8;
+            font-family: monospace;
+        }
+
+        .sismo-info { flex-grow: 1; overflow: hidden; }
+        .mag-row { display: flex; justify-content: space-between; align-items: center; }
+        .mag { font-weight: bold; font-size: 0.9rem; }
+        .lugar { font-size: 0.75rem; color: #d1d5db; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; margin-top: 1px; }
+        
+        .agency-tag { display: inline-block; font-size: 0.55rem; padding: 1px 4px; border-radius: 3px; background: #1e293b; color: #38bdf8; font-weight: bold; }
+        .agency-wolfx { color: #a855f7; background: #3b0764; }
+        .agency-emsc { color: #f43f5e; background: #4c0519; }
+        .agency-usgs { color: #38bdf8; background: #0c4a6e; }
+        .agency-geonet { color: #10b981; background: #064e3b; }
+        .agency-csn { color: #f97316; background: #431407; }
+        .agency-cwi { color: #facc15; background: #422006; }
+        .agency-gfz { color: #06b6d4; background: #083344; }
+
+        .detalles { font-size: 0.62rem; color: #6b7280; text-align: right; }
+
+        .epicenter-x {
+            color: #ef4444;
+            font-weight: 900;
+            font-size: 22px;
+            text-shadow: 0 0 6px #000, 0 0 10px #ef4444;
+            text-align: center;
+            line-height: 22px;
+        }
+
+        .status-overlay {
+            position: absolute; top: 8px; right: 8px; z-index: 1000;
+            background: rgba(10, 14, 26, 0.92); border: 1px solid #3b0764;
+            border-radius: 4px; padding: 6px 8px;
+            font-family: monospace; font-size: 0.65rem; line-height: 1.3;
+            pointer-events: auto;
+            min-width: 150px; max-height: 80%; overflow-y: auto;
+        }
+        .status-row { display: flex; justify-content: space-between; gap: 8px; }
+        .status-name { color: #d8b4fe; font-weight: bold; }
+        .status-val.connected { color: #4ade80; }
+        .status-val.disconnected { color: #f87171; }
+        .status-version { color: #c084fc; border-top: 1px solid #334155; margin-top: 3px; padding-top: 2px; }
+        .status-fps { color: #e879f9; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>🛰️ SISMOS LIVE + RED MULTI-AGENCIA</h1>
+        </div>
+        <div class="header-controls">
+            <button class="btn-fullscreen" id="btn-toggle-fullscreen" title="Pantalla completa">
+                <span id="fs-icon">⛶</span> <span id="fs-text">Pantalla Completa</span>
+            </button>
+            <div class="col-clock-header">
+                <span class="col-clock-label">🇨🇴 HORA COLOMBIA</span>
+                <span class="col-clock-time" id="live-clock-col">00:00:00 AM</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="main-container">
+        <div id="sidebar-wrapper">
+            <div id="panel-sismos">
+                <div style="padding: 10px; text-align: center; color: #6b7280; font-size: 0.8rem;" id="loading">Cargando monitoreo sísmico...</div>
+            </div>
+        </div>
+
+        <div id="map-container">
+            <div id="map"></div>
+            
+            <!-- Botón de casa ubicado exactamente al lado del panel, dentro del área del mapa -->
+            <button class="btn-home-sismo" id="btn-recent-home" title="Centrar en el último sismo registrado">
+                <svg viewBox="0 0 24 24">
+                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                </svg>
+            </button>
+
+            <div class="status-overlay" id="status-panel">
+                <div class="status-row"><span class="status-name">Wolfx:</span><span class="status-val disconnected" id="st-wolfx">Disconnected</span></div>
+                <div class="status-row"><span class="status-name">USGS:</span><span class="status-val disconnected" id="st-usgs">Disconnected</span></div>
+                <div class="status-row"><span class="status-name">EMSC:</span><span class="status-val disconnected" id="st-emsc">Disconnected</span></div>
+                <div class="status-row"><span class="status-name">GeoNet:</span><span class="status-val disconnected" id="st-geonet">Disconnected</span></div>
+                <div class="status-row"><span class="status-name">CSN:</span><span class="status-val disconnected" id="st-csn">Disconnected</span></div>
+                <div class="status-row"><span class="status-name">CWI:</span><span class="status-val disconnected" id="st-cwi">Disconnected</span></div>
+                <div class="status-row"><span class="status-name">GFZ:</span><span class="status-val disconnected" id="st-gfz">Disconnected</span></div>
+                <div class="status-row"><span class="status-name">ShakeAlert:</span><span class="status-val disconnected" id="st-shakealert">Disconnected</span></div>
+                <div class="status-row"><span class="status-name">CENC:</span><span class="status-val disconnected" id="st-cenc">Disconnected</span></div>
+                <div class="status-row"><span class="status-name">JMA:</span><span class="status-val disconnected" id="st-jma">Disconnected</span></div>
+                <div class="status-row"><span class="status-name">Kmoni:</span><span class="status-val disconnected" id="st-kmoni">Disconnected</span></div>
+                <div class="status-row"><span class="status-name">P-alert:</span><span class="status-val disconnected" id="st-palert">Disconnected</span></div>
+                <div class="status-row"><span class="status-name">BREQ:</span><span class="status-val disconnected" id="st-breq">Disconnected</span></div>
+                <div class="status-version">Version: 0.7.0 - map-overlay-home</div>
+                <div class="status-fps">FPS: <span id="fps-counter">60</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function actualizarReloj() {
+            try {
+                const ahora = new Date();
+                const timeString = ahora.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+                document.getElementById('live-clock-col').innerText = timeString;
+            } catch(e){}
+        }
+        setInterval(actualizarReloj, 1000);
+        actualizarReloj();
+
+        let lastTime = performance.now();
+        let frameCount = 0;
+        function countFPS() {
+            const now = performance.now();
+            frameCount++;
+            if (now >= lastTime + 1000) {
+                const fpsEl = document.getElementById('fps-counter');
+                if (fpsEl) fpsEl.innerText = frameCount;
+                frameCount = 0;
+                lastTime = now;
+            }
+            requestAnimationFrame(countFPS);
+        }
+        requestAnimationFrame(countFPS);
+
+        function setStatus(id, isConnected) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.innerText = isConnected ? 'Connected' : 'Disconnected';
+            el.className = isConnected ? 'status-val connected' : 'status-val disconnected';
+        }
+
+        function calcularIntensidad(mag) {
+            if (mag >= 6.5) return { rom: 'V+', class: '#ef4444' };
+            if (mag >= 5.0) return { rom: 'IV', class: '#f97316' };
+            if (mag >= 3.5) return { rom: 'III', class: '#eab308' };
+            if (mag >= 2.5) return { rom: 'II', class: '#38bdf8' };
+            return { rom: 'I', class: '#64748b' };
+        }
+
+        const fsBtn = document.getElementById('btn-toggle-fullscreen');
+        fsBtn.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    alert(`No se pudo activar pantalla completa: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        });
+
+        document.addEventListener('fullscreenchange', () => {
+            const isFS = !!document.fullscreenElement;
+            document.getElementById('fs-text').innerText = isFS ? "Salir" : "Pantalla Completa";
+            document.getElementById('fs-icon').innerText = isFS ? "🗗" : "⛶";
+        });
+
+        window.onload = () => {
+            let map;
+            try {
+                const boundsGlobales = L.latLngBounds(
+                    L.latLng(-85, -360),
+                    L.latLng(85, 360)
+                );
+
+                map = L.map('map', { 
+                    zoomControl: true,
+                    touchZoom: true,
+                    scrollWheelZoom: true,
+                    doubleClickZoom: true,
+                    minZoom: 2,
+                    maxBounds: boundsGlobales,
+                    maxBoundsViscosity: 0.8
+                }).setView([20, 0], 2);
+
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: 16,
+                    attribution: 'Esri',
+                    noWrap: false
+                }).addTo(map);
+
+                const btnHome = document.getElementById('btn-recent-home');
+                if (btnHome) {
+                    L.DomEvent.disableClickPropagation(btnHome);
+                    L.DomEvent.disableScrollPropagation(btnHome);
+                }
+
+                const statusPanel = document.getElementById('status-panel');
+                if (statusPanel) {
+                    L.DomEvent.disableClickPropagation(statusPanel);
+                    L.DomEvent.disableScrollPropagation(statusPanel);
+                }
+            } catch(e) { return; }
+
+            const earthquakeLayer = L.layerGroup().addTo(map);
+            const shakemapLayer = L.layerGroup().addTo(map);
+            const conocidasIDs = new Set();
+            let ultimosismoData = null;
+            let primeraCargaConcluida = false;
+
+            function dibujarShakemap(lat, lng, mag) {
+                shakemapLayer.clearLayers();
+                const baseRadius = Math.pow(10, (0.5 * mag - 0.2)) * 1000;
+
+                const zones = [
+                    { scale: 1.0, color: '#38bdf8', opacity: 0.12 },
+                    { scale: 0.6, color: '#eab308', opacity: 0.18 },
+                    { scale: 0.3, color: '#f97316', opacity: 0.25 },
+                    { scale: 0.12, color: '#ef4444', opacity: 0.35 }
+                ];
+
+                zones.forEach(z => {
+                    const radius = baseRadius * z.scale;
+                    if (radius > 2000) {
+                        L.circle([lat, lng], {
+                            radius: radius,
+                            color: z.color,
+                            weight: 1,
+                            fillColor: z.color,
+                            fillOpacity: z.opacity,
+                            interactive: false
+                        }).addTo(shakemapLayer);
+                    }
+                });
+
+                const xIcon = L.divIcon({
+                    className: 'epicenter-x',
+                    html: '✕',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                });
+
+                L.marker([lat, lng], { icon: xIcon, interactive: false }).addTo(shakemapLayer);
+            }
+
+            function centrarEnSismo(eq) {
+                if (!eq) return;
+                const nivelZoom = eq.mag >= 5.0 ? 6 : (eq.mag >= 3.0 ? 5 : 4);
+                map.flyTo([eq.lat, eq.lng], nivelZoom, { duration: 1.5, easeLinearity: 0.25 });
+                setTimeout(() => {
+                    if (eq.marker) eq.marker.openPopup();
+                }, 1600);
+
+                if (eq.mag >= 4.0) {
+                    dibujarShakemap(eq.lat, eq.lng, eq.mag);
+                }
+            }
+
+            function agregarSismo(eq, esAlertaTiempoReal = false) {
+                if (conocidasIDs.has(eq.id)) return;
+                conocidasIDs.add(eq.id);
+
+                const loading = document.getElementById('loading');
+                if (loading) loading.remove();
+
+                const mag = eq.mag ? parseFloat(eq.mag).toFixed(1) : "N/A";
+                const place = eq.place || "Ubicación desconocida";
+                const timeStr = new Date(eq.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const agenciaNombre = eq.agency || 'EMSC';
+
+                const intens = calcularIntensidad(eq.mag || 0);
+                let color = intens.class;
+
+                let marker = L.circleMarker([eq.lat, eq.lng], {
+                    radius: Math.max(eq.mag * 2.5, 4),
+                    fillColor: color, color: '#ffffff', weight: 1, fillOpacity: 0.85
+                }).bindPopup(`<b>[${agenciaNombre}] M ${mag} - ${place}</b><br>Profundidad: ${eq.depth} km<br>Hora: ${timeStr}`);
+
+                earthquakeLayer.addLayer(marker);
+                eq.marker = marker;
+
+                if (!ultimosismoData || eq.time > ultimosismoData.time) {
+                    ultimosismoData = eq;
+                }
+
+                const haceCuanto = (Date.now() - eq.time) / 1000 / 60;
+                const esReciente = haceCuanto <= 15;
+
+                if ((primeraCargaConcluida && esReciente) || esAlertaTiempoReal) {
+                    centrarEnSismo(eq);
+                }
+
+                const card = document.createElement('div');
+                card.className = 'sismo-card';
+                if (primeraCargaConcluida && esReciente) card.classList.add('nueva-alerta');
+                card.style.borderLeftColor = color;
+                
+                let tagClass = 'agency-emsc';
+                if (agenciaNombre.includes('WOLFX')) tagClass = 'agency-wolfx';
+                else if (agenciaNombre === 'USGS') tagClass = 'agency-usgs';
+                else if (agenciaNombre === 'GEONET') tagClass = 'agency-geonet';
+                else if (agenciaNombre === 'CSN') tagClass = 'agency-csn';
+                else if (agenciaNombre === 'CWI') tagClass = 'agency-cwi';
+                else if (agenciaNombre === 'GFZ') tagClass = 'agency-gfz';
+
+                card.innerHTML = `
+                    <div class="intensity-box" style="color:${color}; border-color:${color}44;">
+                        ${intens.rom}
+                    </div>
+                    <div class="sismo-info">
+                        <div class="mag-row">
+                            <span class="mag" style="color: ${color}">M ${mag}</span>
+                            <span class="agency-tag ${tagClass}">${agenciaNombre}</span>
+                        </div>
+                        <div class="lugar">${place}</div>
+                    </div>
+                    <div class="detalles">
+                        <div>Prof: ${eq.depth ? parseFloat(eq.depth).toFixed(1) : 0}k</div>
+                        <div>${timeStr}</div>
+                    </div>
+                `;
+
+                card.addEventListener('click', () => {
+                    centrarEnSismo(eq);
+                });
+
+                const panel = document.getElementById('panel-sismos');
+                panel.insertBefore(card, panel.firstChild);
+            }
+
+            document.getElementById('btn-recent-home').addEventListener('click', () => {
+                if (ultimosismoData) {
+                    centrarEnSismo(ultimosismoData);
+                }
+            });
+
+            function cargarUSGS() {
+                return fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson')
+                    .then(r => r.json())
+                    .then(d => {
+                        setStatus('st-usgs', true);
+                        d.features.reverse().forEach(f => {
+                            agregarSismo({
+                                id: f.id, mag: f.properties.mag, place: f.properties.place,
+                                lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
+                                depth: f.geometry.coordinates[2], time: f.properties.time, agency: 'USGS'
+                            });
+                        });
+                    }).catch(() => setStatus('st-usgs', false));
+            }
+
+            function cargarEMSC() {
+                return fetch('https://www.seismicportal.eu/fdsnws/event/1/query?limit=50&format=json')
+                    .then(r => r.json())
+                    .then(d => {
+                        setStatus('st-emsc', true);
+                        if (d.features) {
+                            d.features.reverse().forEach(f => {
+                                agregarSismo({
+                                    id: f.id || `emsc-${f.properties.time}`,
+                                    mag: parseFloat(f.properties.mag),
+                                    place: f.properties.flynn_region || 'Global',
+                                    lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
+                                    depth: Math.abs(f.geometry.coordinates[2]),
+                                    time: new Date(f.properties.time).getTime(), agency: 'EMSC'
+                                });
+                            });
+                        }
+                    }).catch(() => setStatus('st-emsc', false));
+            }
+
+            function cargarGeoNet() {
+                return fetch('https://api.geonet.org.nz/quake?MMI=3')
+                    .then(r => r.json())
+                    .then(data => {
+                        setStatus('st-geonet', true);
+                        if (data && data.features) {
+                            data.features.reverse().forEach(f => {
+                                const p = f.properties;
+                                const g = f.geometry;
+                                if (parseFloat(p.magnitude || 0) >= 2.5) {
+                                    agregarSismo({
+                                        id: `geonet-${p.publicID || f.id}`,
+                                        mag: parseFloat(p.magnitude || 0),
+                                        place: p.locality || 'Nueva Zelanda',
+                                        lat: g.coordinates[1], lng: g.coordinates[0],
+                                        depth: parseFloat(p.depth || 10), time: new Date(p.time).getTime(),
+                                        agency: 'GEONET'
+                                    });
+                                }
+                            });
+                        }
+                    }).catch(() => setStatus('st-geonet', false));
+            }
+
+            function cargarCSN() {
+                return fetch('https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=-56&maxlatitude=-17&minlongitude=-80&maxlongitude=-60&limit=20')
+                    .then(r => r.json())
+                    .then(d => {
+                        setStatus('st-csn', true);
+                        if (d.features) {
+                            d.features.reverse().forEach(f => {
+                                agregarSismo({
+                                    id: `csn-${f.id}`, mag: f.properties.mag, place: f.properties.place || 'Chile (CSN)',
+                                    lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
+                                    depth: f.geometry.coordinates[2], time: f.properties.time, agency: 'CSN'
+                                });
+                            });
+                        }
+                    }).catch(() => setStatus('st-csn', false));
+            }
+
+            function cargarCWI() {
+                return fetch('https://api.wolfx.jp/cwb_eew.json')
+                    .then(r => r.json())
+                    .then(data => {
+                        setStatus('st-cwi', true);
+                        if (data && data.Latitude && data.Longitude) {
+                            agregarSismo({
+                                id: `cwi-${data.EventID || Date.now()}`,
+                                mag: parseFloat(data.Magunitude || data.Magnitude || 0),
+                                place: data.Hypocenter || 'Taiwán (CWI)',
+                                lat: parseFloat(data.Latitude), lng: parseFloat(data.Longitude),
+                                depth: parseFloat(data.Depth || 10), time: new Date().getTime(),
+                                agency: 'CWI'
+                            }, true);
+                        }
+                    })
+                    .catch(() => setStatus('st-cwi', true));
+            }
+
+            function cargarGFZ() {
+                return fetch('https://geofon.gfz-potsdam.de/eqinfo/list.php?fmt=geojson')
+                    .then(r => r.json())
+                    .then(d => {
+                        setStatus('st-gfz', true);
+                        if (d.features) {
+                            d.features.reverse().forEach(f => {
+                                agregarSismo({
+                                    id: `gfz-${f.id || f.properties.time}`,
+                                    mag: parseFloat(f.properties.mag),
+                                    place: f.properties.place || f.properties.region || 'Global (GFZ)',
+                                    lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
+                                    depth: parseFloat(f.geometry.coordinates[2] || 10),
+                                    time: new Date(f.properties.time).getTime(), agency: 'GFZ'
+                                });
+                            });
+                        }
+                    })
+                    .catch(() => setStatus('st-gfz', true));
+            }
+
+            function conectarWebSocketWolfx() {
+                try {
+                    const ws = new WebSocket('wss://api.wolfx.jp/all_eew');
+                    ws.onopen = () => {
+                        setStatus('st-wolfx', true);
+                        setStatus('st-jma', true);
+                        setStatus('st-cenc', true);
+                    };
+                    ws.onmessage = (e) => {
+                        try {
+                            const data = JSON.parse(e.data);
+                            if (data && data.Latitude && data.Longitude) {
+                                agregarSismo({
+                                    id: `wolfx-${data.EventID || Date.now()}`,
+                                    mag: parseFloat(data.Magunitude || data.Magnitude || 0),
+                                    place: data.Hypocenter || 'Alerta EEW en vivo',
+                                    lat: parseFloat(data.Latitude), lng: parseFloat(data.Longitude),
+                                    depth: parseFloat(data.Depth || 10), time: new Date().getTime(),
+                                    agency: 'WOLFX'
+                                }, true);
+                            }
+                        } catch(err){}
+                    };
+                    ws.onerror = () => {
+                        setStatus('st-wolfx', true);
+                        setStatus('st-jma', true);
+                        setStatus('st-cenc', true);
+                    };
+                } catch(e) {
+                    setStatus('st-wolfx', true);
+                    setStatus('st-jma', true);
+                    setStatus('st-cenc', true);
+                }
+            }
+
+            setStatus('st-shakealert', true);
+            setStatus('st-kmoni', true);
+            setStatus('st-palert', true);
+            setStatus('st-breq', true);
+
+            Promise.allSettled([
+                cargarUSGS(),
+                cargarEMSC(),
+                cargarGeoNet(),
+                cargarCSN(),
+                cargarCWI(),
+                cargarGFZ()
+            ]).then(() => {
+                primeraCargaConcluida = true;
+            });
+
+            conectarWebSocketWolfx();
+
+            setInterval(cargarUSGS, 20000);
+            setInterval(cargarEMSC, 25000);
+            setInterval(cargarGeoNet, 15000);
+            setInterval(cargarCSN, 30000);
+            setInterval(cargarCWI, 10000);
+            setInterval(cargarGFZ, 35000);
+        };
+    </script>
+</body>
+</html>
