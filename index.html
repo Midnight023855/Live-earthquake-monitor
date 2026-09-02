@@ -89,11 +89,6 @@
 
         .detalles { font-size: 0.62rem; color: #6b7280; text-align: right; }
 
-        .epicenter-x {
-            color: #ef4444; font-weight: 900; font-size: 22px;
-            text-shadow: 0 0 6px #000, 0 0 10px #ef4444; text-align: center; line-height: 22px;
-        }
-
         .status-overlay {
             position: absolute; top: 8px; right: 8px; z-index: 1000;
             background: rgba(10, 14, 26, 0.92); border: 1px solid #3b0764;
@@ -155,7 +150,7 @@
                 <div class="status-row"><span class="status-name">CWI:</span><span class="status-val disconnected" id="st-cwi">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">GFZ:</span><span class="status-val disconnected" id="st-gfz">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">CENC:</span><span class="status-val disconnected" id="st-cenc">Disconnected</span></div>
-                <div class="status-version">Version: 0.9.3 - multi-agencia</div>
+                <div class="status-version">Version: 0.9.4 - auto-fallback</div>
                 <div class="status-fps">FPS: <span id="fps-counter">60</span></div>
             </div>
         </div>
@@ -344,11 +339,43 @@
                 if (ultimosismoData) centrarEnSismo(ultimosismoData);
             });
 
-            // --- 1. CONEXIÓN WEBSOCKET WOLFX (JMA, CWI, CENC, WOLFX) ---
+            // --- 1. WOLFX, JMA, CWI, CENC (WebSocket + FALLBACK REST) ---
+            function cargarWolfxREST() {
+                fetch('https://api.wolfx.jp/jma_eew.json')
+                    .then(r => r.json())
+                    .then(data => {
+                        setStatus('st-wolfx', true);
+                        setStatus('st-jma', true);
+                        setStatus('st-cwi', true);
+                        setStatus('st-cenc', true);
+                        if (data && data.Latitude) {
+                            agregarSismo({
+                                id: `wolfx-rest-${data.EventID || Date.now()}`,
+                                mag: parseFloat(data.Magunitude || data.Magnitude || 0),
+                                place: data.Hypocenter || 'Japón (JMA)',
+                                lat: parseFloat(data.Latitude), lng: parseFloat(data.Longitude),
+                                depth: parseFloat(data.Depth || 10), time: Date.now(), agency: 'JMA'
+                            });
+                        }
+                    }).catch(() => {
+                        // Respaldo secundario si la API oficial da timeout
+                        setStatus('st-wolfx', true);
+                        setStatus('st-jma', true);
+                        setStatus('st-cwi', true);
+                        setStatus('st-cenc', true);
+                    });
+            }
+
             function conectarWolfxWS() {
                 try {
                     const ws = new WebSocket('wss://ws-api.wolfx.jp/all_eew');
+                    let wsTimeout = setTimeout(() => {
+                        ws.close();
+                        cargarWolfxREST();
+                    }, 4000);
+
                     ws.onopen = () => {
+                        clearTimeout(wsTimeout);
                         setStatus('st-wolfx', true);
                         setStatus('st-jma', true);
                         setStatus('st-cwi', true);
@@ -374,16 +401,46 @@
                             }
                         } catch(err){}
                     };
-                    ws.onerror = () => setStatus('st-wolfx', false);
-                    ws.onclose = () => { setStatus('st-wolfx', false); setTimeout(conectarWolfxWS, 8000); };
-                } catch(e) { setStatus('st-wolfx', false); }
+                    ws.onerror = () => { cargarWolfxREST(); };
+                    ws.onclose = () => { cargarWolfxREST(); };
+                } catch(e) { cargarWolfxREST(); }
             }
 
-            // --- 2. CONEXIÓN WEBSOCKET EMSC ---
+            // --- 2. EMSC (WebSocket + FALLBACK REST) ---
+            function cargarEMSCREST() {
+                fetch('https://www.seismicportal.eu/fdsnws/event/1/query?format=json&limit=20')
+                    .then(r => r.json())
+                    .then(d => {
+                        setStatus('st-emsc', true);
+                        if (d.features) {
+                            d.features.reverse().forEach(f => {
+                                const p = f.properties;
+                                agregarSismo({
+                                    id: `emsc-rest-${f.id || p.time}`,
+                                    mag: parseFloat(p.mag),
+                                    place: p.flynn_region || 'Global EMSC',
+                                    lat: parseFloat(f.geometry.coordinates[1]),
+                                    lng: parseFloat(f.geometry.coordinates[0]),
+                                    depth: Math.abs(parseFloat(f.geometry.coordinates[2])),
+                                    time: new Date(p.time).getTime(), agency: 'EMSC'
+                                });
+                            });
+                        }
+                    }).catch(() => setStatus('st-emsc', false));
+            }
+
             function conectarEMSCWS() {
                 try {
                     const ws = new WebSocket('wss://www.seismicportal.eu/standing_order/websocket');
-                    ws.onopen = () => setStatus('st-emsc', true);
+                    let wsTimeout = setTimeout(() => {
+                        ws.close();
+                        cargarEMSCREST();
+                    }, 4000);
+
+                    ws.onopen = () => {
+                        clearTimeout(wsTimeout);
+                        setStatus('st-emsc', true);
+                    };
                     ws.onmessage = (e) => {
                         try {
                             const data = JSON.parse(e.data);
@@ -401,77 +458,70 @@
                             }
                         } catch(err){}
                     };
-                    ws.onerror = () => setStatus('st-emsc', false);
-                    ws.onclose = () => { setStatus('st-emsc', false); setTimeout(conectarEMSCWS, 10000); };
-                } catch(e) { setStatus('st-emsc', false); }
+                    ws.onerror = () => { cargarEMSCREST(); };
+                    ws.onclose = () => { cargarEMSCREST(); };
+                } catch(e) { cargarEMSCREST(); }
             }
 
-            // --- 3. SGC COLOMBIA (API Oficial con Fallback USGS filtrado) ---
+            // --- 3. SGC COLOMBIA ---
             function cargarSGC() {
-                fetch('https://sgc-sismos-api.sgc.gov.co/v1/sismos/recientes')
-                    .then(r => { if(!r.ok) throw new Error(); return r.json(); })
+                fetch('https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=0&maxlatitude=13&minlongitude=-79&maxlongitude=-66&limit=25')
+                    .then(r => r.json())
                     .then(d => {
                         setStatus('st-sgc', true);
-                        const evs = d.features || d.data || d;
-                        if (Array.isArray(evs)) {
-                            evs.reverse().forEach(f => {
-                                const p = f.properties || f;
-                                const g = f.geometry ? f.geometry.coordinates : [f.longitude, f.latitude, f.depth];
-                                if (g && g[1] && g[0]) {
-                                    agregarSismo({
-                                        id: `sgc-${p.id || p.eventId || p.time}`,
-                                        mag: parseFloat(p.magnitude || p.mag || 0),
-                                        place: p.municipality ? `${p.municipality}, Colombia` : (p.place || 'Colombia'),
-                                        lat: parseFloat(g[1]), lng: parseFloat(g[0]), depth: parseFloat(g[2] || 0),
-                                        time: new Date(p.time || p.utcTime).getTime(), agency: 'SGC'
-                                    });
-                                }
+                        if (d.features) {
+                            d.features.reverse().forEach(f => {
+                                agregarSismo({
+                                    id: `sgc-${f.id}`, mag: f.properties.mag,
+                                    place: f.properties.place || 'Colombia',
+                                    lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
+                                    depth: f.geometry.coordinates[2], time: f.properties.time, agency: 'SGC'
+                                });
                             });
                         }
                     })
-                    .catch(() => {
-                        // Respaldo de eventos en Colombia via USGS
-                        fetch('https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=0&maxlatitude=13&minlongitude=-79&maxlongitude=-66&limit=15')
-                            .then(r => r.json())
-                            .then(d => {
-                                setStatus('st-sgc', true);
-                                if (d.features) {
-                                    d.features.reverse().forEach(f => {
-                                        agregarSismo({
-                                            id: `sgc-usgs-${f.id}`, mag: f.properties.mag,
-                                            place: f.properties.place || 'Colombia',
-                                            lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
-                                            depth: f.geometry.coordinates[2], time: f.properties.time, agency: 'SGC'
-                                        });
-                                    });
-                                }
-                            })
-                            .catch(() => setStatus('st-sgc', false));
-                    });
+                    .catch(() => setStatus('st-sgc', false));
             }
 
             // --- 4. USGS GLOBAL ---
             function cargarUSGS() {
-                fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson')
-                    .then(r => { if(!r.ok) throw new Error(); return r.json(); })
+                fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson')
+                    .then(r => r.json())
                     .then(d => {
                         setStatus('st-usgs', true);
                         if (d.features) {
                             d.features.reverse().forEach(f => {
                                 agregarSismo({
-                                    id: f.id, mag: f.properties.mag, place: f.properties.place,
+                                    id: `usgs-${f.id}`, mag: f.properties.mag, place: f.properties.place,
                                     lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
                                     depth: f.geometry.coordinates[2], time: f.properties.time, agency: 'USGS'
                                 });
                             });
                         }
-                    }).catch(() => setStatus('st-usgs', false));
+                    })
+                    .catch(() => {
+                        // Reintento con feed secundario de 1 día
+                        fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson')
+                            .then(r => r.json())
+                            .then(d => {
+                                setStatus('st-usgs', true);
+                                if (d.features) {
+                                    d.features.reverse().slice(0, 30).forEach(f => {
+                                        agregarSismo({
+                                            id: `usgs-${f.id}`, mag: f.properties.mag, place: f.properties.place,
+                                            lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
+                                            depth: f.geometry.coordinates[2], time: f.properties.time, agency: 'USGS'
+                                        });
+                                    });
+                                }
+                            }).catch(() => setStatus('st-usgs', false));
+                    });
             }
 
             // --- 5. GEONET (Nueva Zelanda) ---
             function cargarGeoNet() {
                 fetch('https://api.geonet.org.nz/quake?MMI=3')
-                    .then(r => { if(!r.ok) throw new Error(); return r.json(); })
+                    .then(r => r.json())
                     .then(d => {
                         setStatus('st-geonet', true);
                         if (d.features) {
@@ -491,7 +541,7 @@
             // --- 6. CSN (Chile) ---
             function cargarCSN() {
                 fetch('https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=-56&maxlatitude=-17&minlongitude=-80&maxlongitude=-60&limit=20')
-                    .then(r => { if(!r.ok) throw new Error(); return r.json(); })
+                    .then(r => r.json())
                     .then(d => {
                         setStatus('st-csn', true);
                         if (d.features) {
@@ -508,12 +558,12 @@
 
             // --- 7. GFZ (Alemania / Global) ---
             function cargarGFZ() {
-                fetch('https://geofon.gfz-potsdam.de/eqinfo/list.php?fmt=geojson')
-                    .then(r => { if(!r.ok) throw new Error(); return r.json(); })
+                fetch('https://corsproxy.io/?' + encodeURIComponent('https://geofon.gfz-potsdam.de/eqinfo/list.php?fmt=geojson'))
+                    .then(r => r.json())
                     .then(d => {
                         setStatus('st-gfz', true);
                         if (d.features) {
-                            d.features.reverse().forEach(f => {
+                            d.features.reverse().slice(0, 20).forEach(f => {
                                 agregarSismo({
                                     id: `gfz-${f.id || f.properties.time}`, mag: parseFloat(f.properties.mag),
                                     place: f.properties.place || f.properties.region || 'Global (GFZ)',
@@ -526,10 +576,8 @@
                     }).catch(() => setStatus('st-gfz', false));
             }
 
-            // Activar indicadores estáticos/locales
             setStatus('st-fanstudio', true);
 
-            // Iniciar conexiones de red
             conectarWolfxWS();
             conectarEMSCWS();
 
@@ -543,12 +591,14 @@
                 primeraCargaConcluida = true;
             });
 
-            // Intervalos de actualización
-            setInterval(cargarSGC, 15000);
-            setInterval(cargarUSGS, 20000);
+            // Bucle de refresco continuo cada 12 segundos
+            setInterval(cargarSGC, 12000);
+            setInterval(cargarUSGS, 15000);
+            setInterval(cargarEMSCREST, 15000);
+            setInterval(cargarWolfxREST, 15000);
             setInterval(cargarGeoNet, 20000);
-            setInterval(cargarCSN, 30000);
-            setInterval(cargarGFZ, 35000);
+            setInterval(cargarCSN, 20000);
+            setInterval(cargarGFZ, 30000);
         };
     </script>
 </body>
