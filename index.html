@@ -10,10 +10,10 @@
 
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: sans-serif; background-color: #0b0f19; color: #f8fafc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #0b0f19; color: #f8fafc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         
         header { background: #111827; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1f2937; height: 45px; z-index: 1000; }
-        header h1 { font-size: 0.85rem; color: #38bdf8; }
+        header h1 { font-size: 0.85rem; color: #38bdf8; font-weight: 700; }
         
         .header-controls { display: flex; align-items: center; gap: 8px; }
 
@@ -184,9 +184,6 @@
             <h1>🛰️ SISMOS LIVE + RED MULTI-AGENCIA</h1>
         </div>
         <div class="header-controls">
-            <button class="btn-header" id="btn-fan-studio" title="Fan Studio Control">
-                <span>🎥</span> <span>Fan Studio</span>
-            </button>
             <button class="btn-header" id="btn-toggle-sound" title="Activar/Desactivar Sonido">
                 <span id="sound-icon">🔊</span> <span id="sound-text">Audio ON</span>
             </button>
@@ -232,14 +229,13 @@
                 <div class="status-row"><span class="status-name">Kmoni:</span><span class="status-val disconnected" id="st-kmoni">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">P-alert:</span><span class="status-val disconnected" id="st-palert">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">BREQ:</span><span class="status-val disconnected" id="st-breq">Disconnected</span></div>
-                <div class="status-version">Version: 0.9.1 - fan-studio-added</div>
+                <div class="status-version">Version: 0.9.2 - multi-agency</div>
                 <div class="status-fps">FPS: <span id="fps-counter">60</span></div>
             </div>
         </div>
     </div>
 
     <script>
-        // MÓDULO DE AUDIO Y VOZ
         let audioHabilitado = true;
         let audioCtx = null;
 
@@ -264,10 +260,9 @@
                 gain.connect(audioCtx.destination);
 
                 if (esEEW) {
-                    // Tono de Alerta Temprana EEW (Pitidos de alta frecuencia)
                     osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(880, now); // A5
-                    osc.frequency.setValueAtTime(1760, now + 0.15); // A6
+                    osc.frequency.setValueAtTime(880, now);
+                    osc.frequency.setValueAtTime(1760, now + 0.15);
                     osc.frequency.setValueAtTime(880, now + 0.3);
                     osc.frequency.setValueAtTime(1760, now + 0.45);
                     gain.gain.setValueAtTime(0.3, now);
@@ -275,10 +270,9 @@
                     osc.start(now);
                     osc.stop(now + 0.6);
                 } else {
-                    // Tono Moderado (Sismo Convencional M >= 4.5)
                     osc.type = 'sine';
-                    osc.frequency.setValueAtTime(523.25, now); // C5
-                    osc.frequency.setValueAtTime(659.25, now + 0.2); // E5
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.setValueAtTime(659.25, now + 0.2);
                     gain.gain.setValueAtTime(0.2, now);
                     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
                     osc.start(now);
@@ -290,7 +284,7 @@
         function hablarAlerta(texto) {
             if (!audioHabilitado || !('speechSynthesis' in window)) return;
             try {
-                window.speechSynthesis.cancel(); // Cancelar locuciones previas
+                window.speechSynthesis.cancel();
                 const utterance = new SpeechSynthesisUtterance(texto);
                 utterance.lang = 'es-ES';
                 utterance.rate = 1.05;
@@ -299,7 +293,6 @@
             } catch(e) {}
         }
 
-        // Control de Sonido
         const btnSound = document.getElementById('btn-toggle-sound');
         btnSound.addEventListener('click', () => {
             initAudio();
@@ -307,11 +300,6 @@
             document.getElementById('sound-text').innerText = audioHabilitado ? "Audio ON" : "Audio OFF";
             document.getElementById('sound-icon').innerText = audioHabilitado ? "🔊" : "🔇";
             btnSound.classList.toggle('muted', !audioHabilitado);
-        });
-
-        // Evento Fan Studio
-        document.getElementById('btn-fan-studio').addEventListener('click', () => {
-            alert('Fan Studio Activo: Modo de grabación / transmisión conectado.');
         });
 
         function actualizarReloj() {
@@ -358,7 +346,7 @@
         fsBtn.addEventListener('click', () => {
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen().catch(err => {
-                    alert(`No se pudo activar pantalla completa: ${err.message}`);
+                    console.warn(`Fullscreen error: ${err.message}`);
                 });
             } else {
                 if (document.exitFullscreen) {
@@ -454,7 +442,7 @@
             }
 
             function centrarEnSismo(eq) {
-                if (!eq) return;
+                if (!eq || isNaN(eq.lat) || isNaN(eq.lng)) return;
                 const nivelZoom = eq.mag >= 5.0 ? 6 : (eq.mag >= 3.0 ? 5 : 4);
                 map.flyTo([eq.lat, eq.lng], nivelZoom, { duration: 1.5, easeLinearity: 0.25 });
                 setTimeout(() => {
@@ -467,13 +455,13 @@
             }
 
             function agregarSismo(eq, esAlertaTiempoReal = false) {
-                if (conocidasIDs.has(eq.id)) return;
+                if (!eq || !eq.id || conocidasIDs.has(eq.id) || isNaN(eq.lat) || isNaN(eq.lng)) return;
                 conocidasIDs.add(eq.id);
 
                 const loading = document.getElementById('loading');
                 if (loading) loading.remove();
 
-                const mag = eq.mag ? parseFloat(eq.mag).toFixed(1) : "N/A";
+                const mag = eq.mag !== undefined && !isNaN(eq.mag) ? parseFloat(eq.mag).toFixed(1) : "N/A";
                 const place = eq.place || "Ubicación desconocida";
                 const timeStr = new Date(eq.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 const agenciaNombre = eq.agency || 'EMSC';
@@ -482,9 +470,9 @@
                 let color = intens.class;
 
                 let marker = L.circleMarker([eq.lat, eq.lng], {
-                    radius: Math.max(eq.mag * 2.5, 4),
+                    radius: Math.max((eq.mag || 2) * 2.5, 4),
                     fillColor: color, color: '#ffffff', weight: 1, fillOpacity: 0.85
-                }).bindPopup(`<b>[${agenciaNombre}] M ${mag} - ${place}</b><br>Profundidad: ${eq.depth} km<br>Hora: ${timeStr}`);
+                }).bindPopup(`<b>[${agenciaNombre}] M ${mag} - ${place}</b><br>Profundidad: ${eq.depth || 0} km<br>Hora: ${timeStr}`);
 
                 earthquakeLayer.addLayer(marker);
                 eq.marker = marker;
@@ -554,16 +542,14 @@
                 }
             });
 
-            // 🎥 Fan Studio API / Integration Status
             function cargarFanStudio() {
                 setStatus('st-fanstudio', true);
                 return Promise.resolve();
             }
 
-            // 🇨🇴 Servicio Geológico Colombiano (SGC)
             function cargarSGC() {
                 return fetch('https://sgc-sismos-api.sgc.gov.co/v1/sismos/recientes')
-                    .then(r => r.json())
+                    .then(r => { if(!r.ok) throw new Error(); return r.json(); })
                     .then(d => {
                         setStatus('st-sgc', true);
                         const eventos = d.features || d.data || d;
@@ -571,26 +557,27 @@
                             eventos.reverse().forEach(f => {
                                 const props = f.properties || f;
                                 const geom = f.geometry ? f.geometry.coordinates : [f.longitude, f.latitude, f.depth];
-                                agregarSismo({
-                                    id: `sgc-${props.id || props.eventId || props.time}`,
-                                    mag: parseFloat(props.magnitude || props.mag || 0),
-                                    place: props.municipality ? `${props.municipality}, Colombia` : (props.place || 'Colombia'),
-                                    lat: parseFloat(geom[1]),
-                                    lng: parseFloat(geom[0]),
-                                    depth: parseFloat(geom[2] || 0),
-                                    time: new Date(props.time || props.utcTime).getTime(),
-                                    agency: 'SGC'
-                                });
+                                if (geom && geom[1] && geom[0]) {
+                                    agregarSismo({
+                                        id: `sgc-${props.id || props.eventId || props.time}`,
+                                        mag: parseFloat(props.magnitude || props.mag || 0),
+                                        place: props.municipality ? `${props.municipality}, Colombia` : (props.place || 'Colombia'),
+                                        lat: parseFloat(geom[1]),
+                                        lng: parseFloat(geom[0]),
+                                        depth: parseFloat(geom[2] || 0),
+                                        time: new Date(props.time || props.utcTime).getTime(),
+                                        agency: 'SGC'
+                                    });
+                                }
                             });
                         }
                     })
                     .catch(() => setStatus('st-sgc', false));
             }
 
-            // 🇯🇵 Japan Meteorological Agency (JMA - EEW)
             function cargarJMA() {
                 return fetch('https://api.wolfx.jp/jma_eew.json')
-                    .then(r => r.json())
+                    .then(r => { if(!r.ok) throw new Error(); return r.json(); })
                     .then(data => {
                         setStatus('st-jma', true);
                         if (data && data.Latitude && data.Longitude) {
@@ -611,22 +598,24 @@
 
             function cargarUSGS() {
                 return fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson')
-                    .then(r => r.json())
+                    .then(r => { if(!r.ok) throw new Error(); return r.json(); })
                     .then(d => {
                         setStatus('st-usgs', true);
-                        d.features.reverse().forEach(f => {
-                            agregarSismo({
-                                id: f.id, mag: f.properties.mag, place: f.properties.place,
-                                lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
-                                depth: f.geometry.coordinates[2], time: f.properties.time, agency: 'USGS'
+                        if (d.features) {
+                            d.features.reverse().forEach(f => {
+                                agregarSismo({
+                                    id: f.id, mag: f.properties.mag, place: f.properties.place,
+                                    lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
+                                    depth: f.geometry.coordinates[2], time: f.properties.time, agency: 'USGS'
+                                });
                             });
-                        });
+                        }
                     }).catch(() => setStatus('st-usgs', false));
             }
 
             function cargarEMSC() {
                 return fetch('https://www.seismicportal.eu/fdsnws/event/1/query?limit=50&format=json')
-                    .then(r => r.json())
+                    .then(r => { if(!r.ok) throw new Error(); return r.json(); })
                     .then(d => {
                         setStatus('st-emsc', true);
                         if (d.features) {
@@ -646,7 +635,7 @@
 
             function cargarGeoNet() {
                 return fetch('https://api.geonet.org.nz/quake?MMI=3')
-                    .then(r => r.json())
+                    .then(r => { if(!r.ok) throw new Error(); return r.json(); })
                     .then(data => {
                         setStatus('st-geonet', true);
                         if (data && data.features) {
@@ -670,7 +659,7 @@
 
             function cargarCSN() {
                 return fetch('https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=-56&maxlatitude=-17&minlongitude=-80&maxlongitude=-60&limit=20')
-                    .then(r => r.json())
+                    .then(r => { if(!r.ok) throw new Error(); return r.json(); })
                     .then(d => {
                         setStatus('st-csn', true);
                         if (d.features) {
@@ -687,7 +676,7 @@
 
             function cargarCWI() {
                 return fetch('https://api.wolfx.jp/cwb_eew.json')
-                    .then(r => r.json())
+                    .then(r => { if(!r.ok) throw new Error(); return r.json(); })
                     .then(data => {
                         setStatus('st-cwi', true);
                         if (data && data.Latitude && data.Longitude) {
@@ -701,12 +690,12 @@
                             }, true);
                         }
                     })
-                    .catch(() => setStatus('st-cwi', true));
+                    .catch(() => setStatus('st-cwi', false));
             }
 
             function cargarGFZ() {
                 return fetch('https://geofon.gfz-potsdam.de/eqinfo/list.php?fmt=geojson')
-                    .then(r => r.json())
+                    .then(r => { if(!r.ok) throw new Error(); return r.json(); })
                     .then(d => {
                         setStatus('st-gfz', true);
                         if (d.features) {
@@ -722,17 +711,19 @@
                             });
                         }
                     })
-                    .catch(() => setStatus('st-gfz', true));
+                    .catch(() => setStatus('st-gfz', false));
             }
 
             function conectarWebSocketWolfx() {
                 try {
                     const ws = new WebSocket('wss://api.wolfx.jp/all_eew');
+                    
                     ws.onopen = () => {
                         setStatus('st-wolfx', true);
                         setStatus('st-jma', true);
                         setStatus('st-cenc', true);
                     };
+
                     ws.onmessage = (e) => {
                         try {
                             const data = JSON.parse(e.data);
@@ -749,22 +740,25 @@
                             }
                         } catch(err){}
                     };
+
                     ws.onerror = () => {
-                        setStatus('st-wolfx', true);
-                        setStatus('st-jma', true);
-                        setStatus('st-cenc', true);
+                        setStatus('st-wolfx', false);
+                    };
+
+                    ws.onclose = () => {
+                        setStatus('st-wolfx', false);
+                        setTimeout(conectarWebSocketWolfx, 10000); // Reintento de conexión
                     };
                 } catch(e) {
-                    setStatus('st-wolfx', true);
-                    setStatus('st-jma', true);
-                    setStatus('st-cenc', true);
+                    setStatus('st-wolfx', false);
                 }
             }
 
-            setStatus('st-shakealert', true);
-            setStatus('st-kmoni', true);
-            setStatus('st-palert', true);
-            setStatus('st-breq', true);
+            // Servicios estáticos configurados
+            setStatus('st-shakealert', false);
+            setStatus('st-kmoni', false);
+            setStatus('st-palert', false);
+            setStatus('st-breq', false);
 
             Promise.allSettled([
                 cargarFanStudio(),
