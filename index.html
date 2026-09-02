@@ -119,7 +119,7 @@
         }
 
         .intensity-box {
-            min-width: 32px;
+            min-width: 36px;
             height: 32px;
             background: #1e293b;
             border: 1px solid #334155;
@@ -128,7 +128,7 @@
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             color: #38bdf8;
             font-family: monospace;
         }
@@ -334,11 +334,19 @@
             el.className = isConnected ? 'status-val connected' : 'status-val disconnected';
         }
 
+        // ESCALA MERCALLI MODIFICADA (I A XII) SEGÚN MAGNITUD
         function calcularIntensidad(mag) {
-            if (mag >= 6.5) return { rom: 'V+', class: '#ef4444' };
-            if (mag >= 5.0) return { rom: 'IV', class: '#f97316' };
-            if (mag >= 3.5) return { rom: 'III', class: '#eab308' };
-            if (mag >= 2.5) return { rom: 'II', class: '#38bdf8' };
+            if (mag >= 8.0) return { rom: 'XII', class: '#7f1d1d' };
+            if (mag >= 7.3) return { rom: 'XI', class: '#991b1b' };
+            if (mag >= 6.5) return { rom: 'X', class: '#b91c1c' };
+            if (mag >= 6.1) return { rom: 'IX', class: '#dc2626' };
+            if (mag >= 5.5) return { rom: 'VIII', class: '#ef4444' };
+            if (mag >= 4.9) return { rom: 'VII', class: '#f97316' };
+            if (mag >= 4.3) return { rom: 'VI', class: '#f59e0b' };
+            if (mag >= 3.7) return { rom: 'V', class: '#eab308' };
+            if (mag >= 3.0) return { rom: 'IV', class: '#84cc16' };
+            if (mag >= 2.5) return { rom: 'III', class: '#38bdf8' };
+            if (mag >= 2.0) return { rom: 'II', class: '#0284c7' };
             return { rom: 'I', class: '#64748b' };
         }
 
