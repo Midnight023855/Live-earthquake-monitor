@@ -17,7 +17,7 @@
         
         .header-controls { display: flex; align-items: center; gap: 8px; }
 
-        .btn-fullscreen {
+        .btn-header {
             background: #1e293b;
             color: #38bdf8;
             border: 1px solid #38bdf8;
@@ -31,9 +31,13 @@
             gap: 4px;
             transition: all 0.2s ease;
         }
-        .btn-fullscreen:hover {
+        .btn-header:hover {
             background: #38bdf8;
             color: #0f172a;
+        }
+        .btn-header.muted {
+            border-color: #ef4444;
+            color: #ef4444;
         }
 
         .col-clock-header { background: #1e293b; padding: 2px 6px; border-radius: 4px; border: 1px solid #334155; text-align: right; }
@@ -61,7 +65,6 @@
         #map-container { position: relative; flex: 1; height: 100%; width: 100%; }
         #map { height: 100%; width: 100%; background: #0c101c; }
 
-        /* Botón de casa flotante sobre el mapa (zona del círculo rojo) */
         .btn-home-sismo {
             position: absolute;
             bottom: 12px;
@@ -136,6 +139,8 @@
         .lugar { font-size: 0.75rem; color: #d1d5db; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; margin-top: 1px; }
         
         .agency-tag { display: inline-block; font-size: 0.55rem; padding: 1px 4px; border-radius: 3px; background: #1e293b; color: #38bdf8; font-weight: bold; }
+        .agency-sgc { color: #facc15; background: #854d0e; }
+        .agency-jma { color: #f43f5e; background: #881337; }
         .agency-wolfx { color: #a855f7; background: #3b0764; }
         .agency-emsc { color: #f43f5e; background: #4c0519; }
         .agency-usgs { color: #38bdf8; background: #0c4a6e; }
@@ -178,7 +183,10 @@
             <h1>🛰️ SISMOS LIVE + RED MULTI-AGENCIA</h1>
         </div>
         <div class="header-controls">
-            <button class="btn-fullscreen" id="btn-toggle-fullscreen" title="Pantalla completa">
+            <button class="btn-header" id="btn-toggle-sound" title="Activar/Desactivar Sonido">
+                <span id="sound-icon">🔊</span> <span id="sound-text">Audio ON</span>
+            </button>
+            <button class="btn-header" id="btn-toggle-fullscreen" title="Pantalla completa">
                 <span id="fs-icon">⛶</span> <span id="fs-text">Pantalla Completa</span>
             </button>
             <div class="col-clock-header">
@@ -198,7 +206,6 @@
         <div id="map-container">
             <div id="map"></div>
             
-            <!-- Botón de casa ubicado exactamente al lado del panel, dentro del área del mapa -->
             <button class="btn-home-sismo" id="btn-recent-home" title="Centrar en el último sismo registrado">
                 <svg viewBox="0 0 24 24">
                     <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
@@ -206,6 +213,8 @@
             </button>
 
             <div class="status-overlay" id="status-panel">
+                <div class="status-row"><span class="status-name">SGC (Colombia):</span><span class="status-val disconnected" id="st-sgc">Disconnected</span></div>
+                <div class="status-row"><span class="status-name">JMA (Japón):</span><span class="status-val disconnected" id="st-jma">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">Wolfx:</span><span class="status-val disconnected" id="st-wolfx">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">USGS:</span><span class="status-val disconnected" id="st-usgs">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">EMSC:</span><span class="status-val disconnected" id="st-emsc">Disconnected</span></div>
@@ -215,17 +224,86 @@
                 <div class="status-row"><span class="status-name">GFZ:</span><span class="status-val disconnected" id="st-gfz">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">ShakeAlert:</span><span class="status-val disconnected" id="st-shakealert">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">CENC:</span><span class="status-val disconnected" id="st-cenc">Disconnected</span></div>
-                <div class="status-row"><span class="status-name">JMA:</span><span class="status-val disconnected" id="st-jma">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">Kmoni:</span><span class="status-val disconnected" id="st-kmoni">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">P-alert:</span><span class="status-val disconnected" id="st-palert">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">BREQ:</span><span class="status-val disconnected" id="st-breq">Disconnected</span></div>
-                <div class="status-version">Version: 0.7.0 - map-overlay-home</div>
+                <div class="status-version">Version: 0.9.0 - audio-alerts-added</div>
                 <div class="status-fps">FPS: <span id="fps-counter">60</span></div>
             </div>
         </div>
     </div>
 
     <script>
+        // MÓDULO DE AUDIO Y VOZ
+        let audioHabilitado = true;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function reproducirTonoAlerta(esEEW = false) {
+            if (!audioHabilitado) return;
+            try {
+                initAudio();
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (esEEW) {
+                    // Tono de Alerta Temprana EEW (Pitidos de alta frecuencia)
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(880, now); // A5
+                    osc.frequency.setValueAtTime(1760, now + 0.15); // A6
+                    osc.frequency.setValueAtTime(880, now + 0.3);
+                    osc.frequency.setValueAtTime(1760, now + 0.45);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+                    osc.start(now);
+                    osc.stop(now + 0.6);
+                } else {
+                    // Tono Moderado (Sismo Convencional M >= 4.5)
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now); // C5
+                    osc.frequency.setValueAtTime(659.25, now + 0.2); // E5
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                }
+            } catch(e) {}
+        }
+
+        function hablarAlerta(texto) {
+            if (!audioHabilitado || !('speechSynthesis' in window)) return;
+            try {
+                window.speechSynthesis.cancel(); // Cancelar locuciones previas
+                const utterance = new SpeechSynthesisUtterance(texto);
+                utterance.lang = 'es-ES';
+                utterance.rate = 1.05;
+                utterance.pitch = 1.0;
+                window.speechSynthesis.speak(utterance);
+            } catch(e) {}
+        }
+
+        // Control de Sonido
+        const btnSound = document.getElementById('btn-toggle-sound');
+        btnSound.addEventListener('click', () => {
+            initAudio();
+            audioHabilitado = !audioHabilitado;
+            document.getElementById('sound-text').innerText = audioHabilitado ? "Audio ON" : "Audio OFF";
+            document.getElementById('sound-icon').innerText = audioHabilitado ? "🔊" : "🔇";
+            btnSound.classList.toggle('muted', !audioHabilitado);
+        });
+
         function actualizarReloj() {
             try {
                 const ahora = new Date();
@@ -286,6 +364,9 @@
         });
 
         window.onload = () => {
+            // Inicializar contexto al hacer cualquier primer clic en el documento
+            document.body.addEventListener('click', () => { initAudio(); }, { once: true });
+
             let map;
             try {
                 const boundsGlobales = L.latLngBounds(
@@ -406,6 +487,14 @@
                 const haceCuanto = (Date.now() - eq.time) / 1000 / 60;
                 const esReciente = haceCuanto <= 15;
 
+                // ACTIVACIÓN DE ALERTAS DE AUDIO
+                if (primeraCargaConcluida && (esReciente || esAlertaTiempoReal)) {
+                    reproducirTonoAlerta(esAlertaTiempoReal);
+                    if (eq.mag >= 3.5 || esAlertaTiempoReal) {
+                        hablarAlerta(`Atención. Sismo detectado por ${agenciaNombre}. Magnitud ${mag}. ${place}`);
+                    }
+                }
+
                 if ((primeraCargaConcluida && esReciente) || esAlertaTiempoReal) {
                     centrarEnSismo(eq);
                 }
@@ -416,7 +505,9 @@
                 card.style.borderLeftColor = color;
                 
                 let tagClass = 'agency-emsc';
-                if (agenciaNombre.includes('WOLFX')) tagClass = 'agency-wolfx';
+                if (agenciaNombre === 'SGC') tagClass = 'agency-sgc';
+                else if (agenciaNombre === 'JMA') tagClass = 'agency-jma';
+                else if (agenciaNombre.includes('WOLFX')) tagClass = 'agency-wolfx';
                 else if (agenciaNombre === 'USGS') tagClass = 'agency-usgs';
                 else if (agenciaNombre === 'GEONET') tagClass = 'agency-geonet';
                 else if (agenciaNombre === 'CSN') tagClass = 'agency-csn';
@@ -453,6 +544,55 @@
                     centrarEnSismo(ultimosismoData);
                 }
             });
+
+            // 🇨🇴 Servicio Geológico Colombiano (SGC)
+            function cargarSGC() {
+                return fetch('https://sgc-sismos-api.sgc.gov.co/v1/sismos/recientes')
+                    .then(r => r.json())
+                    .then(d => {
+                        setStatus('st-sgc', true);
+                        const eventos = d.features || d.data || d;
+                        if (Array.isArray(eventos)) {
+                            eventos.reverse().forEach(f => {
+                                const props = f.properties || f;
+                                const geom = f.geometry ? f.geometry.coordinates : [f.longitude, f.latitude, f.depth];
+                                agregarSismo({
+                                    id: `sgc-${props.id || props.eventId || props.time}`,
+                                    mag: parseFloat(props.magnitude || props.mag || 0),
+                                    place: props.municipality ? `${props.municipality}, Colombia` : (props.place || 'Colombia'),
+                                    lat: parseFloat(geom[1]),
+                                    lng: parseFloat(geom[0]),
+                                    depth: parseFloat(geom[2] || 0),
+                                    time: new Date(props.time || props.utcTime).getTime(),
+                                    agency: 'SGC'
+                                });
+                            });
+                        }
+                    })
+                    .catch(() => setStatus('st-sgc', false));
+            }
+
+            // 🇯🇵 Japan Meteorological Agency (JMA - EEW)
+            function cargarJMA() {
+                return fetch('https://api.wolfx.jp/jma_eew.json')
+                    .then(r => r.json())
+                    .then(data => {
+                        setStatus('st-jma', true);
+                        if (data && data.Latitude && data.Longitude) {
+                            agregarSismo({
+                                id: `jma-${data.EventID || Date.now()}`,
+                                mag: parseFloat(data.Magunitude || data.Magnitude || 0),
+                                place: data.Hypocenter || 'Japón (JMA EEW)',
+                                lat: parseFloat(data.Latitude),
+                                lng: parseFloat(data.Longitude),
+                                depth: parseFloat(data.Depth || 10),
+                                time: new Date().getTime(),
+                                agency: 'JMA'
+                            }, true);
+                        }
+                    })
+                    .catch(() => setStatus('st-jma', false));
+            }
 
             function cargarUSGS() {
                 return fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson')
@@ -582,13 +722,14 @@
                         try {
                             const data = JSON.parse(e.data);
                             if (data && data.Latitude && data.Longitude) {
+                                const ag = data.Title ? data.Title.toUpperCase() : 'WOLFX';
                                 agregarSismo({
                                     id: `wolfx-${data.EventID || Date.now()}`,
                                     mag: parseFloat(data.Magunitude || data.Magnitude || 0),
                                     place: data.Hypocenter || 'Alerta EEW en vivo',
                                     lat: parseFloat(data.Latitude), lng: parseFloat(data.Longitude),
                                     depth: parseFloat(data.Depth || 10), time: new Date().getTime(),
-                                    agency: 'WOLFX'
+                                    agency: ag.includes('JMA') ? 'JMA' : 'WOLFX'
                                 }, true);
                             }
                         } catch(err){}
@@ -611,6 +752,8 @@
             setStatus('st-breq', true);
 
             Promise.allSettled([
+                cargarSGC(),
+                cargarJMA(),
                 cargarUSGS(),
                 cargarEMSC(),
                 cargarGeoNet(),
@@ -623,6 +766,8 @@
 
             conectarWebSocketWolfx();
 
+            setInterval(cargarSGC, 15000);
+            setInterval(cargarJMA, 10000);
             setInterval(cargarUSGS, 20000);
             setInterval(cargarEMSC, 25000);
             setInterval(cargarGeoNet, 15000);
