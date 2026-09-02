@@ -184,9 +184,6 @@
             <h1>🛰️ SISMOS LIVE + RED MULTI-AGENCIA</h1>
         </div>
         <div class="header-controls">
-            <button class="btn-header" id="btn-fan-studio" title="Fan Studio Control">
-                <span>🎥</span> <span>Fan Studio</span>
-            </button>
             <button class="btn-header" id="btn-toggle-sound" title="Activar/Desactivar Sonido">
                 <span id="sound-icon">🔊</span> <span id="sound-text">Audio ON</span>
             </button>
@@ -304,10 +301,6 @@
             document.getElementById('sound-text').innerText = audioHabilitado ? "Audio ON" : "Audio OFF";
             document.getElementById('sound-icon').innerText = audioHabilitado ? "🔊" : "🔇";
             btnSound.classList.toggle('muted', !audioHabilitado);
-        });
-
-        document.getElementById('btn-fan-studio').addEventListener('click', () => {
-            alert('Fan Studio Activo: Modo de grabación / transmisión conectado.');
         });
 
         function actualizarReloj() {
@@ -861,3 +854,4 @@
     </script>
 </body>
 </html>
+
