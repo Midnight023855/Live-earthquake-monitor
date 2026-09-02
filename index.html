@@ -229,14 +229,13 @@
                 <div class="status-row"><span class="status-name">Kmoni:</span><span class="status-val disconnected" id="st-kmoni">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">P-alert:</span><span class="status-val disconnected" id="st-palert">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">BREQ:</span><span class="status-val disconnected" id="st-breq">Disconnected</span></div>
-                <div class="status-version">Version: 0.9.1 - fan-studio-added</div>
+                <div class="status-version">Version: 0.9.1</div>
                 <div class="status-fps">FPS: <span id="fps-counter">60</span></div>
             </div>
         </div>
     </div>
 
     <script>
-        // MÓDULO DE AUDIO Y VOZ
         let audioHabilitado = true;
         let audioCtx = null;
 
@@ -343,7 +342,6 @@
             return { rom: 'I', class: '#64748b' };
         }
 
-        // CONTROL MEJORADO DE PANTALLA COMPLETA
         const fsBtn = document.getElementById('btn-toggle-fullscreen');
 
         function toggleFullScreen() {
@@ -572,13 +570,11 @@
                 }
             });
 
-            // 🎥 Fan Studio API / Integration Status
             function cargarFanStudio() {
                 setStatus('st-fanstudio', true);
                 return Promise.resolve();
             }
 
-            // 🇨🇴 Servicio Geológico Colombiano (SGC)
             function cargarSGC() {
                 const urlSGC = 'https://backend.sgc.gov.co/api/v1/sismos/recientes';
                 const fallbackUSGSColombia = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=-5&maxlatitude=14&minlongitude=-82&maxlongitude=-66&limit=30';
@@ -646,7 +642,6 @@
                     });
             }
 
-            // 🇯🇵 Japan Meteorological Agency (JMA - EEW)
             function cargarJMA() {
                 return fetch('https://api.wolfx.jp/jma_eew.json')
                     .then(r => r.json())
@@ -854,4 +849,3 @@
     </script>
 </body>
 </html>
-
