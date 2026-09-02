@@ -184,8 +184,11 @@
             <h1>🛰️ SISMOS LIVE + RED MULTI-AGENCIA</h1>
         </div>
         <div class="header-controls">
-            <button class="btn-header" id="btn-toggle-sound" title="Activar/Desactivar Sonido">
+            <button class="btn-header" id="btn-toggle-sound" title="Activar/Desactivar Sonido Bip">
                 <span id="sound-icon">🔊</span> <span id="sound-text">Audio ON</span>
+            </button>
+            <button class="btn-header" id="btn-toggle-speech" title="Activar/Desactivar Anuncios de Voz">
+                <span id="speech-icon">🗣️</span> <span id="speech-text">Voz ON</span>
             </button>
             <button class="btn-header" id="btn-toggle-fullscreen" title="Pantalla completa">
                 <span id="fs-icon">⛶</span> <span id="fs-text">Pantalla Completa</span>
@@ -229,7 +232,7 @@
                 <div class="status-row"><span class="status-name">Kmoni:</span><span class="status-val disconnected" id="st-kmoni">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">P-alert:</span><span class="status-val disconnected" id="st-palert">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">BREQ:</span><span class="status-val disconnected" id="st-breq">Disconnected</span></div>
-                <div class="status-version">Version: 0.9.1</div>
+                <div class="status-version">Version: 0.9.2</div>
                 <div class="status-fps">FPS: <span id="fps-counter">60</span></div>
             </div>
         </div>
@@ -237,6 +240,7 @@
 
     <script>
         let audioHabilitado = true;
+        let vozHabilitada = true;
         let audioCtx = null;
 
         function initAudio() {
@@ -282,7 +286,7 @@
         }
 
         function hablarAlerta(texto) {
-            if (!audioHabilitado || !('speechSynthesis' in window)) return;
+            if (!vozHabilitada || !('speechSynthesis' in window)) return;
             try {
                 window.speechSynthesis.cancel();
                 const utterance = new SpeechSynthesisUtterance(texto);
@@ -293,6 +297,7 @@
             } catch(e) {}
         }
 
+        // Control de Audio (tonos)
         const btnSound = document.getElementById('btn-toggle-sound');
         btnSound.addEventListener('click', () => {
             initAudio();
@@ -300,6 +305,18 @@
             document.getElementById('sound-text').innerText = audioHabilitado ? "Audio ON" : "Audio OFF";
             document.getElementById('sound-icon').innerText = audioHabilitado ? "🔊" : "🔇";
             btnSound.classList.toggle('muted', !audioHabilitado);
+        });
+
+        // Control de Voz
+        const btnSpeech = document.getElementById('btn-toggle-speech');
+        btnSpeech.addEventListener('click', () => {
+            vozHabilitada = !vozHabilitada;
+            document.getElementById('speech-text').innerText = vozHabilitada ? "Voz ON" : "Voz OFF";
+            document.getElementById('speech-icon').innerText = vozHabilitada ? "🗣️" : "🤐";
+            btnSpeech.classList.toggle('muted', !vozHabilitada);
+            if (!vozHabilitada && 'speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
         });
 
         function actualizarReloj() {
@@ -334,7 +351,6 @@
             el.className = isConnected ? 'status-val connected' : 'status-val disconnected';
         }
 
-        // ESCALA MERCALLI MODIFICADA (I A XII) SEGÚN MAGNITUD
         function calcularIntensidad(mag) {
             if (mag >= 8.0) return { rom: 'XII', class: '#7f1d1d' };
             if (mag >= 7.3) return { rom: 'XI', class: '#991b1b' };
