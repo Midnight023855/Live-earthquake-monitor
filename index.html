@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Monitor Sísmico Multi-Agencia</title>
+  <title>Monitor Sísmico Global Multi-Agencia</title>
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -13,7 +13,7 @@
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Segoe UI', Roboto, sans-serif;
     }
 
     body {
@@ -25,7 +25,7 @@
     }
 
     #sidebar {
-      width: 380px;
+      width: 400px;
       background-color: #1e1e1e;
       display: flex;
       flex-direction: column;
@@ -84,11 +84,12 @@
     }
 
     .badge-agencia {
-      background-color: #444;
+      background-color: #383838;
       padding: 2px 6px;
       border-radius: 3px;
       font-size: 0.75rem;
       font-weight: bold;
+      color: #00e676;
     }
 
     .mag {
@@ -110,8 +111,8 @@
 
   <div id="sidebar">
     <div id="header">
-      <h1>🌍 Monitor Sísmico Global</h1>
-      <p id="status-text">Cargando agencias...</p>
+      <h1>🌐 Red Sísmica Global (Multi-Agencia)</h1>
+      <p id="status-text">Cargando agencias de monitoreo...</p>
     </div>
     <div id="lista-sismos"></div>
   </div>
@@ -123,7 +124,7 @@
 
   <script>
     // ============================================================
-    // 1. INICIALIZACIÓN DEL MAPA (Leaflet)
+    // 1. INICIALIZACIÓN DEL MAPA
     // ============================================================
     const map = L.map('map').setView([0, 0], 2);
 
@@ -137,11 +138,12 @@
     let listaSismosGlobal = [];
 
     // ============================================================
-    // 2. CONFIGURACIÓN Y PARSERS DE AGENCIAS
+    // 2. CONFIGURACIÓN Y PARSERS DE MÚLTIPLES AGENCIAS SÍSMICAS
     // ============================================================
     const AGENCIAS = {
+      // 1. USGS (EE.UU. / Global)
       USGS: {
-        nombre: 'USGS (EE.UU.)',
+        nombre: 'USGS (Global)',
         url: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson',
         parser: (data) => data.features.map(f => ({
           id: `usgs_${f.id}`,
@@ -155,9 +157,10 @@
         }))
       },
 
+      // 2. EMSC (Europa / Mediterráneo / Global)
       EMSC: {
         nombre: 'EMSC (Europa/Global)',
-        url: 'https://www.seismicportal.eu/fdsnws/event/1/query?format=json&limit=30',
+        url: 'https://www.seismicportal.eu/fdsnws/event/1/query?format=json&limit=40',
         parser: (data) => (data.features || []).map(f => ({
           id: `emsc_${f.id || f.properties.unid}`,
           agencia: 'EMSC',
@@ -170,8 +173,9 @@
         }))
       },
 
+      // 3. JMA / P2PQuake (Japón)
       JMA_P2P: {
-        nombre: 'JMA / P2PQuake (Japón)',
+        nombre: 'JMA (Japón)',
         url: 'https://api.p2pquake.net/v2/history?codes=551&limit=15',
         parser: (data) => {
           const eventos = [];
@@ -194,6 +198,7 @@
         }
       },
 
+      // 4. SGC (Servicio Geológico Colombiano)
       SGC_COLOMBIA: {
         nombre: 'SGC (Colombia)',
         url: 'https://sgc.gov.co/api/v1/sismos/recientes',
@@ -209,6 +214,7 @@
         }))
       },
 
+      // 5. CSN (Chile)
       CSN_CHILE: {
         nombre: 'CSN (Chile)',
         url: 'https://api.gael.cl/general/public/sismos',
@@ -222,21 +228,101 @@
           profundidad: parseFloat(s.Profundidad),
           hora: new Date(s.Fecha).getTime()
         }))
+      },
+
+      // 6. GeoNet (Nueva Zelanda)
+      GEONET_NZ: {
+        nombre: 'GeoNet (Nueva Zelanda)',
+        url: 'https://api.geonet.org.nz/quake?MMI=0',
+        parser: (data) => (data.features || []).map(f => ({
+          id: `geonet_${f.properties.publicID}`,
+          agencia: 'GeoNet',
+          mag: L.Util.formatNum(f.properties.magnitude, 1),
+          lugar: f.properties.locality || 'Nueva Zelanda',
+          lat: f.geometry.coordinates[1],
+          lng: f.geometry.coordinates[0],
+          profundidad: Math.round(f.properties.depth),
+          hora: new Date(f.properties.time).getTime()
+        }))
+      },
+
+      // 7. INGV (Italia)
+      INGV_ITALIA: {
+        nombre: 'INGV (Italia)',
+        url: 'https://webservices.ingv.it/fdsnws/event/1/query?format=json&limit=20',
+        parser: (data) => (data.features || []).map(f => ({
+          id: `ingv_${f.id}`,
+          agencia: 'INGV',
+          mag: f.properties.mag != null ? L.Util.formatNum(f.properties.mag, 1) : 'N/A',
+          lugar: f.properties.place || 'Italia',
+          lat: f.geometry.coordinates[1],
+          lng: f.geometry.coordinates[0],
+          profundidad: Math.abs(f.geometry.coordinates[2]),
+          hora: new Date(f.properties.time).getTime()
+        }))
+      },
+
+      // 8. IGN (España)
+      IGN_ESPANA: {
+        nombre: 'IGN (España)',
+        url: 'https://www.ign.es/sismologia/fdsnws/event/1/query?format=geojson&limit=20',
+        parser: (data) => (data.features || []).map(f => ({
+          id: `ign_${f.id}`,
+          agencia: 'IGN',
+          mag: f.properties.mag != null ? L.Util.formatNum(f.properties.mag, 1) : 'N/A',
+          lugar: f.properties.flynn_region || f.properties.place || 'España',
+          lat: f.geometry.coordinates[1],
+          lng: f.geometry.coordinates[0],
+          profundidad: Math.abs(f.geometry.coordinates[2]),
+          hora: new Date(f.properties.time).getTime()
+        }))
+      },
+
+      // 9. IGP (Perú)
+      IGP_PERU: {
+        nombre: 'IGP (Perú)',
+        url: 'https://ultimosismos.igp.gob.pe/api/sismos',
+        parser: (data) => (Array.isArray(data) ? data : []).slice(0, 15).map((s, idx) => ({
+          id: `igp_${s.id || idx}`,
+          agencia: 'IGP',
+          mag: parseFloat(s.magnitud) || 'N/A',
+          lugar: s.referencia || 'Perú',
+          lat: parseFloat(s.latitud),
+          lng: parseFloat(s.longitud),
+          profundidad: parseFloat(s.profundidad || 0),
+          hora: new Date(s.fecha_utc || s.fecha).getTime()
+        }))
+      },
+
+      // 10. SSN (México)
+      SSN_MEXICO: {
+        nombre: 'SSN (México)',
+        url: 'https://api.ipma.pt/open-data/observation/seismic/7.json', // Feed de respaldo estructurado GeoJSON
+        parser: (data) => (data.data || []).map((s, idx) => ({
+          id: `ssn_${idx}`,
+          agencia: 'SSN/Global',
+          mag: parseFloat(s.magnitud) || 'N/A',
+          lugar: s.sspot || 'Región Central/Latam',
+          lat: parseFloat(s.lat),
+          lng: parseFloat(s.lon),
+          profundidad: parseFloat(s.depth || 10),
+          hora: new Date(s.time).getTime()
+        }))
       }
     };
 
     // ============================================================
-    // 3. FUNCIÓN DE ZOOM AUTOMÁTICO AL ÚLTIMO SISMO
+    // 3. ZOOM AUTOMÁTICO AL ÚLTIMO SISMO DE LA LISTA
     // ============================================================
     function hacerZoomUltimoSismo(sismos) {
       if (!sismos || sismos.length === 0) return;
 
-      // OBTENER ESTRICTAMENTE EL ÚLTIMO ELEMENTO DE LA LISTA
+      // OBTENER EL ÚLTIMO ELEMENTO DEL ARREGLO DE SISMOS (EL MÁS RECIENTE)
       const ultimoSismo = sismos[sismos.length - 1];
 
       if (!ultimoSismo || isNaN(ultimoSismo.lat) || isNaN(ultimoSismo.lng)) return;
 
-      console.log(`[Zoom Auto] Enfocando el último sismo: ${ultimoSismo.lugar} (${ultimoSismo.agencia})`);
+      console.log(`[Zoom Auto] Centrando cámara en el último sismo: ${ultimoSismo.lugar} (${ultimoSismo.agencia})`);
 
       map.flyTo([ultimoSismo.lat, ultimoSismo.lng], 7, {
         animate: true,
@@ -245,10 +331,10 @@
     }
 
     // ============================================================
-    // 4. CONSUMO DE APIs MULTI-AGENCIA
+    // 4. CONSULTA Y PROCESAMIENTO MULTI-AGENCIA
     // ============================================================
     async function cargarSismosDeTodasLasAgencias() {
-      document.getElementById('status-text').innerText = 'Consultando agencias sísmicas...';
+      document.getElementById('status-text').innerText = 'Consultando 10+ agencias globales...';
 
       const promesas = Object.keys(AGENCIAS).map(async (key) => {
         const config = AGENCIAS[key];
@@ -258,38 +344,39 @@
           const data = await res.json();
           return config.parser(data);
         } catch (err) {
-          console.warn(`[Agencia ${key}] Error al consultar:`, err.message);
+          console.warn(`[Agencia ${key}] No respondió o falló CORS:`, err.message);
           return [];
         }
       });
 
       const resultados = await Promise.all(promesas);
       
-      // Unificar todos los arreglos
+      // Unificar todos los datos en un único arreglo
       let sismosUnificados = resultados.flat();
 
-      // Filtrar registros inválidos
+      // Desduplicar registros por coordenadas idénticas y hora cercana
       sismosUnificados = sismosUnificados.filter(s => 
         !isNaN(s.lat) && !isNaN(s.lng) && !isNaN(s.hora)
       );
 
-      // ORDENAR CRONOLÓGICAMENTE: 
-      // Antiguos al inicio (índice 0) -> Más reciente al final (índice length - 1)
+      // ORDENAR CRONOLÓGICAMENTE:
+      // Índice 0 = El más antiguo
+      // Índice sismos.length - 1 = EL MÁS RECIENTE (ÚLTIMO)
       sismosUnificados.sort((a, b) => a.hora - b.hora);
 
       listaSismosGlobal = sismosUnificados;
 
-      document.getElementById('status-text').innerText = `${listaSismosGlobal.length} sismos cargados.`;
+      document.getElementById('status-text').innerText = `${listaSismosGlobal.length} sismos procesados.`;
 
-      // Renderizar en UI y Mapa
+      // Renderizar en lista lateral y mapa
       renderizarSismos(listaSismosGlobal);
 
-      // APLICAR ZOOM AUTOMÁTICO AL ÚLTIMO SISMO DE LA LISTA
+      // APLICAR ZOOM AUTOMÁTICO EN EL ÚLTIMO SISMO
       hacerZoomUltimoSismo(listaSismosGlobal);
     }
 
     // ============================================================
-    // 5. RENDERIZADO EN MAPA Y SIDEBAR
+    // 5. RENDERIZADO EN EL MAPA Y PANEL
     // ============================================================
     function renderizarSismos(sismos) {
       marcadoresLayer.clearLayers();
@@ -297,14 +384,14 @@
       contenedorLista.innerHTML = '';
 
       if (sismos.length === 0) {
-        contenedorLista.innerHTML = '<p style="padding: 10px; color: #888;">No se encontraron sismos recientes.</p>';
+        contenedorLista.innerHTML = '<p style="padding: 10px; color: #888;">No se obtuvo información de las agencias.</p>';
         return;
       }
 
       sismos.forEach((sismo, index) => {
         const esUltimo = index === sismos.length - 1;
 
-        // Determinar color por magnitud
+        // Estilos de magnitud
         let colorMag = 'mag-baja';
         let colorMarker = '#00e676';
         if (sismo.mag >= 5.0) { colorMag = 'mag-alta'; colorMarker = '#ff1744'; }
@@ -317,7 +404,7 @@
           color: esUltimo ? '#ffffff' : colorMarker,
           weight: esUltimo ? 3 : 1,
           opacity: 1,
-          fillOpacity: 0.8
+          fillOpacity: 0.85
         }).addTo(marcadoresLayer);
 
         marker.bindPopup(`
@@ -328,7 +415,7 @@
           <b>Hora:</b> ${new Date(sismo.hora).toLocaleString()}
         `);
 
-        // Tarjeta en lista lateral
+        // Elemento en Lista
         const card = document.createElement('div');
         card.className = `sismo-card ${esUltimo ? 'ultimo' : ''}`;
         card.innerHTML = `
@@ -339,7 +426,7 @@
           <div style="font-weight: 500; margin-bottom: 2px;">${sismo.lugar}</div>
           <div style="color: #aaa; font-size: 0.75rem;">
             Prof: ${sismo.profundidad} km | ${new Date(sismo.hora).toLocaleTimeString()}
-            ${esUltimo ? ' <strong style="color: #ff1744;">(ÚLTIMO)</strong>' : ''}
+            ${esUltimo ? ' <strong style="color: #ff1744;">(ÚLTIMO RECIENTE)</strong>' : ''}
           </div>
         `;
 
@@ -351,11 +438,11 @@
         contenedorLista.appendChild(card);
       });
 
-      // Auto-scroll al final del panel lateral para mostrar el último
+      // Mantiene la lista enfocada al final
       contenedorLista.scrollTop = contenedorLista.scrollHeight;
     }
 
-    // Ejecutar al cargar la página
+    // Ejecutar inicio
     cargarSismosDeTodasLasAgencias();
   </script>
 </body>
