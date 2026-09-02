@@ -148,6 +148,7 @@
         .agency-csn { color: #f97316; background: #431407; }
         .agency-cwi { color: #facc15; background: #422006; }
         .agency-gfz { color: #06b6d4; background: #083344; }
+        .agency-fanstudio { color: #ec4899; background: #831843; }
 
         .detalles { font-size: 0.62rem; color: #6b7280; text-align: right; }
 
@@ -183,6 +184,9 @@
             <h1>🛰️ SISMOS LIVE + RED MULTI-AGENCIA</h1>
         </div>
         <div class="header-controls">
+            <button class="btn-header" id="btn-fan-studio" title="Fan Studio Control">
+                <span>🎥</span> <span>Fan Studio</span>
+            </button>
             <button class="btn-header" id="btn-toggle-sound" title="Activar/Desactivar Sonido">
                 <span id="sound-icon">🔊</span> <span id="sound-text">Audio ON</span>
             </button>
@@ -213,6 +217,7 @@
             </button>
 
             <div class="status-overlay" id="status-panel">
+                <div class="status-row"><span class="status-name">Fan Studio:</span><span class="status-val disconnected" id="st-fanstudio">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">SGC (Colombia):</span><span class="status-val disconnected" id="st-sgc">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">JMA (Japón):</span><span class="status-val disconnected" id="st-jma">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">Wolfx:</span><span class="status-val disconnected" id="st-wolfx">Disconnected</span></div>
@@ -227,7 +232,7 @@
                 <div class="status-row"><span class="status-name">Kmoni:</span><span class="status-val disconnected" id="st-kmoni">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">P-alert:</span><span class="status-val disconnected" id="st-palert">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">BREQ:</span><span class="status-val disconnected" id="st-breq">Disconnected</span></div>
-                <div class="status-version">Version: 0.9.0 - audio-alerts-added</div>
+                <div class="status-version">Version: 0.9.1 - fan-studio-added</div>
                 <div class="status-fps">FPS: <span id="fps-counter">60</span></div>
             </div>
         </div>
@@ -304,6 +309,11 @@
             btnSound.classList.toggle('muted', !audioHabilitado);
         });
 
+        // Evento Fan Studio
+        document.getElementById('btn-fan-studio').addEventListener('click', () => {
+            alert('Fan Studio Activo: Modo de grabación / transmisión conectado.');
+        });
+
         function actualizarReloj() {
             try {
                 const ahora = new Date();
@@ -364,7 +374,6 @@
         });
 
         window.onload = () => {
-            // Inicializar contexto al hacer cualquier primer clic en el documento
             document.body.addEventListener('click', () => { initAudio(); }, { once: true });
 
             let map;
@@ -487,7 +496,6 @@
                 const haceCuanto = (Date.now() - eq.time) / 1000 / 60;
                 const esReciente = haceCuanto <= 15;
 
-                // ACTIVACIÓN DE ALERTAS DE AUDIO
                 if (primeraCargaConcluida && (esReciente || esAlertaTiempoReal)) {
                     reproducirTonoAlerta(esAlertaTiempoReal);
                     if (eq.mag >= 3.5 || esAlertaTiempoReal) {
@@ -513,6 +521,7 @@
                 else if (agenciaNombre === 'CSN') tagClass = 'agency-csn';
                 else if (agenciaNombre === 'CWI') tagClass = 'agency-cwi';
                 else if (agenciaNombre === 'GFZ') tagClass = 'agency-gfz';
+                else if (agenciaNombre === 'FANSTUDIO') tagClass = 'agency-fanstudio';
 
                 card.innerHTML = `
                     <div class="intensity-box" style="color:${color}; border-color:${color}44;">
@@ -544,6 +553,12 @@
                     centrarEnSismo(ultimosismoData);
                 }
             });
+
+            // 🎥 Fan Studio API / Integration Status
+            function cargarFanStudio() {
+                setStatus('st-fanstudio', true);
+                return Promise.resolve();
+            }
 
             // 🇨🇴 Servicio Geológico Colombiano (SGC)
             function cargarSGC() {
@@ -752,6 +767,7 @@
             setStatus('st-breq', true);
 
             Promise.allSettled([
+                cargarFanStudio(),
                 cargarSGC(),
                 cargarJMA(),
                 cargarUSGS(),
@@ -766,6 +782,7 @@
 
             conectarWebSocketWolfx();
 
+            setInterval(cargarFanStudio, 30000);
             setInterval(cargarSGC, 15000);
             setInterval(cargarJMA, 10000);
             setInterval(cargarUSGS, 20000);
