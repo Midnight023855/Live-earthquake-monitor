@@ -13,9 +13,37 @@
         body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background-color: #0b0f19; color: #f8fafc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         
         header { background: #111827; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1f2937; height: 45px; z-index: 1000; }
-        header h1 { font-size: 0.85rem; color: #38bdf8; }
+        header h1 { font-size: 0.85rem; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
         
         .header-controls { display: flex; align-items: center; gap: 8px; }
+
+        /* WIDGET NIVEL DE ALERTA */
+        .alert-widget {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #1e293b;
+            padding: 3px 8px;
+            border-radius: 4px;
+            border: 1px solid #334155;
+            font-size: 0.68rem;
+            font-weight: bold;
+        }
+        .alert-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #4ade80;
+            box-shadow: 0 0 8px #4ade80;
+            transition: all 0.3s ease;
+        }
+        .alert-widget.level-yellow .alert-indicator { background-color: #facc15; box-shadow: 0 0 8px #facc15; }
+        .alert-widget.level-red .alert-indicator { background-color: #ef4444; box-shadow: 0 0 10px #ef4444; animation: pulseAlert 1s infinite alternate; }
+
+        @keyframes pulseAlert {
+            0% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
 
         .btn-header {
             background: #1e293b;
@@ -41,16 +69,16 @@
         #main-container { display: flex; flex: 1; height: calc(100vh - 45px); position: relative; overflow: hidden; }
 
         #sidebar-wrapper {
-            width: 320px;
-            min-width: 280px;
-            background: rgba(11, 15, 25, 0.95);
+            width: 330px;
+            min-width: 290px;
+            background: rgba(11, 15, 25, 0.98);
             border-right: 2px solid #1f2937;
             display: flex;
             flex-direction: column;
             z-index: 500;
         }
 
-        #panel-sismos { flex: 1; overflow-y: auto; padding: 8px; }
+        #panel-sismos { flex: 1; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 4px; transition: background-color 0.4s ease; }
 
         #map-container { position: relative; flex: 1; height: 100%; width: 100%; }
         #map { height: 100%; width: 100%; background: #0c101c; }
@@ -65,59 +93,201 @@
         .btn-home-sismo:hover { background-color: #38bdf8; color: #0f172a; box-shadow: 0 0 12px rgba(56, 189, 248, 0.6); }
         .btn-home-sismo svg { width: 22px; height: 22px; fill: currentColor; }
 
-        .sismo-card { 
-            background: #111827; margin-bottom: 6px; padding: 8px; border-radius: 6px; 
-            border-left: 4px solid #38bdf8; cursor: pointer; display: flex; 
-            align-items: center; gap: 8px; transition: background 0.2s, transform 0.2s;
+        /* ESTILO EQUAKE - SISMO PRINCIPAL DESTACADO (TOP PANEL) */
+        .equake-featured-card {
+            background: #0d1322;
+            border: 1px solid #2563eb;
+            border-radius: 4px;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.6);
+            margin-bottom: 4px;
         }
-        .sismo-card:hover { background: #1e293b; }
-        .sismo-card.nueva-alerta { animation: pulseCard 1.5s infinite alternate; }
+        .equake-featured-title {
+            font-size: 0.65rem;
+            font-weight: bold;
+            color: #38bdf8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #1e293b;
+            padding-bottom: 2px;
+        }
+        .equake-featured-body {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .equake-featured-rom {
+            min-width: 50px;
+            height: 52px;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            font-weight: 900;
+            color: #ffffff;
+            box-shadow: 0 0 8px rgba(0,0,0,0.5);
+            font-family: monospace;
+        }
+        .equake-featured-info {
+            flex: 1;
+            overflow: hidden;
+        }
+        .equake-featured-place {
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #ffffff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .equake-featured-time {
+            font-size: 0.62rem;
+            color: #94a3b8;
+            font-family: monospace;
+            margin-top: 2px;
+        }
+        .equake-featured-stats {
+            display: flex;
+            gap: 12px;
+            margin-top: 4px;
+            align-items: baseline;
+        }
+        .equake-featured-mag {
+            font-size: 1.15rem;
+            font-weight: 900;
+            font-family: monospace;
+        }
+        .equake-featured-depth {
+            font-size: 0.72rem;
+            color: #cbd5e1;
+            font-family: monospace;
+        }
+
+        /* ESTILO EQUAKE - LISTA COMPACTA DE SISMOS */
+        .equake-list-card {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-left: 5px solid #38bdf8;
+            border-radius: 3px;
+            padding: 4px 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        .equake-list-card:hover {
+            background: #1e293b;
+            border-color: #3b82f6;
+        }
+        .equake-list-card.nueva-alerta {
+            animation: pulseCard 1.5s infinite alternate;
+        }
+
+        .equake-rom-badge {
+            width: 24px;
+            text-align: center;
+            font-weight: 900;
+            font-size: 0.75rem;
+            font-family: monospace;
+            line-height: 1;
+        }
+
+        .equake-content {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .equake-place {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #e2e8f0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.2;
+        }
+        .equake-meta {
+            font-size: 0.58rem;
+            color: #94a3b8;
+            font-family: monospace;
+            line-height: 1.2;
+            margin-top: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .equake-mag-val {
+            font-size: 0.88rem;
+            font-weight: 900;
+            font-family: monospace;
+            text-align: right;
+            min-width: 42px;
+            line-height: 1;
+        }
+
+        .replicas-badge {
+            font-size: 0.58rem;
+            color: #f59e0b;
+            background: #451a03;
+            border: 1px solid #b45309;
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-top: 2px;
+            cursor: pointer;
+            display: inline-block;
+            align-self: flex-start;
+        }
+        .replicas-container {
+            display: none;
+            margin-top: 2px;
+            padding-left: 6px;
+            border-left: 2px dashed #f59e0b;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .replicas-container.open { display: flex; }
 
         @keyframes pulseCard {
-            0% { background: #111827; }
+            0% { background: #0f172a; }
             100% { background: #1e1b4b; }
         }
 
-        .intensity-box {
-            min-width: 36px; height: 32px; background: #1e293b; border: 1px solid #334155;
-            border-radius: 4px; display: flex; align-items: center; justify-content: center;
-            font-weight: bold; font-size: 0.75rem; color: #38bdf8; font-family: monospace;
-        }
-
-        .sismo-info { flex-grow: 1; overflow: hidden; }
-        .mag-row { display: flex; justify-content: space-between; align-items: center; }
-        .mag { font-weight: bold; font-size: 0.9rem; }
-        .lugar { font-size: 0.75rem; color: #d1d5db; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; margin-top: 1px; }
-        
-        .agency-tag { display: inline-block; font-size: 0.55rem; padding: 1px 4px; border-radius: 3px; background: #1e293b; color: #38bdf8; font-weight: bold; }
-        .agency-sgc { color: #facc15; background: #854d0e; }
-        .agency-jma { color: #f43f5e; background: #881337; }
-        .agency-wolfx { color: #a855f7; background: #3b0764; }
-        .agency-emsc { color: #f43f5e; background: #4c0519; }
-        .agency-usgs { color: #38bdf8; background: #0c4a6e; }
-        .agency-geonet { color: #10b981; background: #064e3b; }
-        .agency-csn { color: #f97316; background: #431407; }
-        .agency-cwi { color: #facc15; background: #422006; }
-        .agency-gfz { color: #06b6d4; background: #083344; }
-        .agency-ingv { color: #34d399; background: #064e3b; }
-        .agency-ign { color: #fbbf24; background: #78350f; }
-        .agency-inpres { color: #60a5fa; background: #1e3a8a; }
-        .agency-ssn { color: #f87171; background: #7f1d1d; }
-        .agency-kma { color: #c084fc; background: #581c87; }
-        .agency-cenc { color: #ef4444; background: #450a0a; }
-        .agency-igp { color: #facc15; background: #713f12; }
-        .agency-bmkg { color: #a3e635; background: #365314; }
-        .agency-sed { color: #38bdf8; background: #164e63; }
-        .agency-isc { color: #e879f9; background: #701a75; }
-        .agency-fanstudio { color: #38bdf8; background: #0369a1; }
-        .agency-general { color: #38bdf8; background: #1e293b; }
-
-        .detalles { font-size: 0.62rem; color: #6b7280; text-align: right; }
-
         .epicenter-x {
-            color: #ef4444; font-weight: 900; font-size: 22px;
-            text-shadow: 0 0 6px #000, 0 0 10px #ef4444; text-align: center; line-height: 22px;
+            color: #ef4444; font-weight: 900; font-size: 26px;
+            text-shadow: 0 0 6px #000, 0 0 12px #ef4444; text-align: center; line-height: 26px;
         }
+
+        /* CONSOLA DE LOGS / TERMINAL */
+        .terminal-panel {
+            position: absolute; bottom: 12px; left: 60px; z-index: 1000;
+            width: 320px; height: 130px; background: rgba(5, 8, 15, 0.92);
+            border: 1px solid #1f2937; border-radius: 6px; display: flex;
+            flex-direction: column; font-family: monospace; font-size: 0.62rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.7); overflow: hidden; transition: height 0.2s;
+        }
+        .terminal-panel.minimized { height: 26px; }
+        .terminal-header {
+            background: #111827; padding: 4px 8px; display: flex; justify-content: space-between;
+            align-items: center; border-bottom: 1px solid #1f2937; color: #38bdf8; font-weight: bold; cursor: pointer;
+        }
+        .terminal-logs {
+            flex: 1; padding: 6px; overflow-y: auto; color: #4ade80; line-height: 1.35;
+        }
+        .terminal-log-entry { margin-bottom: 2px; word-break: break-all; }
+        .terminal-log-entry .log-time { color: #9ca3af; }
+        .terminal-log-entry .log-agency { color: #facc15; font-weight: bold; }
 
         .status-overlay {
             position: absolute; top: 8px; right: 8px; z-index: 1000;
@@ -141,11 +311,17 @@
             <h1>🛰️ SISMOS LIVE + RED MULTI-AGENCIA GLOBAL</h1>
         </div>
         <div class="header-controls">
+            <!-- WIDGET DE ALERTA GLOBAL -->
+            <div class="alert-widget" id="global-alert-widget">
+                <div class="alert-indicator" id="alert-dot"></div>
+                <span id="alert-text">SISMICIDAD NORMAL</span>
+            </div>
+
+            <button class="btn-header" id="btn-toggle-notif" title="Activar Notificaciones de Escritorio">
+                <span>🔔</span> <span id="notif-text">Notis OFF</span>
+            </button>
             <button class="btn-header" id="btn-toggle-sound" title="Activar/Desactivar Sonido Bip">
                 <span id="sound-icon">🔊</span> <span id="sound-text">Audio ON</span>
-            </button>
-            <button class="btn-header" id="btn-toggle-speech" title="Activar/Desactivar y Leer Lista de Sismos">
-                <span id="speech-icon">🗣️</span> <span id="speech-text">Voz ON</span>
             </button>
             <button class="btn-header" id="btn-toggle-fullscreen" title="Pantalla completa">
                 <span id="fs-icon">⛶</span> <span id="fs-text">Pantalla Completa</span>
@@ -159,6 +335,24 @@
 
     <div id="main-container">
         <div id="sidebar-wrapper">
+            <!-- PANEL SUPERIOR DESTACADO ESTILO EQUAKE -->
+            <div style="padding: 6px 6px 0 6px;" id="featured-container">
+                <div class="equake-featured-card" id="equake-top-featured">
+                    <div class="equake-featured-title">Displaying Information</div>
+                    <div class="equake-featured-body">
+                        <div class="equake-featured-rom" id="top-feat-rom" style="background:#64748b;">I</div>
+                        <div class="equake-featured-info">
+                            <div class="equake-featured-place" id="top-feat-place">Esperando datos...</div>
+                            <div class="equake-featured-time" id="top-feat-time">----/--/-- --:--:--</div>
+                            <div class="equake-featured-stats">
+                                <span class="equake-featured-mag" id="top-feat-mag" style="color:#38bdf8;">M0.0</span>
+                                <span class="equake-featured-depth" id="top-feat-depth">Depth: 0km</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div id="panel-sismos">
                 <div style="padding: 10px; text-align: center; color: #6b7280; font-size: 0.8rem;" id="loading">Cargando monitoreo sísmico...</div>
             </div>
@@ -172,6 +366,17 @@
                     <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
                 </svg>
             </button>
+
+            <!-- CONSOLA / TERMINAL DE EVENTOS -->
+            <div class="terminal-panel" id="terminal-panel">
+                <div class="terminal-header" id="terminal-header">
+                    <span>💻 CONSOLA DE EVENTOS</span>
+                    <span id="terminal-toggle-btn">[-]</span>
+                </div>
+                <div class="terminal-logs" id="terminal-logs">
+                    <div class="terminal-log-entry"><span class="log-time">[SISTEMA]</span> Iniciando consola de monitoreo...</div>
+                </div>
+            </div>
 
             <div class="status-overlay" id="status-panel">
                 <div class="status-row"><span class="status-name">Fan Studio:</span><span class="status-val disconnected" id="st-fanstudio">Disconnected</span></div>
@@ -194,7 +399,11 @@
                 <div class="status-row"><span class="status-name">SSN (México):</span><span class="status-val disconnected" id="st-ssn">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">KMA (Corea):</span><span class="status-val disconnected" id="st-kma">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">CENC (China):</span><span class="status-val disconnected" id="st-cenc">Disconnected</span></div>
-                <div class="status-version">Version: 1.0.8 Global Seismic Sync</div>
+                <div class="status-row"><span class="status-name">PHIVOLCS (Filipinas):</span><span class="status-val disconnected" id="st-phivolcs">Disconnected</span></div>
+                <div class="status-row"><span class="status-name">OVSICORI (C. Rica):</span><span class="status-val disconnected" id="st-ovsicori">Disconnected</span></div>
+                <div class="status-row"><span class="status-name">FUNVISIS (Ven):</span><span class="status-val disconnected" id="st-funvisis">Disconnected</span></div>
+                <div class="status-row"><span class="status-name">IGEPN (Ecuador):</span><span class="status-val disconnected" id="st-igepn">Disconnected</span></div>
+                <div class="status-version">Version: 1.2.0 Global Seismic Sync</div>
                 <div class="status-fps">FPS: <span id="fps-counter">60</span></div>
             </div>
         </div>
@@ -202,7 +411,6 @@
 
     <script>
         let audioHabilitado = true;
-        let vozHabilitada = true;
         let audioCtx = null;
         let listaGlobalSismos = [];
 
@@ -215,7 +423,123 @@
             }
         }
 
-        function reproducirTonoAlerta(esEEW = false, mag = 0) {
+        /* LOGS EN LA TERMINAL */
+        function agregarLogTerminal(agencia, mensaje) {
+            const container = document.getElementById('terminal-logs');
+            if (!container) return;
+            const timeStr = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'terminal-log-entry';
+            entry.innerHTML = `<span class="log-time">[${timeStr}]</span> <span class="log-agency">${agencia}:</span> ${mensaje}`;
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Toggle para minimizar/maximizar terminal
+        document.getElementById('terminal-header').addEventListener('click', () => {
+            const panel = document.getElementById('terminal-panel');
+            const btn = document.getElementById('terminal-toggle-btn');
+            panel.classList.toggle('minimized');
+            btn.innerText = panel.classList.contains('minimized') ? '[+]' : '[-]';
+        });
+
+        /* EVALUAR NIVEL DE ALERTA GLOBAL */
+        function actualizarWidgetAlerta() {
+            const widget = document.getElementById('global-alert-widget');
+            const textEl = document.getElementById('alert-text');
+            if (!widget || !textEl) return;
+
+            const ahora = Date.now();
+            const sismosRecientes = listaGlobalSismos.filter(eq => (ahora - eq.time) < 3600000); // 1 hora
+            const granTerremoto = listaGlobalSismos.some(eq => (ahora - eq.time) < 7200000 && eq.mag >= 7.0);
+            const sismoFuerte = sismosRecientes.some(eq => eq.mag >= 6.0);
+            const enjambre = sismosRecientes.length >= 15;
+
+            if (granTerremoto || (sismoFuerte && enjambre)) {
+                widget.className = 'alert-widget level-red';
+                textEl.innerText = 'ALERTA SÍSMICA ALTA';
+            } else if (sismoFuerte || enjambre) {
+                widget.className = 'alert-widget level-yellow';
+                textEl.innerText = 'ACTIVIDAD ELEVADA';
+            } else {
+                widget.className = 'alert-widget';
+                textEl.innerText = 'SISMICIDAD NORMAL';
+            }
+        }
+
+        function actualizarBotonNotificaciones() {
+            const btn = document.getElementById('btn-toggle-notif');
+            const txt = document.getElementById('notif-text');
+            if (!("Notification" in window)) {
+                txt.innerText = "No soportado";
+                return;
+            }
+            if (Notification.permission === "granted") {
+                txt.innerText = "Notis ON";
+                btn.style.borderColor = "#4ade80";
+                btn.style.color = "#4ade80";
+            } else if (Notification.permission === "denied") {
+                txt.innerText = "Bloqueadas";
+                btn.style.borderColor = "#ef4444";
+                btn.style.color = "#ef4444";
+            } else {
+                txt.innerText = "Activar Notis";
+                btn.style.borderColor = "#38bdf8";
+                btn.style.color = "#38bdf8";
+            }
+        }
+
+        document.getElementById('btn-toggle-notif').addEventListener('click', () => {
+            playClickSound();
+            if (!("Notification" in window)) {
+                alert("Tu navegador no soporta notificaciones de escritorio.");
+                return;
+            }
+
+            Notification.requestPermission().then((permission) => {
+                actualizarBotonNotificaciones();
+                if (permission === "granted") {
+                    new Notification("🚨 Sistema de Monitoreo Activo", {
+                        body: "Las notificaciones para M2.0+ en Colombia y M5.0+ global están activadas correctamente.",
+                        icon: "https://leafletjs.com/docs/images/logo.png"
+                    });
+                }
+            });
+        });
+
+        function evaluarNotificacionSismo(eq) {
+            if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+            const lugarUpper = (eq.place || "").toUpperCase();
+            const esColombia = lugarUpper.includes("COLOMBIA") || eq.agency === "SGC";
+            const mag = parseFloat(eq.mag || 0);
+
+            const notificar = (esColombia && mag >= 2.0) || (!esColombia && mag >= 5.0);
+
+            if (notificar) {
+                const titulo = esColombia 
+                    ? `🇨🇴 ¡SISMO EN COLOMBIA! M${mag.toFixed(1)}` 
+                    : `🌍 SISMO RELEVANTE GLOBAL M${mag.toFixed(1)}`;
+                
+                const texto = `${eq.place || 'Ubicación desconocida'}\nProfundidad: ${eq.depth || 0} km | Agencia: ${eq.agency || 'Desconocida'}`;
+
+                try {
+                    const n = new Notification(titulo, {
+                        body: texto,
+                        tag: eq.id,
+                        requireInteraction: mag >= 6.0
+                    });
+
+                    n.onclick = function() {
+                        window.focus();
+                        this.close();
+                    };
+                } catch(e) {}
+            }
+        }
+
+        /* AUDIO SINTÉTICO DINÁMICO POR AGENCIA/MAGNITUD */
+        function reproducirTonoAlerta(agencia = '', mag = 0) {
             if (!audioHabilitado) return;
             try {
                 initAudio();
@@ -226,29 +550,33 @@
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
 
-                if (esEEW) {
+                if (agencia === 'SGC') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now); // C5
+                    osc.frequency.setValueAtTime(659.25, now + 0.12); // E5
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                } else if (agencia.includes('WOLFX') || agencia === 'JMA') {
                     osc.type = 'sawtooth';
                     osc.frequency.setValueAtTime(880, now);
                     osc.frequency.setValueAtTime(1760, now + 0.15);
-                    osc.frequency.setValueAtTime(880, now + 0.3);
-                    osc.frequency.setValueAtTime(1760, now + 0.45);
-                    gain.gain.setValueAtTime(0.35, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
-                    osc.start(now);
-                    osc.stop(now + 0.6);
-                } else {
-                    osc.type = 'sine';
-                    let freqBase = 350; 
-                    if (mag >= 6.0) freqBase = 880;
-                    else if (mag >= 4.0) freqBase = 587.33;
-
-                    osc.frequency.setValueAtTime(freqBase, now);
-                    osc.frequency.setValueAtTime(freqBase * 1.25, now + 0.15);
-                    
-                    gain.gain.setValueAtTime(0.25, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
                     osc.start(now);
                     osc.stop(now + 0.5);
+                } else {
+                    osc.type = mag >= 6.0 ? 'triangle' : 'sine';
+                    let freqBase = Math.max(120, 600 - (mag * 60));
+
+                    osc.frequency.setValueAtTime(freqBase, now);
+                    osc.frequency.exponentialRampToValueAtTime(freqBase * 1.5, now + 0.2);
+                    
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
                 }
             } catch(e) {}
         }
@@ -294,42 +622,6 @@
             } catch(e) {}
         }
 
-        function hablarAlerta(texto) {
-            if (!vozHabilitada || !('speechSynthesis' in window)) return;
-            try {
-                window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(texto);
-                utterance.lang = 'es-ES';
-                utterance.rate = 1.05;
-                utterance.pitch = 1.0;
-                window.speechSynthesis.speak(utterance);
-            } catch(e) {}
-        }
-
-        function leerListaSismosTTS() {
-            if (!('speechSynthesis' in window)) return;
-            window.speechSynthesis.cancel();
-
-            if (!vozHabilitada) return;
-
-            if (listaGlobalSismos.length === 0) {
-                hablarAlerta("No hay sismos registrados en la lista aún.");
-                return;
-            }
-
-            const topSismos = listaGlobalSismos.slice(0, 5);
-            let mensaje = `Reporte de los últimos ${topSismos.length} sismos registrados. `;
-
-            topSismos.forEach((sismo, index) => {
-                const mag = sismo.mag ? parseFloat(sismo.mag).toFixed(1) : "desconocida";
-                const lugar = sismo.place || "Ubicación desconocida";
-                const agencia = sismo.agency || "Agencia global";
-                mensaje += `Número ${index + 1}: Magnitud ${mag} en ${lugar}, reportado por ${agencia}. `;
-            });
-
-            hablarAlerta(mensaje);
-        }
-
         const btnSound = document.getElementById('btn-toggle-sound');
         btnSound.addEventListener('click', () => {
             initAudio();
@@ -338,21 +630,6 @@
             document.getElementById('sound-icon').innerText = audioHabilitado ? "🔊" : "🔇";
             btnSound.classList.toggle('muted', !audioHabilitado);
             if (audioHabilitado) playClickSound();
-        });
-
-        const btnSpeech = document.getElementById('btn-toggle-speech');
-        btnSpeech.addEventListener('click', () => {
-            playClickSound();
-            vozHabilitada = !vozHabilitada;
-            document.getElementById('speech-text').innerText = vozHabilitada ? "Voz ON" : "Voz OFF";
-            document.getElementById('speech-icon').innerText = vozHabilitada ? "🗣️" : "🤐";
-            btnSpeech.classList.toggle('muted', !vozHabilitada);
-            
-            if (vozHabilitada) {
-                leerListaSismosTTS();
-            } else if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-            }
         });
 
         function actualizarReloj() {
@@ -387,19 +664,84 @@
             el.className = isConnected ? 'status-val connected' : 'status-val disconnected';
         }
 
+        /* CALCULO Y ESCALA DE INTENSIDAD Y COLOR ESTILO EQUAKE */
         function calcularIntensidad(mag) {
-            if (mag >= 8.0) return { rom: 'XII', class: '#7f1d1d' };
-            if (mag >= 7.3) return { rom: 'XI', class: '#991b1b' };
-            if (mag >= 6.5) return { rom: 'X', class: '#b91c1c' };
-            if (mag >= 6.1) return { rom: 'IX', class: '#dc2626' };
+            if (mag >= 8.0) return { rom: 'XII', class: '#4a0404' };
+            if (mag >= 7.3) return { rom: 'XI', class: '#7f1d1d' };
+            if (mag >= 6.5) return { rom: 'X', class: '#991b1b' };
+            if (mag >= 6.1) return { rom: 'IX', class: '#b91c1c' };
             if (mag >= 5.5) return { rom: 'VIII', class: '#ef4444' };
             if (mag >= 4.9) return { rom: 'VII', class: '#f97316' };
             if (mag >= 4.3) return { rom: 'VI', class: '#f59e0b' };
             if (mag >= 3.7) return { rom: 'V', class: '#eab308' };
             if (mag >= 3.0) return { rom: 'IV', class: '#84cc16' };
-            if (mag >= 2.5) return { rom: 'III', class: '#38bdf8' };
-            if (mag >= 2.0) return { rom: 'II', class: '#0284c7' };
+            if (mag >= 2.5) return { rom: 'III', class: '#22c55e' };
+            if (mag >= 2.0) return { rom: 'II', class: '#38bdf8' };
             return { rom: 'I', class: '#64748b' };
+        }
+
+        /* CONVERSIÓN HEX A RGBA CON OPACIDAD SUAVE */
+        function hexToRgba(hex, alpha) {
+            let c = hex.replace('#', '');
+            if (c.length === 3) c = c.split('').map(x => x + x).join('');
+            const num = parseInt(c, 16);
+            return `rgba(${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}, ${alpha})`;
+        }
+
+        function formatearFechaEQuake(timeStamp) {
+            const d = new Date(timeStamp);
+            const pad = (n) => String(n).padStart(2, '0');
+            return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        }
+
+        /* ACTUALIZAR TARJETA SUPERIOR DESTACADA ESTILO EQUAKE Y CAMBIAR COLOR DE LA LISTA */
+        function actualizarPanelDestacadoEquake(eq) {
+            if (!eq) return;
+            const mag = (eq.mag !== null && eq.mag !== undefined && !isNaN(eq.mag)) ? parseFloat(eq.mag).toFixed(1) : "0.0";
+            const intens = calcularIntensidad(eq.mag || 0);
+
+            const elRom = document.getElementById('top-feat-rom');
+            const elPlace = document.getElementById('top-feat-place');
+            const elTime = document.getElementById('top-feat-time');
+            const elMag = document.getElementById('top-feat-mag');
+            const elDepth = document.getElementById('top-feat-depth');
+
+            if (elRom) {
+                elRom.innerText = intens.rom;
+                elRom.style.backgroundColor = intens.class;
+            }
+            if (elPlace) elPlace.innerText = eq.place || "Ubicación desconocida";
+            if (elTime) elTime.innerText = `${formatearFechaEQuake(eq.time)} - ${eq.agency || 'Auto'}`;
+            if (elMag) {
+                elMag.innerText = `M${mag}`;
+                elMag.style.color = intens.class;
+            }
+            if (elDepth) elDepth.innerText = `Depth: ${eq.depth ? parseFloat(eq.depth).toFixed(0) : 0}km`;
+
+            /* CAMBIAR EL FONDO DEL PANEL DE LA LISTA SEGÚN LA INTENSIDAD */
+            const panelSismos = document.getElementById('panel-sismos');
+            if (panelSismos) {
+                panelSismos.style.backgroundColor = hexToRgba(intens.class, 0.25);
+            }
+
+            const topCard = document.getElementById('equake-top-featured');
+            if (topCard) {
+                topCard.onclick = () => {
+                    playClickSound();
+                    if (window.centrarEnSismoFn) window.centrarEnSismoFn(eq, true);
+                };
+            }
+        }
+
+        /* DISTANCIA EN KM ENTRE DOS PUNTOS (Fórmula de Haversine) */
+        function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
         const fsBtn = document.getElementById('btn-toggle-fullscreen');
@@ -421,6 +763,7 @@
         if (fsBtn) fsBtn.addEventListener('click', (e) => { e.preventDefault(); playClickSound(); toggleFullScreen(); });
 
         window.onload = () => {
+            actualizarBotonNotificaciones();
             document.body.addEventListener('click', () => { initAudio(); }, { once: true });
 
             let map;
@@ -439,12 +782,23 @@
                 L.DomEvent.disableScrollPropagation(document.getElementById('btn-recent-home'));
                 L.DomEvent.disableClickPropagation(document.getElementById('status-panel'));
                 L.DomEvent.disableScrollPropagation(document.getElementById('status-panel'));
+                L.DomEvent.disableClickPropagation(document.getElementById('terminal-panel'));
+                L.DomEvent.disableScrollPropagation(document.getElementById('terminal-panel'));
             } catch(e) { return; }
 
             const earthquakeLayer = L.layerGroup().addTo(map);
             const shakemapLayer = L.layerGroup().addTo(map);
             const conocidasIDs = new Set();
             let primeraCargaConcluida = false;
+
+            map.on('zoomend', () => {
+                if (map.getZoom() < 5) {
+                    if (!map.hasLayer(earthquakeLayer)) {
+                        map.addLayer(earthquakeLayer);
+                    }
+                    shakemapLayer.clearLayers();
+                }
+            });
 
             function dibujarShakemap(lat, lng, mag) {
                 shakemapLayer.clearLayers();
@@ -466,7 +820,7 @@
                     }
                 });
 
-                const xIcon = L.divIcon({ className: 'epicenter-x', html: '✕', iconSize: [20, 20], iconAnchor: [10, 10] });
+                const xIcon = L.divIcon({ className: 'epicenter-x', html: '✕', iconSize: [26, 26], iconAnchor: [13, 13] });
                 L.marker([lat, lng], { icon: xIcon, interactive: false }).addTo(shakemapLayer);
             }
 
@@ -474,16 +828,58 @@
                 if (!eq) return;
                 const nivelZoom = eq.mag >= 6.5 ? 5 : (eq.mag >= 5.0 ? 6 : (eq.mag >= 3.0 ? 7 : 8));
                 
+                if (map.hasLayer(earthquakeLayer)) {
+                    map.removeLayer(earthquakeLayer);
+                }
+
+                dibujarShakemap(eq.lat, eq.lng, eq.mag || 0);
+
                 if (suave) {
                     map.flyTo([eq.lat, eq.lng], nivelZoom, { duration: 1.2, easeLinearity: 0.25, animate: true });
-                    setTimeout(() => { 
-                        if (eq.marker) eq.marker.openPopup(); 
-                    }, 1300);
                 } else {
                     map.setView([eq.lat, eq.lng], nivelZoom, { animate: false });
-                    if (eq.marker) eq.marker.openPopup();
                 }
-                if (eq.mag >= 4.0) dibujarShakemap(eq.lat, eq.lng, eq.mag);
+            }
+            window.centrarEnSismoFn = centrarEnSismo;
+
+            /* EVALUAR Y AGRUPAR RÉPLICAS */
+            function evaluarGrupoReplica(nuevoEq, cardNuevo) {
+                for (let eq of listaGlobalSismos) {
+                    if (eq.id !== nuevoEq.id && eq.mag >= 4.0 && nuevoEq.mag < eq.mag) {
+                        const dist = calcularDistanciaKm(eq.lat, eq.lng, nuevoEq.lat, nuevoEq.lng);
+                        if (dist <= 60 && Math.abs(eq.time - nuevoEq.time) < 86400000) {
+                            const parentCard = document.getElementById(`card-${eq.id}`);
+                            if (parentCard) {
+                                let badge = parentCard.querySelector('.replicas-badge');
+                                let container = parentCard.querySelector('.replicas-container');
+                                
+                                if (!badge) {
+                                    badge = document.createElement('div');
+                                    badge.className = 'replicas-badge';
+                                    badge.innerText = 'Réplicas (+1)';
+                                    
+                                    container = document.createElement('div');
+                                    container.className = 'replicas-container';
+                                    
+                                    badge.addEventListener('click', (e) => {
+                                        e.stopPropagation();
+                                        container.classList.toggle('open');
+                                    });
+
+                                    parentCard.appendChild(badge);
+                                    parentCard.appendChild(container);
+                                } else {
+                                    let count = container.children.length + 1;
+                                    badge.innerText = `Réplicas (+${count})`;
+                                }
+
+                                container.appendChild(cardNuevo);
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
             }
 
             function agregarSismo(eq, esAlertaTiempoReal = false) {
@@ -493,7 +889,7 @@
                 const loading = document.getElementById('loading');
                 if (loading) loading.remove();
 
-                const mag = (eq.mag !== null && eq.mag !== undefined && !isNaN(eq.mag)) ? parseFloat(eq.mag).toFixed(1) : "N/A";
+                const mag = (eq.mag !== null && eq.mag !== undefined && !isNaN(eq.mag)) ? parseFloat(eq.mag).toFixed(1) : "0.0";
                 const place = eq.place || "Ubicación desconocida";
                 const timeStr = new Date(eq.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 const agenciaNombre = eq.agency || 'EMSC';
@@ -510,69 +906,51 @@
                 eq.marker = marker;
 
                 listaGlobalSismos.push(eq);
+                actualizarWidgetAlerta();
 
                 const haceCuanto = (Date.now() - eq.time) / 1000 / 60;
                 const esReciente = haceCuanto <= 15;
 
                 if (primeraCargaConcluida) {
+                    agregarLogTerminal(agenciaNombre, `M${mag} en ${place}`);
                     if (esReciente || esAlertaTiempoReal) {
-                        reproducirTonoAlerta(esAlertaTiempoReal, parseFloat(mag));
-                        if (eq.mag >= 3.5 || esAlertaTiempoReal) {
-                            hablarAlerta(`Atención. Sismo detectado por ${agenciaNombre}. Magnitud ${mag}. ${place}`);
-                        }
+                        reproducirTonoAlerta(agenciaNombre, parseFloat(mag));
+                        evaluarNotificacionSismo(eq);
                     }
                     centrarEnSismo(eq, true);
+                    actualizarPanelDestacadoEquake(eq);
                 }
 
+                /* TARJETA COMPACTA ESTILO EQUAKE */
                 const card = document.createElement('div');
-                card.className = 'sismo-card';
+                card.className = 'equake-list-card';
+                card.id = `card-${eq.id}`;
                 if (primeraCargaConcluida && esReciente) card.classList.add('nueva-alerta');
                 card.style.borderLeftColor = color;
-                
-                let tagClass = 'agency-general';
-                if (agenciaNombre === 'SGC') tagClass = 'agency-sgc';
-                else if (agenciaNombre === 'JMA') tagClass = 'agency-jma';
-                else if (agenciaNombre.includes('WOLFX')) tagClass = 'agency-wolfx';
-                else if (agenciaNombre === 'USGS') tagClass = 'agency-usgs';
-                else if (agenciaNombre === 'GEONET') tagClass = 'agency-geonet';
-                else if (agenciaNombre === 'CSN') tagClass = 'agency-csn';
-                else if (agenciaNombre === 'CWI') tagClass = 'agency-cwi';
-                else if (agenciaNombre === 'GFZ') tagClass = 'agency-gfz';
-                else if (agenciaNombre === 'INGV') tagClass = 'agency-ingv';
-                else if (agenciaNombre === 'IGN') tagClass = 'agency-ign';
-                else if (agenciaNombre === 'INPRES') tagClass = 'agency-inpres';
-                else if (agenciaNombre === 'SSN') tagClass = 'agency-ssn';
-                else if (agenciaNombre === 'KMA') tagClass = 'agency-kma';
-                else if (agenciaNombre === 'CENC') tagClass = 'agency-cenc';
-                else if (agenciaNombre === 'FANSTUDIO') tagClass = 'agency-fanstudio';
-                else if (agenciaNombre === 'IGP') tagClass = 'agency-igp';
-                else if (agenciaNombre === 'BMKG') tagClass = 'agency-bmkg';
-                else if (agenciaNombre === 'SED') tagClass = 'agency-sed';
-                else if (agenciaNombre === 'ISC') tagClass = 'agency-isc';
+
+                const timeFormated = formatearFechaEQuake(eq.time);
 
                 card.innerHTML = `
-                    <div class="intensity-box" style="color:${color}; border-color:${color}44;">
-                        ${intens.rom}
+                    <div class="equake-rom-badge" style="color: ${color};">${intens.rom}</div>
+                    <div class="equake-content">
+                        <div class="equake-place">${place}</div>
+                        <div class="equake-meta">${timeFormated} - ${agenciaNombre}</div>
                     </div>
-                    <div class="sismo-info">
-                        <div class="mag-row">
-                            <span class="mag" style="color: ${color}">M ${mag}</span>
-                            <span class="agency-tag ${tagClass}">${agenciaNombre}</span>
-                        </div>
-                        <div class="lugar">${place}</div>
-                    </div>
-                    <div class="detalles">
-                        <div>Prof: ${eq.depth ? parseFloat(eq.depth).toFixed(1) : 0}k</div>
-                        <div>${timeStr}</div>
-                    </div>
+                    <div class="equake-mag-val" style="color: ${color};">M${mag}</div>
                 `;
 
-                card.addEventListener('click', () => {
+                card.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     playClickSound();
                     centrarEnSismo(eq, true);
+                    actualizarPanelDestacadoEquake(eq);
                 });
-                const panel = document.getElementById('panel-sismos');
-                panel.insertBefore(card, panel.firstChild);
+
+                const esReplica = evaluarGrupoReplica(eq, card);
+                if (!esReplica) {
+                    const panel = document.getElementById('panel-sismos');
+                    panel.insertBefore(card, panel.firstChild);
+                }
             }
 
             document.getElementById('btn-recent-home').addEventListener('click', () => {
@@ -580,6 +958,7 @@
                 if (listaGlobalSismos.length > 0) {
                     listaGlobalSismos.sort((a, b) => b.time - a.time);
                     centrarEnSismo(listaGlobalSismos[0], true);
+                    actualizarPanelDestacadoEquake(listaGlobalSismos[0]);
                 }
             });
 
@@ -1034,18 +1413,101 @@
                     }).catch(() => setStatus('st-cenc', false));
             }
 
+            function cargarPHIVOLCS() {
+                const urlPhivolcs = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=4&maxlatitude=22&minlongitude=116&maxlongitude=127&limit=20';
+                return fetch(urlPhivolcs)
+                    .then(r => r.json())
+                    .then(d => {
+                        setStatus('st-phivolcs', true);
+                        if (d.features) {
+                            d.features.forEach(f => {
+                                agregarSismo({
+                                    id: `phivolcs-${f.id}`, mag: parseFloat(f.properties.mag || 0),
+                                    place: f.properties.place || 'Filipinas (PHIVOLCS)',
+                                    lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
+                                    depth: Math.abs(f.geometry.coordinates[2] || 0),
+                                    time: f.properties.time, agency: 'PHIVOLCS'
+                                });
+                            });
+                        }
+                    }).catch(() => setStatus('st-phivolcs', false));
+            }
+
+            function cargarOVSICORI() {
+                const urlOvsicori = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=8&maxlatitude=11.5&minlongitude=-86&maxlongitude=-82.5&limit=20';
+                return fetch(urlOvsicori)
+                    .then(r => r.json())
+                    .then(d => {
+                        setStatus('st-ovsicori', true);
+                        if (d.features) {
+                            d.features.forEach(f => {
+                                agregarSismo({
+                                    id: `ovsicori-${f.id}`, mag: parseFloat(f.properties.mag || 0),
+                                    place: f.properties.place || 'Costa Rica (OVSICORI)',
+                                    lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
+                                    depth: Math.abs(f.geometry.coordinates[2] || 0),
+                                    time: f.properties.time, agency: 'OVSICORI'
+                                });
+                            });
+                        }
+                    }).catch(() => setStatus('st-ovsicori', false));
+            }
+
+            function cargarFUNVISIS() {
+                const urlFunvisis = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=0.5&maxlatitude=16&minlongitude=-73.5&maxlongitude=-59&limit=20';
+                return fetch(urlFunvisis)
+                    .then(r => r.json())
+                    .then(d => {
+                        setStatus('st-funvisis', true);
+                        if (d.features) {
+                            d.features.forEach(f => {
+                                agregarSismo({
+                                    id: `funvisis-${f.id}`, mag: parseFloat(f.properties.mag || 0),
+                                    place: f.properties.place || 'Venezuela (FUNVISIS)',
+                                    lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
+                                    depth: Math.abs(f.geometry.coordinates[2] || 0),
+                                    time: f.properties.time, agency: 'FUNVISIS'
+                                });
+                            });
+                        }
+                    }).catch(() => setStatus('st-funvisis', false));
+            }
+
+            function cargarIGEPN() {
+                const urlIgepn = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=-5&maxlatitude=2&minlongitude=-81&maxlongitude=-75&limit=20';
+                return fetch(urlIgepn)
+                    .then(r => r.json())
+                    .then(d => {
+                        setStatus('st-igepn', true);
+                        if (d.features) {
+                            d.features.forEach(f => {
+                                agregarSismo({
+                                    id: `igepn-${f.id}`, mag: parseFloat(f.properties.mag || 0),
+                                    place: f.properties.place || 'Ecuador (IGEPN)',
+                                    lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
+                                    depth: Math.abs(f.geometry.coordinates[2] || 0),
+                                    time: f.properties.time, agency: 'IGEPN'
+                                });
+                            });
+                        }
+                    }).catch(() => setStatus('st-igepn', false));
+            }
+
             Promise.allSettled([
                 cargarFanStudio(), cargarSGC(), cargarIGP(), cargarBMKG(), cargarSED(),
                 cargarISC(), cargarJMA(), cargarWolfx(), cargarUSGS(),
                 cargarEMSC(), cargarGeoNet(), cargarCSN(), cargarCWI(),
                 cargarGFZ(), cargarINGV(), cargarIGN(), cargarINPRES(),
-                cargarSSN(), cargarKMA(), cargarCENC()
+                cargarSSN(), cargarKMA(), cargarCENC(), cargarPHIVOLCS(),
+                cargarOVSICORI(), cargarFUNVISIS(), cargarIGEPN()
             ]).then(() => { 
                 primeraCargaConcluida = true;
+                agregarLogTerminal('SISTEMA', `Carga inicial completada (${listaGlobalSismos.length} eventos)`);
                 
                 if (listaGlobalSismos.length > 0) {
                     listaGlobalSismos.sort((a, b) => b.time - a.time);
                     centrarEnSismo(listaGlobalSismos[0], false);
+                    actualizarPanelDestacadoEquake(listaGlobalSismos[0]);
                 }
                 playLoadedSound();
             });
@@ -1070,6 +1532,10 @@
             setInterval(cargarSSN, 25000);
             setInterval(cargarKMA, 30000);
             setInterval(cargarCENC, 20000);
+            setInterval(cargarPHIVOLCS, 25000);
+            setInterval(cargarOVSICORI, 25000);
+            setInterval(cargarFUNVISIS, 25000);
+            setInterval(cargarIGEPN, 20000);
         };
     </script>
 </body>
