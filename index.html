@@ -317,9 +317,6 @@
                 <span id="alert-text">SISMICIDAD NORMAL</span>
             </div>
 
-            <button class="btn-header" id="btn-toggle-notif" title="Activar Notificaciones de Escritorio">
-                <span>🔔</span> <span id="notif-text">Notis OFF</span>
-            </button>
             <button class="btn-header" id="btn-toggle-sound" title="Activar/Desactivar Sonido Bip">
                 <span id="sound-icon">🔊</span> <span id="sound-text">Audio ON</span>
             </button>
@@ -524,77 +521,6 @@
             } else {
                 widget.className = 'alert-widget';
                 textEl.innerText = 'SISMICIDAD NORMAL';
-            }
-        }
-
-        function actualizarBotonNotificaciones() {
-            const btn = document.getElementById('btn-toggle-notif');
-            const txt = document.getElementById('notif-text');
-            if (!("Notification" in window)) {
-                txt.innerText = "No soportado";
-                return;
-            }
-            if (Notification.permission === "granted") {
-                txt.innerText = "Notis ON";
-                btn.style.borderColor = "#4ade80";
-                btn.style.color = "#4ade80";
-            } else if (Notification.permission === "denied") {
-                txt.innerText = "Bloqueadas";
-                btn.style.borderColor = "#ef4444";
-                btn.style.color = "#ef4444";
-            } else {
-                txt.innerText = "Activar Notis";
-                btn.style.borderColor = "#38bdf8";
-                btn.style.color = "#38bdf8";
-            }
-        }
-
-        document.getElementById('btn-toggle-notif').addEventListener('click', () => {
-            playClickSound();
-            if (!("Notification" in window)) {
-                alert("Tu navegador no soporta notificaciones de escritorio.");
-                return;
-            }
-
-            Notification.requestPermission().then((permission) => {
-                actualizarBotonNotificaciones();
-                if (permission === "granted") {
-                    new Notification("🚨 Sistema de Monitoreo Activo", {
-                        body: "Las notificaciones para M2.0+ en Colombia y M5.0+ global están activadas correctamente.",
-                        icon: "https://leafletjs.com/docs/images/logo.png"
-                    });
-                }
-            });
-        });
-
-        function evaluarNotificacionSismo(eq) {
-            if (!("Notification" in window) || Notification.permission !== "granted") return;
-
-            const lugarUpper = (eq.place || "").toUpperCase();
-            const esColombia = lugarUpper.includes("COLOMBIA") || eq.agency === "SGC";
-            const mag = parseFloat(eq.mag || 0);
-
-            const notificar = (esColombia && mag >= 2.0) || (!esColombia && mag >= 5.0);
-
-            if (notificar) {
-                const titulo = esColombia 
-                    ? `🇨🇴 ¡SISMO EN COLOMBIA! M${mag.toFixed(1)}` 
-                    : `🌍 SISMO RELEVANTE GLOBAL M${mag.toFixed(1)}`;
-                
-                const texto = `${eq.place || 'Ubicación desconocida'}\nProfundidad: ${eq.depth || 0} km | Agencia: ${eq.agency || 'Desconocida'}`;
-
-                try {
-                    const n = new Notification(titulo, {
-                        body: texto,
-                        tag: eq.id,
-                        requireInteraction: mag >= 6.0
-                    });
-
-                    n.onclick = function() {
-                        window.focus();
-                        this.close();
-                    };
-                } catch(e) {}
             }
         }
 
@@ -833,7 +759,6 @@
         if (fsBtn) fsBtn.addEventListener('click', (e) => { e.preventDefault(); playClickSound(); toggleFullScreen(); });
 
         window.onload = () => {
-            actualizarBotonNotificaciones();
             document.body.addEventListener('click', () => { initAudio(); }, { once: true });
 
             let map;
@@ -897,7 +822,6 @@
             /* FUNCIÓN CENTRAR EN SISMO CON ZOOM MÁS ALEJADO */
             function centrarEnSismo(eq, suave = true) {
                 if (!eq) return;
-                // Niveles de zoom reducidos para una vista panorámica más lejana
                 const nivelZoom = eq.mag >= 6.5 ? 4 : (eq.mag >= 5.0 ? 5 : (eq.mag >= 3.0 ? 5 : 6));
                 
                 if (map.hasLayer(earthquakeLayer)) {
@@ -988,7 +912,6 @@
                     reproducirSonidoActualizacion();
                     if (esReciente || esAlertaTiempoReal) {
                         reproducirTonoAlerta(agenciaNombre, parseFloat(mag));
-                        evaluarNotificacionSismo(eq);
                     }
                     centrarEnSismo(eq, true);
                     actualizarPanelDestacadoEquake(eq);
