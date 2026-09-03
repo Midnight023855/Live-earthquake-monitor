@@ -110,7 +110,6 @@
         .agency-sed { color: #38bdf8; background: #164e63; }
         .agency-isc { color: #e879f9; background: #701a75; }
         .agency-fanstudio { color: #38bdf8; background: #0369a1; }
-        .agency-simulador { color: #e0e7ff; background: #4338ca; }
         .agency-general { color: #38bdf8; background: #1e293b; }
 
         .detalles { font-size: 0.62rem; color: #6b7280; text-align: right; }
@@ -133,22 +132,6 @@
         .status-val.disconnected { color: #f87171; }
         .status-version { color: #c084fc; border-top: 1px solid #334155; margin-top: 3px; padding-top: 2px; }
         .status-fps { color: #e879f9; }
-
-        /* ESTILOS AÑADIDOS PARA SIMULADOR Y PANEL DE FALLAS */
-        .simulator-overlay {
-            position: absolute; bottom: 12px; right: 12px; z-index: 1000;
-            background: rgba(15, 23, 42, 0.95); border: 1px solid #6366f1;
-            border-radius: 8px; padding: 10px; font-size: 0.75rem; width: 240px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.7); backdrop-filter: blur(4px);
-        }
-        .simulator-overlay h3 { font-size: 0.8rem; color: #818cf8; margin-bottom: 6px; text-align: center; border-bottom: 1px solid #334155; padding-bottom: 4px; }
-        .sim-field { margin-bottom: 6px; display: flex; flex-direction: column; gap: 2px; }
-        .sim-field label { font-size: 0.65rem; color: #94a3b8; font-weight: bold; }
-        .sim-field input, .sim-field select { background: #0f172a; border: 1px solid #334155; color: #f8fafc; padding: 4px; border-radius: 4px; font-size: 0.7rem; }
-        .sim-btn { background: #4f46e5; color: #fff; border: none; width: 100%; padding: 6px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 4px; }
-        .sim-btn:hover { background: #6366f1; }
-        .sim-pick-btn { background: #1e293b; border: 1px solid #6366f1; color: #a5b4fc; font-size: 0.65rem; padding: 3px; cursor: pointer; border-radius: 4px; text-align: center; margin-top: 2px; }
-        .sim-pick-btn.active { background: #4f46e5; color: #fff; }
     </style>
 </head>
 <body>
@@ -158,12 +141,6 @@
             <h1>🛰️ SISMOS LIVE + RED MULTI-AGENCIA GLOBAL</h1>
         </div>
         <div class="header-controls">
-            <button class="btn-header" id="btn-toggle-faults" title="Mostrar/Ocultar Fallas Tectónicas">
-                <span id="faults-icon">🌋</span> <span id="faults-text">Fallas ON</span>
-            </button>
-            <button class="btn-header" id="btn-toggle-simulator" title="Mostrar/Ocultar Simulador">
-                <span id="sim-icon">🎮</span> <span id="sim-text">Simulador</span>
-            </button>
             <button class="btn-header" id="btn-toggle-sound" title="Activar/Desactivar Sonido Bip">
                 <span id="sound-icon">🔊</span> <span id="sound-text">Audio ON</span>
             </button>
@@ -195,29 +172,6 @@
                     <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
                 </svg>
             </button>
-
-            <!-- PANEL DE CONTROL DEL SIMULADOR -->
-            <div class="simulator-overlay" id="simulator-panel" style="display: none;">
-                <h3>💥 SIMULADOR DE SISMOS</h3>
-                <div class="sim-field">
-                    <label>Magnitud (M):</label>
-                    <input type="number" id="sim-mag" step="0.1" min="1.0" max="9.9" value="6.5">
-                </div>
-                <div class="sim-field">
-                    <label>Profundidad (km):</label>
-                    <input type="number" id="sim-depth" step="1" min="0" max="700" value="15">
-                </div>
-                <div class="sim-field">
-                    <label>Ubicación / Nombre:</label>
-                    <input type="text" id="sim-place" value="Sismo Simulado - Epicentro Personalizado">
-                </div>
-                <div class="sim-field">
-                    <label>Coordenadas (Lat, Lng):</label>
-                    <input type="text" id="sim-coords" value="4.5709, -74.2973" readonly>
-                    <div class="sim-pick-btn" id="sim-pick-coords">📍 Clic en el mapa para seleccionar</div>
-                </div>
-                <button class="sim-btn" id="btn-trigger-simulation">⚡ Generar Sismo Simulado</button>
-            </div>
 
             <div class="status-overlay" id="status-panel">
                 <div class="status-row"><span class="status-name">Fan Studio:</span><span class="status-val disconnected" id="st-fanstudio">Disconnected</span></div>
@@ -485,110 +439,12 @@
                 L.DomEvent.disableScrollPropagation(document.getElementById('btn-recent-home'));
                 L.DomEvent.disableClickPropagation(document.getElementById('status-panel'));
                 L.DomEvent.disableScrollPropagation(document.getElementById('status-panel'));
-                L.DomEvent.disableClickPropagation(document.getElementById('simulator-panel'));
-                L.DomEvent.disableScrollPropagation(document.getElementById('simulator-panel'));
             } catch(e) { return; }
 
             const earthquakeLayer = L.layerGroup().addTo(map);
             const shakemapLayer = L.layerGroup().addTo(map);
-            const faultsLayer = L.layerGroup().addTo(map);
             const conocidasIDs = new Set();
             let primeraCargaConcluida = false;
-            let faultsVisible = true;
-            let pickingCoords = false;
-
-            // CARGAR Y DIBUJAR FALLAS TECTÓNICAS
-            function cargarFallasTectonicas() {
-                fetch('https://raw.githubusercontent.com/fraunhofer-igd/geojson-geometries/master/src/tectonic-plates/PB2002_boundaries.json')
-                    .then(r => r.json())
-                    .then(data => {
-                        L.geoJSON(data, {
-                            style: {
-                                color: '#f97316',
-                                weight: 1.5,
-                                opacity: 0.65
-                            }
-                        }).addTo(faultsLayer);
-                    }).catch(() => {});
-            }
-            cargarFallasTectonicas();
-
-            // CONTROL VISIBILIDAD FALLAS TECTÓNICAS
-            const btnFaults = document.getElementById('btn-toggle-faults');
-            btnFaults.addEventListener('click', () => {
-                playClickSound();
-                faultsVisible = !faultsVisible;
-                if (faultsVisible) {
-                    map.addLayer(faultsLayer);
-                    document.getElementById('faults-text').innerText = "Fallas ON";
-                    btnFaults.classList.remove('muted');
-                } else {
-                    map.removeLayer(faultsLayer);
-                    document.getElementById('faults-text').innerText = "Fallas OFF";
-                    btnFaults.classList.add('muted');
-                }
-            });
-
-            // CONTROL DEL SIMULADOR DE SISMOS
-            const btnSim = document.getElementById('btn-toggle-simulator');
-            const simPanel = document.getElementById('simulator-panel');
-            btnSim.addEventListener('click', () => {
-                playClickSound();
-                if (simPanel.style.display === 'none') {
-                    simPanel.style.display = 'block';
-                    btnSim.classList.add('muted');
-                } else {
-                    simPanel.style.display = 'none';
-                    btnSim.classList.remove('muted');
-                }
-            });
-
-            const pickBtn = document.getElementById('sim-pick-coords');
-            pickBtn.addEventListener('click', () => {
-                playClickSound();
-                pickingCoords = !pickingCoords;
-                if (pickingCoords) {
-                    pickBtn.classList.add('active');
-                    pickBtn.innerText = "👉 haz clic en cualquier parte del mapa";
-                } else {
-                    pickBtn.classList.remove('active');
-                    pickBtn.innerText = "📍 Clic en el mapa para seleccionar";
-                }
-            });
-
-            map.on('click', (e) => {
-                if (pickingCoords) {
-                    const lat = e.latlng.lat.toFixed(4);
-                    const lng = e.latlng.lng.toFixed(4);
-                    document.getElementById('sim-coords').value = `${lat}, ${lng}`;
-                    pickingCoords = false;
-                    pickBtn.classList.remove('active');
-                    pickBtn.innerText = "📍 Clic en el mapa para seleccionar";
-                }
-            });
-
-            document.getElementById('btn-trigger-simulation').addEventListener('click', () => {
-                playClickSound();
-                const coords = document.getElementById('sim-coords').value.split(',');
-                const lat = parseFloat(coords[0]);
-                const lng = parseFloat(coords[1]);
-                const mag = parseFloat(document.getElementById('sim-mag').value) || 5.0;
-                const depth = parseFloat(document.getElementById('sim-depth').value) || 10;
-                const place = document.getElementById('sim-place').value || 'Sismo Simulado';
-
-                const sismoSimulado = {
-                    id: `sim-${Date.now()}`,
-                    mag: mag,
-                    place: `[SIMULADO] ${place}`,
-                    lat: lat,
-                    lng: lng,
-                    depth: depth,
-                    time: Date.now(),
-                    agency: 'SIMULADOR'
-                };
-
-                agregarSismo(sismoSimulado, true);
-            });
 
             function dibujarShakemap(lat, lng, mag) {
                 shakemapLayer.clearLayers();
@@ -693,7 +549,6 @@
                 else if (agenciaNombre === 'BMKG') tagClass = 'agency-bmkg';
                 else if (agenciaNombre === 'SED') tagClass = 'agency-sed';
                 else if (agenciaNombre === 'ISC') tagClass = 'agency-isc';
-                else if (agenciaNombre === 'SIMULADOR') tagClass = 'agency-simulador';
 
                 card.innerHTML = `
                     <div class="intensity-box" style="color:${color}; border-color:${color}44;">
