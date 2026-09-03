@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SISMOS LIVE REALTIME + RED MULTI-AGENCIA GLOBAL</title>
+    <title>SISMOS LIVE REALTIME + RED MULTI-AGENCIA GLOBAL + PTWC TSUNAMI</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
@@ -39,6 +39,7 @@
         }
         .alert-widget.level-yellow .alert-indicator { background-color: #facc15; box-shadow: 0 0 8px #facc15; }
         .alert-widget.level-red .alert-indicator { background-color: #ef4444; box-shadow: 0 0 10px #ef4444; animation: pulseAlert 1s infinite alternate; }
+        .alert-widget.level-tsunami .alert-indicator { background-color: #06b6d4; box-shadow: 0 0 12px #06b6d4; animation: pulseAlert 0.6s infinite alternate; }
 
         @keyframes pulseAlert {
             0% { opacity: 0.4; }
@@ -105,6 +106,7 @@
             cursor: pointer;
             box-shadow: 0 2px 10px rgba(0,0,0,0.6);
             margin-bottom: 4px;
+            position: relative;
         }
         .equake-featured-title {
             font-size: 0.65rem;
@@ -114,6 +116,8 @@
             letter-spacing: 0.5px;
             border-bottom: 1px solid #1e293b;
             padding-bottom: 2px;
+            display: flex;
+            justify-content: space-between;
         }
         .equake-featured-body {
             display: flex;
@@ -168,6 +172,30 @@
             font-family: monospace;
         }
 
+        /* BANNER DE TSUNAMI DESTACADO */
+        .tsunami-alert-banner {
+            display: none;
+            background: #991b1b;
+            color: #ffffff;
+            font-size: 0.62rem;
+            font-weight: 900;
+            padding: 3px 6px;
+            border-radius: 3px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            animation: pulseBanner 1s infinite alternate;
+            margin-top: 2px;
+        }
+        .tsunami-alert-banner.active {
+            display: block;
+        }
+
+        @keyframes pulseBanner {
+            0% { background: #991b1b; }
+            100% { background: #dc2626; }
+        }
+
         /* ESTILO EQUAKE - LISTA COMPACTA DE SISMOS */
         .equake-list-card {
             background: #0f172a;
@@ -182,6 +210,7 @@
             cursor: pointer;
             transition: background 0.15s ease, border-color 0.15s ease;
             font-family: system-ui, -apple-system, sans-serif;
+            position: relative;
         }
         .equake-list-card:hover {
             background: #1e293b;
@@ -225,6 +254,26 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* BADGES DE TSUNAMI EN LISTA */
+        .tsunami-badge-list {
+            background: #0284c7;
+            color: #ffffff;
+            font-size: 0.55rem;
+            font-weight: 900;
+            padding: 1px 4px;
+            border-radius: 2px;
+            text-transform: uppercase;
+            font-family: sans-serif;
+            display: inline-block;
+        }
+        .tsunami-badge-list.warning {
+            background: #dc2626;
+            animation: pulseBanner 0.8s infinite alternate;
         }
 
         .equake-mag-val {
@@ -335,7 +384,10 @@
             <!-- PANEL SUPERIOR DESTACADO ESTILO EQUAKE -->
             <div style="padding: 6px 6px 0 6px;" id="featured-container">
                 <div class="equake-featured-card" id="equake-top-featured">
-                    <div class="equake-featured-title">Displaying Information</div>
+                    <div class="equake-featured-title">
+                        <span>Displaying Information</span>
+                        <span id="top-feat-tsunami-indicator" style="display:none; color:#38bdf8;">🌊 PTWC</span>
+                    </div>
                     <div class="equake-featured-body">
                         <div class="equake-featured-rom" id="top-feat-rom" style="background:#64748b;">I</div>
                         <div class="equake-featured-info">
@@ -346,6 +398,9 @@
                                 <span class="equake-featured-depth" id="top-feat-depth">Depth: 0km</span>
                             </div>
                         </div>
+                    </div>
+                    <div class="tsunami-alert-banner" id="top-feat-tsunami-banner">
+                        🌊 INFORME DE TSUNAMI EMITIDO POR PTWC
                     </div>
                 </div>
             </div>
@@ -376,6 +431,7 @@
             </div>
 
             <div class="status-overlay" id="status-panel">
+                <div class="status-row"><span class="status-name">PTWC (NOAA):</span><span class="status-val disconnected" id="st-ptwc">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">Fan Studio:</span><span class="status-val disconnected" id="st-fanstudio">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">SGC (Colombia):</span><span class="status-val disconnected" id="st-sgc">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">IGP (Perú):</span><span class="status-val disconnected" id="st-igp">Disconnected</span></div>
@@ -400,7 +456,7 @@
                 <div class="status-row"><span class="status-name">OVSICORI (C. Rica):</span><span class="status-val disconnected" id="st-ovsicori">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">FUNVISIS (Ven):</span><span class="status-val disconnected" id="st-funvisis">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">IGEPN (Ecuador):</span><span class="status-val disconnected" id="st-igepn">Disconnected</span></div>
-                <div class="status-version">Version: 1.2.0 Global Seismic Sync</div>
+                <div class="status-version">Version: 1.3.1 PTWC Robust Sync</div>
                 <div class="status-fps">FPS: <span id="fps-counter">60</span></div>
             </div>
         </div>
@@ -410,6 +466,7 @@
         let audioHabilitado = true;
         let audioCtx = null;
         let listaGlobalSismos = [];
+        let mapaAlertasTsunamiPTWC = new Map();
         let ultimaHoraVerificada = -1;
 
         function initAudio() {
@@ -421,7 +478,6 @@
             }
         }
 
-        /* SONIDO DE ACTUALIZACIÓN DE LISTA */
         function reproducirSonidoActualizacion() {
             if (!audioHabilitado) return;
             try {
@@ -445,14 +501,36 @@
             } catch(e) {}
         }
 
-        /* PITIDO DE VERIFICACIÓN DE CONEXIONES CADA HORA EN PUNTO */
+        function reproducirAlarmaTsunami() {
+            if (!audioHabilitado) return;
+            try {
+                initAudio();
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.linearRampToValueAtTime(880, now + 0.3);
+                osc.frequency.linearRampToValueAtTime(440, now + 0.6);
+
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.65);
+
+                osc.start(now);
+                osc.stop(now + 0.65);
+            } catch(e) {}
+        }
+
         function reproducirPitidoHoraEnPunto() {
             if (!audioHabilitado) return;
             try {
                 initAudio();
                 const now = audioCtx.currentTime;
 
-                // Primer beep (1000 Hz)
                 const osc1 = audioCtx.createOscillator();
                 const gain1 = audioCtx.createGain();
                 osc1.type = 'sine';
@@ -464,7 +542,6 @@
                 osc1.start(now);
                 osc1.stop(now + 0.15);
 
-                // Segundo beep de confirmación alta (2000 Hz)
                 const osc2 = audioCtx.createOscillator();
                 const gain2 = audioCtx.createGain();
                 osc2.type = 'sine';
@@ -480,7 +557,6 @@
             } catch(e) {}
         }
 
-        /* LOGS EN LA TERMINAL */
         function agregarLogTerminal(agencia, mensaje) {
             const container = document.getElementById('terminal-logs');
             if (!container) return;
@@ -492,7 +568,6 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        // Toggle para minimizar/maximizar terminal
         document.getElementById('terminal-header').addEventListener('click', () => {
             const panel = document.getElementById('terminal-panel');
             const btn = document.getElementById('terminal-toggle-btn');
@@ -500,19 +575,22 @@
             btn.innerText = panel.classList.contains('minimized') ? '[+]' : '[-]';
         });
 
-        /* EVALUAR NIVEL DE ALERTA GLOBAL */
         function actualizarWidgetAlerta() {
             const widget = document.getElementById('global-alert-widget');
             const textEl = document.getElementById('alert-text');
             if (!widget || !textEl) return;
 
             const ahora = Date.now();
-            const sismosRecientes = listaGlobalSismos.filter(eq => (ahora - eq.time) < 3600000); // 1 hora
+            const sismosRecientes = listaGlobalSismos.filter(eq => (ahora - eq.time) < 3600000);
+            const hayTsunamiActivo = listaGlobalSismos.some(eq => eq.tsunami === 1 || eq.tsunamiAlert);
             const granTerremoto = listaGlobalSismos.some(eq => (ahora - eq.time) < 7200000 && eq.mag >= 7.0);
             const sismoFuerte = sismosRecientes.some(eq => eq.mag >= 6.0);
             const enjambre = sismosRecientes.length >= 15;
 
-            if (granTerremoto || (sismoFuerte && enjambre)) {
+            if (hayTsunamiActivo) {
+                widget.className = 'alert-widget level-tsunami';
+                textEl.innerText = '🌊 ALERTA DE TSUNAMI';
+            } else if (granTerremoto || (sismoFuerte && enjambre)) {
                 widget.className = 'alert-widget level-red';
                 textEl.innerText = 'ALERTA SÍSMICA ALTA';
             } else if (sismoFuerte || enjambre) {
@@ -524,7 +602,6 @@
             }
         }
 
-        /* AUDIO SINTÉTICO DINÁMICO POR AGENCIA/MAGNITUD */
         function reproducirTonoAlerta(agencia = '', mag = 0) {
             if (!audioHabilitado) return;
             try {
@@ -538,8 +615,8 @@
 
                 if (agencia === 'SGC') {
                     osc.type = 'sine';
-                    osc.frequency.setValueAtTime(523.25, now); // C5
-                    osc.frequency.setValueAtTime(659.25, now + 0.12); // E5
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.setValueAtTime(659.25, now + 0.12);
                     gain.gain.setValueAtTime(0.2, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
                     osc.start(now);
@@ -624,7 +701,6 @@
                 const timeString = ahora.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
                 document.getElementById('live-clock-col').innerText = timeString;
 
-                // VERIFICAR HORA EN PUNTO (:00:00)
                 const min = ahora.getMinutes();
                 const sec = ahora.getSeconds();
                 const hr = ahora.getHours();
@@ -660,7 +736,6 @@
             el.className = isConnected ? 'status-val connected' : 'status-val disconnected';
         }
 
-        /* CALCULO Y ESCALA DE INTENSIDAD Y COLOR ESTILO EQUAKE */
         function calcularIntensidad(mag) {
             if (mag >= 8.0) return { rom: 'XII', class: '#4a0404' };
             if (mag >= 7.3) return { rom: 'XI', class: '#7f1d1d' };
@@ -676,7 +751,6 @@
             return { rom: 'I', class: '#64748b' };
         }
 
-        /* CONVERSIÓN HEX A RGBA CON OPACIDAD SUAVE */
         function hexToRgba(hex, alpha) {
             let c = hex.replace('#', '');
             if (c.length === 3) c = c.split('').map(x => x + x).join('');
@@ -690,7 +764,6 @@
             return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
         }
 
-        /* ACTUALIZAR TARJETA SUPERIOR DESTACADA ESTILO EQUAKE Y CAMBIAR COLOR DE LA LISTA */
         function actualizarPanelDestacadoEquake(eq) {
             if (!eq) return;
             const mag = (eq.mag !== null && eq.mag !== undefined && !isNaN(eq.mag)) ? parseFloat(eq.mag).toFixed(1) : "0.0";
@@ -701,6 +774,8 @@
             const elTime = document.getElementById('top-feat-time');
             const elMag = document.getElementById('top-feat-mag');
             const elDepth = document.getElementById('top-feat-depth');
+            const elTsunamiIndicator = document.getElementById('top-feat-tsunami-indicator');
+            const elTsunamiBanner = document.getElementById('top-feat-tsunami-banner');
 
             if (elRom) {
                 elRom.innerText = intens.rom;
@@ -714,7 +789,17 @@
             }
             if (elDepth) elDepth.innerText = `Depth: ${eq.depth ? parseFloat(eq.depth).toFixed(0) : 0}km`;
 
-            /* CAMBIAR EL FONDO DEL PANEL DE LA LISTA SEGÚN LA INTENSIDAD */
+            const tieneTsunami = eq.tsunami === 1 || eq.tsunamiAlert || eq.tsunamiText;
+            if (elTsunamiIndicator) elTsunamiIndicator.style.display = tieneTsunami ? 'inline' : 'none';
+            if (elTsunamiBanner) {
+                if (tieneTsunami) {
+                    elTsunamiBanner.innerText = eq.tsunamiText ? `🌊 PTWC: ${eq.tsunamiText}` : '🌊 INFORME DE TSUNAMI ACTIVADO POR PTWC';
+                    elTsunamiBanner.classList.add('active');
+                } else {
+                    elTsunamiBanner.classList.remove('active');
+                }
+            }
+
             const panelSismos = document.getElementById('panel-sismos');
             if (panelSismos) {
                 panelSismos.style.backgroundColor = hexToRgba(intens.class, 0.25);
@@ -729,7 +814,6 @@
             }
         }
 
-        /* DISTANCIA EN KM ENTRE DOS PUNTOS (Fórmula de Haversine) */
         function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
             const R = 6371;
             const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -819,7 +903,6 @@
                 L.marker([lat, lng], { icon: xIcon, interactive: false }).addTo(shakemapLayer);
             }
 
-            /* FUNCIÓN CENTRAR EN SISMO CON ZOOM MÁS ALEJADO */
             function centrarEnSismo(eq, suave = true) {
                 if (!eq) return;
                 const nivelZoom = eq.mag >= 6.5 ? 4 : (eq.mag >= 5.0 ? 5 : (eq.mag >= 3.0 ? 5 : 6));
@@ -838,7 +921,6 @@
             }
             window.centrarEnSismoFn = centrarEnSismo;
 
-            /* EVALUAR Y AGRUPAR RÉPLICAS */
             function evaluarGrupoReplica(nuevoEq, cardNuevo) {
                 for (let eq of listaGlobalSismos) {
                     if (eq.id !== nuevoEq.id && eq.mag >= 4.0 && nuevoEq.mag < eq.mag) {
@@ -893,10 +975,15 @@
                 const intens = calcularIntensidad(eq.mag || 0);
                 let color = intens.class;
 
+                const tieneTsunami = eq.tsunami === 1 || eq.tsunamiAlert || eq.tsunamiText;
+
                 let marker = L.circleMarker([eq.lat, eq.lng], {
                     radius: Math.max((eq.mag || 2) * 2.5, 4),
-                    fillColor: color, color: '#ffffff', weight: 1, fillOpacity: 0.85
-                }).bindPopup(`<b>[${agenciaNombre}] M ${mag} - ${place}</b><br>Profundidad: ${eq.depth || 0} km<br>Hora: ${timeStr}`);
+                    fillColor: tieneTsunami ? '#0284c7' : color,
+                    color: tieneTsunami ? '#38bdf8' : '#ffffff',
+                    weight: tieneTsunami ? 2 : 1,
+                    fillOpacity: 0.85
+                }).bindPopup(`<b>[${agenciaNombre}] M ${mag} - ${place}</b><br>Profundidad: ${eq.depth || 0} km<br>Hora: ${timeStr}${tieneTsunami ? '<br><b style="color:#0284c7;">🌊 Alerta de Tsunami PTWC</b>' : ''}`);
 
                 earthquakeLayer.addLayer(marker);
                 eq.marker = marker;
@@ -908,29 +995,40 @@
                 const esReciente = haceCuanto <= 15;
 
                 if (primeraCargaConcluida) {
-                    agregarLogTerminal(agenciaNombre, `M${mag} en ${place}`);
+                    agregarLogTerminal(agenciaNombre, `M${mag} en ${place}${tieneTsunami ? ' 🌊 [TSUNAMI PTWC]' : ''}`);
                     reproducirSonidoActualizacion();
-                    if (esReciente || esAlertaTiempoReal) {
+                    
+                    if (tieneTsunami) {
+                        reproducirAlarmaTsunami();
+                    } else if (esReciente || esAlertaTiempoReal) {
                         reproducirTonoAlerta(agenciaNombre, parseFloat(mag));
                     }
                     centrarEnSismo(eq, true);
                     actualizarPanelDestacadoEquake(eq);
                 }
 
-                /* TARJETA COMPACTA ESTILO EQUAKE */
                 const card = document.createElement('div');
                 card.className = 'equake-list-card';
                 card.id = `card-${eq.id}`;
                 if (primeraCargaConcluida && esReciente) card.classList.add('nueva-alerta');
-                card.style.borderLeftColor = color;
+                card.style.borderLeftColor = tieneTsunami ? '#0284c7' : color;
 
                 const timeFormated = formatearFechaEQuake(eq.time);
+
+                let tsunamiTagHtml = '';
+                if (tieneTsunami) {
+                    const isWarning = eq.tsunamiText && (eq.tsunamiText.includes('WARNING') || eq.tsunamiText.includes('AMENAZA'));
+                    tsunamiTagHtml = `<span class="tsunami-badge-list ${isWarning ? 'warning' : ''}">🌊 TSUNAMI</span>`;
+                }
 
                 card.innerHTML = `
                     <div class="equake-rom-badge" style="color: ${color};">${intens.rom}</div>
                     <div class="equake-content">
                         <div class="equake-place">${place}</div>
-                        <div class="equake-meta">${timeFormated} - ${agenciaNombre}</div>
+                        <div class="equake-meta">
+                            <span>${timeFormated} - ${agenciaNombre}</span>
+                            ${tsunamiTagHtml}
+                        </div>
                     </div>
                     <div class="equake-mag-val" style="color: ${color};">M${mag}</div>
                 `;
@@ -957,6 +1055,79 @@
                     actualizarPanelDestacadoEquake(listaGlobalSismos[0]);
                 }
             });
+
+            /* CARGAR BOLETINES Y INFORME DE TSUNAMI PTWC / NOAA (CORREGIDO) */
+            function cargarPTWC() {
+                const urlPrimary = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&tsunami=1&limit=30';
+                const urlFallback = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minmagnitude=6.5&limit=20';
+
+                return fetch(urlPrimary)
+                    .then(r => {
+                        if (!r.ok) throw new Error('Primary PTWC feed down');
+                        return r.json();
+                    })
+                    .then(data => {
+                        setStatus('st-ptwc', true);
+                        if (data && data.features) {
+                            data.features.forEach(f => {
+                                const props = f.properties;
+                                const eventId = f.id;
+                                if (props.tsunami === 1) {
+                                    mapaAlertasTsunamiPTWC.set(eventId, {
+                                        alert: true,
+                                        title: props.title,
+                                        time: props.time
+                                    });
+
+                                    const sismoExistente = listaGlobalSismos.find(item => item.id === eventId || item.id === `usgs-${eventId}`);
+                                    if (sismoExistente) {
+                                        sismoExistente.tsunami = 1;
+                                        sismoExistente.tsunamiText = 'INFORME PTWC REGISTRADO';
+                                    } else {
+                                        agregarSismo({
+                                            id: `ptwc-${eventId}`,
+                                            mag: parseFloat(props.mag || 0),
+                                            place: props.place || 'Evento Marítimo PTWC',
+                                            lat: f.geometry.coordinates[1],
+                                            lng: f.geometry.coordinates[0],
+                                            depth: Math.abs(f.geometry.coordinates[2] || 0),
+                                            time: props.time,
+                                            agency: 'PTWC/NOAA',
+                                            tsunami: 1,
+                                            tsunamiText: 'ALERTA TSUNAMI PTWC'
+                                        });
+                                    }
+                                }
+                            });
+                        }
+                    })
+                    .catch(() => {
+                        // Respaldo de conexion
+                        return fetch(urlFallback)
+                            .then(r => r.json())
+                            .then(data => {
+                                setStatus('st-ptwc', true);
+                                if (data && data.features) {
+                                    data.features.forEach(f => {
+                                        if (f.properties.tsunami === 1) {
+                                            agregarSismo({
+                                                id: `ptwc-fb-${f.id}`,
+                                                mag: parseFloat(f.properties.mag || 0),
+                                                place: f.properties.place || 'Alerta PTWC',
+                                                lat: f.geometry.coordinates[1],
+                                                lng: f.geometry.coordinates[0],
+                                                depth: Math.abs(f.geometry.coordinates[2] || 0),
+                                                time: f.properties.time,
+                                                agency: 'PTWC/NOAA',
+                                                tsunami: 1
+                                            });
+                                        }
+                                    });
+                                }
+                            })
+                            .catch(() => setStatus('st-ptwc', false));
+                    });
+            }
 
             function cargarFanStudio() { setStatus('st-fanstudio', true); return Promise.resolve(); }
 
@@ -1161,7 +1332,8 @@
                                     id: f.id, mag: parseFloat(f.properties.mag || 0),
                                     place: f.properties.place || '',
                                     lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
-                                    depth: f.geometry.coordinates[2], time: f.properties.time, agency: 'USGS'
+                                    depth: f.geometry.coordinates[2], time: f.properties.time, agency: 'USGS',
+                                    tsunami: f.properties.tsunami || 0
                                 });
                             });
                         }
@@ -1329,7 +1501,7 @@
             }
 
             function cargarINPRES() {
-                const urlINPRES = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=-56&maxlatitude=-21&minlongitude=-74&maxlongitude=-53&limit=20';
+                const urlINPRES = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=-55&maxlatitude=-20&minlongitude=-75&maxlongitude=-53&limit=20';
                 return fetch(urlINPRES)
                     .then(r => r.json())
                     .then(d => {
@@ -1378,7 +1550,7 @@
                             d.features.forEach(f => {
                                 agregarSismo({
                                     id: `kma-${f.id}`, mag: parseFloat(f.properties.mag || 0),
-                                    place: f.properties.place || 'Corea (KMA)',
+                                    place: f.properties.place || 'Corea del Sur (KMA)',
                                     lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
                                     depth: Math.abs(f.geometry.coordinates[2] || 0),
                                     time: f.properties.time, agency: 'KMA'
@@ -1389,17 +1561,16 @@
             }
 
             function cargarCENC() {
-                const urlCENCRegion = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=18&maxlatitude=54&minlongitude=73&maxlongitude=135&limit=25';
-                return fetch(urlCENCRegion)
+                const urlCENC = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=18&maxlatitude=54&minlongitude=73&maxlongitude=135&limit=20';
+                return fetch(urlCENC)
                     .then(r => r.json())
                     .then(d => {
-                        if (d && d.features && d.features.length > 0) {
-                            setStatus('st-cenc', true);
+                        setStatus('st-cenc', true);
+                        if (d.features) {
                             d.features.forEach(f => {
-                                const place = f.properties.place || '';
                                 agregarSismo({
                                     id: `cenc-${f.id}`, mag: parseFloat(f.properties.mag || 0),
-                                    place: place.includes('China') ? place : `${place} (CENC)`,
+                                    place: f.properties.place || 'China (CENC)',
                                     lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
                                     depth: Math.abs(f.geometry.coordinates[2] || 0),
                                     time: f.properties.time, agency: 'CENC'
@@ -1410,8 +1581,8 @@
             }
 
             function cargarPHIVOLCS() {
-                const urlPhivolcs = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=4&maxlatitude=22&minlongitude=116&maxlongitude=127&limit=20';
-                return fetch(urlPhivolcs)
+                const urlPHIVOLCS = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=4&maxlatitude=21&minlongitude=116&maxlongitude=127&limit=20';
+                return fetch(urlPHIVOLCS)
                     .then(r => r.json())
                     .then(d => {
                         setStatus('st-phivolcs', true);
@@ -1430,8 +1601,8 @@
             }
 
             function cargarOVSICORI() {
-                const urlOvsicori = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=8&maxlatitude=11.5&minlongitude=-86&maxlongitude=-82.5&limit=20';
-                return fetch(urlOvsicori)
+                const urlOVSICORI = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=8&maxlatitude=11.5&minlongitude=-86&maxlongitude=-82.5&limit=15';
+                return fetch(urlOVSICORI)
                     .then(r => r.json())
                     .then(d => {
                         setStatus('st-ovsicori', true);
@@ -1450,8 +1621,8 @@
             }
 
             function cargarFUNVISIS() {
-                const urlFunvisis = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=0.5&maxlatitude=16&minlongitude=-73.5&maxlongitude=-59&limit=20';
-                return fetch(urlFunvisis)
+                const urlFUNVISIS = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=0.5&maxlatitude=12.5&minlongitude=-73.5&maxlongitude=-59.5&limit=15';
+                return fetch(urlFUNVISIS)
                     .then(r => r.json())
                     .then(d => {
                         setStatus('st-funvisis', true);
@@ -1470,8 +1641,8 @@
             }
 
             function cargarIGEPN() {
-                const urlIgepn = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=-5&maxlatitude=2&minlongitude=-81&maxlongitude=-75&limit=20';
-                return fetch(urlIgepn)
+                const urlIGEPN = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=-5.0&maxlatitude=1.5&minlongitude=-81.5&maxlongitude=-75.0&limit=15';
+                return fetch(urlIGEPN)
                     .then(r => r.json())
                     .then(d => {
                         setStatus('st-igepn', true);
@@ -1489,49 +1660,31 @@
                     }).catch(() => setStatus('st-igepn', false));
             }
 
-            Promise.allSettled([
-                cargarFanStudio(), cargarSGC(), cargarIGP(), cargarBMKG(), cargarSED(),
-                cargarISC(), cargarJMA(), cargarWolfx(), cargarUSGS(),
-                cargarEMSC(), cargarGeoNet(), cargarCSN(), cargarCWI(),
-                cargarGFZ(), cargarINGV(), cargarIGN(), cargarINPRES(),
-                cargarSSN(), cargarKMA(), cargarCENC(), cargarPHIVOLCS(),
-                cargarOVSICORI(), cargarFUNVISIS(), cargarIGEPN()
-            ]).then(() => { 
-                primeraCargaConcluida = true;
-                agregarLogTerminal('SISTEMA', `Carga inicial completada (${listaGlobalSismos.length} eventos)`);
-                
-                if (listaGlobalSismos.length > 0) {
+            function actualizarTodasLasFuentes() {
+                Promise.allSettled([
+                    cargarPTWC(),
+                    cargarFanStudio(), cargarSGC(), cargarIGP(), cargarBMKG(),
+                    cargarSED(), cargarISC(), cargarJMA(), cargarWolfx(),
+                    cargarUSGS(), cargarEMSC(), cargarGeoNet(), cargarCSN(),
+                    cargarCWI(), cargarGFZ(), cargarINGV(), cargarIGN(),
+                    cargarINPRES(), cargarSSN(), cargarKMA(), cargarCENC(),
+                    cargarPHIVOLCS(), cargarOVSICORI(), cargarFUNVISIS(), cargarIGEPN()
+                ]).then(() => {
                     listaGlobalSismos.sort((a, b) => b.time - a.time);
-                    centrarEnSismo(listaGlobalSismos[0], false);
-                    actualizarPanelDestacadoEquake(listaGlobalSismos[0]);
-                }
-                playLoadedSound();
-            });
 
-            setInterval(cargarFanStudio, 30000);
-            setInterval(cargarSGC, 15000);
-            setInterval(cargarIGP, 20000);
-            setInterval(cargarBMKG, 25000);
-            setInterval(cargarSED, 30000);
-            setInterval(cargarISC, 30000);
-            setInterval(cargarJMA, 10000);
-            setInterval(cargarWolfx, 8000);
-            setInterval(cargarUSGS, 20000);
-            setInterval(cargarEMSC, 25000);
-            setInterval(cargarGeoNet, 15000);
-            setInterval(cargarCSN, 30000);
-            setInterval(cargarCWI, 12000);
-            setInterval(cargarGFZ, 25000);
-            setInterval(cargarINGV, 20000);
-            setInterval(cargarIGN, 30000);
-            setInterval(cargarINPRES, 30000);
-            setInterval(cargarSSN, 25000);
-            setInterval(cargarKMA, 30000);
-            setInterval(cargarCENC, 20000);
-            setInterval(cargarPHIVOLCS, 25000);
-            setInterval(cargarOVSICORI, 25000);
-            setInterval(cargarFUNVISIS, 25000);
-            setInterval(cargarIGEPN, 20000);
+                    if (!primeraCargaConcluida) {
+                        primeraCargaConcluida = true;
+                        playLoadedSound();
+                        agregarLogTerminal('SISTEMA', `Red multi-agencia conectada. Total sismos: ${listaGlobalSismos.length}`);
+                        if (listaGlobalSismos.length > 0) {
+                            actualizarPanelDestacadoEquake(listaGlobalSismos[0]);
+                        }
+                    }
+                });
+            }
+
+            actualizarTodasLasFuentes();
+            setInterval(actualizarTodasLasFuentes, 15000);
         };
     </script>
 </body>
