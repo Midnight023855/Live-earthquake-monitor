@@ -413,6 +413,7 @@
         let audioHabilitado = true;
         let audioCtx = null;
         let listaGlobalSismos = [];
+        let ultimaHoraVerificada = -1;
 
         function initAudio() {
             if (!audioCtx) {
@@ -421,6 +422,65 @@
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
+        }
+
+        /* SONIDO DE ACTUALIZACIÓN DE LISTA */
+        function reproducirSonidoActualizacion() {
+            if (!audioHabilitado) return;
+            try {
+                initAudio();
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'sine';
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.frequency.setValueAtTime(1200, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.05);
+
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+                osc.start(now);
+                osc.stop(now + 0.06);
+            } catch(e) {}
+        }
+
+        /* PITIDO DE VERIFICACIÓN DE CONEXIONES CADA HORA EN PUNTO */
+        function reproducirPitidoHoraEnPunto() {
+            if (!audioHabilitado) return;
+            try {
+                initAudio();
+                const now = audioCtx.currentTime;
+
+                // Primer beep (1000 Hz)
+                const osc1 = audioCtx.createOscillator();
+                const gain1 = audioCtx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(1000, now);
+                gain1.gain.setValueAtTime(0.2, now);
+                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                osc1.connect(gain1);
+                gain1.connect(audioCtx.destination);
+                osc1.start(now);
+                osc1.stop(now + 0.15);
+
+                // Segundo beep de confirmación alta (2000 Hz)
+                const osc2 = audioCtx.createOscillator();
+                const gain2 = audioCtx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(2000, now + 0.2);
+                gain2.gain.setValueAtTime(0.25, now + 0.2);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+                osc2.connect(gain2);
+                gain2.connect(audioCtx.destination);
+                osc2.start(now + 0.2);
+                osc2.stop(now + 0.45);
+
+                agregarLogTerminal('SISTEMA', '🔔 Verificación horaria de red multi-agencia completada.');
+            } catch(e) {}
         }
 
         /* LOGS EN LA TERMINAL */
@@ -637,6 +697,16 @@
                 const ahora = new Date();
                 const timeString = ahora.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
                 document.getElementById('live-clock-col').innerText = timeString;
+
+                // VERIFICAR HORA EN PUNTO (:00:00)
+                const min = ahora.getMinutes();
+                const sec = ahora.getSeconds();
+                const hr = ahora.getHours();
+
+                if (min === 0 && sec === 0 && ultimaHoraVerificada !== hr) {
+                    ultimaHoraVerificada = hr;
+                    reproducirPitidoHoraEnPunto();
+                }
             } catch(e){}
         }
         setInterval(actualizarReloj, 1000);
@@ -913,6 +983,7 @@
 
                 if (primeraCargaConcluida) {
                     agregarLogTerminal(agenciaNombre, `M${mag} en ${place}`);
+                    reproducirSonidoActualizacion();
                     if (esReciente || esAlertaTiempoReal) {
                         reproducirTonoAlerta(agenciaNombre, parseFloat(mag));
                         evaluarNotificacionSismo(eq);
