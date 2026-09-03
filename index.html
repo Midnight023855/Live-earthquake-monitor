@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SISMOS LIVE REALTIME + RED MULTI-AGENCIA GLOBAL</title>
+    <title>SISMOS LIVE REALTIME + RED MULTI-AGENCIA GLOBAL & MONITOREO CLIMÁTICO</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
@@ -33,6 +33,20 @@
         }
         .btn-header:hover { background: #38bdf8; color: #0f172a; }
         .btn-header.muted { border-color: #ef4444; color: #ef4444; }
+        .btn-header.active { background: #0284c7; color: #ffffff; border-color: #38bdf8; }
+
+        .weather-widget-header {
+            background: #1e293b;
+            border: 1px solid #38bdf8;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 0.7rem;
+            color: #38bdf8;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: bold;
+        }
 
         .col-clock-header { background: #1e293b; padding: 2px 6px; border-radius: 4px; border: 1px solid #334155; text-align: right; }
         .col-clock-label { font-size: 0.5rem; color: #9ca3af; display: block; font-weight: bold; }
@@ -131,6 +145,71 @@
         .status-val.disconnected { color: #f87171; }
         .status-version { color: #c084fc; border-top: 1px solid #334155; margin-top: 3px; padding-top: 2px; }
         .status-fps { color: #e879f9; }
+
+        /* SECCIÓN DE CLIMA Y MONITOREO REGIONAL */
+        #weather-overlay-view {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #0b0f19;
+            z-index: 1500;
+            display: none;
+            padding: 16px;
+            overflow-y: auto;
+        }
+        #weather-overlay-view.active { display: block; }
+        
+        .weather-section-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 12px; border-bottom: 1px solid #1f2937; padding-bottom: 8px;
+        }
+        .weather-section-title { font-size: 1rem; color: #38bdf8; font-weight: bold; }
+        
+        .weather-search-input {
+            background: #111827; border: 1px solid #334155; color: #f8fafc;
+            padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; width: 260px;
+        }
+
+        .regional-monitoring-container {
+            margin-bottom: 16px; background: #111827; border: 1px solid #1f2937;
+            border-radius: 8px; padding: 12px;
+        }
+
+        .regional-title {
+            font-size: 0.85rem; font-weight: bold; color: #facc15; margin-bottom: 8px;
+            display: flex; align-items: center; gap: 6px;
+        }
+
+        .regional-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px;
+        }
+
+        .region-card {
+            background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 8px;
+            display: flex; flex-direction: column; gap: 4px;
+        }
+
+        .region-name { font-size: 0.8rem; font-weight: bold; color: #38bdf8; }
+        .region-stats { font-size: 0.7rem; color: #9ca3af; display: flex; justify-content: space-between; }
+        .status-badge { font-size: 0.62rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; width: fit-content; }
+        .badge-normal { background: #064e3b; color: #34d399; }
+        .badge-alert { background: #881337; color: #f43f5e; }
+        
+        .weather-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+        
+        .weather-city-card {
+            background: #111827; border: 1px solid #1f2937;
+            border-radius: 6px; padding: 10px; transition: border-color 0.2s;
+        }
+        .weather-city-card:hover { border-color: #38bdf8; }
+        .weather-city-name { font-size: 0.85rem; font-weight: bold; color: #f8fafc; }
+        .weather-city-country { font-size: 0.7rem; color: #9ca3af; margin-bottom: 6px; }
+        .weather-city-temp { font-size: 1.4rem; font-weight: bold; color: #38bdf8; }
+        .weather-city-pop { font-size: 0.72rem; color: #60a5fa; margin-top: 4px; display: flex; align-items: center; gap: 4px; }
     </style>
 </head>
 <body>
@@ -140,6 +219,16 @@
             <h1>🛰️ SISMOS LIVE + RED MULTI-AGENCIA GLOBAL</h1>
         </div>
         <div class="header-controls">
+            <div class="weather-widget-header" id="weather-widget">
+                <span id="weather-icon">🌤️</span>
+                <span id="weather-info">Bogotá: --°C</span>
+            </div>
+            <button class="btn-header" id="btn-toggle-weather-view" title="Ver Pronóstico del Clima y Red Volcánica/Sísmica">
+                <span>🌤️</span> <span>Clima & Red Volcánica</span>
+            </button>
+            <button class="btn-header" id="btn-toggle-weather-speech" title="Leer Pronóstico del Clima">
+                <span>🎤</span> <span>Leer Clima</span>
+            </button>
             <button class="btn-header" id="btn-toggle-sound" title="Activar/Desactivar Sonido Bip">
                 <span id="sound-icon">🔊</span> <span id="sound-text">Audio ON</span>
             </button>
@@ -165,6 +254,40 @@
 
         <div id="map-container">
             <div id="map"></div>
+
+            <!-- APARTADO DE CLIMA EN CAPITALES & SECTOR DE MONITOREO VOLCÁNICO/REGIONAL -->
+            <div id="weather-overlay-view">
+                <div class="weather-section-header">
+                    <div class="weather-section-title">🌤️ Red Meteorológica Global + Clima Volcánico (Japón, Hawái, Indonesia)</div>
+                    <input type="text" id="weather-search-input" class="weather-search-input" placeholder="Buscar capital o país..." oninput="filtrarCapitalesClima()">
+                </div>
+
+                <!-- SECCIÓN MONITOREO REGIONAL CLIMÁTICO Y DE VOLCANES -->
+                <div class="regional-monitoring-container">
+                    <div class="regional-title">🌋 Estado Volcánico y Meteorológico Regional (Tiempo Real)</div>
+                    <div class="regional-grid" id="volcano-weather-grid">
+                        <div class="region-card">
+                            <div class="region-name">🇯🇵 Japón - Kumamoto / Mt. Aso</div>
+                            <div class="region-stats"><span id="jp-temp">Cargando...</span><span id="jp-wind">-- km/h</span></div>
+                            <div class="status-badge badge-normal" id="jp-status">Actividad Volcánica: Normal</div>
+                        </div>
+                        <div class="region-card">
+                            <div class="region-name">🇺🇸 Hawái - Kilauea / Mauna Loa</div>
+                            <div class="region-stats"><span id="hi-temp">Cargando...</span><span id="hi-wind">-- km/h</span></div>
+                            <div class="status-badge badge-normal" id="hi-status">USGS Volcanic Alert: Watch</div>
+                        </div>
+                        <div class="region-card">
+                            <div class="region-name">🇮🇩 Indonesia - Merapi / Anak Krakatau</div>
+                            <div class="region-stats"><span id="id-temp">Cargando...</span><span id="id-wind">-- km/h</span></div>
+                            <div class="status-badge badge-normal" id="id-status">PVMBG Status: Level II</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="weather-cards-grid" id="weather-capitals-grid">
+                    <div style="color: #6b7280; font-size: 0.8rem;">Cargando datos del clima mundial...</div>
+                </div>
+            </div>
             
             <button class="btn-home-sismo" id="btn-recent-home" title="Centrar en el último sismo de la lista">
                 <svg viewBox="0 0 24 24">
@@ -193,7 +316,7 @@
                 <div class="status-row"><span class="status-name">SSN (México):</span><span class="status-val disconnected" id="st-ssn">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">KMA (Corea):</span><span class="status-val disconnected" id="st-kma">Disconnected</span></div>
                 <div class="status-row"><span class="status-name">CENC (China):</span><span class="status-val disconnected" id="st-cenc">Disconnected</span></div>
-                <div class="status-version">Version: 1.0.4 Fix</div>
+                <div class="status-version">Version: 1.0.8 Weather & Volcano Sync</div>
                 <div class="status-fps">FPS: <span id="fps-counter">60</span></div>
             </div>
         </div>
@@ -204,6 +327,129 @@
         let vozHabilitada = true;
         let audioCtx = null;
         let listaGlobalSismos = [];
+        let climaActualDatos = null;
+
+        /* DATOS Y LÓGICA DE CLIMA EN CAPITALES Y REGIONES VOLCÁNICAS */
+        let listaCapitalesGlobales = [
+            { name: "Bogotá", country: "Colombia", lat: 4.6097, lon: -74.0817 },
+            { name: "Tokio", country: "Japón", lat: 35.6895, lon: 139.6917 },
+            { name: "Honolulú", country: "Hawái (EE. UU.)", lat: 21.3069, lon: -157.8583 },
+            { name: "Yakarta", country: "Indonesia", lat: -6.2088, lon: 106.8456 },
+            { name: "Washington D.C.", country: "EE. UU.", lat: 38.8951, lon: -77.0364 },
+            { name: "Ciudad de México", country: "México", lat: 19.4326, lon: -99.1332 },
+            { name: "Madrid", country: "España", lat: 40.4168, lon: -3.7038 },
+            { name: "Buenos Aires", country: "Argentina", lat: -34.6037, lon: -58.3816 },
+            { name: "Santiago", country: "Chile", lat: -33.4489, lon: -70.6693 },
+            { name: "Lima", country: "Perú", lat: -12.0464, lon: -77.0428 },
+            { name: "Quito", country: "Ecuador", lat: -0.1807, lon: -78.4678 },
+            { name: "Caracas", country: "Venezuela", lat: 10.4806, lon: -66.9036 },
+            { name: "Londres", country: "Reino Unido", lat: 51.5074, lon: -0.1278 },
+            { name: "París", country: "Francia", lat: 48.8566, lon: 2.3522 },
+            { name: "Pekín", country: "China", lat: 39.9042, lon: 116.4074 },
+            { name: "Taipéi", country: "Taiwán", lat: 25.0330, lon: 121.5654 },
+            { name: "Seúl", country: "Corea del Sur", lat: 37.5665, lon: 126.9780 },
+            { name: "Roma", country: "Italia", lat: 41.9028, lon: 12.4964 },
+            { name: "Berlín", country: "Alemania", lat: 52.5200, lon: 13.4050 },
+            { name: "Wellington", country: "Nueva Zelanda", lat: -41.2865, lon: 174.7762 }
+        ];
+
+        let datosClimaCapitalesCache = [];
+
+        async function cargarClimaCapitalesMundiales() {
+            const grid = document.getElementById('weather-capitals-grid');
+            if (!grid) return;
+            
+            try {
+                const peticiones = listaCapitalesGlobales.map(async cap => {
+                    const url = `https://api.open-meteo.com/v1/forecast?latitude=${cap.lat}&longitude=${cap.lon}&current=temperature_2m,precipitation_probability,weather_code`;
+                    const res = await fetch(url);
+                    const d = await res.json();
+                    
+                    const temp = d.current ? Math.round(d.current.temperature_2m) : '--';
+                    const pop = d.current && d.current.precipitation_probability !== undefined ? d.current.precipitation_probability : 0;
+                    const code = d.current ? d.current.weather_code : 0;
+                    
+                    return { ...cap, temp, pop, code };
+                });
+
+                datosClimaCapitalesCache = await Promise.all(peticiones);
+                renderizarCapitalesClima(datosClimaCapitalesCache);
+            } catch(e) {
+                grid.innerHTML = '<div style="color: #ef4444; font-size: 0.8rem;">Error al cargar datos del clima mundial.</div>';
+            }
+        }
+
+        async function cargarDatosRegionesVolcanicas() {
+            // Japón (Kumamoto/Aso)
+            fetch('https://api.open-meteo.com/v1/forecast?latitude=32.8842&longitude=131.1042&current=temperature_2m,wind_speed_10m,weather_code')
+                .then(r => r.json())
+                .then(d => {
+                    if (d.current) {
+                        document.getElementById('jp-temp').innerText = `${Math.round(d.current.temperature_2m)}°C`;
+                        document.getElementById('jp-wind').innerText = `${Math.round(d.current.wind_speed_10m)} km/h`;
+                    }
+                }).catch(() => {});
+
+            // Hawái (Kilauea)
+            fetch('https://api.open-meteo.com/v1/forecast?latitude=19.4069&longitude=-155.2834&current=temperature_2m,wind_speed_10m,weather_code')
+                .then(r => r.json())
+                .then(d => {
+                    if (d.current) {
+                        document.getElementById('hi-temp').innerText = `${Math.round(d.current.temperature_2m)}°C`;
+                        document.getElementById('hi-wind').innerText = `${Math.round(d.current.wind_speed_10m)} km/h`;
+                    }
+                }).catch(() => {});
+
+            // Indonesia (Merapi)
+            fetch('https://api.open-meteo.com/v1/forecast?latitude=-7.5407&longitude=110.4457&current=temperature_2m,wind_speed_10m,weather_code')
+                .then(r => r.json())
+                .then(d => {
+                    if (d.current) {
+                        document.getElementById('id-temp').innerText = `${Math.round(d.current.temperature_2m)}°C`;
+                        document.getElementById('id-wind').innerText = `${Math.round(d.current.wind_speed_10m)} km/h`;
+                    }
+                }).catch(() => {});
+        }
+
+        function renderizarCapitalesClima(lista) {
+            const grid = document.getElementById('weather-capitals-grid');
+            if (!grid) return;
+
+            grid.innerHTML = lista.map(c => {
+                const icon = obtenerIconoClima(c.code);
+                return `
+                    <div class="weather-city-card">
+                        <div class="weather-city-name">${icon} ${c.name}</div>
+                        <div class="weather-city-country">${c.country}</div>
+                        <div class="weather-city-temp">${c.temp}°C</div>
+                        <div class="weather-city-pop">🌧️ Prob. Lluvia: <strong>${c.pop}%</strong></div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filtrarCapitalesClima() {
+            const txt = document.getElementById('weather-search-input').value.toLowerCase();
+            const filtradas = datosClimaCapitalesCache.filter(c => 
+                c.name.toLowerCase().includes(txt) || c.country.toLowerCase().includes(txt)
+            );
+            renderizarCapitalesClima(filtradas);
+        }
+
+        const btnWeatherView = document.getElementById('btn-toggle-weather-view');
+        if (btnWeatherView) {
+            btnWeatherView.addEventListener('click', () => {
+                playClickSound();
+                const overlay = document.getElementById('weather-overlay-view');
+                const estaActivo = overlay.classList.toggle('active');
+                btnWeatherView.classList.toggle('active', estaActivo);
+
+                if (estaActivo) {
+                    if (datosClimaCapitalesCache.length === 0) cargarClimaCapitalesMundiales();
+                    cargarDatosRegionesVolcanicas();
+                }
+            });
+        }
 
         function initAudio() {
             if (!audioCtx) {
@@ -214,7 +460,86 @@
             }
         }
 
-        function reproducirTonoAlerta(esEEW = false) {
+        function obtenerIconoClima(code) {
+            if (code === 0) return '☀️';
+            if (code >= 1 && code <= 3) return '⛅';
+            if (code >= 45 && code <= 48) return '🌫️';
+            if (code >= 51 && code <= 67) return '🌧️';
+            if (code >= 71 && code <= 77) return '❄️';
+            if (code >= 80 && code <= 82) return '🌦️';
+            if (code >= 95) return '⛈️';
+            return '🌡️';
+        }
+
+        function obtenerDescripcionClima(code) {
+            if (code === 0) return 'despejado';
+            if (code >= 1 && code <= 3) return 'parcialmente nublado';
+            if (code >= 45 && code <= 48) return 'con neblina';
+            if (code >= 51 && code <= 67) return 'con llovizna o lluvia';
+            if (code >= 71 && code <= 77) return 'con nieve';
+            if (code >= 80 && code <= 82) return 'con chubascos';
+            if (code >= 95) return 'con tormenta eléctrica';
+            return 'variable';
+        }
+
+        function cargarClima() {
+            const urlWeather = 'https://api.open-meteo.com/v1/forecast?latitude=4.6097&longitude=-74.0817&current=temperature_2m,weather_code,wind_speed_10m&current_weather=true';
+            
+            fetch(urlWeather)
+                .then(r => r.json())
+                .then(d => {
+                    const actual = d.current || d.current_weather;
+                    if (actual) {
+                        const tempVal = actual.temperature_2m !== undefined ? actual.temperature_2m : actual.temperature;
+                        const codeVal = actual.weather_code !== undefined ? actual.weather_code : actual.weathercode;
+                        const windVal = actual.wind_speed_10m !== undefined ? actual.wind_speed_10m : actual.windspeed;
+
+                        climaActualDatos = {
+                            temperature: tempVal,
+                            weathercode: codeVal,
+                            windspeed: windVal
+                        };
+
+                        const temp = Math.round(climaActualDatos.temperature);
+                        const icon = obtenerIconoClima(climaActualDatos.weathercode);
+                        
+                        document.getElementById('weather-icon').innerText = icon;
+                        document.getElementById('weather-info').innerText = `Bogotá: ${temp}°C`;
+                    }
+                })
+                .catch(err => {
+                    document.getElementById('weather-info').innerText = 'Bogotá: --°C';
+                });
+        }
+        cargarClima();
+        setInterval(cargarClima, 600000);
+
+        function leerClimaTTS() {
+            if (!('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel();
+
+            if (!climaActualDatos) {
+                hablarAlerta("Cargando datos del clima de Bogotá, por favor intente de nuevo en un momento.");
+                return;
+            }
+
+            const temp = Math.round(climaActualDatos.temperature);
+            const viento = Math.round(climaActualDatos.windspeed);
+            const desc = obtenerDescripcionClima(climaActualDatos.weathercode);
+
+            const mensaje = `El clima actual en Bogotá es de ${temp} grados centígrados, cielo ${desc}, con vientos de ${viento} kilómetros por hora.`;
+            hablarAlerta(mensaje);
+        }
+
+        const btnWeatherSpeech = document.getElementById('btn-toggle-weather-speech');
+        if (btnWeatherSpeech) {
+            btnWeatherSpeech.addEventListener('click', () => {
+                playClickSound();
+                leerClimaTTS();
+            });
+        }
+
+        function reproducirTonoAlerta(esEEW = false, mag = 0) {
             if (!audioHabilitado) return;
             try {
                 initAudio();
@@ -231,19 +556,65 @@
                     osc.frequency.setValueAtTime(1760, now + 0.15);
                     osc.frequency.setValueAtTime(880, now + 0.3);
                     osc.frequency.setValueAtTime(1760, now + 0.45);
-                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.setValueAtTime(0.35, now);
                     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
                     osc.start(now);
                     osc.stop(now + 0.6);
                 } else {
                     osc.type = 'sine';
-                    osc.frequency.setValueAtTime(523.25, now);
-                    osc.frequency.setValueAtTime(659.25, now + 0.2);
-                    gain.gain.setValueAtTime(0.2, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                    let freqBase = 350; 
+                    if (mag >= 6.0) freqBase = 880;
+                    else if (mag >= 4.0) freqBase = 587.33;
+
+                    osc.frequency.setValueAtTime(freqBase, now);
+                    osc.frequency.setValueAtTime(freqBase * 1.25, now + 0.15);
+                    
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
                     osc.start(now);
                     osc.stop(now + 0.5);
                 }
+            } catch(e) {}
+        }
+
+        function playLoadedSound() {
+            if (!audioHabilitado) return;
+            try {
+                initAudio();
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.25);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+                osc.start(now);
+                osc.stop(now + 0.35);
+            } catch(e) {}
+        }
+
+        function playClickSound() {
+            if (!audioHabilitado) return;
+            try {
+                initAudio();
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.frequency.setValueAtTime(600, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+                osc.start(now);
+                osc.stop(now + 0.08);
             } catch(e) {}
         }
 
@@ -290,10 +661,12 @@
             document.getElementById('sound-text').innerText = audioHabilitado ? "Audio ON" : "Audio OFF";
             document.getElementById('sound-icon').innerText = audioHabilitado ? "🔊" : "🔇";
             btnSound.classList.toggle('muted', !audioHabilitado);
+            if (audioHabilitado) playClickSound();
         });
 
         const btnSpeech = document.getElementById('btn-toggle-speech');
         btnSpeech.addEventListener('click', () => {
+            playClickSound();
             vozHabilitada = !vozHabilitada;
             document.getElementById('speech-text').innerText = vozHabilitada ? "Voz ON" : "Voz OFF";
             document.getElementById('speech-icon').innerText = vozHabilitada ? "🗣️" : "🤐";
@@ -369,7 +742,7 @@
             }
         }
 
-        if (fsBtn) fsBtn.addEventListener('click', (e) => { e.preventDefault(); toggleFullScreen(); });
+        if (fsBtn) fsBtn.addEventListener('click', (e) => { e.preventDefault(); playClickSound(); toggleFullScreen(); });
 
         window.onload = () => {
             document.body.addEventListener('click', () => { initAudio(); }, { once: true });
@@ -390,12 +763,13 @@
                 L.DomEvent.disableScrollPropagation(document.getElementById('btn-recent-home'));
                 L.DomEvent.disableClickPropagation(document.getElementById('status-panel'));
                 L.DomEvent.disableScrollPropagation(document.getElementById('status-panel'));
+                L.DomEvent.disableClickPropagation(document.getElementById('weather-overlay-view'));
+                L.DomEvent.disableScrollPropagation(document.getElementById('weather-overlay-view'));
             } catch(e) { return; }
 
             const earthquakeLayer = L.layerGroup().addTo(map);
             const shakemapLayer = L.layerGroup().addTo(map);
             const conocidasIDs = new Set();
-            let ultimosismoData = null;
             let primeraCargaConcluida = false;
 
             function dibujarShakemap(lat, lng, mag) {
@@ -422,14 +796,19 @@
                 L.marker([lat, lng], { icon: xIcon, interactive: false }).addTo(shakemapLayer);
             }
 
-            function centrarEnSismo(eq) {
+            function centrarEnSismo(eq, suave = true) {
                 if (!eq) return;
                 const nivelZoom = eq.mag >= 6.5 ? 5 : (eq.mag >= 5.0 ? 6 : (eq.mag >= 3.0 ? 7 : 8));
                 
-                map.flyTo([eq.lat, eq.lng], nivelZoom, { duration: 1.5, easeLinearity: 0.25 });
-                setTimeout(() => { 
-                    if (eq.marker) eq.marker.openPopup(); 
-                }, 1600);
+                if (suave) {
+                    map.flyTo([eq.lat, eq.lng], nivelZoom, { duration: 1.2, easeLinearity: 0.25, animate: true });
+                    setTimeout(() => { 
+                        if (eq.marker) eq.marker.openPopup(); 
+                    }, 1300);
+                } else {
+                    map.setView([eq.lat, eq.lng], nivelZoom, { animate: false });
+                    if (eq.marker) eq.marker.openPopup();
+                }
                 if (eq.mag >= 4.0) dibujarShakemap(eq.lat, eq.lng, eq.mag);
             }
 
@@ -456,20 +835,20 @@
                 earthquakeLayer.addLayer(marker);
                 eq.marker = marker;
 
-                ultimosismoData = eq;
-                listaGlobalSismos.unshift(eq);
+                listaGlobalSismos.push(eq);
 
                 const haceCuanto = (Date.now() - eq.time) / 1000 / 60;
                 const esReciente = haceCuanto <= 15;
 
-                if (primeraCargaConcluida && (esReciente || esAlertaTiempoReal)) {
-                    reproducirTonoAlerta(esAlertaTiempoReal);
-                    if (eq.mag >= 3.5 || esAlertaTiempoReal) {
-                        hablarAlerta(`Atención. Sismo detectado por ${agenciaNombre}. Magnitud ${mag}. ${place}`);
+                if (primeraCargaConcluida) {
+                    if (esReciente || esAlertaTiempoReal) {
+                        reproducirTonoAlerta(esAlertaTiempoReal, parseFloat(mag));
+                        if (eq.mag >= 3.5 || esAlertaTiempoReal) {
+                            hablarAlerta(`Atención. Sismo detectado por ${agenciaNombre}. Magnitud ${mag}. ${place}`);
+                        }
                     }
+                    centrarEnSismo(eq, true);
                 }
-
-                if ((primeraCargaConcluida && esReciente) || esAlertaTiempoReal) centrarEnSismo(eq);
 
                 const card = document.createElement('div');
                 card.className = 'sismo-card';
@@ -514,14 +893,19 @@
                     </div>
                 `;
 
-                card.addEventListener('click', () => centrarEnSismo(eq));
+                card.addEventListener('click', () => {
+                    playClickSound();
+                    centrarEnSismo(eq, true);
+                });
                 const panel = document.getElementById('panel-sismos');
                 panel.insertBefore(card, panel.firstChild);
             }
 
             document.getElementById('btn-recent-home').addEventListener('click', () => {
-                if (ultimosismoData) {
-                    centrarEnSismo(ultimosismoData);
+                playClickSound();
+                if (listaGlobalSismos.length > 0) {
+                    listaGlobalSismos.sort((a, b) => b.time - a.time);
+                    centrarEnSismo(listaGlobalSismos[0], true);
                 }
             });
 
@@ -537,7 +921,7 @@
                         setStatus('st-sgc', true);
                         const eventos = d.features || d.data || (Array.isArray(d) ? d : []);
                         if (Array.isArray(eventos) && eventos.length > 0) {
-                            eventos.slice().reverse().forEach(f => {
+                            eventos.forEach(f => {
                                 const props = f.properties || f;
                                 const geom = f.geometry ? f.geometry.coordinates : [f.longitude || f.lng, f.latitude || f.lat, f.depth || 0];
                                 const lat = parseFloat(geom[1] || props.latitude || props.lat);
@@ -564,7 +948,7 @@
                             .then(d => {
                                 setStatus('st-sgc', true);
                                 if (d.features) {
-                                    d.features.reverse().forEach(f => {
+                                    d.features.forEach(f => {
                                         agregarSismo({
                                             id: `sgc-fb-${f.id}`, mag: parseFloat(f.properties.mag || 0),
                                             place: f.properties.place || 'Colombia (SGC)',
@@ -585,7 +969,7 @@
                     .then(d => {
                         setStatus('st-igp', true);
                         if (d.features) {
-                            d.features.reverse().forEach(f => {
+                            d.features.forEach(f => {
                                 agregarSismo({
                                     id: `igp-${f.id}`, mag: parseFloat(f.properties.mag || 0),
                                     place: f.properties.place || 'Perú (IGP)',
@@ -605,7 +989,7 @@
                     .then(d => {
                         setStatus('st-bmkg', true);
                         if (d.features) {
-                            d.features.reverse().forEach(f => {
+                            d.features.forEach(f => {
                                 agregarSismo({
                                     id: `bmkg-${f.id}`, mag: parseFloat(f.properties.mag || 0),
                                     place: f.properties.place || 'Indonesia (BMKG)',
@@ -625,7 +1009,7 @@
                     .then(d => {
                         setStatus('st-sed', true);
                         if (d.features) {
-                            d.features.reverse().forEach(f => {
+                            d.features.forEach(f => {
                                 agregarSismo({
                                     id: `sed-${f.id}`, mag: parseFloat(f.properties.mag || 0),
                                     place: f.properties.place || 'Suiza (SED/ETH)',
@@ -638,7 +1022,6 @@
                     }).catch(() => setStatus('st-sed', false));
             }
 
-            // ISC FIX: Consulta optimizada FDSNWS con fallback automático a eventos globales ISC
             function cargarISC() {
                 const urlISCFDSN = 'https://www.isc.ac.uk/fdsnws/event/1/query?format=geojson&minmagnitude=4.5&limit=20';
                 const urlISCFallback = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minmagnitude=4.8&limit=20';
@@ -648,7 +1031,7 @@
                     .then(d => {
                         if (d && d.features && d.features.length > 0) {
                             setStatus('st-isc', true);
-                            d.features.reverse().forEach(f => {
+                            d.features.forEach(f => {
                                 agregarSismo({
                                     id: `isc-${f.id || f.properties.eventid}`, 
                                     mag: parseFloat(f.properties.mag || f.properties.magnitude || 0),
@@ -666,7 +1049,7 @@
                             .then(d => {
                                 setStatus('st-isc', true);
                                 if (d.features) {
-                                    d.features.reverse().forEach(f => {
+                                    d.features.forEach(f => {
                                         agregarSismo({
                                             id: `isc-fb-${f.id}`, mag: parseFloat(f.properties.mag || 0),
                                             place: `${f.properties.place || 'Global'} (ISC)`,
@@ -724,7 +1107,7 @@
                     .then(d => {
                         setStatus('st-usgs', true);
                         if (d.features) {
-                            d.features.reverse().forEach(f => {
+                            d.features.forEach(f => {
                                 agregarSismo({
                                     id: f.id, mag: parseFloat(f.properties.mag || 0),
                                     place: f.properties.place || '',
@@ -742,7 +1125,7 @@
                     .then(d => {
                         setStatus('st-emsc', true);
                         if (d.features) {
-                            d.features.reverse().forEach(f => {
+                            d.features.forEach(f => {
                                 agregarSismo({
                                     id: f.id || `emsc-${f.properties.time}`,
                                     mag: parseFloat(f.properties.mag || 0),
@@ -762,7 +1145,7 @@
                     .then(data => {
                         setStatus('st-geonet', true);
                         if (data && data.features) {
-                            data.features.reverse().forEach(f => {
+                            data.features.forEach(f => {
                                 const p = f.properties;
                                 if (parseFloat(p.magnitude || 0) >= 2.5) {
                                     agregarSismo({
@@ -785,7 +1168,7 @@
                     .then(d => {
                         setStatus('st-csn', true);
                         if (d.features) {
-                            d.features.reverse().forEach(f => {
+                            d.features.forEach(f => {
                                 agregarSismo({
                                     id: `csn-${f.id}`, mag: parseFloat(f.properties.mag || 0), place: f.properties.place || 'Chile (CSN)',
                                     lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
@@ -803,7 +1186,7 @@
                     .then(d => {
                         setStatus('st-cwi', true);
                         if (d.features) {
-                            d.features.reverse().forEach(f => {
+                            d.features.forEach(f => {
                                 agregarSismo({
                                     id: `cwi-${f.id}`, mag: parseFloat(f.properties.mag || 0),
                                     place: f.properties.place || 'Taiwán (CWA/CWI)',
@@ -824,7 +1207,7 @@
                     .then(d => {
                         if (d.features && d.features.length > 0) {
                             setStatus('st-gfz', true);
-                            d.features.reverse().forEach(f => {
+                            d.features.forEach(f => {
                                 agregarSismo({
                                     id: `gfz-${f.id}`, mag: parseFloat(f.properties.mag || 0),
                                     place: f.properties.place || 'Global (GFZ Potsdam)',
@@ -841,7 +1224,7 @@
                             .then(data => {
                                 setStatus('st-gfz', true);
                                 if (data.features) {
-                                    data.features.slice(0, 10).reverse().forEach(f => {
+                                    data.features.slice(0, 10).forEach(f => {
                                         agregarSismo({
                                             id: `gfz-bk-${f.id}`, mag: parseFloat(f.properties.mag || 0),
                                             place: f.properties.flynn_region || 'GFZ Region',
@@ -862,7 +1245,7 @@
                     .then(d => {
                         setStatus('st-ingv', true);
                         if (d.features) {
-                            d.features.reverse().forEach(f => {
+                            d.features.forEach(f => {
                                 agregarSismo({
                                     id: `ingv-${f.id}`, mag: parseFloat(f.properties.mag || 0),
                                     place: f.properties.place || 'Italia (INGV)',
@@ -883,7 +1266,7 @@
                     .then(d => {
                         setStatus('st-ign', true);
                         if (d.features) {
-                            d.features.reverse().forEach(f => {
+                            d.features.forEach(f => {
                                 agregarSismo({
                                     id: `ign-${f.id}`, mag: parseFloat(f.properties.mag || 0),
                                     place: f.properties.place || 'España (IGN)',
@@ -903,7 +1286,7 @@
                     .then(d => {
                         setStatus('st-inpres', true);
                         if (d.features) {
-                            d.features.reverse().forEach(f => {
+                            d.features.forEach(f => {
                                 agregarSismo({
                                     id: `inpres-${f.id}`, mag: parseFloat(f.properties.mag || 0),
                                     place: f.properties.place || 'Argentina (INPRES)',
@@ -923,7 +1306,7 @@
                     .then(d => {
                         setStatus('st-ssn', true);
                         if (d.features) {
-                            d.features.reverse().forEach(f => {
+                            d.features.forEach(f => {
                                 agregarSismo({
                                     id: `ssn-${f.id}`, mag: parseFloat(f.properties.mag || 0),
                                     place: f.properties.place || 'México (SSN)',
@@ -943,7 +1326,7 @@
                     .then(d => {
                         setStatus('st-kma', true);
                         if (d.features) {
-                            d.features.reverse().forEach(f => {
+                            d.features.forEach(f => {
                                 agregarSismo({
                                     id: `kma-${f.id}`, mag: parseFloat(f.properties.mag || 0),
                                     place: f.properties.place || 'Corea (KMA)',
@@ -963,7 +1346,7 @@
                     .then(d => {
                         if (d && d.features && d.features.length > 0) {
                             setStatus('st-cenc', true);
-                            d.features.reverse().forEach(f => {
+                            d.features.forEach(f => {
                                 const place = f.properties.place || '';
                                 agregarSismo({
                                     id: `cenc-${f.id}`, mag: parseFloat(f.properties.mag || 0),
@@ -977,16 +1360,24 @@
                     }).catch(() => setStatus('st-cenc', false));
             }
 
-            // CARGA INICIAL
+            // CARGA INICIAL COMPLETA
             Promise.allSettled([
                 cargarFanStudio(), cargarSGC(), cargarIGP(), cargarBMKG(), cargarSED(),
                 cargarISC(), cargarJMA(), cargarWolfx(), cargarUSGS(),
                 cargarEMSC(), cargarGeoNet(), cargarCSN(), cargarCWI(),
                 cargarGFZ(), cargarINGV(), cargarIGN(), cargarINPRES(),
                 cargarSSN(), cargarKMA(), cargarCENC()
-            ]).then(() => { primeraCargaConcluida = true; });
+            ]).then(() => { 
+                primeraCargaConcluida = true;
+                
+                if (listaGlobalSismos.length > 0) {
+                    listaGlobalSismos.sort((a, b) => b.time - a.time);
+                    centrarEnSismo(listaGlobalSismos[0], false);
+                }
+                playLoadedSound();
+            });
 
-            // BUCLES AUTOMÁTICOS DE REFRESCO
+            // REFRESCOS EN TIEMPO REAL
             setInterval(cargarFanStudio, 30000);
             setInterval(cargarSGC, 15000);
             setInterval(cargarIGP, 20000);
