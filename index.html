@@ -894,9 +894,11 @@
                 L.marker([lat, lng], { icon: xIcon, interactive: false }).addTo(shakemapLayer);
             }
 
+            /* FUNCIÓN CENTRAR EN SISMO CON ZOOM MÁS ALEJADO */
             function centrarEnSismo(eq, suave = true) {
                 if (!eq) return;
-                const nivelZoom = eq.mag >= 6.5 ? 5 : (eq.mag >= 5.0 ? 6 : (eq.mag >= 3.0 ? 7 : 8));
+                // Niveles de zoom reducidos para una vista panorámica más lejana
+                const nivelZoom = eq.mag >= 6.5 ? 4 : (eq.mag >= 5.0 ? 5 : (eq.mag >= 3.0 ? 5 : 6));
                 
                 if (map.hasLayer(earthquakeLayer)) {
                     map.removeLayer(earthquakeLayer);
