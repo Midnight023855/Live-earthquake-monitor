@@ -687,6 +687,7 @@ function actualizarFeatured(eq) {
 function agregarSismo(eq, esAlerta = false) {
 
     if (!eq || !eq.id) return;
+
     if (conocidasIDs.has(eq.id) || document.querySelector(`.quake-card[data-id="${eq.id}"]`)) return;
 
     conocidasIDs.add(eq.id);
@@ -1047,47 +1048,29 @@ function mostrarSismoMasFuerte(textEl) {
 
     const ahora = Date.now();
 
-    const ultimas24h = listaGlobalSismos.filter(e => (ahora - e.time) < 86400000);
+    const sismosFuertes24h = listaGlobalSismos.filter(e => (ahora - e.time) < 86400000 && e.mag >= 5.0);
 
-    if (ultimas24h.length === 0) {
+    
 
-        textEl.innerText = 'Esperando datos...';
+    if (sismosFuertes24h.length === 0) {
+
+        textEl.innerText = 'SIN SISMOS M5.0+ EN LAS ÚLTIMAS 24H';
 
         return;
 
     }
 
-    let maxMag = -Infinity;
 
-    let maxSismo = null;
 
-    ultimas24h.forEach(e => {
+    const ultimoFuerte = sismosFuertes24h.reduce((a, b) => a.time > b.time ? a : b);
 
-        if (e.mag > maxMag) {
+    const magStr = Number(ultimoFuerte.mag).toFixed(1);
 
-            maxMag = e.mag;
+    let place = ultimoFuerte.place || 'Ubicación desconocida';
 
-            maxSismo = e;
+    if (place.length > 30) place = place.substring(0, 27) + '...';
 
-        }
-
-    });
-
-    if (maxSismo) {
-
-        const magStr = maxSismo.mag.toFixed(1);
-
-        let place = maxSismo.place || 'Ubicación desconocida';
-
-        if (place.length > 30) place = place.substring(0, 27) + '...';
-
-        textEl.innerText = `Último más fuerte: M${magStr} - ${place}`;
-
-    } else {
-
-        textEl.innerText = 'Esperando datos...';
-
-    }
+    textEl.innerText = `Último sismo fuerte: M${magStr} - ${place}`;
 
 }
 
@@ -1101,53 +1084,9 @@ function actualizarWidgetAlerta() {
 
     if (!widget || !textEl) return;
 
-    const ahora = Date.now();
+    widget.className = 'alert-widget';
 
-    const recientes = listaGlobalSismos.filter(e => (ahora - e.time) < 86400000);
-
-    const tsunami = listaGlobalSismos.some(e => e.tsunami === 1 || e.tsunamiAlert);
-
-    const shakeAlertReal = listaGlobalSismos.some(e => e.agency === 'ShakeAlert' && (ahora - e.time) < 3600000);
-
-    const grande = listaGlobalSismos.some(e => (ahora - e.time) < 7200000 && e.mag >= 7.0);
-
-    const fuerte = recientes.some(e => e.mag >= 6.0);
-
-    const enjambre = recientes.length >= 15;
-
-
-
-    if (tsunami) {
-
-        widget.className = 'alert-widget level-tsunami';
-
-        textEl.innerText = '🌊 ALERTA TSUNAMI';
-
-    } else if (shakeAlertReal) {
-
-        widget.className = 'alert-widget level-red';
-
-        textEl.innerText = '🔔 SHAKEALERT ACTIVO';
-
-    } else if (grande || (fuerte && enjambre)) {
-
-        widget.className = 'alert-widget level-red';
-
-        textEl.innerText = '⚠️ ALERTA SÍSMICA ALTA';
-
-    } else if (fuerte || enjambre) {
-
-        widget.className = 'alert-widget level-yellow';
-
-        mostrarSismoMasFuerte(textEl);
-
-    } else {
-
-        widget.className = 'alert-widget';
-
-        mostrarSismoMasFuerte(textEl);
-
-    }
+    mostrarSismoMasFuerte(textEl);
 
 }
 
@@ -1577,21 +1516,29 @@ async function cargarINGV() {
 
                 if (mag > 0) {
 
+                    const lat = parseFloat(coords[1]);
+
+                    const lng = parseFloat(coords[0]);
+
+                    const time = props.time ? (typeof props.time === 'number' ? props.time : new Date(props.time).getTime()) : Date.now();
+
+                    const ingvId = f.id || props.eventid || `${time}-${lat}-${lng}-${mag}`;
+
                     agregarSismo({
 
-                        id: 'ingv-' + (f.id || props.eventid || Date.now()),
+                        id: 'ingv-' + ingvId,
 
                         mag: mag,
 
                         place: props.place || props.flynn_region || 'Italia (INGV)',
 
-                        lat: parseFloat(coords[1]),
+                        lat: lat,
 
-                        lng: parseFloat(coords[0]),
+                        lng: lng,
 
                         depth: Math.abs(parseFloat(coords[2] || 0)),
 
-                        time: props.time ? (typeof props.time === 'number' ? props.time : new Date(props.time).getTime()) : Date.now(),
+                        time: time,
 
                         agency: 'INGV'
 
@@ -1833,12 +1780,6 @@ async function cargarJMAAtom() {
 
 async function cargarShakeAlert() {
 
-    // USGS no expone "catalog=shakealert" (no existe como catálogo público).
-
-    // ShakeAlert cubre California/Oregón/Washington con alertas públicas M4.5+,
-
-    // así que monitoreamos esa región real vía la API estándar de USGS.
-
     const url = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=32&maxlatitude=49&minlongitude=-125&maxlongitude=-114&starttime=' + new Date(Date.now() - 24 * 3600 * 1000).toISOString() + '&orderby=time&limit=15';
 
     try {
@@ -1916,10 +1857,6 @@ async function cargarPTWC() {
             const data = await fetchWithFallback(url, true, 7000);
 
             if (data && Array.isArray(data.features)) {
-
-                // La petición respondió correctamente: hay conexión,
-
-                // haya o no haya ahora mismo un evento de tsunami activo.
 
                 setStatus('st-ptwc', true);
 
