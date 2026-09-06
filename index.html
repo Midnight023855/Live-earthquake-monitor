@@ -1098,30 +1098,134 @@ async function cargarEMSC() {
 }
 
 // ---- SGC ----
+// Servicio oficial REST/ArcGIS del Servicio Geológico Colombiano.
+// Se consulta directamente la capa puntual del catálogo de sismos.
 async function cargarSGC() {
-    const urlUSGSCol = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=-4.5&maxlatitude=13.5&minlongitude=-79.5&maxlongitude=-66.5&limit=30';
-    try {
-        const data = await fetchWithFallback(urlUSGSCol, true, 6000);
-        if (data && data.features && data.features.length > 0) {
-            setStatus('st-sgc', true);
-            data.features.forEach(f => {
-                const p = f.properties || {};
-                const c = f.geometry ? f.geometry.coordinates : null;
-                if (!c || c.length < 2) return;
+    // SGC oficial: ArcGIS FeatureServer. El servidor admite JSONP mediante
+    // ?f=json&callback=..., lo que evita el problema de CORS al abrir este
+    // HTML directamente desde file:// o desde GitHub Pages.
+    const endpoints = [
+        'https://srvags.sgc.gov.co/arcgis/rest/services/catalogo_sismos/catalogo_de_sismos_2/FeatureServer/0/query',
+        'https://geoportal.sgc.gov.co/arcgis/rest/services/catalogo_sismos/catalogo_de_sismos_2/FeatureServer/0/query'
+    ];
+
+    const params = new URLSearchParams({
+        where: '1=1',
+        outFields: 'OBJECTID,ESP_ID_EVENTO_TXT,ESP_MAGNITUD,ESP_PROFUNDIDAD,ESP_FECHA,ESP_FECHA_TXT,ESP_LATITUD,ESP_LONGITUD,ESP_FUENTE_MAGNITUD,ESP_FUENTE_LOCALIZACION',
+        returnGeometry: 'false',
+        orderByFields: 'ESP_FECHA DESC',
+        resultRecordCount: '50',
+        f: 'json'
+    });
+
+    // JSONP: no usa fetch/XHR, así que no queda bloqueado por CORS.
+    const cargarJSONP = (base, timeoutMs = 10000) => new Promise((resolve, reject) => {
+        const callbackName = '__sgc_jsonp_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+        const script = document.createElement('script');
+        let finished = false;
+        const cleanup = () => {
+            clearTimeout(timer);
+            try { delete window[callbackName]; } catch (_) { window[callbackName] = undefined; }
+            script.remove();
+        };
+        const fail = (err) => {
+            if (finished) return;
+            finished = true;
+            cleanup();
+            reject(err);
+        };
+        const timer = setTimeout(() => fail(new Error('Timeout JSONP')), timeoutMs);
+
+        window[callbackName] = (data) => {
+            if (finished) return;
+            finished = true;
+            cleanup();
+            resolve(data);
+        };
+
+        script.onerror = () => fail(new Error('No se pudo cargar el endpoint SGC por JSONP'));
+        script.src = base + '?' + params.toString() + '&callback=' + encodeURIComponent(callbackName);
+        script.async = true;
+        document.head.appendChild(script);
+    });
+
+    let ultimoError = null;
+    for (const base of endpoints) {
+        try {
+            const data = await cargarJSONP(base);
+            if (!data) throw new Error('Respuesta SGC vacía');
+            if (data.error) throw new Error(data.error.message || 'Error ArcGIS SGC');
+            if (!Array.isArray(data.features)) throw new Error('Respuesta SGC sin features');
+
+            let exitos = 0;
+            for (const feature of data.features) {
+                const a = feature.attributes || {};
+                const mag = Number(a.ESP_MAGNITUD);
+                const lat = Number(a.ESP_LATITUD);
+                const lng = Number(a.ESP_LONGITUD);
+                const depth = Number(a.ESP_PROFUNDIDAD);
+                if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(mag)) continue;
+
+                // ArcGIS puede devolver fechas como epoch (ms) o como texto.
+                let time = Number(a.ESP_FECHA);
+                if (!Number.isFinite(time) || time <= 0) {
+                    const parsed = Date.parse(a.ESP_FECHA_TXT || '');
+                    time = Number.isFinite(parsed) ? parsed : Date.now();
+                }
+
+                const eventId = a.ESP_ID_EVENTO_TXT ?? a.OBJECTID ?? (time + '-' + lat + '-' + lng);
                 agregarSismo({
-                    id: 'sgc-' + f.id,
-                    mag: parseFloat(p.mag),
-                    place: p.place ? p.place.replace(/offshore|region/gi, '').trim() : 'Colombia',
-                    lat: parseFloat(c[1]),
-                    lng: parseFloat(c[0]),
-                    depth: Math.abs(parseFloat(c[2] || 0)),
-                    time: p.time || Date.now(),
+                    id: 'sgc-' + eventId,
+                    mag,
+                    place: 'Colombia',
+                    lat,
+                    lng,
+                    depth: Number.isFinite(depth) ? Math.abs(depth) : 0,
+                    time,
                     agency: 'SGC'
                 });
-            });
-            return;
+                exitos++;
+            }
+
+            if (exitos > 0 || data.features.length === 0) {
+                setStatus('st-sgc', true);
+                console.info('[SGC] Conectado mediante API oficial + JSONP. Eventos:', data.features.length);
+                return;
+            }
+            throw new Error('El SGC respondió, pero ningún evento tenía datos válidos');
+        } catch (e) {
+            ultimoError = e;
+            console.warn('[SGC] Endpoint falló:', base, e);
         }
-    } catch(e) {}
+    }
+
+    // Último recurso: proxy ya existente en el HTML. Sigue siendo la API del
+    // SGC, solo que la petición viaja por un proxy para sortear CORS.
+    try {
+        const url = endpoints[0] + '?' + params.toString();
+        const data = await fetchWithFallback(url, true, 10000);
+        if (data && !data.error && Array.isArray(data.features)) {
+            let exitos = 0;
+            data.features.forEach(feature => {
+                const a = feature.attributes || {};
+                const mag = Number(a.ESP_MAGNITUD), lat = Number(a.ESP_LATITUD), lng = Number(a.ESP_LONGITUD), depth = Number(a.ESP_PROFUNDIDAD);
+                if (!Number.isFinite(mag) || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+                let time = Number(a.ESP_FECHA);
+                if (!Number.isFinite(time) || time <= 0) time = Date.parse(a.ESP_FECHA_TXT || '') || Date.now();
+                agregarSismo({ id:'sgc-'+(a.ESP_ID_EVENTO_TXT ?? a.OBJECTID ?? time), mag, place:'Colombia', lat, lng, depth:Number.isFinite(depth)?Math.abs(depth):0, time, agency:'SGC' });
+                exitos++;
+            });
+            if (exitos || data.features.length === 0) {
+                setStatus('st-sgc', true);
+                console.info('[SGC] Conectado mediante API oficial + proxy. Eventos:', data.features.length);
+                return;
+            }
+        }
+    } catch (e) {
+        ultimoError = e;
+    }
+
+    console.error('[SGC] No se pudo conectar:', ultimoError);
     setStatus('st-sgc', false);
 }
 
