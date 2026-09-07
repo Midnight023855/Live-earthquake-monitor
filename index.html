@@ -650,10 +650,13 @@ function buildIntensityBar() {
 }
 
 // ========== MOTOR RESILIENTE Y MULTI-PROXY ==========
-const PROXIES = [
-    'https://corsproxy.io/?',
-    'https://api.allorigins.win/raw?url=',
-    'https://thingproxy.freeboard.io/fetch/'
+const PROXY_BUILDERS = [
+    // AllOrigins: API pública, sin API key.
+    (url) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
+    // CodeTabs: proxy GET, útil como respaldo.
+    (url) => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url),
+    // CorsProxy: se deja como último respaldo porque su servicio puede aplicar límites.
+    (url) => 'https://corsproxy.io/?url=' + encodeURIComponent(url)
 ];
 
 function setStatus(id, ok) {
@@ -664,34 +667,40 @@ function setStatus(id, ok) {
     }
 }
 
-async function fetchWithFallback(targetUrl, isJson = true, timeoutMs = 8000) {
-    const fetchTimeout = (url) => {
-        return new Promise((resolve, reject) => {
-            const timer = setTimeout(() => reject(new Error('Timeout')), timeoutMs);
-            fetch(url)
-                .then(res => {
-                    clearTimeout(timer);
-                    if (!res.ok) reject(new Error('HTTP ' + res.status));
-                    else resolve(isJson ? res.json() : res.text());
-                })
-                .catch(err => {
-                    clearTimeout(timer);
-                    reject(err);
-                });
-        });
-    };
+async function fetchTimeout(url, isJson, timeoutMs) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-        return await fetchTimeout(targetUrl);
-    } catch(e) {
-        for (let p of PROXIES) {
-            try {
-                return await fetchTimeout(p + encodeURIComponent(targetUrl));
-            } catch(proxyErr) {
-                continue;
-            }
+        const res = await fetch(url, {
+            signal: controller.signal,
+            cache: 'no-store',
+            headers: { 'Accept': isJson ? 'application/json, text/plain, */*' : 'text/plain, */*' }
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return isJson ? await res.json() : await res.text();
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+async function fetchWithFallback(targetUrl, isJson = true, timeoutMs = 10000) {
+    // Primero intenta la fuente original.
+    try {
+        return await fetchTimeout(targetUrl, isJson, timeoutMs);
+    } catch (e) {
+        console.warn('[DIRECT]', targetUrl, e.message);
+    }
+
+    // Luego prueba proxies públicos, uno por uno.
+    for (const makeProxy of PROXY_BUILDERS) {
+        const proxyUrl = makeProxy(targetUrl);
+        try {
+            return await fetchTimeout(proxyUrl, isJson, Math.max(timeoutMs, 12000));
+        } catch (e) {
+            console.warn('[PROXY]', e.message);
         }
     }
-    throw new Error('Fallback exhaust');
+    throw new Error('No se pudo obtener la fuente');
 }
 
 // ============================================================
@@ -732,8 +741,8 @@ function obtenerIntensidadRealCWA(shakingAreas) {
 async function cargarCWA() {
     try {
         const data = await fetchWithFallback(CWA_WORKER_URL, true, 8000);
+        setStatus('st-cwa', true);
         if (data && data.success && data.records && Array.isArray(data.records.Earthquake)) {
-            setStatus('st-cwa', true);
             data.records.Earthquake.forEach(eq => {
                 const info = eq.EarthquakeInfo || {};
                 const epicenter = info.Epicenter || {};
@@ -771,8 +780,8 @@ async function cargarCWA() {
 async function cargarEARLYEST() {
     try {
         const data = await fetchWithFallback('https://www.seismicportal.eu/fdsnws/event/1/query?limit=40&format=json', true, 6000);
+        setStatus('st-earlyest', true);
         if (data && data.features) {
-            setStatus('st-earlyest', true);
             data.features.forEach(f => {
                 const magVal = parseFloat(f.properties.mag);
                 agregarSismo({
@@ -794,50 +803,50 @@ async function cargarEARLYEST() {
 
 // ---- SSN (México) ----
 async function cargarSSN() {
-    const url = 'http://www.ssn.unam.mx/rss/ultimos-sismos.xml';
-    try {
-        const xmlText = await fetchWithFallback(url, false, 8000);
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(xmlText, 'text/xml');
-        const items = xml.getElementsByTagName('item');
-        if (items && items.length > 0) {
-            setStatus('st-ssn', true);
+    // RSS oficial del SSN. HTTPS evita mixed-content cuando el monitor está en GitHub Pages.
+    const urls = [
+        'https://www.ssn.unam.mx/rss/ultimos-sismos.xml',
+        'http://www.ssn.unam.mx/rss/ultimos-sismos.xml'
+    ];
+    for (const url of urls) {
+        try {
+            const xmlText = await fetchWithFallback(url, false, 10000);
+        setStatus('st-ssn', true);
+            const parser = new DOMParser();
+            const xml = parser.parseFromString(xmlText, 'text/xml');
+            if (xml.querySelector('parsererror')) throw new Error('RSS XML inválido');
+            const items = xml.getElementsByTagName('item');
+            if (!items || items.length === 0) continue;
+
+            let ok = 0;
             for (let i = 0; i < items.length; i++) {
                 const item = items[i];
-                const titleEl = item.getElementsByTagName('title')[0];
-                const title = titleEl ? titleEl.textContent : '';
-                const descEl = item.getElementsByTagName('description')[0];
-                const desc = descEl ? descEl.textContent : '';
+                const title = item.getElementsByTagName('title')[0]?.textContent || '';
+                const desc = item.getElementsByTagName('description')[0]?.textContent || '';
                 const latEl = item.getElementsByTagName('geo:lat')[0];
                 const lngEl = item.getElementsByTagName('geo:long')[0];
                 const lat = latEl ? parseFloat(latEl.textContent) : NaN;
                 const lng = lngEl ? parseFloat(lngEl.textContent) : NaN;
                 if (isNaN(lat) || isNaN(lng)) continue;
-                const magMatch = title.match(/^([\d.]+)/);
-                const mag = magMatch ? parseFloat(magMatch[1]) : 0;
-                const place = title.replace(/^[\d.]+,\s*/, '').trim() || 'México';
-                const depthMatch = desc.match(/Profundidad:\s*([\d.]+)/);
-                const depth = depthMatch ? parseFloat(depthMatch[1]) : 10;
-                const fechaMatch = desc.match(/Fecha:(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})/);
+
+                const mag = parseFloat((title.match(/^([0-9]+(?:\.[0-9]+)?)/) || [])[1]);
+                const place = title.replace(/^[0-9]+(?:\.[0-9]+)?\s*,?\s*/, '').trim() || 'México';
+                const depth = parseFloat((desc.match(/Profundidad:\s*([0-9.]+)/i) || [])[1]) || 10;
+                const fechaMatch = desc.match(/Fecha:\s*(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})/i);
                 let time = Date.now();
                 if (fechaMatch) {
                     const parsed = Date.parse(fechaMatch[1] + 'T' + fechaMatch[2] + '-06:00');
                     if (!isNaN(parsed)) time = parsed;
                 }
                 agregarSismo({
-                    id: 'ssn-' + fechaMatch?.[1] + '-' + fechaMatch?.[2] + '-' + lat + '-' + lng,
-                    mag: mag,
-                    place: place,
-                    lat: lat,
-                    lng: lng,
-                    depth: depth,
-                    time: time,
-                    agency: 'SSN'
+                    id: 'ssn-' + (fechaMatch ? fechaMatch[1] + '-' + fechaMatch[2] : time) + '-' + lat + '-' + lng,
+                    mag: isNaN(mag) ? 0 : mag, place, lat, lng, depth, time, agency: 'SSN'
                 });
+                ok++;
             }
-            return;
-        }
-    } catch(e) {}
+            if (ok > 0) { setStatus('st-ssn', true); return; }
+        } catch (e) { console.warn('[SSN]', e.message); }
+    }
     setStatus('st-ssn', false);
 }
 
@@ -846,8 +855,8 @@ async function cargarINGV() {
     const url = 'https://webservices.ingv.it/fdsnws/event/1/query?format=geojson&limit=25';
     try {
         const data = await fetchWithFallback(url, true, 6000);
+        setStatus('st-ingv', true);
         if (data && data.features && data.features.length > 0) {
-            setStatus('st-ingv', true);
             data.features.forEach(f => {
                 const props = f.properties || {};
                 const coords = f.geometry ? f.geometry.coordinates : [];
@@ -881,8 +890,8 @@ async function cargarCENC() {
     const url = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=18&maxlatitude=54&minlongitude=73&maxlongitude=135&limit=30';
     try {
         const data = await fetchWithFallback(url, true, 6000);
+        setStatus('st-cenc', true);
         if (data && data.features && data.features.length > 0) {
-            setStatus('st-cenc', true);
             data.features.forEach(f => {
                 const p = f.properties || {};
                 const c = f.geometry ? f.geometry.coordinates : null;
@@ -908,8 +917,8 @@ async function cargarCENC() {
 async function cargarJMAAtom() {
     try {
         const data = await fetchWithFallback('https://api.wolfx.jp/jma_eew.json', true, 5000);
+        setStatus('st-jmaatom', true);
         if (data && (data.Title || data.Hypocenter || data.location)) {
-            setStatus('st-jmaatom', true);
             const lat = parseFloat(data.Latitude || data.latitude || 0);
             const lng = parseFloat(data.Longitude || data.longitude || 0);
             const mag = parseFloat(data.Magunitude || data.Magnitude || data.mag || 0);
@@ -934,7 +943,6 @@ async function cargarJMAAtom() {
         const xml = parser.parseFromString(xmlText, 'text/xml');
         const entries = xml.getElementsByTagName('entry');
         if (entries && entries.length > 0) {
-            setStatus('st-jmaatom', true);
             const maxEntries = Math.min(entries.length, 10);
             for (let i = 0; i < maxEntries; i++) {
                 const entry = entries[i];
@@ -985,8 +993,8 @@ async function cargarShakeAlert() {
     const url = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=32&maxlatitude=49&minlongitude=-125&maxlongitude=-114&starttime=' + new Date(Date.now() - 24 * 3600 * 1000).toISOString() + '&orderby=time&limit=15';
     try {
         const data = await fetchWithFallback(url, true, 6000);
+        setStatus('st-shakealert', true);
         if (data && Array.isArray(data.features)) {
-            setStatus('st-shakealert', true);
             data.features.forEach(f => {
                 const p = f.properties;
                 const c = f.geometry ? f.geometry.coordinates : null;
@@ -1020,8 +1028,8 @@ async function cargarPTWC() {
     for (let url of urls) {
         try {
             const data = await fetchWithFallback(url, true, 7000);
+        setStatus('st-ptwc', true);
             if (data && Array.isArray(data.features)) {
-                setStatus('st-ptwc', true);
                 data.features.forEach(f => {
                     const p = f.properties || {};
                     const c = f.geometry ? f.geometry.coordinates : null;
@@ -1051,8 +1059,8 @@ async function cargarPTWC() {
 async function cargarUSGS() {
     try {
         const data = await fetchWithFallback('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson', true, 6000);
+        setStatus('st-usgs', true);
         if (data && data.features) {
-            setStatus('st-usgs', true);
             data.features.forEach(f => {
                 agregarSismo({
                     id: f.id,
@@ -1076,8 +1084,8 @@ async function cargarUSGS() {
 async function cargarEMSC() {
     try {
         const data = await fetchWithFallback('https://www.seismicportal.eu/fdsnws/event/1/query?limit=40&format=json', true, 6000);
+        setStatus('st-emsc', true);
         if (data && data.features) {
-            setStatus('st-emsc', true);
             data.features.forEach(f => {
                 const magVal = parseFloat(f.properties.mag);
                 agregarSismo({
@@ -1098,137 +1106,62 @@ async function cargarEMSC() {
 }
 
 // ---- SGC ----
-// Servicio oficial REST/ArcGIS del Servicio Geológico Colombiano.
-// Se consulta directamente la capa puntual del catálogo de sismos.
 async function cargarSGC() {
-    // SGC oficial: ArcGIS FeatureServer. El servidor admite JSONP mediante
-    // ?f=json&callback=..., lo que evita el problema de CORS al abrir este
-    // HTML directamente desde file:// o desde GitHub Pages.
-    const endpoints = [
-        'https://srvags.sgc.gov.co/arcgis/rest/services/catalogo_sismos/catalogo_de_sismos_2/FeatureServer/0/query',
-        'https://geoportal.sgc.gov.co/arcgis/rest/services/catalogo_sismos/catalogo_de_sismos_2/FeatureServer/0/query'
-    ];
-
+    const base = 'https://srvags.sgc.gov.co/arcgis/rest/services/catalogo_sismos/catalogo_de_sismos_2/FeatureServer/0/query';
     const params = new URLSearchParams({
         where: '1=1',
-        outFields: 'OBJECTID,ESP_ID_EVENTO_TXT,ESP_MAGNITUD,ESP_PROFUNDIDAD,ESP_FECHA,ESP_FECHA_TXT,ESP_LATITUD,ESP_LONGITUD,ESP_FUENTE_MAGNITUD,ESP_FUENTE_LOCALIZACION',
-        returnGeometry: 'false',
+        outFields: 'OBJECTID,ESP_ID_EVENTO_TXT,ESP_MAGNITUD,ESP_FUENTE_MAGNITUD,ESP_PROFUNDIDAD,ESP_FECHA,ESP_FECHA_TXT,ESP_FECHA_LONG,ESP_LATITUD,ESP_LONGITUD',
+        returnGeometry: 'true',
         orderByFields: 'ESP_FECHA DESC',
-        resultRecordCount: '50',
+        resultRecordCount: '100',
         f: 'json'
     });
 
-    // JSONP: no usa fetch/XHR, así que no queda bloqueado por CORS.
-    const cargarJSONP = (base, timeoutMs = 10000) => new Promise((resolve, reject) => {
-        const callbackName = '__sgc_jsonp_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
-        const script = document.createElement('script');
-        let finished = false;
-        const cleanup = () => {
-            clearTimeout(timer);
-            try { delete window[callbackName]; } catch (_) { window[callbackName] = undefined; }
-            script.remove();
-        };
-        const fail = (err) => {
-            if (finished) return;
-            finished = true;
-            cleanup();
-            reject(err);
-        };
-        const timer = setTimeout(() => fail(new Error('Timeout JSONP')), timeoutMs);
-
-        window[callbackName] = (data) => {
-            if (finished) return;
-            finished = true;
-            cleanup();
-            resolve(data);
-        };
-
-        script.onerror = () => fail(new Error('No se pudo cargar el endpoint SGC por JSONP'));
-        script.src = base + '?' + params.toString() + '&callback=' + encodeURIComponent(callbackName);
-        script.async = true;
-        document.head.appendChild(script);
-    });
-
-    let ultimoError = null;
-    for (const base of endpoints) {
-        try {
-            const data = await cargarJSONP(base);
-            if (!data) throw new Error('Respuesta SGC vacía');
-            if (data.error) throw new Error(data.error.message || 'Error ArcGIS SGC');
-            if (!Array.isArray(data.features)) throw new Error('Respuesta SGC sin features');
-
-            let exitos = 0;
-            for (const feature of data.features) {
-                const a = feature.attributes || {};
-                const mag = Number(a.ESP_MAGNITUD);
-                const lat = Number(a.ESP_LATITUD);
-                const lng = Number(a.ESP_LONGITUD);
-                const depth = Number(a.ESP_PROFUNDIDAD);
-                if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(mag)) continue;
-
-                // ArcGIS puede devolver fechas como epoch (ms) o como texto.
-                let time = Number(a.ESP_FECHA);
-                if (!Number.isFinite(time) || time <= 0) {
-                    const parsed = Date.parse(a.ESP_FECHA_TXT || '');
-                    time = Number.isFinite(parsed) ? parsed : Date.now();
-                }
-
-                const eventId = a.ESP_ID_EVENTO_TXT ?? a.OBJECTID ?? (time + '-' + lat + '-' + lng);
-                agregarSismo({
-                    id: 'sgc-' + eventId,
-                    mag,
-                    place: 'Colombia',
-                    lat,
-                    lng,
-                    depth: Number.isFinite(depth) ? Math.abs(depth) : 0,
-                    time,
-                    agency: 'SGC'
-                });
-                exitos++;
-            }
-
-            if (exitos > 0 || data.features.length === 0) {
-                setStatus('st-sgc', true);
-                console.info('[SGC] Conectado mediante API oficial + JSONP. Eventos:', data.features.length);
-                return;
-            }
-            throw new Error('El SGC respondió, pero ningún evento tenía datos válidos');
-        } catch (e) {
-            ultimoError = e;
-            console.warn('[SGC] Endpoint falló:', base, e);
-        }
-    }
-
-    // Último recurso: proxy ya existente en el HTML. Sigue siendo la API del
-    // SGC, solo que la petición viaja por un proxy para sortear CORS.
     try {
-        const url = endpoints[0] + '?' + params.toString();
-        const data = await fetchWithFallback(url, true, 10000);
-        if (data && !data.error && Array.isArray(data.features)) {
-            let exitos = 0;
-            data.features.forEach(feature => {
-                const a = feature.attributes || {};
-                const mag = Number(a.ESP_MAGNITUD), lat = Number(a.ESP_LATITUD), lng = Number(a.ESP_LONGITUD), depth = Number(a.ESP_PROFUNDIDAD);
-                if (!Number.isFinite(mag) || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
-                let time = Number(a.ESP_FECHA);
-                if (!Number.isFinite(time) || time <= 0) time = Date.parse(a.ESP_FECHA_TXT || '') || Date.now();
-                agregarSismo({ id:'sgc-'+(a.ESP_ID_EVENTO_TXT ?? a.OBJECTID ?? time), mag, place:'Colombia', lat, lng, depth:Number.isFinite(depth)?Math.abs(depth):0, time, agency:'SGC' });
-                exitos++;
+        const data = await fetchWithFallback(base + '?' + params.toString(), true, 12000);
+        setStatus('st-sgc', true);
+        if (!data || !Array.isArray(data.features)) throw new Error('Respuesta SGC sin features');
+
+        let ok = 0;
+        for (const f of data.features) {
+            const p = f.attributes || {};
+            const g = f.geometry || {};
+
+            const lat = Number(p.ESP_LATITUD ?? g.y);
+            const lng = Number(p.ESP_LONGITUD ?? g.x);
+            const mag = Number(p.ESP_MAGNITUD);
+            const depth = Number(p.ESP_PROFUNDIDAD);
+
+            let time = Number(p.ESP_FECHA_LONG);
+            if (!Number.isFinite(time)) time = Number(p.ESP_FECHA);
+            if (!Number.isFinite(time)) time = Date.parse(String(p.ESP_FECHA_TXT || '').replace(' ', 'T'));
+
+            if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(mag)) continue;
+
+            const eid = p.ESP_ID_EVENTO_TXT ?? f.id ?? p.OBJECTID ?? `${time}-${lat}-${lng}`;
+
+            agregarSismo({
+                id: 'sgc-' + eid,
+                mag,
+                place: 'Colombia',
+                lat,
+                lng,
+                depth: Number.isFinite(depth) ? Math.abs(depth) : 0,
+                time: Number.isFinite(time) ? time : Date.now(),
+                agency: 'SGC',
+                magnitudeType: p.ESP_FUENTE_MAGNITUD || 'SGC'
             });
-            if (exitos || data.features.length === 0) {
-                setStatus('st-sgc', true);
-                console.info('[SGC] Conectado mediante API oficial + proxy. Eventos:', data.features.length);
-                return;
-            }
+            ok++;
         }
+
+        // La conexión se considera válida si el servicio respondió correctamente,
+        // incluso si en ese instante no hay registros utilizables.
+        if (ok === 0) console.warn('[SGC] Servicio respondió, pero no hubo eventos utilizables.');
     } catch (e) {
-        ultimoError = e;
+        console.warn('[SGC]', e.message);
+        setStatus('st-sgc', false);
     }
-
-    console.error('[SGC] No se pudo conectar:', ultimoError);
-    setStatus('st-sgc', false);
 }
-
 // ---- WOLFX ----
 async function cargarWolfx() {
     const wolfxEndpoints = [
@@ -1238,6 +1171,7 @@ async function cargarWolfx() {
     for (let ep of wolfxEndpoints) {
         try {
             const data = await fetchWithFallback(ep, true, 6000);
+        setStatus('st-wolfx', true);
             if (data) {
                 let list = [];
                 if (Array.isArray(data)) list = data;
@@ -1266,7 +1200,6 @@ async function cargarWolfx() {
                         }
                     });
                     if (exitos > 0) {
-                        setStatus('st-wolfx', true);
                         return;
                     }
                 }
@@ -1280,8 +1213,8 @@ async function cargarWolfx() {
 async function cargarGeoNet() {
     try {
         const data = await fetchWithFallback('https://api.geonet.org.nz/quake?MMI=3', true, 6000);
+        setStatus('st-geonet', true);
         if (data && data.features) {
-            setStatus('st-geonet', true);
             data.features.forEach(f => {
                 const p = f.properties;
                 if (p.magnitude >= 2.0) {
@@ -1307,6 +1240,7 @@ async function cargarGeoNet() {
 async function cargarBMKG() {
     try {
         const data = await fetchWithFallback('https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json', true, 6000);
+        setStatus('st-bmkg', true);
         if (data && data.Infogempa && data.Infogempa.gempa) {
             const g = data.Infogempa.gempa;
             const mag = parseFloat(g.Magnitude);
@@ -1315,7 +1249,6 @@ async function cargarBMKG() {
             let lng = parseFloat(g.Bujur.replace(/[^\d.-]/g, ''));
             if (g.Bujur.includes('BB')) lng = -Math.abs(lng);
             if (!isNaN(mag) && !isNaN(lat) && !isNaN(lng)) {
-                setStatus('st-bmkg', true);
                 agregarSismo({
                     id: 'bmkg-' + g.Jam + '-' + g.Tanggal,
                     mag: mag,
@@ -1338,155 +1271,187 @@ async function cargarBMKG() {
 async function cargarIGN() {
     const url = 'https://fdsnws.sismologia.ign.es/fdsnws/event/1/query?format=text&limit=30&orderby=time';
     try {
-        const text = await fetchWithFallback(url, false, 7000);
-        const lines = text.trim().split('\n').filter(l => l && !l.startsWith('#'));
-        if (lines.length > 0) {
-            setStatus('st-ign', true);
-            lines.forEach(line => {
-                const cols = line.split('|');
-                if (cols.length < 13) return;
-                const eventId = cols[0];
-                const timeStr = cols[1];
-                const lat = parseFloat(cols[2]);
-                const lng = parseFloat(cols[3]);
-                const depth = parseFloat(cols[4]);
-                const mag = parseFloat(cols[10]);
-                const place = cols[12];
-                if (isNaN(lat) || isNaN(lng)) return;
-                const parsedTime = Date.parse(timeStr + 'Z');
-                agregarSismo({
-                    id: 'ign-' + eventId,
-                    mag: isNaN(mag) ? 0 : mag,
-                    place: place || 'España / IGN',
-                    lat: lat,
-                    lng: lng,
-                    depth: isNaN(depth) ? 10 : depth,
-                    time: isNaN(parsedTime) ? Date.now() : parsedTime,
-                    agency: 'IGN'
-                });
-            });
-            return;
-        }
-    } catch(e) {}
-    setStatus('st-ign', false);
-}
+        const text = await fetchWithFallback(url, false, 10000);
+        setStatus('st-ign', true);
+        const rows = String(text || '').trim().split(/
+?
+/).filter(l => l.trim() && !l.trim().startsWith('#'));
+        if (!rows.length) throw new Error('IGN sin respuesta utilizable');
 
+        const header = rows[0].split('|').map(x => x.trim().toLowerCase());
+        const idx = (...names) => {
+            for (const name of names) {
+                const i = header.findIndex(h => h === name || h.includes(name));
+                if (i >= 0) return i;
+            }
+            return -1;
+        };
+
+        const iId = idx('eventid');
+        const iTime = idx('time');
+        const iLat = idx('latitude');
+        const iLon = idx('longitude');
+        const iDepth = idx('depth');
+        const iMag = idx('magnitude', 'mag');
+        const iPlace = idx('eventlocationname', 'region', 'place');
+
+        let ok = 0;
+        for (let n = 1; n < rows.length; n++) {
+            const c = rows[n].split('|');
+            const lat = Number(c[iLat]);
+            const lng = Number(c[iLon]);
+            const mag = Number(c[iMag]);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(mag)) continue;
+
+            const parsedTime = Date.parse(c[iTime] || '');
+            agregarSismo({
+                id: 'ign-' + (c[iId] || `${parsedTime}-${lat}-${lng}`),
+                mag,
+                place: (iPlace >= 0 && c[iPlace]) ? c[iPlace] : 'España / IGN',
+                lat,
+                lng,
+                depth: iDepth >= 0 && Number.isFinite(Number(c[iDepth])) ? Number(c[iDepth]) : 10,
+                time: Number.isFinite(parsedTime) ? parsedTime : Date.now(),
+                agency: 'IGN'
+            });
+            ok++;
+        }
+        if (ok === 0) console.warn('[IGN] Servicio respondió, pero no hubo eventos utilizables.');
+    } catch (e) {
+        console.warn('[IGN]', e.message);
+        setStatus('st-ign', false);
+    }
+}
 // ---- GFZ (GEOFON) ----
 async function cargarGFZ() {
-    const gfzUrls = ['https://geofon.gfz-potsdam.de/fdsnws/event/1/query?format=geojson&limit=30'];
-    for (let u of gfzUrls) {
-        try {
-            const data = await fetchWithFallback(u, true, 7000);
-            if (data && data.features && data.features.length > 0) {
-                let exitos = 0;
-                data.features.forEach(f => {
-                    const props = f.properties || {};
-                    const coords = f.geometry ? f.geometry.coordinates : [];
-                    const mag = parseFloat(props.mag || props.magnitude || 0);
-                    if (mag > 0 && coords && coords.length >= 2) {
-                        const lat = parseFloat(coords[1]);
-                        const lng = parseFloat(coords[0]);
-                        if (!isNaN(lat) && !isNaN(lng)) {
-                            agregarSismo({
-                                id: 'gfz-' + (f.id || props.eventid || (Date.now() + '-' + Math.random())),
-                                mag: mag,
-                                place: props.place || props.description || 'Global (GFZ Potsdam)',
-                                lat: lat,
-                                lng: lng,
-                                depth: Math.abs(parseFloat(coords[2] || 10)),
-                                time: props.time ? (typeof props.time === 'number' ? props.time : new Date(props.time).getTime()) : Date.now(),
-                                agency: 'GFZ'
-                            });
-                            exitos++;
-                        }
-                    }
-                });
-                if (exitos > 0) {
-                    setStatus('st-gfz', true);
-                    return;
-                }
-            }
-        } catch(e) {}
-    }
-    setStatus('st-gfz', false);
-}
+    const end = new Date();
+    const start = new Date(end.getTime() - 24 * 3600 * 1000);
+    const iso = d => d.toISOString();
 
-// ---- ISC ----
-// ISC no soporta format=geojson (solo xml/isf/isf2 según su propia documentación).
-// Usamos su XML real (QuakeML) y lo parseamos igual que con JMA/SSN.
-async function cargarISC() {
-    const url = 'https://www.isc.ac.uk/fdsnws/event/1/query?format=xml&minmagnitude=3.0&limit=25&orderby=time';
+    const url = 'https://geofon.gfz.de/fdsnws/event/1/query' +
+        '?format=text&start=' + encodeURIComponent(iso(start)) +
+        '&end=' + encodeURIComponent(iso(end)) +
+        '&minmag=2.0&limit=50&orderby=time';
+
     try {
-        const xmlText = await fetchWithFallback(url, false, 9000);
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(xmlText, 'text/xml');
-        const events = xml.getElementsByTagName('event');
-        if (events && events.length > 0) {
-            setStatus('st-isc', true);
-            for (let i = 0; i < events.length; i++) {
-                const ev = events[i];
-                const origin = ev.getElementsByTagName('origin')[0];
-                if (!origin) continue;
+        const raw = await fetchWithFallback(url, false, 12000);
+        setStatus('st-gfz', true);
+        const rows = String(raw || '').trim().split(/
+?
+/).filter(l => l.trim() && !l.trim().startsWith('#'));
+        if (!rows.length) throw new Error('GEOFON sin filas');
 
-                const timeEl = origin.getElementsByTagName('time')[0];
-                const timeVal = timeEl ? timeEl.getElementsByTagName('value')[0] : null;
-                const latEl = origin.getElementsByTagName('latitude')[0];
-                const latVal = latEl ? latEl.getElementsByTagName('value')[0] : null;
-                const lngEl = origin.getElementsByTagName('longitude')[0];
-                const lngVal = lngEl ? lngEl.getElementsByTagName('value')[0] : null;
-                const depthEl = origin.getElementsByTagName('depth')[0];
-                const depthVal = depthEl ? depthEl.getElementsByTagName('value')[0] : null;
-
-                const lat = latVal ? parseFloat(latVal.textContent) : NaN;
-                const lng = lngVal ? parseFloat(lngVal.textContent) : NaN;
-                if (isNaN(lat) || isNaN(lng)) continue;
-
-                let mag = 0;
-                const magEl = ev.getElementsByTagName('magnitude')[0];
-                if (magEl) {
-                    const magTagEl = magEl.getElementsByTagName('mag')[0];
-                    const magVal = magTagEl ? magTagEl.getElementsByTagName('value')[0] : null;
-                    if (magVal) mag = parseFloat(magVal.textContent);
-                }
-
-                let place = 'Global (ISC UK)';
-                const descEl = ev.getElementsByTagName('description')[0];
-                if (descEl) {
-                    const textEl = descEl.getElementsByTagName('text')[0];
-                    if (textEl && textEl.textContent) place = textEl.textContent;
-                }
-
-                let time = Date.now();
-                if (timeVal && timeVal.textContent) {
-                    const parsed = Date.parse(timeVal.textContent);
-                    if (!isNaN(parsed)) time = parsed;
-                }
-
-                // QuakeML expresa la profundidad en metros, no en km.
-                let depth = 10;
-                if (depthVal && depthVal.textContent) {
-                    const d = parseFloat(depthVal.textContent);
-                    if (!isNaN(d)) depth = d / 1000;
-                }
-
-                const evId = ev.getAttribute('publicID') || (time + '-' + lat + '-' + lng);
-                agregarSismo({
-                    id: 'isc-' + evId,
-                    mag: mag,
-                    place: place,
-                    lat: lat,
-                    lng: lng,
-                    depth: depth,
-                    time: time,
-                    agency: 'ISC'
-                });
+        const header = rows[0].split('|').map(x => x.trim().toLowerCase());
+        const idx = (...names) => {
+            for (const name of names) {
+                const i = header.findIndex(h => h === name || h.includes(name));
+                if (i >= 0) return i;
             }
-            return;
-        }
-    } catch(e) {}
-    setStatus('st-isc', false);
-}
+            return -1;
+        };
 
+        const iId = idx('eventid');
+        const iTime = idx('time');
+        const iLat = idx('latitude');
+        const iLon = idx('longitude');
+        const iDepth = idx('depth');
+        const iMag = idx('magnitude');
+        const iRegion = idx('region', 'eventlocationname');
+
+        let ok = 0;
+        for (let n = 1; n < rows.length; n++) {
+            const c = rows[n].split('|');
+            const lat = Number(c[iLat]);
+            const lng = Number(c[iLon]);
+            const mag = Number(c[iMag]);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(mag)) continue;
+
+            const time = Date.parse(c[iTime] || '');
+            agregarSismo({
+                id: 'gfz-' + (iId >= 0 && c[iId] ? c[iId] : `${time}-${lat}-${lng}`),
+                mag,
+                place: iRegion >= 0 && c[iRegion] ? c[iRegion] : 'Global (GEOFON/GFZ)',
+                lat,
+                lng,
+                depth: iDepth >= 0 && Number.isFinite(Number(c[iDepth])) ? Math.abs(Number(c[iDepth])) : 0,
+                time: Number.isFinite(time) ? time : Date.now(),
+                agency: 'GFZ'
+            });
+            ok++;
+        }
+        if (ok === 0) console.warn('[GEOFON] Servicio respondió, pero no hubo eventos utilizables.');
+    } catch (e) {
+        console.warn('[GEOFON]', e.message);
+        setStatus('st-gfz', false);
+    }
+}
+// ---- ISC ----
+async function cargarISC() {
+    const end = new Date();
+    const start = new Date(end.getTime() - 48 * 3600 * 1000);
+    const iso = d => d.toISOString();
+
+    const url = 'https://www.isc.ac.uk/fdsnws/event/1/query' +
+        '?format=quakeml&starttime=' + encodeURIComponent(iso(start)) +
+        '&endtime=' + encodeURIComponent(iso(end)) +
+        '&minmagnitude=2.0&limit=100&orderby=time';
+
+    try {
+        const xmlText = await fetchWithFallback(url, false, 15000);
+        setStatus('st-isc', true);
+        const xml = new DOMParser().parseFromString(String(xmlText), 'application/xml');
+        if (xml.querySelector('parsererror')) throw new Error('QuakeML inválido');
+
+        const events = Array.from(xml.getElementsByTagNameNS('*', 'event'));
+        let ok = 0;
+
+        for (const ev of events) {
+            const origins = Array.from(ev.getElementsByTagNameNS('*', 'origin'));
+            const origin = origins[0];
+            if (!origin) continue;
+
+            const value = (parent, localName) => {
+                const node = Array.from(parent.getElementsByTagNameNS('*', localName))[0];
+                return node?.getElementsByTagNameNS('*', 'value')[0]?.textContent?.trim() || '';
+            };
+
+            const lat = Number(value(origin, 'latitude'));
+            const lng = Number(value(origin, 'longitude'));
+            const depthM = Number(value(origin, 'depth'));
+            const time = Date.parse(value(origin, 'time'));
+
+            const magNodes = Array.from(ev.getElementsByTagNameNS('*', 'magnitude'));
+            const magNode = magNodes[0];
+            const mag = magNode ? Number(value(magNode, 'mag')) : NaN;
+
+            const desc = Array.from(ev.getElementsByTagNameNS('*', 'description'))[0];
+            const place = desc
+                ? (Array.from(desc.getElementsByTagNameNS('*', 'text'))[0]?.textContent?.trim() || 'Global (ISC)')
+                : 'Global (ISC)';
+
+            if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(mag)) continue;
+
+            const publicId = ev.getAttribute('publicID') || ev.getAttribute('publicId') ||
+                `${time}-${lat}-${lng}`;
+
+            agregarSismo({
+                id: 'isc-' + publicId,
+                mag,
+                place,
+                lat,
+                lng,
+                depth: Number.isFinite(depthM) ? Math.abs(depthM / 1000) : 0,
+                time: Number.isFinite(time) ? time : Date.now(),
+                agency: 'ISC'
+            });
+            ok++;
+        }
+        if (ok === 0) console.warn('[ISC] Servicio respondió, pero no hubo eventos utilizables.');
+    } catch (e) {
+        console.warn('[ISC]', e.message);
+        setStatus('st-isc', false);
+    }
+}
 // ========== INICIALIZACIÓN ESCALONADA ==========
 async function actualizarTodas() {
     const delay = ms => new Promise(res => setTimeout(res, ms));
@@ -1532,7 +1497,7 @@ window.onload = () => {
     buildIntensityBar();
     actualizarTodas();
 
-    setInterval(actualizarTodas, 15000);
+    setInterval(actualizarTodas, 20000);
 
     // Botón para centrar en el último sismo (oculta los otros puntos y deja solo la X)
     document.getElementById('btn-recent-home').addEventListener('click', () => {
