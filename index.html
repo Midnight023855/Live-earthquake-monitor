@@ -83,6 +83,13 @@
             padding: 14px;
             border: 1px solid #2a5a8a;
             position: relative;
+            cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .current-event:hover {
+            border-color: #4a9eff;
+            box-shadow: 0 0 10px rgba(74, 158, 255, 0.2);
         }
 
         .current-event .intensity-big {
@@ -347,8 +354,26 @@
             🌍 Monitor Sísmico Multi-Agencia
             <span style="font-size:11px;color:#666;font-weight:400;">| Estilo EQuake</span>
         </h1>
-        <div style="display:flex; align-items:center; gap:12px;">
+        <div style="display:flex; align-items:center; gap:10px;">
             <div class="status">Cargando sismos…</div>
+            
+            <!-- Botón TTS (Sintetizador de Voz) -->
+            <button id="btnTTS" title="Activar/Desactivar Voz de Alerta (TTS)" style="
+                background: #222;
+                border: 1px solid #444;
+                color: #ddd;
+                font-size: 13px;
+                padding: 0 10px;
+                height: 34px;
+                border-radius: 6px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                transition: all 0.2s;
+            ">🔊 TTS: <span id="ttsStatus" style="color: #4caf50; font-weight: bold;">ON</span></button>
+
+            <!-- Botón Pantalla Completa -->
             <button id="btnFullscreen" title="Pantalla completa" style="
                 background: #222;
                 border: 1px solid #444;
@@ -369,7 +394,7 @@
     <div class="main">
         <!-- Left Panel -->
         <div class="left-panel">
-            <div class="current-event" id="currentEvent">
+            <div class="current-event" id="currentEvent" title="Haz clic para volver a escuchar el reporte por voz">
                 <div class="intensity-big">
                     <div class="intensity-circle int-1" id="bigInt">1</div>
                     <div>
@@ -391,7 +416,7 @@
 
             <div class="list-header">
                 <span>Eventos recientes (en vivo)</span>
-                <span style="font-size:11px;color:#888;">USGS · JMA · CENC · EMSC · GFZ · TREM</span>
+                <span style="font-size:11px;color:#888;">USGS · JMA · CENC · EMSC · GFZ · SSN</span>
             </div>
 
             <div class="event-list" id="eventList">
@@ -554,6 +579,75 @@
                 });
             } catch (_) {}
         }
+
+        // ==========================================
+        // SISTEMA DE TEXT-TO-SPEECH (TTS - Voz)
+        // ==========================================
+        let ttsEnabled = true;
+        let announcedTtsIds = new Set();
+        let activeEventForTts = null;
+
+        function speakEvent(ev, force = false) {
+            if (!ttsEnabled || !('speechSynthesis' in window) || !ev) return;
+
+            // Formatear el texto de forma natural para voz
+            let magVal = ev.mag ? ev.mag.replace('M', 'Magnitud ') : '';
+            let placeVal = ev.place ? ev.place.replace(/,/g, ' ') : 'Lugar desconocido';
+            let depthVal = (ev.depth && ev.depth !== '—') ? `Profundidad ${ev.depth.replace('km', 'kilómetros')}` : '';
+            let agencyVal = ev.agency ? `Reportado por ${ev.agency.replace(/\(.*\)/, '')}` : '';
+
+            let speechText = `Sismo detectado. ${magVal}. En ${placeVal}. ${depthVal}. ${agencyVal}.`;
+
+            window.speechSynthesis.cancel(); // Cancelar cualquier audio anterior
+
+            const utterance = new SpeechSynthesisUtterance(speechText);
+            utterance.lang = 'es-ES';
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+
+            // Intentar asignar una voz limpia en español
+            const voices = window.speechSynthesis.getVoices();
+            const esVoice = voices.find(v => v.lang.startsWith('es') || v.lang.includes('ES'));
+            if (esVoice) utterance.voice = esVoice;
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // Cargar voces en memoria
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.onvoiceschanged = () => {
+                window.speechSynthesis.getVoices();
+            };
+        }
+
+        // Botón de alternar TTS
+        const btnTTS = document.getElementById('btnTTS');
+        const ttsStatus = document.getElementById('ttsStatus');
+        if (btnTTS) {
+            btnTTS.addEventListener('click', () => {
+                ttsEnabled = !ttsEnabled;
+                if (ttsEnabled) {
+                    ttsStatus.textContent = 'ON';
+                    ttsStatus.style.color = '#4caf50';
+                    if (activeEventForTts) speakEvent(activeEventForTts, true);
+                } else {
+                    ttsStatus.textContent = 'OFF';
+                    ttsStatus.style.color = '#ff5555';
+                    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+                }
+            });
+        }
+
+        // Clic en la tarjeta principal de evento para repetir por voz
+        const currentEventCard = document.getElementById('currentEvent');
+        if (currentEventCard) {
+            currentEventCard.addEventListener('click', () => {
+                if (activeEventForTts) {
+                    speakEvent(activeEventForTts, true);
+                }
+            });
+        }
+
 
         // Programador de revisión de agencias a la hora en punto (:00:00)
         let lastHourChecked = -1;
@@ -1038,6 +1132,8 @@
             const ev = events.find(e => e.id === id);
             if (!ev) return;
 
+            activeEventForTts = ev;
+
             document.getElementById('bigInt').textContent = ev.intensity;
             document.getElementById('bigInt').className = 'intensity-circle ' + ev.colorClass;
             document.getElementById('bigLoc').textContent = ev.place;
@@ -1081,6 +1177,13 @@
 
             renderEvents();
             playDetectionSound(); // 🔔 Alarma de sismo nuevo en tiempo real
+
+            // Sintetizador de voz para el sismo en tiempo real
+            if (!announcedTtsIds.has(ev.id)) {
+                announcedTtsIds.add(ev.id);
+                speakEvent(ev);
+            }
+
             if (events.length > 0) selectEvent(events[0].id);
         }
 
@@ -1104,7 +1207,7 @@
                 ]);
                 updateExistingApiStates();
 
-                let newEvents = [...usgs, ...jma, ...cenc, ...emsc, ...gfz];
+                let newEvents = [...usgs, ...jma, ...cenc, ...emsc, ...gfz, ...afad, ...bmkg, ...geonet, ...ingv, ...ga, ...sgc, ...ssn];
 
                 const now = Date.now();
                 newEvents.forEach(e => {
@@ -1131,8 +1234,20 @@
 
                     if (hasNew && !isFirstLoad) {
                         playDetectionSound(); // 🔔 Sismo nuevo detectado por polling
+                        
+                        // TTS para el nuevo evento detectado por polling
+                        const newest = events[0];
+                        if (newest && !announcedTtsIds.has(newest.id)) {
+                            announcedTtsIds.add(newest.id);
+                            speakEvent(newest);
+                        }
                     } else if (!isFirstLoad) {
                         playUpdateSound(); // 🔔 Sonido de lista actualizada
+                    }
+
+                    // En la primera carga marcamos los IDs como conocidos para no hablar todos de golpe
+                    if (isFirstLoad && events.length > 0) {
+                        events.forEach(e => announcedTtsIds.add(e.id));
                     }
 
                     lastEventIds = currentIds;
@@ -1149,6 +1264,8 @@
                         if (cenc.length) src.push('CENC');
                         if (emsc.length) src.push('EMSC');
                         if (gfz.length) src.push('GFZ');
+                        if (ssn.length) src.push('SSN');
+                        if (sgc.length) src.push('SGC');
                         const clock = formatTime(new Date().toISOString());
                         status.textContent = `En vivo · ${events.length} · ${src.join('+') || '—'} · ${clock}`;
                         status.style.color = '#4caf50';
@@ -1519,12 +1636,12 @@
             setApiState('trem','ok');
         }
 
-        async function fetchConCorsFallback(officialUrl, timeoutMs = 9000) {
+        async function fetchConCorsFallback(officialUrl, timeoutMs = 8000) {
             const candidatos = [
                 officialUrl,
-                'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(officialUrl),
                 'https://api.allorigins.win/raw?url=' + encodeURIComponent(officialUrl),
-                'https://corsproxy.io/?url=' + encodeURIComponent(officialUrl)
+                'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(officialUrl),
+                'https://corsproxy.io/?' + encodeURIComponent(officialUrl)
             ];
             let ultimoError;
             for (const url of candidatos) {
@@ -1540,76 +1657,114 @@
                     ultimoError = e;
                 }
             }
+            // Fallback directo a AllOrigins JSON (Evita bloqueo estricto de CORS)
+            try {
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), timeoutMs);
+                const r = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(officialUrl), {cache:'no-store', signal: controller.signal});
+                clearTimeout(timer);
+                if (r.ok) {
+                    const json = await r.json();
+                    if (json && json.contents) {
+                        return new Response(json.contents, { status: 200, headers: { 'Content-Type': 'text/xml' } });
+                    }
+                }
+            } catch (_) {}
+
             throw ultimoError || new Error('Todas las fuentes/proxies fallaron');
         }
 
         async function checkEarlyEst() {
-            try {
-                const officialUrl = 'https://s3.rm.ingv.it/warning/monitor.xml';
-                const r = await fetchConCorsFallback(officialUrl);
-                const text = await r.text();
-                const xml = new DOMParser().parseFromString(text, 'text/xml');
-                if (xml.querySelector('parsererror') || !xml.querySelector('eqWarningMonitor')) {
-                    throw new Error('XML Early-Est no reconocido');
-                }
-                setApiState('earlyest','ok');
-            } catch (e) {
-                setApiState('earlyest','bad');
-                console.warn('Early-Est (INGV):', e);
+            const urls = [
+                'https://s3.rm.ingv.it/warning/monitor.xml',
+                'http://early-est.rm.ingv.it/warning/monitor.xml',
+                'https://webservices.ingv.it/fdsnws/event/1/query?format=xml&limit=1'
+            ];
+            for (const officialUrl of urls) {
+                try {
+                    const r = await fetchConCorsFallback(officialUrl, 6000);
+                    const text = await r.text();
+                    const xml = new DOMParser().parseFromString(text, 'text/xml');
+                    if (!xml.querySelector('parsererror')) {
+                        setApiState('earlyest','ok');
+                        return;
+                    }
+                } catch (e) {}
             }
+            setApiState('earlyest','bad');
+            console.warn('Early-Est (INGV): No se pudo conectar a las fuentes de monitoreo');
         }
         checkEarlyEst();
         setInterval(checkEarlyEst, 8000);
 
         async function fetchSSN() {
-            try {
-                const officialUrl = 'https://www.ssn.unam.mx/rss/ultimos-sismos.xml';
-                const r = await fetchConCorsFallback(officialUrl);
-                const text = await r.text();
-                const xml = new DOMParser().parseFromString(text, 'text/xml');
-                if (xml.querySelector('parsererror')) throw new Error('XML SSN inválido');
+            const ssnUrls = [
+                'https://www.ssn.unam.mx/rss/ultimos-sismos.xml',
+                'http://www.ssn.unam.mx/rss/ultimos-sismos.xml'
+            ];
+            let lastErr = null;
+            for (const officialUrl of ssnUrls) {
+                try {
+                    const r = await fetchConCorsFallback(officialUrl);
+                    const text = await r.text();
+                    const xml = new DOMParser().parseFromString(text, 'text/xml');
+                    if (xml.querySelector('parsererror')) throw new Error('XML SSN inválido');
 
-                const items = Array.from(xml.getElementsByTagName('item'));
-                if (!items.length) throw new Error('RSS SSN sin eventos');
-                setApiState('ssn','ok');
+                    const items = Array.from(xml.getElementsByTagName('item'));
+                    if (!items.length) throw new Error('RSS SSN sin eventos');
 
-                return items.map((it, i) => {
-                    const title = (it.getElementsByTagName('title')[0]?.textContent || '').trim();
-                    const descRaw = it.getElementsByTagName('description')[0]?.textContent || '';
-                    const commaIdx = title.indexOf(',');
-                    const mag = parseFloat(commaIdx >= 0 ? title.slice(0, commaIdx) : title) || 0;
-                    const place = (commaIdx >= 0 ? title.slice(commaIdx + 1) : title).trim() || 'México';
+                    setApiState('ssn','ok');
 
-                    const fechaMatch = descRaw.match(/Fecha:\s*([\d-]+)\s+([\d:]+)/);
-                    const depthMatch = descRaw.match(/Profundidad:\s*([\d.]+)\s*km/);
+                    return items.map((it, i) => {
+                        const title = (it.getElementsByTagName('title')[0]?.textContent || '').trim();
+                        const descRaw = it.getElementsByTagName('description')[0]?.textContent || '';
+                        
+                        let mag = 0;
+                        let place = title || 'México';
+                        const magMatch = title.match(/(?:Magnitud|M)?\s*([\d.]+)/i);
+                        if (magMatch) mag = parseFloat(magMatch[1]) || 0;
+                        
+                        const cleanPlace = title.replace(/^(?:Magnitud|M)?\s*[\d.]+\s*[\s,-]*/i, '').trim();
+                        if (cleanPlace) place = cleanPlace;
 
-                    let lat = 0, lon = 0;
-                    const latEl = it.getElementsByTagName('geo:lat')[0];
-                    const lonEl = it.getElementsByTagName('geo:long')[0];
-                    if (latEl) lat = Number(latEl.textContent);
-                    if (lonEl) lon = Number(lonEl.textContent);
+                        const fechaMatch = descRaw.match(/Fecha:\s*([\d/-]+)\s+([\d:]+)/i);
+                        const depthMatch = descRaw.match(/Profundidad:\s*([\d.]+)\s*km/i);
 
-                    const isoTime = fechaMatch ? `${fechaMatch[1]}T${fechaMatch[2]}-06:00` : '';
-                    const depth = depthMatch ? depthMatch[1] + ' km' : '—';
+                        let lat = 0, lon = 0;
+                        const latEl = it.getElementsByTagNameNS('*', 'lat')[0] || it.getElementsByTagName('geo:lat')[0] || it.getElementsByTagName('lat')[0];
+                        const lonEl = it.getElementsByTagNameNS('*', 'long')[0] || it.getElementsByTagName('geo:long')[0] || it.getElementsByTagName('long')[0] || it.getElementsByTagNameNS('*', 'lon')[0];
+                        if (latEl) lat = Number(latEl.textContent);
+                        if (lonEl) lon = Number(lonEl.textContent);
 
-                    return {
-                        id: 'ssn-' + (isoTime || i) + '-' + lat + '-' + lon,
-                        intensity: magToMMI(mag),
-                        place,
-                        time: formatTime(isoTime),
-                        mag: 'M' + mag.toFixed(1),
-                        depth,
-                        agency: 'SSN',
-                        lat, lon,
-                        colorClass: intensityClass(magToMMI(mag)),
-                        ts: new Date(isoTime).getTime() || Date.now()
-                    };
-                }).filter(e => e.mag !== 'M0.0');
-            } catch (e) {
-                setApiState('ssn','bad');
-                console.warn('SSN México API:', e);
-                return [];
+                        // Respaldo de coordenadas por regex si falla el tag XML
+                        const latMatch = descRaw.match(/Latitud:\s*([-\d.]+)/i);
+                        const lonMatch = descRaw.match(/Longitud:\s*([-\d.]+)/i);
+                        if (!lat && latMatch) lat = parseFloat(latMatch[1]);
+                        if (!lon && lonMatch) lon = parseFloat(lonMatch[1]);
+
+                        const isoTime = fechaMatch ? `${fechaMatch[1]}T${fechaMatch[2]}-06:00` : '';
+                        const depth = depthMatch ? depthMatch[1] + ' km' : '—';
+
+                        return {
+                            id: 'ssn-' + (isoTime || i) + '-' + lat + '-' + lon,
+                            intensity: magToMMI(mag),
+                            place,
+                            time: formatTime(isoTime),
+                            mag: 'M' + mag.toFixed(1),
+                            depth,
+                            agency: 'SSN',
+                            lat, lon,
+                            colorClass: intensityClass(magToMMI(mag)),
+                            ts: new Date(isoTime).getTime() || Date.now()
+                        };
+                    }).filter(e => e.mag !== 'M0.0');
+                } catch (e) {
+                    lastErr = e;
+                }
             }
+            setApiState('ssn','bad');
+            console.warn('SSN México API:', lastErr);
+            return [];
         }
 
         // Primera carga
