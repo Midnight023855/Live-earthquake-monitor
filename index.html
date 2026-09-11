@@ -1109,7 +1109,9 @@
                 });
             }
 
-            cityLayer.addTo(intensityGroup);
+            // No añadir los marcadores circulares de ciudades a la capa de
+            // intensidad: el mapa debe mostrar únicamente los polígonos de
+            // las regiones GeoJSON, igual que en México.
             intensityZonesLayer = intensityGroup.addTo(map);
 
             // Fronteras por encima de las áreas coloreadas y el epicentro por encima
