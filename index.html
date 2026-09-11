@@ -776,12 +776,8 @@
             return [sy / coords.length, sx / coords.length];
         }
 
-        // Regiones/estados/provincias reales cerca del epicentro, consultadas
-        // POR ZONA (bbox) a un FeatureServer ArcGIS público (Natural Earth) en
-        // vez de descargar y cachear el archivo mundial completo. Una sola
-        // petición ligera por sismo seleccionado, sin depender de geocodificar
-        // el país primero ni de archivos gigantes con posibles problemas de
-        // Git LFS. Mismo tipo de servicio que ya usa este monitor para SGC.
+        // Regiones/estados/provincias reales cerca del epicentro, cargadas
+        // exclusivamente desde los archivos GeoJSON propios de ./geo/.
         function _pointInRing(lat, lon, ring) {
             let inside = false;
             for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -823,10 +819,9 @@
 
         // Estados/provincias reales del país detectado, servidos desde el
         // propio repo (carpeta ./geo/{ISO_A2}.geojson, subidos por el
-        // usuario desde geojson-atlas). Mucho más rápido y sin depender de
-        // ningún servicio externo. Si el país no tiene archivo subido (o el
-        // epicentro cae en el mar sin país cercano), se devuelve null para
-        // que el llamador use el respaldo por ArcGIS.
+        // usuario desde GitHub). Mucho más rápido y sin depender de servicios
+        // externos de regiones.
+        // Si el país no tiene archivo subido, no se pinta una región falsa.
         async function fetchLocalCountryAdmin1(lat, lon) {
             if (!worldCountriesGeoJSON) {
                 try { await loadWorldBoundaries(); } catch (_) {}
@@ -864,69 +859,21 @@
                 showRegionToast('🟢 Regiones: archivo local (./geo/)');
                 return local;
             }
-            console.log('🟡 Mapa de intensidad: usando respaldo ArcGIS (no se encontró archivo local para este país)');
-            showRegionToast('🟡 Regiones: respaldo ArcGIS');
-            return fetchNearbyAdmin1(lat, lon, radiusKm);
-        }
-
-        async function fetchNearbyAdmin1(lat, lon, radiusKm, timeoutMs = 7000) {
-            const kmPerDegLat = 111;
-            // Cerca de los polos cos(lat) tiende a 0 y el bbox en longitud se
-            // dispara a valores absurdos; se acota para evitar un envelope
-            // inválido.
-            const cosLat = Math.max(0.12, Math.cos(lat * Math.PI / 180));
-            const dLat = Math.min(20, radiusKm / kmPerDegLat);
-            const dLon = Math.min(40, radiusKm / (kmPerDegLat * cosLat));
-            const ymin = Math.max(-85, lat - dLat);
-            const ymax = Math.min(85, lat + dLat);
-
-            const runQuery = async (xmin, xmax) => {
-                const url = 'https://services3.arcgis.com/HZiQ86FNEvCVDWWt/ArcGIS/rest/services/' +
-                    'ne_10m_admin_1_states_provinces/FeatureServer/0/query?' +
-                    `geometry=${xmin},${ymin},${xmax},${ymax}&geometryType=esriGeometryEnvelope` +
-                    '&inSR=4326&spatialRel=esriSpatialRelIntersects' +
-                    '&outFields=name,admin,iso_a2,adm0_a3,latitude,longitude' +
-                    '&returnGeometry=true&outSR=4326&f=geojson';
-                const controller = new AbortController();
-                const timer = setTimeout(() => controller.abort(), timeoutMs);
-                try {
-                    const r = await fetch(url, { cache: 'no-store', signal: controller.signal });
-                    if (!r.ok) throw new Error('ArcGIS admin1 HTTP ' + r.status);
-                    const gj = await r.json();
-                    return gj?.features || [];
-                } finally {
-                    clearTimeout(timer);
-                }
-            };
-
-            const xminRaw = lon - dLon, xmaxRaw = lon + dLon;
-            // Cruce del antimeridiano (±180°, p. ej. Fiji o el estrecho de
-            // Bering): se parte en dos consultas para no perder el lado que
-            // "envuelve" al otro extremo del mapa.
-            if (xminRaw < -180 || xmaxRaw > 180) {
-                const [a, b] = await Promise.all([
-                    runQuery(Math.max(-180, xminRaw), 180).catch(() => []),
-                    runQuery(-180, Math.min(180, xmaxRaw > 180 ? xmaxRaw - 360 : xmaxRaw)).catch(() => [])
-                ]);
-                return [...a, ...b];
-            }
-            return runQuery(xminRaw, xmaxRaw);
+            console.warn('🟡 No existe GeoJSON local para el país del epicentro; no se colorean regiones.');
+            showRegionToast('🟡 No hay archivo local para este país');
+            return [];
         }
 
         async function loadWorldBoundaries() {
             if (worldCountryLayer && worldAdmin1Layer) return;
             try {
-                // Países: se usa el archivo propio (mismo origen, sin CORS ni
-                // dependencia externa) si está subido junto al HTML; si no
-                // existe todavía, cae al de Natural Earth en GitHub.
-                // Regiones/estados (admin1): sigue usando Natural Earth 50m
-                // hasta contar con un archivo propio equivalente.
+                // Países: GeoJSON Maps / Natural Earth, resolución 110m.
+                // Es el archivo ligero que aparece en la página mostrada por
+                // el usuario y evita depender de custom_geo.json.
+                // Regiones/estados (admin1): solo se muestran como referencia
+                // cartográfica mundial; el coloreado usa exclusivamente ./geo/.
                 const fetchCountries = async () => {
-                    try {
-                        const local = await fetch('./custom_geo.json', {cache:'force-cache'});
-                        if (local.ok) return local;
-                    } catch (_) {}
-                    return fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson', {cache:'force-cache'});
+                    return fetch('https://geojson-maps.kyd.au/countries/110m/all.geojson', {cache:'force-cache'});
                 };
 
                 const [countriesR, admin1R] = await Promise.all([
@@ -1011,12 +958,8 @@
 
         async function drawIntensityZones(ev, baseNum) {
             // MAPA DE INTENSIDAD REAL POR REGIONES ADMINISTRATIVAS.
-            // Se colorean los polígonos de estados/provincias que caen dentro
-            // de la zona de influencia del sismo, consultados por zona (bbox)
-            // a un FeatureServer ArcGIS (Natural Earth) — no se descarga el
-            // mundo entero. Si la consulta falla o no hay datos cerca, se usa
-            // una zona irregular de respaldo para que SIEMPRE haya algo
-            // visible en el mapa.
+            // Se colorean únicamente los polígonos de ./geo/{ISO_A2}.geojson.
+            // Si un país no tiene archivo propio, no se inventan regiones.
             if (intensityZonesLayer) {
                 map.removeLayer(intensityZonesLayer);
                 intensityZonesLayer = null;
@@ -1040,9 +983,9 @@
             const cityLayer = L.layerGroup();
             let paintedRegions = 0;
 
-            // 1) Regiones administrativas reales cerca del epicentro (consulta
-            //    ArcGIS por zona), siguiendo exactamente sus fronteras en lugar
-            //    de dibujar círculos sobre el mapa.
+            // 1) Regiones administrativas reales del archivo GeoJSON propio,
+            //    siguiendo exactamente sus fronteras en lugar de dibujar
+            //    círculos sobre el mapa.
             try {
                 const nearbyFeatures = await fetchRegionsForEvent(lat, lon, Math.max(outerKm, 80));
                 const colored = [];
@@ -1099,7 +1042,7 @@
                     regionLayer.addTo(intensityGroup);
                 }
             } catch (e) {
-                console.warn('No se pudieron obtener regiones cercanas (ArcGIS):', e);
+                console.warn('No se pudieron obtener regiones cercanas desde ./geo/:', e);
             }
 
             // 2) Si no hubo regiones, crear un isoseisma irregular de respaldo.
@@ -1212,7 +1155,7 @@
                 await loadWorldCities();
                 if (renderToken !== intensityRenderToken) return;
 
-                // Mapa tipo shakemap: regiones (consulta ArcGIS por zona) y ciudades.
+                // Mapa tipo shakemap: regiones de ./geo/ y ciudades.
                 await drawIntensityZones(ev, baseNum);
 
                 // Las fronteras permanecen encima de las áreas coloreadas.
