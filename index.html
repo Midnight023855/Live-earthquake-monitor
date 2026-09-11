@@ -543,8 +543,8 @@
                 ">🔄</button>
                 <button id="btnAudioToggle" title="Activar/Silenciar alertas de voz y audio" style="
                     background: rgba(20,20,20,0.9);
-                    border: 1px solid #555;
-                    color: #888;
+                    border: 1px solid #4caf50;
+                    color: #4caf50;
                     font-size: 15px;
                     width: 36px;
                     height: 32px;
@@ -554,7 +554,7 @@
                     align-items: center;
                     justify-content: center;
                     box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-                ">🔇</button>
+                ">🔊</button>
 
                 <select id="mapStyleSelect" title="Cambiar mapa base" style="
                     background: rgba(20,20,20,0.9);
@@ -636,28 +636,42 @@
 
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        // Sistema Audio y Voz
-        let audioEnabled = false, audioCtx = null;
+        // Sistema Audio y Voz (CORREGIDO)
+        let audioEnabled = true;
+        let audioCtx = null;
+
         function initAudioContext() {
             if (!audioCtx) {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 if (AudioContext) audioCtx = new AudioContext();
             }
-            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
         }
 
+        // Desbloquear audio con interacción del usuario
+        window.addEventListener('click', () => {
+            initAudioContext();
+        }, { once: false });
+
         function playBeep(freq = 880, type = 'sine', duration = 0.15) {
-            if (!audioEnabled || !audioCtx) return;
+            if (!audioEnabled) return;
+            initAudioContext();
             try {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = type;
                 osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-                osc.connect(gain); gain.connect(audioCtx.destination);
-                osc.start(); osc.stop(audioCtx.currentTime + duration);
-            } catch (e) {}
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {
+                console.warn("Error en playBeep:", e);
+            }
         }
 
         function speakAlert(text) {
@@ -666,9 +680,12 @@
                 window.speechSynthesis.cancel();
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'es-ES';
-                utterance.rate = 1.05;
+                utterance.rate = 1.0;
+                utterance.volume = 1.0;
                 window.speechSynthesis.speak(utterance);
-            } catch (e) {}
+            } catch (e) {
+                console.warn("Error en speakAlert:", e);
+            }
         }
 
         function triggerQuakeAlert(ev) {
