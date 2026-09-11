@@ -884,54 +884,50 @@
         }
 
         async function loadWorldBoundaries() {
-            if (worldCountryLayer && worldAdmin1Layer) return;
-            try {
-                // Países: GeoJSON Maps / Natural Earth, resolución 110m.
-                // Es el archivo ligero que aparece en la página mostrada por
-                // el usuario y evita depender de custom_geo.json.
-                // Regiones/estados (admin1): solo se muestran como referencia
-                // cartográfica mundial; el coloreado usa exclusivamente ./geo/.
-                const fetchCountries = async () => {
-                    return fetch('https://geojson-maps.kyd.au/countries/110m/all.geojson', {cache:'force-cache'});
-                };
-
-                const [countriesR, admin1R] = await Promise.all([
-                    fetchCountries(),
-                    fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson', {cache:'force-cache'})
-                ]);
-                if (!countriesR.ok) throw new Error('Países HTTP ' + countriesR.status);
-                if (!admin1R.ok) throw new Error('Regiones HTTP ' + admin1R.status);
-
-                const [countries, admin1] = await Promise.all([countriesR.json(), admin1R.json()]);
-                worldAdmin1Data = admin1;
-                worldCountriesGeoJSON = countries;
-
-                worldCountryLayer = L.geoJSON(countries, {
-                    interactive: false,
-                    style: {
-                        color: '#8a8a8a',
-                        weight: 1.15,
-                        opacity: 0.75,
-                        fillOpacity: 0
+            // La detección de país depende solo de este archivo. No debe
+            // quedar bloqueada si la capa administrativa mundial falla.
+            if (!worldCountriesGeoJSON) {
+                try {
+                    const countriesR = await fetch(
+                        'https://geojson-maps.kyd.au/countries/110m/all.geojson',
+                        {cache:'force-cache'}
+                    );
+                    if (!countriesR.ok) throw new Error('Países HTTP ' + countriesR.status);
+                    const countries = await countriesR.json();
+                    worldCountriesGeoJSON = countries;
+                    if (!worldCountryLayer) {
+                        worldCountryLayer = L.geoJSON(countries, {
+                            interactive: false,
+                            style: { color: '#8a8a8a', weight: 1.15, opacity: 0.75, fillOpacity: 0 }
+                        }).addTo(map);
                     }
-                }).addTo(map);
-
-                worldAdmin1Layer = L.geoJSON(admin1, {
-                    interactive: false,
-                    style: {
-                        color: '#777',
-                        weight: 0.55,
-                        opacity: 0.55,
-                        fillOpacity: 0
-                    }
-                }).addTo(map);
-
-                worldAdmin1Layer.bringToFront();
-                worldCountryLayer.bringToFront();
-                console.log('Países y regiones administrativas cargados:', admin1.features?.length || 0);
-            } catch (e) {
-                console.warn('No se pudieron cargar las fronteras mundiales:', e);
+                } catch (e) {
+                    console.warn('No se pudo cargar el GeoJSON mundial de países:', e);
+                }
             }
+
+            // Esta capa es únicamente visual y no participa en la carga de
+            // ./geo/. Si falla, los archivos locales siguen funcionando.
+            if (!worldAdmin1Layer) {
+                try {
+                    const admin1R = await fetch(
+                        'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson',
+                        {cache:'force-cache'}
+                    );
+                    if (!admin1R.ok) throw new Error('Regiones HTTP ' + admin1R.status);
+                    const admin1 = await admin1R.json();
+                    worldAdmin1Data = admin1;
+                    worldAdmin1Layer = L.geoJSON(admin1, {
+                        interactive: false,
+                        style: { color: '#777', weight: 0.55, opacity: 0.55, fillOpacity: 0 }
+                    }).addTo(map);
+                } catch (e) {
+                    console.warn('No se pudo cargar la referencia administrativa mundial:', e);
+                }
+            }
+
+            if (worldAdmin1Layer) worldAdmin1Layer.bringToFront();
+            if (worldCountryLayer) worldCountryLayer.bringToFront();
         }
 
         async function loadWorldCities() {
