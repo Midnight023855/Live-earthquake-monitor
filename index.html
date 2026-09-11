@@ -328,6 +328,37 @@
         #connectionPanel .ok { color:#4caf50; }
         #connectionPanel .bad { color:#ff5555; }
         #connectionPanel .wait { color:#f0c84b; }
+        #connectionPanel .cached { color:#f0c84b; }
+
+        /* Leyenda vertical de intensidad, sobre el reloj */
+        #intensityLegendPanel {
+            position: absolute; bottom: 113px; right: 12px; z-index: 1000;
+            background: rgba(10,10,10,0.90); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px; padding: 7px 9px; color: #eee;
+            backdrop-filter: blur(4px); box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            font-family: monospace; font-size: 10px;
+        }
+        #intensityLegendPanel .legend-title {
+            font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px;
+            font-weight: bold; margin-bottom: 5px; text-align: center;
+        }
+        #intensityLegendPanel .legend-content {
+            display: flex; align-items: stretch; gap: 5px;
+        }
+        #intensityLegendPanel .legend-labels,
+        #intensityLegendPanel .legend-values {
+            display: flex; flex-direction: column; justify-content: space-between;
+            line-height: 12px; min-width: 20px;
+        }
+        #intensityLegendPanel .legend-values { color: #ddd; min-width: 22px; }
+        #intensityLegendPanel .legend-scale {
+            width: 10px; display: flex; flex-direction: column;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        #intensityLegendPanel .legend-color { flex: 1; min-height: 10px; }
+        @media (max-width: 700px) {
+            #intensityLegendPanel { right: 8px; bottom: 108px; transform: scale(0.92); transform-origin: bottom right; }
+        }
 
         /* Multi-time clock widget */
         #multiClockPanel {
@@ -484,6 +515,30 @@
                 <div id="connectionRows"></div>
             </div>
 
+            <div id="intensityLegendPanel" title="Escala de intensidad sísmica">
+                <div class="legend-title">▣ Leyenda</div>
+                <div class="legend-content">
+                    <div class="legend-labels">
+                        <span>XII</span><span>XI</span><span>X</span><span>IX</span>
+                        <span>VIII</span><span>VII</span><span>VI</span><span>V</span>
+                        <span>IV</span><span>III</span><span>II</span><span>I</span>
+                    </div>
+                    <div class="legend-scale">
+                        <span class="legend-color int-X"></span><span class="legend-color int-IX"></span>
+                        <span class="legend-color int-VIII"></span><span class="legend-color int-VII"></span>
+                        <span class="legend-color int-VI"></span><span class="legend-color int-V"></span>
+                        <span class="legend-color int-IV"></span><span class="legend-color int-III"></span>
+                        <span class="legend-color int-II"></span><span class="legend-color int-I"></span>
+                        <span class="legend-color int-1"></span><span class="legend-color int-0"></span>
+                    </div>
+                    <div class="legend-values">
+                        <span>7</span><span>6+</span><span>6−</span><span>5+</span>
+                        <span>5−</span><span>4</span><span>3</span><span>3</span>
+                        <span>2</span><span>2</span><span>1</span><span>0</span>
+                    </div>
+                </div>
+            </div>
+
             <div id="multiClockPanel">
                 <div><span>LOC</span><span class="val" id="clockLoc">--:--:--</span></div>
                 <div><span>UTC</span><span class="val" id="clockUtc">--:--:--</span></div>
@@ -528,7 +583,7 @@
                     justify-content: center;
                     box-shadow: 0 2px 8px rgba(0,0,0,0.5);
                 ">🔄</button>
-                <button id="btnAudioToggle" title="Activar/Silenciar alertas de voz y audio" style="
+                <button id="btnAudioToggle" title="Activar/Silenciar alertas de voz y audio · TTS español México" style="
                     background: rgba(20,20,20,0.9);
                     border: 1px solid #4caf50;
                     color: #4caf50;
@@ -542,6 +597,20 @@
                     justify-content: center;
                     box-shadow: 0 2px 8px rgba(0,0,0,0.5);
                 ">🔊</button>
+                <button id="btnNotifications" title="Activar notificaciones y vibración para sismos M4.5+" style="
+                    background: rgba(20,20,20,0.9);
+                    border: 1px solid #555;
+                    color: #ddd;
+                    font-size: 15px;
+                    width: 36px;
+                    height: 32px;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+                ">🔔</button>
 
                 <select id="mapStyleSelect" title="Cambiar mapa base" style="
                     background: rgba(20,20,20,0.9);
@@ -583,13 +652,50 @@
     <script>
         let events = [];
         let selectedEventId = null;
+        // Evita alertas repetidas durante la actualización automática.
+        const alertedEventIds = new Set();
+        const alertedEventKeys = new Set();
+        let hasCompletedInitialLoad = false;
+        let lastIntensityEventId = null;
+        const MAX_EVENT_AGE_MS = 24 * 60 * 60 * 1000;
         let map = L.map('map', { zoomControl: false, attributionControl: true }).setView([20, 140], 3);
+        let programmaticMapMove = false;
+        let autoRecenterTimer = null;
+
+        function setProgrammaticMapView(center, zoom) {
+            programmaticMapMove = true;
+            map.setView(center, zoom, { animate: false });
+            // Leaflet emite moveend de forma inmediata cuando no hay animación.
+            setTimeout(() => { programmaticMapMove = false; }, 80);
+        }
+
+        function scheduleAutoRecenter() {
+            if (programmaticMapMove) return;
+            clearTimeout(autoRecenterTimer);
+            autoRecenterTimer = setTimeout(() => {
+                const latest = [...events].sort((a, b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0))[0];
+                if (!latest) return;
+                showRegionToast('🎯 Volviendo al último sismo');
+                playUiSound('home');
+                selectEvent(latest.id);
+            }, 10000);
+        }
+
+        // Si el usuario arrastra, hace zoom o usa el gesto de pellizco,
+        // esperar 10 segundos y volver automáticamente al sismo más reciente.
+        function handleUserMapMove() {
+            if (!programmaticMapMove) scheduleAutoRecenter();
+        }
+        map.on('dragstart zoomstart', () => {
+            if (!programmaticMapMove) clearTimeout(autoRecenterTimer);
+        });
+        map.on('dragend zoomend moveend', handleUserMapMove);
 
         const intensityPane = map.createPane('intensityMap');
         intensityPane.style.zIndex = 405;
         intensityPane.style.pointerEvents = 'none';
 
-        const tileDark = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap | Datos: USGS + Wolfx' });
+        const tileDark = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap | Datos: USGS + CENC + Wolfx' });
         const tileSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 });
         const tileTerrain = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17 });
 
@@ -603,6 +709,7 @@
             if (style === 'dark') { tileDark.addTo(map); mapEl.style.filter = 'invert(90%) hue-rotate(180deg) brightness(0.85) contrast(0.95)'; }
             else if (style === 'satellite') { tileSatellite.addTo(map); mapEl.style.filter = 'none'; }
             else if (style === 'terrain') { tileTerrain.addTo(map); mapEl.style.filter = 'none'; }
+            playUiSound('select');
             map.invalidateSize();
         });
 
@@ -640,9 +747,42 @@
                 gain.connect(audioCtx.destination);
                 osc.start();
                 osc.stop(audioCtx.currentTime + duration);
-            } catch (e) {
-                console.warn("Error en playBeep:", e);
-            }
+            } catch (e) {}
+        }
+
+        // Sonidos cortos para las acciones de la interfaz.
+        function playUiSound(kind = 'click') {
+            if (!audioEnabled) return;
+            const sounds = {
+                click:   [[620, 'sine', 0.07]],
+                select:  [[520, 'sine', 0.06], [760, 'sine', 0.08]],
+                refresh: [[440, 'triangle', 0.08], [660, 'triangle', 0.1]],
+                success: [[660, 'sine', 0.08], [880, 'sine', 0.12]],
+                home:    [[520, 'sine', 0.07], [780, 'sine', 0.1]],
+                alert:   [[880, 'triangle', 0.1], [1100, 'triangle', 0.14]]
+            };
+            (sounds[kind] || sounds.click).forEach((tone, index) => {
+                setTimeout(() => playBeep(tone[0], tone[1], tone[2]), index * 90);
+            });
+        }
+
+        // TTS del teléfono: prioriza una voz en español de México y deja
+        // es-MX como idioma solicitado si el dispositivo no expone una voz concreta.
+        let ttsVoices = [];
+        function refreshTtsVoices() {
+            if ('speechSynthesis' in window) ttsVoices = window.speechSynthesis.getVoices() || [];
+        }
+        if ('speechSynthesis' in window) {
+            refreshTtsVoices();
+            window.speechSynthesis.addEventListener('voiceschanged', refreshTtsVoices);
+        }
+
+        function getMexicanSpanishVoice() {
+            const voices = ttsVoices.length ? ttsVoices :
+                (('speechSynthesis' in window) ? window.speechSynthesis.getVoices() : []);
+            return voices.find(v => /^es[-_]MX$/i.test(v.lang)) ||
+                voices.find(v => /^es[-_]419$/i.test(v.lang)) ||
+                voices.find(v => /^es/i.test(v.lang));
         }
 
         function speakAlert(text) {
@@ -650,13 +790,14 @@
             try {
                 window.speechSynthesis.cancel();
                 const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'es-ES';
+                const voice = getMexicanSpanishVoice();
+                utterance.lang = voice?.lang || 'es-MX';
+                if (voice) utterance.voice = voice;
                 utterance.rate = 1.0;
+                utterance.pitch = 1.0;
                 utterance.volume = 1.0;
                 window.speechSynthesis.speak(utterance);
-            } catch (e) {
-                console.warn("Error en speakAlert:", e);
-            }
+            } catch (e) {}
         }
 
         function triggerQuakeAlert(ev) {
@@ -669,9 +810,83 @@
             if (magVal >= 4.0) {
                 setTimeout(() => {
                     const placeClean = String(ev.place || '').split(' of ')[1] || ev.place;
-                    speakAlert(`Sismo de magnitud ${ev.mag} en ${placeClean}`);
+                    speakAlert(`Sismo de magnitud ${ev.mag} reportado por ${ev.agency || 'la agencia'} en ${placeClean}`);
                 }, 400);
             }
+        }
+
+        // Alerta visual + audio para eventos nuevos de cualquier agencia, incluido CENC.
+        function eventAlertKey(ev) {
+            const ts = parseTs(ev.ts);
+            const minute = ts ? Math.floor(ts / 60000) : String(ev.time || '');
+            // No se incluye la magnitud: una revisión del mismo evento no
+            // debe volver a disparar el aviso flotante.
+            return [ev.agency || '', minute, Number(ev.lat).toFixed(3), Number(ev.lon).toFixed(3)].join('|');
+        }
+
+        let notificationsEnabled = ('Notification' in window && Notification.permission === 'granted');
+
+        function notifyStrongQuake(ev) {
+            const magVal = parseFloat(String(ev.mag || '').replace(/[^\d.]/g, '')) || 0;
+            if (magVal < 4.5) return;
+
+            // La vibración funciona en muchos teléfonos incluso si el usuario
+            // no concede permisos de notificación.
+            try {
+                if (navigator.vibrate) navigator.vibrate([280, 120, 420]);
+            } catch (_) {}
+
+            if (!notificationsEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
+            try {
+                new Notification(`⚠️ Sismo ${ev.mag} · ${ev.agency || 'Agencia'}`, {
+                    body: `${ev.place || 'Ubicación desconocida'}\nProfundidad: ${ev.depth || '—'}`,
+                    tag: 'quake-' + eventAlertKey(ev),
+                    renotify: false
+                });
+            } catch (_) {}
+        }
+
+        function announceNewEvent(ev) {
+            if (!ev || !ev.id) return;
+            const key = eventAlertKey(ev);
+            if (alertedEventKeys.has(key)) return;
+            alertedEventKeys.add(key);
+            showRegionToast(`🔔 ${ev.agency || 'Sismo'} · ${ev.mag || '—'} · ${ev.place || 'ubicación desconocida'}`);
+            notifyStrongQuake(ev);
+            playUiSound('alert');
+            triggerQuakeAlert(ev);
+        }
+
+        document.getElementById('btnNotifications').addEventListener('click', async () => {
+            playUiSound('click');
+            if (!('Notification' in window)) {
+                showRegionToast('⚠️ Este navegador no admite notificaciones');
+                return;
+            }
+            try {
+                const permission = await Notification.requestPermission();
+                notificationsEnabled = permission === 'granted';
+                const btn = document.getElementById('btnNotifications');
+                if (notificationsEnabled) {
+                    btn.textContent = '🔔';
+                    btn.style.color = '#4caf50';
+                    btn.style.borderColor = '#4caf50';
+                    showRegionToast('✅ Notificaciones y vibración activadas para M4.5+');
+                } else {
+                    btn.textContent = '🔕';
+                    btn.style.color = '#888';
+                    btn.style.borderColor = '#555';
+                    showRegionToast('Notificaciones no permitidas');
+                }
+            } catch (_) {
+                showRegionToast('⚠️ Activa las notificaciones desde el navegador');
+            }
+        });
+
+        if (notificationsEnabled) {
+            const btn = document.getElementById('btnNotifications');
+            btn.style.color = '#4caf50';
+            btn.style.borderColor = '#4caf50';
         }
 
         document.getElementById('btnAudioToggle').addEventListener('click', () => {
@@ -788,9 +1003,16 @@
         }
         loadTaiwanStations(); setInterval(updateTaiwanRTS, 3000);
 
+        let lastToastMessage = '';
+        let lastToastAt = 0;
         function showRegionToast(msg) {
             const el = document.getElementById('regionToast');
             if (!el) return;
+            const now = Date.now();
+            // Evita que el mismo aviso se repita en cada actualización automática.
+            if (msg === lastToastMessage && now - lastToastAt < 15000) return;
+            lastToastMessage = msg;
+            lastToastAt = now;
             el.textContent = msg;
             el.classList.add('show');
             setTimeout(() => el.classList.remove('show'), 3000);
@@ -813,8 +1035,8 @@
                 if (!Array.isArray(ring)) return;
                 for (let i = 0; i < ring.length; i++) {
                     const p = ring[i];
-                    if (Array.isArray(p) && p.length >= 2 && typeof p[0] === 'number' && typeof p[1] === 'number') {
-                        const d = haversineKm(lat, lon, p[1], p[0]);
+                    if (Array.isArray(p) && p.length >= 2 && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1]))) {
+                        const d = haversineKm(lat, lon, Number(p[1]), Number(p[0]));
                         if (d < minD) minD = d;
                     }
                 }
@@ -830,10 +1052,102 @@
             return minD;
         }
 
+        // Comprueba si el epicentro está dentro de una provincia/estado.
+        // Así esa región recibe la intensidad máxima aunque esté lejos de sus bordes.
+        function pointInRing(lat, lon, ring) {
+            if (!Array.isArray(ring) || ring.length < 3) return false;
+            let inside = false;
+            for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+                const xi = Number(ring[i][0]), yi = Number(ring[i][1]);
+                const xj = Number(ring[j][0]), yj = Number(ring[j][1]);
+                if (![xi, yi, xj, yj].every(Number.isFinite)) continue;
+                const intersects = ((yi > lat) !== (yj > lat)) &&
+                    (lon < (xj - xi) * (lat - yi) / ((yj - yi) || 1e-12) + xi);
+                if (intersects) inside = !inside;
+            }
+            return inside;
+        }
+
+        function geometryContainsPoint(lat, lon, geometry) {
+            if (!geometry || !geometry.coordinates) return false;
+            if (geometry.type === 'Polygon') {
+                return pointInRing(lat, lon, geometry.coordinates[0]);
+            }
+            if (geometry.type === 'MultiPolygon') {
+                return geometry.coordinates.some(poly => pointInRing(lat, lon, poly && poly[0]));
+            }
+            return false;
+        }
+
+        function geometryBounds(geometry) {
+            const bounds = { minLat: 90, maxLat: -90, minLon: 180, maxLon: -180 };
+            const visit = coords => {
+                if (!Array.isArray(coords)) return;
+                if (coords.length >= 2 && typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+                    bounds.minLon = Math.min(bounds.minLon, coords[0]);
+                    bounds.maxLon = Math.max(bounds.maxLon, coords[0]);
+                    bounds.minLat = Math.min(bounds.minLat, coords[1]);
+                    bounds.maxLat = Math.max(bounds.maxLat, coords[1]);
+                    return;
+                }
+                coords.forEach(visit);
+            };
+            visit(geometry && geometry.coordinates);
+            return bounds.minLat <= bounds.maxLat ? bounds : null;
+        }
+
+        function prepareAdmin1Data(data) {
+            if (!data || !Array.isArray(data.features)) return null;
+            data.features.forEach(feature => {
+                if (feature && feature.geometry) feature.__bounds = geometryBounds(feature.geometry);
+            });
+            return data;
+        }
+
         let worldAdmin1Data = null;
+        const admin1Cache = {};
         let intensityZonesLayer = null;
 
+        function countryISOForEvent(ev) {
+            const agency = String(ev?.agency || '').toUpperCase();
+            const place = String(ev?.place || '').toUpperCase();
+            if (agency.includes('CENC')) return 'CHN';
+            if (agency.includes('JMA')) return 'JPN';
+            if (agency.includes('SSN')) return 'MEX';
+            if (agency.includes('SGC')) return 'COL';
+            if (agency.includes('AFAD')) return 'TUR';
+            if (agency.includes('BMKG')) return 'IDN';
+            if (agency.includes('GEONET')) return 'NZL';
+            if (agency.includes('INGV')) return 'ITA';
+            if (agency.includes('GEOSCIENCE') || agency === 'GA') return 'AUS';
+            if (agency === 'USGS' && /ALASKA|HAWAII|CALIFORNIA|TEXAS|NEVADA|OREGON|WASHINGTON|MEXICO|JAPAN/.test(place)) {
+                return /JAPAN/.test(place) ? 'JPN' : /MEXICO/.test(place) ? 'MEX' : 'USA';
+            }
+            return null;
+        }
+
+        async function loadAdmin1Country(iso) {
+            if (!iso) return null;
+            if (admin1Cache[iso]) return admin1Cache[iso];
+            try {
+                const metaRes = await fetch(`https://www.geoboundaries.org/api/current/gbOpen/${iso}/ADM1/`, { cache: 'force-cache' });
+                if (!metaRes.ok) return null;
+                const meta = await metaRes.json();
+                const geoUrl = meta.simplifiedGeometryGeoJSON || meta.gjDownloadURL;
+                if (!geoUrl) return null;
+                const geoRes = await fetch(geoUrl, { cache: 'force-cache', mode: 'cors' });
+                if (!geoRes.ok) return null;
+                const data = await geoRes.json();
+                if (!data || !Array.isArray(data.features) || !data.features.length) return null;
+                admin1Cache[iso] = data;
+                return data;
+            } catch (_) { return null; }
+        }
+
         async function drawIntensityZones(ev) {
+            // El mismo sismo no vuelve a dibujar ni a mostrar el aviso flotante.
+            if (lastIntensityEventId === ev.id && intensityZonesLayer) return;
+            lastIntensityEventId = ev.id;
             if (intensityZonesLayer) {
                 map.removeLayer(intensityZonesLayer);
                 intensityZonesLayer = null;
@@ -869,27 +1183,59 @@
 
             try {
                 if (!worldAdmin1Data) {
-                    try {
-                        const res = await fetch('https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_admin_1_states_provinces.geojson');
-                        if (res.ok) {
-                            worldAdmin1Data = await res.json();
-                        }
-                    } catch (errGeo) {}
+                    // Dos fuentes CORS para que el mapa administrativo no caiga
+                    // en el respaldo de celdas rectangulares del navegador.
+                    const geoUrls = [
+                        // Natural Earth 10m contiene admin-1 de todos los países.
+                        'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson',
+                        'https://datahub.io/core/geo-ne-admin1/_r/-/data/admin1.geojson'
+                    ];
+                    for (const geoUrl of geoUrls) {
+                        try {
+                            const res = await fetch(geoUrl, { cache: 'force-cache', mode: 'cors' });
+                            if (!res.ok) continue;
+                            const candidate = await res.json();
+                            if (candidate && Array.isArray(candidate.features) && candidate.features.length) {
+                                worldAdmin1Data = prepareAdmin1Data(candidate);
+                                break;
+                            }
+                        } catch (errGeo) {}
+                    }
                 }
 
-                const features = (worldAdmin1Data && worldAdmin1Data.features) ? worldAdmin1Data.features : [];
+                let boundaryData = worldAdmin1Data;
+                // El archivo global es la fuente principal: permite pintar las
+                // regiones afectadas aunque la intensidad cruce fronteras.
+                // Como respaldo, se intenta el país de la agencia si la descarga global falla.
+                if (!boundaryData) {
+                    const countryIso = countryISOForEvent(ev);
+                    boundaryData = await loadAdmin1Country(countryIso);
+                }
+
+                const features = (boundaryData && boundaryData.features) ? boundaryData.features : [];
                 const coloredRegions = [];
 
                 features.forEach(f => {
                     if (!f || !f.geometry) return;
+                    const b = f.__bounds;
+                    const latPad = outerKm / 110;
+                    const lonPad = outerKm / (111 * Math.max(0.35, Math.cos(lat * Math.PI / 180)));
+                    if (b && (lat < b.minLat - latPad || lat > b.maxLat + latPad ||
+                        lon < b.minLon - lonPad || lon > b.maxLon + lonPad)) return;
 
+                    const isInside = geometryContainsPoint(lat, lon, f.geometry);
                     const minDist = minDistanceToPolygonKm(lat, lon, f.geometry);
-                    if (minDist > outerKm) return;
+                    if (!isInside && minDist > outerKm) return;
 
-                    const ratio = Math.min(1, minDist / outerKm);
+                    // Dentro de una región se usa la intensidad central; fuera,
+                    // disminuye gradualmente hacia las regiones vecinas.
+                    const effectiveDist = isInside ? 0 : minDist;
+                    const ratio = Math.min(1, effectiveDist / outerKm);
                     let intensityLevel = Math.round(maxIntensityCenter * Math.pow(1 - ratio, 0.65));
 
-                    if (minDist < 15) intensityLevel = Math.max(intensityLevel, Math.min(maxIntensityCenter, 5));
+                    if (isInside || minDist < 15) {
+                        intensityLevel = Math.max(intensityLevel, Math.min(maxIntensityCenter, 5));
+                    }
                     intensityLevel = Math.max(1, Math.min(10, intensityLevel));
 
                     const colorHex = colorByTaiwanI(intensityLevel);
@@ -899,7 +1245,7 @@
                         geometry: f.geometry,
                         properties: {
                             color: colorHex,
-                            name: f.properties ? (f.properties.name || f.properties.NAME || 'Región') : 'Región'
+                            name: f.properties ? (f.properties.name || f.properties.NAME || f.properties.shapeName || 'Región') : 'Región'
                         }
                     });
                 });
@@ -909,35 +1255,18 @@
                         pane: 'intensityMap',
                         style: f => ({
                             color: '#0d0d0d',
-                            weight: 1.2,
+                            weight: 1.4,
                             opacity: 0.7,
                             fillColor: f.properties.color,
-                            fillOpacity: 0.65
+                            fillOpacity: 0.72
                         })
                     }).addTo(intensityZonesLayer);
 
-                    showRegionToast(`🟢 Intensidad calculada en ${coloredRegions.length} departamentos/provincias`);
+                    showRegionToast(`🟢 Intensidad por regiones: ${coloredRegions.length} departamentos/provincias`);
                 } else {
-                    const steps = [
-                        { r: outerKm, int: 1 },
-                        { r: outerKm * 0.70, int: Math.max(1, maxIntensityCenter - 3) },
-                        { r: outerKm * 0.45, int: Math.max(1, maxIntensityCenter - 2) },
-                        { r: outerKm * 0.20, int: maxIntensityCenter }
-                    ];
-
-                    steps.forEach(s => {
-                        const stepColor = colorByTaiwanI(s.int);
-                        L.circle([lat, lon], {
-                            radius: s.r * 1000,
-                            fillColor: stepColor,
-                            fillOpacity: 0.35,
-                            color: stepColor,
-                            weight: 1,
-                            pane: 'intensityMap'
-                        }).addTo(intensityZonesLayer);
-                    });
-
-                    showRegionToast(`🟡 Área epicentral por radio (${outerKm.toFixed(0)} km)`);
+                    // No dibujamos cajas artificiales: si las fronteras no están
+                    // disponibles, se informa en lugar de mostrar un resultado engañoso.
+                    showRegionToast('⚠️ No se pudieron cargar los límites administrativos globales');
                 }
             } catch (e) {}
 
@@ -1070,31 +1399,61 @@
             } catch (e) { setApiState('jma','bad'); return []; }
         }
 
-        async function fetchWolfxCENC() {
+        // CENC publica la hora de origen en UTC+8. Convertirla antes de
+        // ordenar/filtrar evita que un evento viejo aparezca como nuevo o futuro.
+        function parseCENCTimestamp(value) {
+            if (typeof value === 'number') return value;
+            const text = String(value || '').trim();
+            if (!text) return 0;
+            const iso = text.replace(' ', 'T');
+            const hasZone = /Z$|[+-]\d{2}:?\d{2}$/.test(iso);
+            const ts = Date.parse(hasZone ? iso : iso + '+08:00');
+            return Number.isFinite(ts) ? ts : 0;
+        }
+
+        // CENC a través de Wolfx API, con respaldo CORS y todos sus campos principales.
+        async function fetchCENCReal() {
+            const source = 'https://api.wolfx.jp/cenc_eqlist.json';
+            const freshSource = source + '?_=' + Date.now();
+            const urls = [freshSource, 'https://api.allorigins.win/raw?url=' + encodeURIComponent(freshSource)];
             try {
-                const res = await fetch('https://api.wolfx.jp/cenc_eqlist.json');
+                let res = null;
+                for (const url of urls) {
+                    try {
+                        const candidate = await fetch(url, { cache: 'no-store' });
+                        if (candidate.ok) { res = candidate; break; }
+                    } catch (_) {}
+                }
+                if (!res) throw new Error('CENC no respondió');
                 const data = await res.json();
-                setApiState('cenc','ok');
-                const list = [];
-                for (let i = 1; i <= 20; i++) {
-                    const item = data['No' + i];
-                    if (!item) break;
+                const keys = Object.keys(data || {})
+                    .filter(k => /^No\d+$/.test(k))
+                    .sort((a, b) => Number(a.slice(2)) - Number(b.slice(2)));
+                const list = keys.map((key, i) => {
+                    const item = data[key] || {};
                     const mag = parseFloat(item.magnitude) || 0;
-                    let int = item.intensity || magToShindo(mag);
-                    list.push({
-                        id: 'cenc-' + (item.EventID || i),
+                    const int = item.intensity ?? item.shindo ?? item.mmi ?? magToShindo(mag);
+                    const eventTime = item.time || item.time_full || item.originTime || item.ReportTime;
+                    const eventTs = parseCENCTimestamp(eventTime);
+                    const lat = Number(item.latitude);
+                    const lon = Number(item.longitude);
+                    return {
+                        id: 'cenc-' + (item.EventID || eventTime || i),
                         intensity: String(int),
                         place: item.location || item.placeName || 'China',
-                        time: formatTime(item.time),
+                        time: formatTime(eventTs),
                         mag: 'M' + mag.toFixed(1),
-                        depth: (item.depth || '—') + ' km',
-                        agency: 'CENC (Wolfx)',
-                        lat: parseFloat(item.latitude) || 35,
-                        lon: parseFloat(item.longitude) || 105,
+                        depth: item.depth != null ? String(item.depth).replace('km', ' km') : '—',
+                        agency: 'CENC',
+                        lat: Number.isFinite(lat) ? lat : 35,
+                        lon: Number.isFinite(lon) ? lon : 105,
                         colorClass: intensityClass(int),
-                        ts: new Date(item.time).getTime() || Date.now()
-                    });
-                }
+                        ts: eventTs,
+                        source: 'CENC / Wolfx'
+                    };
+                }).filter(ev => ev.ts > 0 && ev.lat >= -90 && ev.lat <= 90 && ev.lon >= -180 && ev.lon <= 180);
+                if (!list.length) throw new Error('CENC devolvió una lista vacía');
+                setApiState('cenc','ok');
                 return list;
             } catch (e) { setApiState('cenc','bad'); return []; }
         }
@@ -1204,7 +1563,7 @@
                     const p = f.properties || {}, g = f.geometry?.coordinates || [0,0,0];
                     const mag = Number(p.magnitude || 0);
                     return {
-                        id:'geonet-'+(f.id||Math.random()), intensity:magToMMI(mag), place:p.locality || 'Nueva Zelanda',
+                        id:'geonet-'+(f.id || `${p.time}-${g[0]}-${g[1]}-${mag}`), intensity:magToMMI(mag), place:p.locality || 'Nueva Zelanda',
                         time:formatTime(p.time), mag:'M'+mag.toFixed(1), depth:Math.abs(g[2]||0).toFixed(0)+' km',
                         agency:'GeoNet', lat:g[1]||0, lon:g[0]||0, colorClass:intensityClass(magToMMI(mag)), ts:new Date(p.time).getTime()||Date.now()
                     };
@@ -1221,7 +1580,7 @@
                     const p = f.properties || {}, g = f.geometry?.coordinates || [0,0,0];
                     const mag = Number(p.mag || 0);
                     return {
-                        id:'ingv-'+(f.id||Math.random()), intensity:magToMMI(mag), place:p.flynn_region || p.place || 'Italia',
+                        id:'ingv-'+(f.id || `${p.time}-${g[0]}-${g[1]}-${mag}`), intensity:magToMMI(mag), place:p.flynn_region || p.place || 'Italia',
                         time:formatTime(p.time), mag:'M'+mag.toFixed(1), depth:Math.abs(g[2]||0).toFixed(0)+' km',
                         agency:'INGV', lat:g[1]||0, lon:g[0]||0, colorClass:intensityClass(magToMMI(mag)), ts:new Date(p.time).getTime()||Date.now()
                     };
@@ -1241,7 +1600,7 @@
                     const p = f.properties || {}, g = f.geometry?.coordinates || [0,0,0];
                     const mag = Number(p.mag || 0);
                     return {
-                        id:'ga-'+(f.id||Math.random()), intensity:magToMMI(mag), place:p.place || 'Australia',
+                        id:'ga-'+(f.id || `${p.time}-${g[0]}-${g[1]}-${mag}`), intensity:magToMMI(mag), place:p.place || 'Australia',
                         time:formatTime(p.time), mag:'M'+mag.toFixed(1), depth:Math.abs(g[2]||0).toFixed(0)+' km',
                         agency:'Geoscience AU', lat:g[1]||0, lon:g[0]||0, colorClass:intensityClass(magToMMI(mag)), ts:new Date(p.time).getTime()||Date.now()
                     };
@@ -1272,85 +1631,153 @@
             } catch(e) { setApiState('sgc','bad'); return []; }
         }
 
-        async function fetchSSN() {
-            try {
-                const r = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.ssn.unam.mx/rss/ultimos-sismos.xml'));
-                const text = await r.text();
-                const xml = new DOMParser().parseFromString(text, 'text/xml');
-                const items = Array.from(xml.getElementsByTagName('item'));
-                setApiState('ssn','ok');
-                return items.map((it, i) => {
-                    const title = (it.getElementsByTagName('title')[0]?.textContent || '').trim();
-                    const commaIdx = title.indexOf(',');
-                    const mag = parseFloat(commaIdx >= 0 ? title.slice(0, commaIdx) : title) || 0;
-                    const place = (commaIdx >= 0 ? title.slice(commaIdx + 1) : title).trim() || 'México';
-                    const lat = Number(it.getElementsByTagName('geo:lat')[0]?.textContent || 0);
-                    const lon = Number(it.getElementsByTagName('geo:long')[0]?.textContent || 0);
-                    return {
-                        id: 'ssn-' + i, intensity: magToMMI(mag), place,
-                        time: formatTime(new Date().toISOString()), mag: 'M' + mag.toFixed(1),
-                        depth: '—', agency: 'SSN', lat, lon,
-                        colorClass: intensityClass(magToMMI(mag)), ts: Date.now()
-                    };
-                });
-            } catch(e) { setApiState('ssn','bad'); return []; }
+        // SSN México: la URL RSS suele estar caída o sin CORS. Se usa primero
+        // la tabla oficial de "Últimos sismos" y después el RSS como respaldo.
+        function parseSSNText(text) {
+            if (!text || text.length < 50) return [];
+
+            // Formato actual de la página oficial: Magnitud | Fecha y hora | Epicentro | Profundidad.
+            const htmlDoc = new DOMParser().parseFromString(text, 'text/html');
+            const tableEvents = Array.from(htmlDoc.querySelectorAll('table tr')).map((row, i) => {
+                const cells = Array.from(row.querySelectorAll('td')).map(c => c.textContent.trim());
+                if (cells.length < 4) return null;
+                const mag = parseFloat(cells[0].replace(',', '.'));
+                const coordMatch = cells[2].match(/(-?\d+(?:[.,]\d+)?)\s*°?\s*,\s*(-?\d+(?:[.,]\d+)?)/);
+                if (!Number.isFinite(mag) || !coordMatch) return null;
+                const lat = Number(coordMatch[1].replace(',', '.'));
+                const lon = Number(coordMatch[2].replace(',', '.'));
+                const place = cells[2].slice(0, coordMatch.index).replace(/[:\s]+$/, '') || 'México';
+                const rawTime = cells[1];
+                // El SSN publica la hora en Tiempo del Centro de México (UTC-06:00).
+                const ts = new Date(rawTime.replace(' ', 'T') + '-06:00').getTime();
+                return {
+                    id: 'ssn-' + rawTime + '-' + lat + '-' + lon,
+                    intensity: magToMMI(mag), place,
+                    time: formatTime(ts || rawTime), mag: 'M' + mag.toFixed(1),
+                    depth: cells[3] || '—', agency: 'SSN', lat, lon,
+                    colorClass: intensityClass(magToMMI(mag)), ts: ts || Date.now()
+                };
+            }).filter(Boolean);
+            if (tableEvents.length) return tableEvents;
+
+            // Algunos proxys convierten la tabla oficial en Markdown. Se acepta
+            // ese formato para que SSN siga funcionando aunque el RSS falle.
+            const markdownEvents = text.split('\n').map(line => {
+                if (!line.trim().startsWith('|')) return null;
+                const cells = line.split('|').slice(1, -1).map(cell => cell.replace(/\*\*/g, '').trim());
+                if (cells.length < 4 || /^-+$/.test(cells[0])) return null;
+                const mag = parseFloat(cells[0].replace(',', '.'));
+                const coordMatch = cells[2].match(/(-?\d+(?:[.,]\d+)?)\s*°?\s*,\s*(-?\d+(?:[.,]\d+)?)/);
+                if (!Number.isFinite(mag) || !coordMatch) return null;
+                const lat = Number(coordMatch[1].replace(',', '.'));
+                const lon = Number(coordMatch[2].replace(',', '.'));
+                const place = cells[2].slice(0, coordMatch.index).replace(/[:\s]+$/, '') || 'México';
+                const rawTime = cells[1];
+                const ts = new Date(rawTime.replace(' ', 'T') + '-06:00').getTime();
+                return {
+                    id: 'ssn-' + rawTime + '-' + lat + '-' + lon,
+                    intensity: magToMMI(mag), place,
+                    time: formatTime(ts || rawTime), mag: 'M' + mag.toFixed(1),
+                    depth: cells[3] || '—', agency: 'SSN', lat, lon,
+                    colorClass: intensityClass(magToMMI(mag)), ts: ts || Date.now()
+                };
+            }).filter(Boolean);
+            if (markdownEvents.length) return markdownEvents;
+
+            // RSS oficial del SSN. La fecha real está en la descripción
+            // (hora local de México), no en pubDate; usar pubDate dejaba los
+            // eventos congelados o con una hora incorrecta.
+            const xml = new DOMParser().parseFromString(text, 'text/xml');
+            if (xml.getElementsByTagName('parsererror').length) return [];
+            const decodeEntities = value => {
+                const area = document.createElement('textarea');
+                area.innerHTML = value || '';
+                return area.value;
+            };
+            return Array.from(xml.getElementsByTagName('item')).map((it, i) => {
+                const get = tag => it.getElementsByTagName(tag)[0]?.textContent?.trim() || '';
+                const title = decodeEntities(get('title'));
+                const description = decodeEntities(get('description'));
+                const titleMatch = title.match(/^\s*([\d.,]+)\s*,\s*(.+?)\s*$/);
+                const mag = parseFloat((titleMatch ? titleMatch[1] : '').replace(',', '.')) || 0;
+                const place = titleMatch ? titleMatch[2].replace(/\s+/g, ' ').trim() : 'México';
+                const dateMatch = description.match(/Fecha\s*:\s*(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2})/i);
+                const rawTime = dateMatch ? dateMatch[1] : '';
+                const ts = rawTime ? new Date(rawTime.replace(' ', 'T') + '-06:00').getTime() : 0;
+                const coordMatch = description.match(/Lat\s*\/?\s*Lon\s*:\s*(-?\d+(?:[.,]\d+)?)\s*\/\s*(-?\d+(?:[.,]\d+)?)/i);
+                const lat = Number(get('geo:lat') || (coordMatch ? coordMatch[1] : 0));
+                const lon = Number(get('geo:long') || (coordMatch ? coordMatch[2] : 0));
+                const depth = (description.match(/Profundidad\s*:\s*([\d.,]+\s*km)/i) || [])[1] || '—';
+                if (!rawTime || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+                return {
+                    id: 'ssn-' + rawTime + '-' + lat + '-' + lon,
+                    intensity: magToMMI(mag), place,
+                    time: formatTime(ts), mag: 'M' + mag.toFixed(1), depth,
+                    agency: 'SSN', lat, lon,
+                    colorClass: intensityClass(magToMMI(mag)), ts
+                };
+            }).filter(Boolean);
         }
 
-        // WEBSOCKET WOLFX
-        let wsRetries = 0;
-        const MAX_WS_RETRIES = 3;
+        let ssnLastGoodEvents = [];
+        let ssnLastGoodAt = 0;
 
-        function connectWolfxWS() {
-            if (wsRetries >= MAX_WS_RETRIES) return;
-            let ws;
-            try { ws = new WebSocket('wss://ws-api.wolfx.jp/all_eew'); } catch (e) { return; }
+        async function fetchSSN() {
+            const baseTargets = [
+                // El SSN publica por HTTP; su HTTPS no siempre completa TLS.
+                'http://www.ssn.unam.mx/rss/ultimos-sismos.xml',
+                'http://www.ssn.unam.mx/sismicidad/ultimos/'
+            ];
+            const urls = [];
+            // AllOrigins /get devuelve {contents: ...} y suele ser más estable
+            // para el RSS que /raw. Se prueban varias claves de caché.
+            for (let attempt = 0; attempt < 3; attempt++) {
+                const bust = `_zapia=${Date.now()}-${attempt}-${Math.random().toString(36).slice(2)}`;
+                baseTargets.forEach(target => {
+                    const freshTarget = target + '?' + bust;
+                    urls.push('https://api.allorigins.win/get?url=' + encodeURIComponent(freshTarget));
+                    urls.push('https://api.allorigins.win/raw?url=' + encodeURIComponent(freshTarget));
+                    urls.push('https://r.jina.ai/' + freshTarget);
+                });
+            }
 
-            ws.onopen = () => {
-                wsRetries = 0;
-                try {
-                    ws.send('query_jmaeew'); ws.send('query_jmaeqlist');
-                    ws.send('query_cenceew'); ws.send('query_cenceqlist');
-                } catch (_) {}
-            };
-
-            ws.onmessage = (msg) => {
-                try {
-                    let raw = msg.data;
-                    if (typeof raw !== 'string' || raw.length < 10) return;
-                    const data = JSON.parse(raw);
-                    let items = Array.isArray(data) ? data : [data];
-
-                    items.forEach(item => {
-                        if (!item) return;
-                        const mag = parseFloat(item.Magunitude || item.Magnitude || item.magnitude || item.mag) || 0;
-                        let int = item.MaxIntensity || item.shindo || item.intensity || magToShindo(mag);
-                        const place = item.Hypocenter || item.location || item.placeName || item.Title || 'Desconocido';
-                        const lat = parseFloat(item.Latitude || item.latitude || item.lat) || 35;
-                        const lon = parseFloat(item.Longitude || item.longitude || item.lon) || 139;
-
-                        const ev = {
-                            id: 'ws-' + (item.EventID || Math.random()),
-                            intensity: String(int), place: place, time: formatTime(new Date().toISOString()),
-                            mag: 'M' + mag.toFixed(1), depth: (item.Depth || '10') + ' km',
-                            agency: 'Wolfx Live', lat: lat, lon: lon,
-                            colorClass: intensityClass(int), ts: Date.now()
-                        };
-                        addNewEvent(ev);
-                    });
-                } catch (e) {}
-            };
-
-            ws.onclose = () => {
-                wsRetries++;
-                if (wsRetries < MAX_WS_RETRIES) setTimeout(connectWolfxWS, 7000);
-            };
+            try {
+                for (const url of urls) {
+                    try {
+                        const r = await fetch(url, { cache: 'no-store' });
+                        if (!r.ok) continue;
+                        let body = await r.text();
+                        if (url.includes('api.allorigins.win/get?url=')) {
+                            try { body = JSON.parse(body).contents || ''; } catch (_) { body = ''; }
+                        }
+                        const parsed = parseSSNText(body);
+                        if (parsed.length) {
+                            ssnLastGoodEvents = parsed.slice(0, 50);
+                            ssnLastGoodAt = Date.now();
+                            setApiState('ssn','ok');
+                            return ssnLastGoodEvents.map(ev => ({ ...ev }));
+                        }
+                    } catch (_) {}
+                }
+                throw new Error('SSN no devolvió eventos válidos');
+            } catch(e) {
+                // Una caída temporal del proxy no debe borrar los sismos SSN
+                // que ya estaban en pantalla. Se conservan hasta que caduquen
+                // naturalmente por el filtro de 24 horas.
+                if (ssnLastGoodEvents.length) {
+                    setApiState('ssn','cached');
+                    return ssnLastGoodEvents.map(ev => ({ ...ev }));
+                }
+                setApiState('ssn','bad');
+                return [];
+            }
         }
 
         const apiState = {};
         const apiNames = [
             ['USGS','usgs'], ['JMA / Wolfx','jma'], ['CENC / Wolfx','cenc'],
             ['EMSC','emsc'], ['GFZ / GEOFON','gfz'], ['TREM Taiwán','trem'],
-            ['SSN México','ssn'], ['SGC Colombia','sgc'], ['AFAD Turquía','afad'],
+            ['SSN México · RSS','ssn'], ['SGC Colombia','sgc'], ['AFAD Turquía','afad'],
             ['BMKG Indonesia','bmkg'], ['GeoNet NZ','geonet'], ['INGV Italia','ingv'], ['Geoscience AU','ga']
         ];
 
@@ -1360,7 +1787,7 @@
             if (!box) return;
             box.innerHTML = apiNames.map(([name,key]) => {
                 const s = apiState[key] || 'wait';
-                const label = s === 'ok' ? 'Conectado' : s === 'bad' ? 'Desconectado' : 'Conectando...';
+                const label = s === 'ok' ? 'Conectado' : s === 'cached' ? 'Últimos datos' : s === 'bad' ? 'Desconectado' : 'Conectando...';
                 return `<div class="conn-row"><span>${name}</span><span class="${s}">${label}</span></div>`;
             }).join('');
         }
@@ -1387,7 +1814,7 @@
             if (!exists) {
                 events.unshift(ev);
                 renderEvents();
-                triggerQuakeAlert(ev);
+                announceNewEvent(ev);
             }
         }
 
@@ -1419,7 +1846,10 @@
                     </div>
                     <div class="mag">${ev.mag}</div>
                 `;
-                div.addEventListener('click', () => selectEvent(ev.id));
+                div.addEventListener('click', () => {
+                    playUiSound('click');
+                    selectEvent(ev.id);
+                });
                 listEl.appendChild(div);
             });
 
@@ -1433,8 +1863,14 @@
             }
         }
 
-        document.getElementById('filterMag').addEventListener('change', renderEvents);
-        document.getElementById('filterAgency').addEventListener('change', renderEvents);
+        document.getElementById('filterMag').addEventListener('change', () => {
+            playUiSound('select');
+            renderEvents();
+        });
+        document.getElementById('filterAgency').addEventListener('change', () => {
+            playUiSound('select');
+            renderEvents();
+        });
 
         function selectEvent(id) {
             const ev = events.find(e => e.id === id);
@@ -1455,7 +1891,7 @@
 
             clearMarkers();
             currentMarker = L.marker([ev.lat, ev.lon], { icon: xIcon }).addTo(map);
-            map.setView([ev.lat, ev.lon], Math.max(map.getZoom(), 7));
+            setProgrammaticMapView([ev.lat, ev.lon], Math.max(map.getZoom(), 7));
 
             drawIntensityZones(ev);
         }
@@ -1466,7 +1902,7 @@
                 const [usgs, jma, cenc, emsc, gfz, afad, bmkg, geonet, ingv, ga, sgc, ssn] = await Promise.all([
                     fetchUSGS().catch(() => []),
                     fetchWolfxJMA().catch(() => []),
-                    fetchWolfxCENC().catch(() => []),
+                    fetchCENCReal().catch(() => []),
                     fetchEMSC().catch(() => []),
                     fetchGFZ().catch(() => []),
                     fetchAFAD().catch(() => []),
@@ -1480,14 +1916,37 @@
 
                 let newEvents = [...usgs, ...jma, ...cenc, ...emsc, ...gfz, ...afad, ...bmkg, ...geonet, ...ingv, ...ga, ...sgc, ...ssn];
                 const now = Date.now();
-                newEvents.forEach(e => { e.ts = parseTs(e.ts) || Date.now(); });
-                newEvents = newEvents.filter(e => e.ts > 0 && e.ts <= now + 120000);
+
+                // Mantener solo sismos recientes y ya ocurridos según el reloj
+                // actual del navegador. Así no aparecen eventos históricos.
+                newEvents = newEvents
+                    .map(ev => ({ ...ev, ts: parseTs(ev.ts) }))
+                    .filter(ev => ev.ts > 0 && ev.ts <= now + 120000 && (now - ev.ts) <= MAX_EVENT_AGE_MS);
+
+                // En la primera carga solo se inicializa el historial. Después,
+                // cada evento nuevo genera una alerta una sola vez, aunque su ID
+                // cambie entre agencias o actualizaciones.
+                if (hasCompletedInitialLoad) {
+                    newEvents.forEach(ev => {
+                        const key = eventAlertKey(ev);
+                        if (!alertedEventIds.has(ev.id) && !alertedEventKeys.has(key)) {
+                            alertedEventIds.add(ev.id);
+                            announceNewEvent(ev);
+                        }
+                    });
+                } else {
+                    newEvents.forEach(ev => {
+                        alertedEventIds.add(ev.id);
+                        alertedEventKeys.add(eventAlertKey(ev));
+                    });
+                    hasCompletedInitialLoad = true;
+                }
 
                 events = newEvents;
                 renderEvents();
 
                 if (status) {
-                    status.textContent = `En vivo · ${events.length} sismos registrados`;
+                    status.textContent = `En vivo · ${events.length} sismos de las últimas 24 h`;
                     status.style.color = '#4caf50';
                 }
             } catch (err) {
@@ -1500,13 +1959,19 @@
 
         loadAll(true);
         setInterval(() => loadAll(false), 8000);
-        connectWolfxWS();
 
         // Botones e Interacciones
-        document.getElementById('btnHome').addEventListener('click', () => { if (events.length > 0) selectEvent(events[0].id); });
-        document.getElementById('btnRefresh').addEventListener('click', () => loadAll(true));
+        document.getElementById('btnHome').addEventListener('click', () => {
+            playUiSound('home');
+            if (events.length > 0) selectEvent(events[0].id);
+        });
+        document.getElementById('btnRefresh').addEventListener('click', () => {
+            playUiSound('refresh');
+            loadAll(true);
+        });
 
         document.getElementById('btnFullscreen').addEventListener('click', () => {
+            playUiSound('click');
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen().catch(() => {});
             } else {
@@ -1515,7 +1980,8 @@
         });
 
         document.getElementById('btnTaiwan').addEventListener('click', () => {
-            map.setView([23.7, 121.0], 8);
+            playUiSound('success');
+            setProgrammaticMapView([23.7, 121.0], 8);
             showRegionToast('🇹🇼 Enfocando red TREM de Taiwán');
         });
     </script>
