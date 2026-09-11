@@ -806,15 +806,20 @@
         // Detección de país 100% local usando el custom_geo.json (mismo
         // origen, ya cargado para las fronteras "siempre visibles"). Evita
         // tener que geocodificar el punto contra un servicio externo.
-        function findCountryISO2(lat, lon) {
+        function findCountryFeature(lat, lon) {
             if (!worldCountriesGeoJSON?.features) return null;
             for (const f of worldCountriesGeoJSON.features) {
                 if (_pointInGeometry(lat, lon, f.geometry)) {
-                    const iso = f.properties?.iso_a2 || f.properties?.ISO_A2;
-                    return (iso && iso !== '-99') ? iso : null;
+                    return f;
                 }
             }
             return null;
+        }
+
+        function findCountryISO2(lat, lon) {
+            const f = findCountryFeature(lat, lon);
+            const iso = f?.properties?.iso_a2 || f?.properties?.ISO_A2;
+            return (iso && iso !== '-99') ? String(iso).toUpperCase() : null;
         }
 
         // Estados/provincias reales del país detectado, servidos desde el
@@ -826,20 +831,34 @@
             if (!worldCountriesGeoJSON) {
                 try { await loadWorldBoundaries(); } catch (_) {}
             }
-            const iso2 = findCountryISO2(lat, lon);
-            if (!iso2) return null;
-            if (_countryAdmin1Cache[iso2] !== undefined) return _countryAdmin1Cache[iso2];
-            try {
-                const r = await fetch(`./geo/${iso2}.geojson`, { cache: 'force-cache' });
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                const gj = await r.json();
-                const features = gj?.features || [];
-                _countryAdmin1Cache[iso2] = features;
-                return features;
-            } catch (e) {
-                _countryAdmin1Cache[iso2] = null;
-                return null;
+            const country = findCountryFeature(lat, lon);
+            const p = country?.properties || {};
+            const iso2 = String(p.iso_a2 || p.ISO_A2 || '').toUpperCase();
+            const iso3 = String(p.adm0_a3 || p.ADM0_A3 || '').toUpperCase();
+            const candidates = [...new Set([iso2, iso3].filter(code => code && code !== '-99'))];
+            if (!candidates.length) return null;
+
+            for (const code of candidates) {
+                if (_countryAdmin1Cache[code] !== undefined) {
+                    if (_countryAdmin1Cache[code]) return _countryAdmin1Cache[code];
+                    continue;
+                }
+                try {
+                    const r = await fetch(`./geo/${code}.geojson`, { cache: 'force-cache' });
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    const gj = await r.json();
+                    const features = gj?.features || [];
+                    if (features.length) {
+                        _countryAdmin1Cache[code] = features;
+                        return features;
+                    }
+                } catch (e) {
+                    // Probar el siguiente código: algunas carpetas usan ISO-2
+                    // (US) y otras ISO-3 (USA).
+                }
+                _countryAdmin1Cache[code] = null;
             }
+            return null;
         }
 
         let _regionToastTimer = null;
@@ -997,7 +1016,13 @@
                         : approxCentroid(original.geometry);
                     if (!c) return;
 
-                    const d = haversineKm(lat, lon, c[0], c[1]);
+                    // No usar solo el centroide: en países grandes, como
+                    // Estados Unidos, el epicentro puede estar dentro de
+                    // California/Texas mientras el centroide del estado queda
+                    // cientos de kilómetros lejos y se descartaría por error.
+                    const d = _pointInGeometry(lat, lon, original.geometry)
+                        ? 0
+                        : haversineKm(lat, lon, c[0], c[1]);
                     if (d > Math.max(outerKm, 80)) return;
 
                     const ratio = Math.min(1, d / Math.max(outerKm, 1));
@@ -1045,35 +1070,7 @@
                 console.warn('No se pudieron obtener regiones cercanas desde ./geo/:', e);
             }
 
-            // 2) Si no hubo regiones, crear un isoseisma irregular de respaldo.
-            //    Esto hace que incluso un M0.x/M1.x tenga representación visual.
-            if (!paintedRegions) {
-                const kmLat = 111;
-                const kmLon = Math.max(20, 111 * Math.cos(lat * Math.PI / 180));
-                const seed = ((Math.abs(lat) * 91.7 + Math.abs(lon) * 53.3 + mag * 17.9 + depthKm) % 360) * Math.PI / 180;
-                const points = [];
-                const N = 72;
-                for (let i = 0; i < N; i++) {
-                    const a = (i / N) * Math.PI * 2;
-                    const deformation = 1 + 0.17 * Math.sin(2 * a + seed) + 0.085 * Math.cos(3 * a - seed * 0.8);
-                    const r = outerKm * 0.35 * deformation;
-                    points.push([
-                        lat + (r * Math.cos(a)) / kmLat,
-                        lon + (r * Math.sin(a)) / kmLon
-                    ]);
-                }
-                L.polygon(points, {
-                    pane: 'intensityMap',
-                    color: getColor(NUM_TO_ROMAN[maxLevel]),
-                    weight: 1.2,
-                    opacity: 0.9,
-                    fillColor: getColor(NUM_TO_ROMAN[maxLevel]),
-                    fillOpacity: 0.48,
-                    interactive: false
-                }).addTo(intensityGroup);
-            }
-
-            // 3) Ciudades del mundo dentro de la zona. Son puntos, no texto fijo,
+            // 2) Ciudades del mundo dentro de la zona. Son puntos, no texto fijo,
             //    para que el mapa no se vuelva ilegible en el celular.
             if (worldCitiesData?.features?.length) {
                 const seen = new Set();
