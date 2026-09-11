@@ -272,7 +272,6 @@
         .int-9 { background: #ff0000; color: #ffffff !important; }
         .int-10 { background: #c80000; color: #ffffff !important; }
 
-        /* Aliases para números romanos */
         .int-I { background: #ffffff; color: #000000 !important; }
         .int-II { background: #bfccff; color: #000000 !important; }
         .int-III { background: #99b3ff; color: #000000 !important; }
@@ -307,18 +306,6 @@
             color: #ffffff;
             text-shadow: 0 0 4px #000, 0 0 8px #000;
             line-height: 1;
-        }
-
-        /* Etiqueta flotante del evento */
-        .epicenter-label-container {
-            background: rgba(14, 14, 26, 0.9);
-            border: 1px solid rgba(255, 255, 255, 0.6);
-            border-radius: 4px;
-            padding: 2px 6px;
-            font-size: 11px;
-            color: #fff;
-            white-space: nowrap;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
         }
 
         /* Cuadro de conexiones API */
@@ -588,21 +575,6 @@
                     box-shadow: 0 2px 8px rgba(0,0,0,0.5);
                     white-space: nowrap;
                 ">🇹🇼 Taiwán</button>
-                <button id="btnJapan" title="Ver estaciones Japón (JMA)" style="
-                    background: rgba(20,20,20,0.9);
-                    border: 1px solid #555;
-                    color: #eee;
-                    font-size: 13px;
-                    height: 32px;
-                    padding: 0 10px;
-                    border-radius: 5px;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-                    white-space: nowrap;
-                ">🇯🇵 Japón</button>
             </div>
         </div>
     </div>
@@ -636,7 +608,7 @@
 
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        // Sistema Audio y Voz (CORREGIDO)
+        // Sistema Audio y Voz
         let audioEnabled = true;
         let audioCtx = null;
 
@@ -650,7 +622,6 @@
             }
         }
 
-        // Desbloquear audio con interacción del usuario
         window.addEventListener('click', () => {
             initAudioContext();
         }, { once: false });
@@ -817,24 +788,6 @@
         }
         loadTaiwanStations(); setInterval(updateTaiwanRTS, 3000);
 
-        // Estaciones Japón (JMA)
-        const japanStationsLayer = L.layerGroup();
-        let japanStationsLoaded = false;
-        async function loadJapanStations() {
-            if (japanStationsLoaded) return;
-            try {
-                const res = await fetch('https://cdn.jsdelivr.net/gh/iku55/jma_int_stations@main/stations.json');
-                const list = await res.json();
-                list.forEach((st, idx) => {
-                    if (idx % 3 !== 0) return;
-                    const lat = parseFloat(st.lat), lon = parseFloat(st.lon);
-                    if (isNaN(lat) || isNaN(lon)) return;
-                    L.circleMarker([lat, lon], { radius: 3, fillColor: '#5a9fd4', color: '#0a1a2a', weight: 1, opacity: 0.8, fillOpacity: 0.75 }).addTo(japanStationsLayer);
-                });
-                japanStationsLoaded = true;
-            } catch (e) {}
-        }
-
         function showRegionToast(msg) {
             const el = document.getElementById('regionToast');
             if (!el) return;
@@ -877,7 +830,6 @@
             return minD;
         }
 
-        // FUNCIÓN REGIONAL PINTADA
         let worldAdmin1Data = null;
         let intensityZonesLayer = null;
 
@@ -922,9 +874,7 @@
                         if (res.ok) {
                             worldAdmin1Data = await res.json();
                         }
-                    } catch (errGeo) {
-                        console.warn('Error al descargar polígonos base:', errGeo);
-                    }
+                    } catch (errGeo) {}
                 }
 
                 const features = (worldAdmin1Data && worldAdmin1Data.features) ? worldAdmin1Data.features : [];
@@ -989,15 +939,12 @@
 
                     showRegionToast(`🟡 Área epicentral por radio (${outerKm.toFixed(0)} km)`);
                 }
-            } catch (e) {
-                console.warn('Error procesando zonas de intensidad:', e);
-            }
+            } catch (e) {}
 
             intensityZonesLayer.addTo(map);
             if (currentMarker) currentMarker.bringToFront();
         }
 
-        /* ASIGNACIÓN DE CLASES CORREGIDA */
         function intensityClass(int) {
             const s = String(int).trim().toUpperCase();
 
@@ -1067,7 +1014,6 @@
             return '7';
         }
 
-        // AGENCIAS ACTIVAS
         async function fetchUSGS() {
             try {
                 const res = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson');
@@ -1571,21 +1517,6 @@
         document.getElementById('btnTaiwan').addEventListener('click', () => {
             map.setView([23.7, 121.0], 8);
             showRegionToast('🇹🇼 Enfocando red TREM de Taiwán');
-        });
-
-        let showingJapanStations = false;
-        document.getElementById('btnJapan').addEventListener('click', async () => {
-            if (!showingJapanStations) {
-                await loadJapanStations();
-                japanStationsLayer.addTo(map);
-                showingJapanStations = true;
-                map.setView([36.2, 138.25], 6);
-                showRegionToast('🇯🇵 Estaciones JMA mostradas');
-            } else {
-                map.removeLayer(japanStationsLayer);
-                showingJapanStations = false;
-                showRegionToast('🇯🇵 Estaciones JMA ocultas');
-            }
         });
     </script>
 </body>
