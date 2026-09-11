@@ -83,13 +83,6 @@
             padding: 14px;
             border: 1px solid #2a5a8a;
             position: relative;
-            cursor: pointer;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-
-        .current-event:hover {
-            border-color: #4a9eff;
-            box-shadow: 0 0 10px rgba(74, 158, 255, 0.2);
         }
 
         .current-event .intensity-big {
@@ -140,6 +133,8 @@
             color: #fff;
             font-size: 15px;
         }
+
+        /* (caja Intensidad máx eliminada) */
 
         /* List header */
         .list-header {
@@ -240,6 +235,8 @@
             background: #0a0a0a;
         }
 
+        /* (leyenda de intensidad eliminada) */
+
         /* Bottom bar */
         .bottom-bar {
             background: #111;
@@ -286,12 +283,12 @@
         /* Intensity colors matching the image style */
         .int-0 { background: #555; }
         .int-1 { background: #4a90d9; }
-        .int-2 { background: #3bbf6e; }
-        .int-3 { background: #7ed957; }
-        .int-4 { background: #f0d000; color: #222 !important; }
-        .int-5 { background: #ff9a00; }
-        .int-6 { background: #ff4d00; }
-        .int-7 { background: #d00000; }
+        .int-2 { background: #29b6f6; }
+        .int-3 { background: #66bb6a; }
+        .int-4 { background: #81d4fa; color: #222 !important; }
+        .int-5 { background: #29b6f6; }
+        .int-6 { background: #fdd835; color: #222 !important; }
+        .int-7 { background: #7b1fa2; }
         .int-VI { background: #ff4d00; }
         .int-IV { background: #f0d000; color: #222 !important; }
         .int-V { background: #ff9a00; }
@@ -307,6 +304,7 @@
             background: #444;
             border-radius: 3px;
         }
+
 
         /* Cuadro de conexiones API propias */
         #connectionPanel {
@@ -346,34 +344,45 @@
         .map-info strong {
             color: #4a9eff;
         }
+
+        .intensity-city-label {
+            background: transparent !important;
+            border: 0 !important;
+        }
+        /* Cartelito temporal de diagnóstico: qué fuente de regiones se usó */
+        #regionToast {
+            position: fixed;
+            left: 50%;
+            bottom: 90px;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(20, 20, 20, 0.92);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+            white-space: nowrap;
+        }
+        #regionToast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
     </style>
 </head>
 <body>
+    <div id="regionToast"></div>
     <div class="header">
         <h1>
             🌍 Monitor Sísmico Multi-Agencia
             <span style="font-size:11px;color:#666;font-weight:400;">| Estilo EQuake</span>
         </h1>
-        <div style="display:flex; align-items:center; gap:10px;">
+        <div style="display:flex; align-items:center; gap:12px;">
             <div class="status">Cargando sismos…</div>
-            
-            <!-- Botón TTS (Sintetizador de Voz) -->
-            <button id="btnTTS" title="Activar/Desactivar Voz de Alerta (TTS)" style="
-                background: #222;
-                border: 1px solid #444;
-                color: #ddd;
-                font-size: 13px;
-                padding: 0 10px;
-                height: 34px;
-                border-radius: 6px;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                gap: 6px;
-                transition: all 0.2s;
-            ">🔊 TTS: <span id="ttsStatus" style="color: #4caf50; font-weight: bold;">ON</span></button>
-
-            <!-- Botón Pantalla Completa -->
             <button id="btnFullscreen" title="Pantalla completa" style="
                 background: #222;
                 border: 1px solid #444;
@@ -394,7 +403,7 @@
     <div class="main">
         <!-- Left Panel -->
         <div class="left-panel">
-            <div class="current-event" id="currentEvent" title="Haz clic para volver a escuchar el reporte por voz">
+            <div class="current-event" id="currentEvent">
                 <div class="intensity-big">
                     <div class="intensity-circle int-1" id="bigInt">1</div>
                     <div>
@@ -416,7 +425,7 @@
 
             <div class="list-header">
                 <span>Eventos recientes (en vivo)</span>
-                <span style="font-size:11px;color:#888;">USGS · JMA · CENC · EMSC · GFZ · SSN</span>
+                <span style="font-size:11px;color:#888;">USGS · JMA · CENC · EMSC · GFZ · TREM</span>
             </div>
 
             <div class="event-list" id="eventList">
@@ -505,168 +514,6 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // ==========================================
-        // SISTEMA DE AUDIO (Web Audio API)
-        // ==========================================
-        let audioCtx = null;
-
-        function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-        }
-        ['click', 'keydown', 'touchstart'].forEach(evt => document.addEventListener(evt, initAudio, { once: true }));
-
-        // Sonido 1: Actualización de lista / refresco suave
-        function playUpdateSound() {
-            if (!audioCtx) return;
-            try {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-                gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.12);
-            } catch (_) {}
-        }
-
-        // Sonido 2: Detección de sismo nuevo (Alarma / Ondas)
-        function playDetectionSound() {
-            if (!audioCtx) return;
-            try {
-                const now = audioCtx.currentTime;
-                const tones = [600, 900, 600, 900, 600, 900];
-                const stepDuration = 0.12;
-                tones.forEach((freq, index) => {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(freq, now + index * stepDuration);
-                    gain.gain.setValueAtTime(0.18, now + index * stepDuration);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + (index + 1) * stepDuration);
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.start(now + index * stepDuration);
-                    osc.stop(now + (index + 1) * stepDuration);
-                });
-            } catch (_) {}
-        }
-
-        // Sonido 3: Hora en punto (Carillón de revisión de conexiones)
-        function playHourlyChime() {
-            if (!audioCtx) return;
-            try {
-                const notes = [523.25, 659.25, 784.00]; // C5, E5, G5
-                const now = audioCtx.currentTime;
-                notes.forEach((freq, index) => {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(freq, now + index * 0.25);
-                    gain.gain.setValueAtTime(0.15, now + index * 0.25);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.25 + 0.6);
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.start(now + index * 0.25);
-                    osc.stop(now + index * 0.25 + 0.6);
-                });
-            } catch (_) {}
-        }
-
-        // ==========================================
-        // SISTEMA DE TEXT-TO-SPEECH (TTS - Voz)
-        // ==========================================
-        let ttsEnabled = true;
-        let announcedTtsIds = new Set();
-        let activeEventForTts = null;
-
-        function speakEvent(ev, force = false) {
-            if (!ttsEnabled || !('speechSynthesis' in window) || !ev) return;
-
-            // Formatear el texto de forma natural para voz
-            let magVal = ev.mag ? ev.mag.replace('M', 'Magnitud ') : '';
-            let placeVal = ev.place ? ev.place.replace(/,/g, ' ') : 'Lugar desconocido';
-            let depthVal = (ev.depth && ev.depth !== '—') ? `Profundidad ${ev.depth.replace('km', 'kilómetros')}` : '';
-            let agencyVal = ev.agency ? `Reportado por ${ev.agency.replace(/\(.*\)/, '')}` : '';
-
-            let speechText = `Sismo detectado. ${magVal}. En ${placeVal}. ${depthVal}. ${agencyVal}.`;
-
-            window.speechSynthesis.cancel(); // Cancelar cualquier audio anterior
-
-            const utterance = new SpeechSynthesisUtterance(speechText);
-            utterance.lang = 'es-ES';
-            utterance.rate = 1.0;
-            utterance.pitch = 1.0;
-
-            // Intentar asignar una voz limpia en español
-            const voices = window.speechSynthesis.getVoices();
-            const esVoice = voices.find(v => v.lang.startsWith('es') || v.lang.includes('ES'));
-            if (esVoice) utterance.voice = esVoice;
-
-            window.speechSynthesis.speak(utterance);
-        }
-
-        // Cargar voces en memoria
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.onvoiceschanged = () => {
-                window.speechSynthesis.getVoices();
-            };
-        }
-
-        // Botón de alternar TTS
-        const btnTTS = document.getElementById('btnTTS');
-        const ttsStatus = document.getElementById('ttsStatus');
-        if (btnTTS) {
-            btnTTS.addEventListener('click', () => {
-                ttsEnabled = !ttsEnabled;
-                if (ttsEnabled) {
-                    ttsStatus.textContent = 'ON';
-                    ttsStatus.style.color = '#4caf50';
-                    if (activeEventForTts) speakEvent(activeEventForTts, true);
-                } else {
-                    ttsStatus.textContent = 'OFF';
-                    ttsStatus.style.color = '#ff5555';
-                    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-                }
-            });
-        }
-
-        // Clic en la tarjeta principal de evento para repetir por voz
-        const currentEventCard = document.getElementById('currentEvent');
-        if (currentEventCard) {
-            currentEventCard.addEventListener('click', () => {
-                if (activeEventForTts) {
-                    speakEvent(activeEventForTts, true);
-                }
-            });
-        }
-
-
-        // Programador de revisión de agencias a la hora en punto (:00:00)
-        let lastHourChecked = -1;
-        setInterval(() => {
-            const now = new Date();
-            if (now.getMinutes() === 0 && now.getSeconds() === 0 && now.getHours() !== lastHourChecked) {
-                lastHourChecked = now.getHours();
-                playHourlyChime();
-                console.log('🔔 Hora en punto: Revisando conexiones de todas las agencias...');
-                loadAll(true);
-                checkEarlyEst();
-                updateTaiwanRTS();
-            }
-        }, 1000);
-
-
-        // ==========================================
-        // VARIABLES Y CONFIGURACIÓN DEL MAPA
-        // ==========================================
         let events = [];
         let highlight = null;
         let map = null;
@@ -677,6 +524,15 @@
             attributionControl: true
         }).setView([20, 140], 3);
 
+        // Capas separadas para garantizar que el mapa de intensidad quede visible
+        // sobre el mapa base, pero debajo de fronteras, ciudades y epicentro.
+        const intensityPane = map.createPane('intensityMap');
+        intensityPane.style.zIndex = 405;
+        intensityPane.style.pointerEvents = 'none';
+        const intensityCityPane = map.createPane('intensityCities');
+        intensityCityPane.style.zIndex = 430;
+        intensityCityPane.style.pointerEvents = 'none';
+
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '© OpenStreetMap | Datos: USGS + Wolfx'
@@ -684,6 +540,9 @@
 
         // Look más oscuro
         document.getElementById('map').style.filter = 'invert(90%) hue-rotate(180deg) brightness(0.85) contrast(0.95)';
+
+        // Cargar fronteras mundiales desde el inicio, sin depender de que haya un sismo seleccionado.
+        loadWorldBoundaries();
 
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -697,12 +556,13 @@
 
         // ========== Estaciones Taiwán (TREM) en tiempo real ==========
         const taiwanStationsLayer = L.layerGroup().addTo(map);
-        let taiwanStationMeta = {};   
-        let taiwanMarkers = {};       
+        let taiwanStationMeta = {};   // id -> {lat, lon, net}
+        let taiwanMarkers = {};       // id -> marker
 
         function colorByTaiwanI(I) {
+            // Escala de intensidad Taiwán / TREM (valores típicos -3 a 7)
             const v = parseFloat(I);
-            if (isNaN(v) || v < 0) return '#2a4a6a';      
+            if (isNaN(v) || v < 0) return '#2a4a6a';      // sin movimiento / ruido
             if (v < 1) return '#4a90d9';
             if (v < 2) return '#3bbf6e';
             if (v < 3) return '#7ed957';
@@ -720,6 +580,7 @@
                 Object.keys(data).forEach(id => {
                     const st = data[id];
                     if (!st || !st.info || !st.info.length) return;
+                    // última ubicación conocida
                     const info = st.info[st.info.length - 1];
                     if (!info || info.lat == null || info.lon == null) return;
                     taiwanStationMeta[id] = {
@@ -729,6 +590,7 @@
                         work: st.work
                     };
                 });
+                console.log('Estaciones Taiwán cargadas:', Object.keys(taiwanStationMeta).length);
                 updateTaiwanRTS();
             } catch (e) {
                 console.warn('No se pudieron cargar estaciones de Taiwán', e);
@@ -786,11 +648,12 @@
             }
         }
 
+        // Cargar estaciones y actualizar cada 4 segundos
         loadTaiwanStations();
         setInterval(updateTaiwanRTS, 4000);
 
-        // ========== Estaciones Japón (JMA) ==========
-        const japanStationsLayer = L.layerGroup(); 
+        // ========== Estaciones Japón (JMA - red de observación de intensidad) ==========
+        const japanStationsLayer = L.layerGroup(); // no se añade hasta pulsar el botón
         let japanStationsLoaded = false;
 
         async function loadJapanStations() {
@@ -798,8 +661,9 @@
             try {
                 const res = await fetch('https://cdn.jsdelivr.net/gh/iku55/jma_int_stations@main/stations.json');
                 const list = await res.json();
+                // Muestrear para no saturar el mapa (~1 de cada 4)
                 list.forEach((st, idx) => {
-                    if (idx % 3 !== 0) return;
+                    if (idx % 3 !== 0) return; // ~1/3 de las estaciones
                     const lat = parseFloat(st.lat);
                     const lon = parseFloat(st.lon);
                     if (isNaN(lat) || isNaN(lon)) return;
@@ -820,34 +684,559 @@
                     m.addTo(japanStationsLayer);
                 });
                 japanStationsLoaded = true;
+                console.log('Estaciones Japón (JMA) cargadas');
             } catch (e) {
                 console.warn('No se pudieron cargar estaciones de Japón', e);
             }
         }
 
         function getColor(int) {
-            const s = String(int).toUpperCase();
-            const colors = {
-                '0': '#555', 'I': '#555',
-                '1': '#4a90d9', 'II': '#4a90d9',
-                '2': '#3bbf6e', 'III': '#3bbf6e',
-                '3': '#7ed957', 'IV': '#f0d000',
-                '4': '#f0d000', 'V': '#ff9a00',
-                '5': '#ff9a00', '5-': '#ff9a00', '5+': '#ff7700', 'VI': '#ff4d00',
-                '6': '#ff4d00', '6-': '#ff4d00', '6+': '#e00000', 'VII': '#ff3300',
-                '7': '#d00000', 'VIII': '#d00000', 'IX': '#b00000', 'X': '#900000',
-                'XI': '#700000', 'XII': '#500000'
+            const s = String(int).trim().toUpperCase();
+
+            // Calcado de la barra de intensidades de EQuake / escala oficial JMA:
+            // XII=7, XI=6強, X=6弱, IX=5強, VIII=5弱, VII=4, VI=3, V=2, IV=1
+            // (III/II/I quedan por debajo de "1", sin equivalente JMA oficial)
+            const romanScale = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+            const romanColors = [
+                '#9e9e9e', // I    - no percibido
+                '#cfd8dc', // II   - apenas perceptible
+                '#b3e5fc', // III  - muy débil
+                '#81d4fa', // IV   - shindo 1
+                '#29b6f6', // V    - shindo 2
+                '#66bb6a', // VI   - shindo 3
+                '#fdd835', // VII  - shindo 4
+                '#ffa726', // VIII - shindo 5弱
+                '#f57c00', // IX   - shindo 5強
+                '#e64a19', // X    - shindo 6弱
+                '#c2185b', // XI   - shindo 6強
+                '#7b1fa2'  // XII  - shindo 7
+            ];
+            const ri = romanScale.indexOf(s);
+            if (ri !== -1) return romanColors[ri];
+
+            // Escala JMA Shindo directa (mismo emparejamiento que arriba)
+            const shindoColors = {
+                '0':  '#9e9e9e',
+                '1':  '#81d4fa',
+                '2':  '#29b6f6',
+                '3':  '#66bb6a',
+                '4':  '#fdd835',
+                '5-': '#ffa726',
+                '5+': '#f57c00',
+                '6-': '#e64a19',
+                '6+': '#c2185b',
+                '7':  '#7b1fa2'
             };
-            return colors[s] || '#888';
+            if (shindoColors[s] !== undefined) return shindoColors[s];
+
+            return '#888';
+        }
+
+        // ============================================================
+        // CAPAS GEOGRÁFICAS MUNDIALES + MAPA DE INTENSIDAD
+        // - Países del mundo siempre visibles.
+        // - Regiones/estados/provincias siempre visibles al hacer zoom.
+        // - Al seleccionar un sismo, las regiones cercanas se colorean
+        //   según una estimación de intensidad (no oficial).
+        // ============================================================
+        let intensityMapLayer = null;
+        let intensityZonesLayer = null;
+        let worldCountryLayer = null;
+        let worldAdmin1Layer = null;
+        let worldAdmin1Data = null;
+        let worldCountriesGeoJSON = null;
+        const _countryAdmin1Cache = {};
+        let worldCitiesLayer = null;
+        let worldCitiesData = null;
+
+        const ROMAN_TO_NUM = {I:1,II:2,III:3,IV:4,V:5,VI:6,VII:7,VIII:8,IX:9,X:10,XI:11,XII:12};
+        const NUM_TO_ROMAN = ['I','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+
+        function haversineKm(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2)**2 +
+                Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        function approxCentroid(geometry) {
+            let coords = [];
+            const flatten = rings => rings.forEach(ring =>
+                Array.isArray(ring[0]) && typeof ring[0][0] === 'number'
+                    ? coords.push(...ring)
+                    : flatten(ring)
+            );
+            if (geometry.type === 'Polygon') flatten(geometry.coordinates);
+            else if (geometry.type === 'MultiPolygon') geometry.coordinates.forEach(flatten);
+            if (!coords.length) return null;
+            let sx = 0, sy = 0;
+            coords.forEach(c => { sx += c[0]; sy += c[1]; });
+            return [sy / coords.length, sx / coords.length];
+        }
+
+        // Regiones/estados/provincias reales cerca del epicentro, consultadas
+        // POR ZONA (bbox) a un FeatureServer ArcGIS público (Natural Earth) en
+        // vez de descargar y cachear el archivo mundial completo. Una sola
+        // petición ligera por sismo seleccionado, sin depender de geocodificar
+        // el país primero ni de archivos gigantes con posibles problemas de
+        // Git LFS. Mismo tipo de servicio que ya usa este monitor para SGC.
+        function _pointInRing(lat, lon, ring) {
+            let inside = false;
+            for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+                const xi = ring[i][0], yi = ring[i][1];
+                const xj = ring[j][0], yj = ring[j][1];
+                const intersect = ((yi > lat) !== (yj > lat)) &&
+                    (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+
+        function _pointInGeometry(lat, lon, geometry) {
+            const testPolygon = rings => {
+                if (!_pointInRing(lat, lon, rings[0])) return false;
+                for (let k = 1; k < rings.length; k++) {
+                    if (_pointInRing(lat, lon, rings[k])) return false; // dentro de un hueco
+                }
+                return true;
+            };
+            if (geometry.type === 'Polygon') return testPolygon(geometry.coordinates);
+            if (geometry.type === 'MultiPolygon') return geometry.coordinates.some(testPolygon);
+            return false;
+        }
+
+        // Detección de país 100% local usando el custom_geo.json (mismo
+        // origen, ya cargado para las fronteras "siempre visibles"). Evita
+        // tener que geocodificar el punto contra un servicio externo.
+        function findCountryISO2(lat, lon) {
+            if (!worldCountriesGeoJSON?.features) return null;
+            for (const f of worldCountriesGeoJSON.features) {
+                if (_pointInGeometry(lat, lon, f.geometry)) {
+                    const iso = f.properties?.iso_a2 || f.properties?.ISO_A2;
+                    return (iso && iso !== '-99') ? iso : null;
+                }
+            }
+            return null;
+        }
+
+        // Estados/provincias reales del país detectado, servidos desde el
+        // propio repo (carpeta ./geo/{ISO_A2}.geojson, subidos por el
+        // usuario desde geojson-atlas). Mucho más rápido y sin depender de
+        // ningún servicio externo. Si el país no tiene archivo subido (o el
+        // epicentro cae en el mar sin país cercano), se devuelve null para
+        // que el llamador use el respaldo por ArcGIS.
+        async function fetchLocalCountryAdmin1(lat, lon) {
+            if (!worldCountriesGeoJSON) {
+                try { await loadWorldBoundaries(); } catch (_) {}
+            }
+            const iso2 = findCountryISO2(lat, lon);
+            if (!iso2) return null;
+            if (_countryAdmin1Cache[iso2] !== undefined) return _countryAdmin1Cache[iso2];
+            try {
+                const r = await fetch(`./geo/${iso2}.geojson`, { cache: 'force-cache' });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const gj = await r.json();
+                const features = gj?.features || [];
+                _countryAdmin1Cache[iso2] = features;
+                return features;
+            } catch (e) {
+                _countryAdmin1Cache[iso2] = null;
+                return null;
+            }
+        }
+
+        let _regionToastTimer = null;
+        function showRegionToast(msg) {
+            const el = document.getElementById('regionToast');
+            if (!el) return;
+            el.textContent = msg;
+            el.classList.add('show');
+            clearTimeout(_regionToastTimer);
+            _regionToastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+        }
+
+        async function fetchRegionsForEvent(lat, lon, radiusKm) {
+            const local = await fetchLocalCountryAdmin1(lat, lon);
+            if (local && local.length) {
+                console.log('🟢 Mapa de intensidad: usando archivo LOCAL propio (./geo/)');
+                showRegionToast('🟢 Regiones: archivo local (./geo/)');
+                return local;
+            }
+            console.log('🟡 Mapa de intensidad: usando respaldo ArcGIS (no se encontró archivo local para este país)');
+            showRegionToast('🟡 Regiones: respaldo ArcGIS');
+            return fetchNearbyAdmin1(lat, lon, radiusKm);
+        }
+
+        async function fetchNearbyAdmin1(lat, lon, radiusKm, timeoutMs = 7000) {
+            const kmPerDegLat = 111;
+            // Cerca de los polos cos(lat) tiende a 0 y el bbox en longitud se
+            // dispara a valores absurdos; se acota para evitar un envelope
+            // inválido.
+            const cosLat = Math.max(0.12, Math.cos(lat * Math.PI / 180));
+            const dLat = Math.min(20, radiusKm / kmPerDegLat);
+            const dLon = Math.min(40, radiusKm / (kmPerDegLat * cosLat));
+            const ymin = Math.max(-85, lat - dLat);
+            const ymax = Math.min(85, lat + dLat);
+
+            const runQuery = async (xmin, xmax) => {
+                const url = 'https://services3.arcgis.com/HZiQ86FNEvCVDWWt/ArcGIS/rest/services/' +
+                    'ne_10m_admin_1_states_provinces/FeatureServer/0/query?' +
+                    `geometry=${xmin},${ymin},${xmax},${ymax}&geometryType=esriGeometryEnvelope` +
+                    '&inSR=4326&spatialRel=esriSpatialRelIntersects' +
+                    '&outFields=name,admin,iso_a2,adm0_a3,latitude,longitude' +
+                    '&returnGeometry=true&outSR=4326&f=geojson';
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), timeoutMs);
+                try {
+                    const r = await fetch(url, { cache: 'no-store', signal: controller.signal });
+                    if (!r.ok) throw new Error('ArcGIS admin1 HTTP ' + r.status);
+                    const gj = await r.json();
+                    return gj?.features || [];
+                } finally {
+                    clearTimeout(timer);
+                }
+            };
+
+            const xminRaw = lon - dLon, xmaxRaw = lon + dLon;
+            // Cruce del antimeridiano (±180°, p. ej. Fiji o el estrecho de
+            // Bering): se parte en dos consultas para no perder el lado que
+            // "envuelve" al otro extremo del mapa.
+            if (xminRaw < -180 || xmaxRaw > 180) {
+                const [a, b] = await Promise.all([
+                    runQuery(Math.max(-180, xminRaw), 180).catch(() => []),
+                    runQuery(-180, Math.min(180, xmaxRaw > 180 ? xmaxRaw - 360 : xmaxRaw)).catch(() => [])
+                ]);
+                return [...a, ...b];
+            }
+            return runQuery(xminRaw, xmaxRaw);
+        }
+
+        async function loadWorldBoundaries() {
+            if (worldCountryLayer && worldAdmin1Layer) return;
+            try {
+                // Países: se usa el archivo propio (mismo origen, sin CORS ni
+                // dependencia externa) si está subido junto al HTML; si no
+                // existe todavía, cae al de Natural Earth en GitHub.
+                // Regiones/estados (admin1): sigue usando Natural Earth 50m
+                // hasta contar con un archivo propio equivalente.
+                const fetchCountries = async () => {
+                    try {
+                        const local = await fetch('./custom_geo.json', {cache:'force-cache'});
+                        if (local.ok) return local;
+                    } catch (_) {}
+                    return fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson', {cache:'force-cache'});
+                };
+
+                const [countriesR, admin1R] = await Promise.all([
+                    fetchCountries(),
+                    fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_1_states_provinces.geojson', {cache:'force-cache'})
+                ]);
+                if (!countriesR.ok) throw new Error('Países HTTP ' + countriesR.status);
+                if (!admin1R.ok) throw new Error('Regiones HTTP ' + admin1R.status);
+
+                const [countries, admin1] = await Promise.all([countriesR.json(), admin1R.json()]);
+                worldAdmin1Data = admin1;
+                worldCountriesGeoJSON = countries;
+
+                worldCountryLayer = L.geoJSON(countries, {
+                    interactive: false,
+                    style: {
+                        color: '#8a8a8a',
+                        weight: 1.15,
+                        opacity: 0.75,
+                        fillOpacity: 0
+                    }
+                }).addTo(map);
+
+                worldAdmin1Layer = L.geoJSON(admin1, {
+                    interactive: false,
+                    style: {
+                        color: '#777',
+                        weight: 0.55,
+                        opacity: 0.55,
+                        fillOpacity: 0
+                    }
+                }).addTo(map);
+
+                worldAdmin1Layer.bringToFront();
+                worldCountryLayer.bringToFront();
+                console.log('Países y regiones administrativas cargados:', admin1.features?.length || 0);
+            } catch (e) {
+                console.warn('No se pudieron cargar las fronteras mundiales:', e);
+            }
+        }
+
+        async function loadWorldCities() {
+            if (worldCitiesData) return worldCitiesData;
+            try {
+                const r = await fetch(
+                    'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_populated_places_simple.geojson',
+                    {cache:'force-cache'}
+                );
+                if (!r.ok) throw new Error('Ciudades HTTP ' + r.status);
+                const d = await r.json();
+                worldCitiesData = d;
+                return d;
+            } catch (e) {
+                console.warn('No se pudieron cargar las ciudades mundiales:', e);
+                return null;
+            }
+        }
+
+        function cityName(props) {
+            return props?.nameascii || props?.name || props?.NAME || props?.name_en || props?.namepar || 'Ciudad';
+        }
+
+        function cityIntensity(lat, lon, evLat, evLon, baseNum, maxKm) {
+            const d = haversineKm(evLat, evLon, lat, lon);
+            if (d > Math.max(maxKm, 80)) return null;
+            const ratio = Math.max(0, Math.min(1, d / Math.max(maxKm, 1)));
+            let n = Math.ceil(baseNum * Math.pow(1 - ratio, 0.48));
+            return Math.max(1, Math.min(12, n));
+        }
+
+        function intensityToNumber(intensity, mag) {
+            const s = String(intensity ?? '').trim().toUpperCase();
+            if (ROMAN_TO_NUM[s]) return ROMAN_TO_NUM[s];
+            if (/^\d+(?:[+-])?$/.test(s)) {
+                const n = parseFloat(s);
+                // Shindo 1-7 -> aproximación visual MMI
+                const shindoToMMI = {0:1,1:2,2:3,3:4,4:5,5:6,6:7,7:8};
+                if (shindoToMMI[n]) return shindoToMMI[n];
+            }
+            return ROMAN_TO_NUM[magToMMI(mag)] || 1;
+        }
+
+        async function drawIntensityZones(ev, baseNum) {
+            // MAPA DE INTENSIDAD REAL POR REGIONES ADMINISTRATIVAS.
+            // Se colorean los polígonos de estados/provincias que caen dentro
+            // de la zona de influencia del sismo, consultados por zona (bbox)
+            // a un FeatureServer ArcGIS (Natural Earth) — no se descarga el
+            // mundo entero. Si la consulta falla o no hay datos cerca, se usa
+            // una zona irregular de respaldo para que SIEMPRE haya algo
+            // visible en el mapa.
+            if (intensityZonesLayer) {
+                map.removeLayer(intensityZonesLayer);
+                intensityZonesLayer = null;
+            }
+
+            const lat = Number(ev.lat), lon = Number(ev.lon);
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+            const mag = parseFloat(String(ev.mag).replace(/[^\d.]/g, '')) || 0;
+            const depthKm = Math.max(0, parseFloat(String(ev.depth).replace(/[^\d.]/g, '')) || 0);
+            const maxLevel = Math.max(1, Math.min(12, Number(baseNum) || 1));
+
+            // Radio amplio para que también aparezcan ciudades/regiones lejanas
+            // en terremotos moderados o fuertes, pero sin pintar el mundo entero.
+            const depthFactor = 1 / Math.sqrt(1 + depthKm / 180);
+            const outerKm = Math.max(35, Math.min(2200,
+                (35 + Math.pow(Math.max(0.5, mag), 1.75) * 55) * depthFactor
+            ));
+
+            const intensityGroup = L.layerGroup();
+            const cityLayer = L.layerGroup();
+            let paintedRegions = 0;
+
+            // 1) Regiones administrativas reales cerca del epicentro (consulta
+            //    ArcGIS por zona), siguiendo exactamente sus fronteras en lugar
+            //    de dibujar círculos sobre el mapa.
+            try {
+                const nearbyFeatures = await fetchRegionsForEvent(lat, lon, Math.max(outerKm, 80));
+                const colored = [];
+                nearbyFeatures.forEach(original => {
+                    if (!original?.geometry) return;
+                    const p = original.properties || {};
+                    const c = (typeof p.latitude === 'number' && typeof p.longitude === 'number')
+                        ? [p.latitude, p.longitude]
+                        : approxCentroid(original.geometry);
+                    if (!c) return;
+
+                    const d = haversineKm(lat, lon, c[0], c[1]);
+                    if (d > Math.max(outerKm, 80)) return;
+
+                    const ratio = Math.min(1, d / Math.max(outerKm, 1));
+                    let n = Math.ceil(maxLevel * Math.pow(Math.max(0, 1 - ratio), 0.42));
+                    n = Math.max(1, Math.min(12, n));
+
+                    // Para eventos muy pequeños, solo se colorean regiones realmente
+                    // próximas al epicentro. Esto evita pintar medio continente con M1.
+                    if (mag < 3 && d > 90) return;
+                    if (mag < 4 && d > 220) return;
+
+                    colored.push({
+                        type: original.type,
+                        geometry: original.geometry,
+                        properties: Object.assign({}, p, {
+                            _intensidadEstim: NUM_TO_ROMAN[n],
+                            _intensidadNum: n,
+                            _distKm: Math.round(d)
+                        })
+                    });
+                    paintedRegions++;
+                });
+
+                if (colored.length) {
+                    const regionLayer = L.geoJSON(
+                        { type: 'FeatureCollection', features: colored },
+                        {
+                            pane: 'intensityMap',
+                            interactive: false,
+                            style: f => {
+                                const c = getColor(f.properties?._intensidadEstim || 'I');
+                                return {
+                                    color: c,
+                                    weight: 1.0,
+                                    opacity: 0.9,
+                                    fillColor: c,
+                                    fillOpacity: 0.62
+                                };
+                            }
+                        }
+                    );
+                    regionLayer.addTo(intensityGroup);
+                }
+            } catch (e) {
+                console.warn('No se pudieron obtener regiones cercanas (ArcGIS):', e);
+            }
+
+            // 2) Si no hubo regiones, crear un isoseisma irregular de respaldo.
+            //    Esto hace que incluso un M0.x/M1.x tenga representación visual.
+            if (!paintedRegions) {
+                const kmLat = 111;
+                const kmLon = Math.max(20, 111 * Math.cos(lat * Math.PI / 180));
+                const seed = ((Math.abs(lat) * 91.7 + Math.abs(lon) * 53.3 + mag * 17.9 + depthKm) % 360) * Math.PI / 180;
+                const points = [];
+                const N = 72;
+                for (let i = 0; i < N; i++) {
+                    const a = (i / N) * Math.PI * 2;
+                    const deformation = 1 + 0.17 * Math.sin(2 * a + seed) + 0.085 * Math.cos(3 * a - seed * 0.8);
+                    const r = outerKm * 0.35 * deformation;
+                    points.push([
+                        lat + (r * Math.cos(a)) / kmLat,
+                        lon + (r * Math.sin(a)) / kmLon
+                    ]);
+                }
+                L.polygon(points, {
+                    pane: 'intensityMap',
+                    color: getColor(NUM_TO_ROMAN[maxLevel]),
+                    weight: 1.2,
+                    opacity: 0.9,
+                    fillColor: getColor(NUM_TO_ROMAN[maxLevel]),
+                    fillOpacity: 0.48,
+                    interactive: false
+                }).addTo(intensityGroup);
+            }
+
+            // 3) Ciudades del mundo dentro de la zona. Son puntos, no texto fijo,
+            //    para que el mapa no se vuelva ilegible en el celular.
+            if (worldCitiesData?.features?.length) {
+                const seen = new Set();
+                worldCitiesData.features.forEach(f => {
+                    const c = f.geometry?.coordinates;
+                    if (!c) return;
+                    const clat = Number(c[1]), clon = Number(c[0]);
+                    if (!Number.isFinite(clat) || !Number.isFinite(clon)) return;
+
+                    const d = haversineKm(lat, lon, clat, clon);
+                    if (d > Math.max(outerKm, 80)) return;
+
+                    const props = f.properties || {};
+                    const name = cityName(props);
+                    const key = name + '|' + clat.toFixed(3) + '|' + clon.toFixed(3);
+                    if (seen.has(key)) return;
+                    seen.add(key);
+
+                    const ratio = Math.min(1, d / Math.max(outerKm, 1));
+                    const n = Math.max(1, Math.min(12,
+                        Math.ceil(maxLevel * Math.pow(Math.max(0, 1 - ratio), 0.48))
+                    ));
+
+                    L.circleMarker([clat, clon], {
+                        pane: 'intensityCities',
+                        radius: n >= 5 ? 5 : 3.5,
+                        color: '#111',
+                        weight: 1,
+                        fillColor: getColor(NUM_TO_ROMAN[n]),
+                        fillOpacity: 0.95,
+                        interactive: false
+                    }).bindTooltip(
+                        `<b>${name}</b><br>Intensidad estimada: <b>${NUM_TO_ROMAN[n]}</b>`,
+                        {direction:'top', sticky:true, className:'intensity-city-label'}
+                    ).addTo(cityLayer);
+                });
+            }
+
+            cityLayer.addTo(intensityGroup);
+            intensityZonesLayer = intensityGroup.addTo(map);
+
+            // Fronteras por encima de las áreas coloreadas y el epicentro por encima
+            // de todo. Así queda visualmente como el ejemplo del usuario.
+            if (worldAdmin1Layer) worldAdmin1Layer.bringToFront();
+            if (worldCountryLayer) worldCountryLayer.bringToFront();
+            if (typeof currentMarker !== 'undefined' && currentMarker?.bringToFront) currentMarker.bringToFront();
+            if (typeof highlight !== 'undefined' && highlight?.bringToFront) highlight.bringToFront();
+        }
+
+        let intensityRenderToken = 0;
+
+        async function generateIntensityMap(ev) {
+            const renderToken = ++intensityRenderToken;
+            try {
+                if (intensityMapLayer) {
+                    map.removeLayer(intensityMapLayer);
+                    intensityMapLayer = null;
+                }
+                if (intensityZonesLayer) {
+                    map.removeLayer(intensityZonesLayer);
+                    intensityZonesLayer = null;
+                }
+
+                const mag = parseFloat(String(ev.mag).replace(/[^\d.]/g, '')) || 0;
+                if (!Number.isFinite(Number(ev.lat)) || !Number.isFinite(Number(ev.lon))) return;
+
+                const depthKm = Math.max(0, parseFloat(String(ev.depth).replace(/[^\d.]/g, '')) || 0);
+                let baseNum = intensityToNumber(ev.intensity, mag);
+
+                // Todo sismo de la lista obtiene un mapa visual. Cuando la fuente
+                // no trae una intensidad observada, se usa una estimación basada
+                // en magnitud/profundidad. No es un shakemap oficial.
+                if (!ROMAN_TO_NUM[String(ev.intensity ?? '').toUpperCase()]) {
+                    if (depthKm > 150) baseNum -= 1;
+                    else if (depthKm > 70) baseNum -= 0.5;
+                }
+                baseNum = Math.max(1, Math.min(12, Math.round(baseNum)));
+
+                await loadWorldCities();
+                if (renderToken !== intensityRenderToken) return;
+
+                // Mapa tipo shakemap: regiones (consulta ArcGIS por zona) y ciudades.
+                await drawIntensityZones(ev, baseNum);
+
+                // Las fronteras permanecen encima de las áreas coloreadas.
+                if (worldAdmin1Layer) worldAdmin1Layer.bringToFront();
+                if (worldCountryLayer) worldCountryLayer.bringToFront();
+            } catch (e) {
+                console.warn('No se pudo generar el mapa de intensidad:', e);
+            }
+        }
+
+        function zoneKmForIntensity(n) {
+            const zoneKm = {1:520,2:360,3:230,4:140,5:85,6:48,7:28,8:18,9:12,10:8,11:5,12:3};
+            return zoneKm[Math.max(1, Math.min(12, Math.round(n)))] || 360;
         }
 
         function intensityClass(int) {
             const s = String(int).toUpperCase();
+            // Escala japonesa 0-7
             if (['0','1','2','3','4','5','6','7','5-','5+','6-','6+'].includes(s)) {
                 if (s.startsWith('5')) return 'int-5';
                 if (s.startsWith('6')) return 'int-6';
                 return 'int-' + s.replace(/[+-]/,'');
             }
+            // Escala romana I-XII
             if (['I','II','III'].includes(s)) return 'int-1';
             if (s === 'IV') return 'int-4';
             if (s === 'V') return 'int-5';
@@ -882,6 +1271,7 @@
             return isNaN(d.getTime()) ? 0 : d.getTime();
         }
 
+        // Aproximación magnitud → Intensidad Mercalli (I-XII) para USGS/EMSC/GFZ
         function magToMMI(mag) {
             if (mag < 1.5) return 'I';
             if (mag < 2.5) return 'I';
@@ -898,6 +1288,7 @@
             return 'XII';
         }
 
+        // Aproximación magnitud → Shindo (1-7) solo si no viene el valor real
         function magToShindo(mag) {
             if (mag < 2.5) return '1';
             if (mag < 3.5) return '2';
@@ -910,6 +1301,7 @@
 
         async function fetchUSGS() {
             try {
+                // all_day = todos los que USGS publica (incluye microsismos de EE.UU. y los globales que reportan)
                 const res = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson');
                 const data = await res.json();
                 return (data.features || []).slice(0, 50).map((f, i) => {
@@ -946,6 +1338,7 @@
                     const item = data['No' + i];
                     if (!item) break;
                     const mag = parseFloat(item.magnitude) || 0;
+                    // JMA / Wolfx → siempre escala 1-7 (shindo)
                     const int = item.shindo || magToShindo(mag);
                     list.push({
                         id: 'jma-' + (item.EventID || i),
@@ -977,6 +1370,8 @@
                     const item = data['No' + i];
                     if (!item) break;
                     const mag = parseFloat(item.magnitude) || 0;
+                    // CENC vía Wolfx → preferir valor numérico (escala china similar a 1-12, pero lo mostramos como viene)
+                    // Si no hay intensity, aproximamos a shindo-like
                     let int = item.intensity;
                     if (!int) int = magToShindo(mag);
                     list.push({
@@ -1000,6 +1395,7 @@
             }
         }
 
+        // EMSC (Seismic Portal) - real
         async function fetchEMSC() {
             try {
                 const res = await fetch('https://www.seismicportal.eu/fdsnws/event/1/query?format=json&limit=20&orderby=time&minmag=2.5');
@@ -1030,6 +1426,7 @@
             }
         }
 
+        // GFZ / GEOFON - real (formato texto)
         async function fetchGFZ() {
             try {
                 const res = await fetch('https://geofon.gfz.de/fdsnws/event/1/query?format=text&limit=15&orderby=time&minmagnitude=3');
@@ -1037,6 +1434,7 @@
                 const lines = text.split('\n').filter(l => l && !l.startsWith('#'));
                 return lines.map((line, i) => {
                     const parts = line.split('|');
+                    // EventID|Time|Lat|Lon|Depth|...|Magnitude|...|Location
                     const id = parts[0] || ('gfz-' + i);
                     const time = parts[1] || '';
                     const lat = parseFloat(parts[2]) || 0;
@@ -1065,6 +1463,7 @@
             }
         }
 
+        // Icono de X roja limpia y centrada (como en la imagen original)
         const xIcon = L.divIcon({
             className: 'eq-x-marker',
             html: `<div style="
@@ -1100,11 +1499,13 @@
         }
 
         function renderEvents() {
+            // Ordenar por tiempo real (más reciente primero)
             events.sort((a, b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0));
 
             const listEl = document.getElementById('eventList');
             listEl.innerHTML = '';
 
+            // Solo renderizamos la lista, NO todos los marcadores
             events.forEach((ev, idx) => {
                 const div = document.createElement('div');
                 div.className = 'event-item' + (idx === 0 ? ' active' : '');
@@ -1132,8 +1533,7 @@
             const ev = events.find(e => e.id === id);
             if (!ev) return;
 
-            activeEventForTts = ev;
-
+            // Actualizar tarjeta superior
             document.getElementById('bigInt').textContent = ev.intensity;
             document.getElementById('bigInt').className = 'intensity-circle ' + ev.colorClass;
             document.getElementById('bigLoc').textContent = ev.place;
@@ -1141,10 +1541,12 @@
             document.getElementById('bigMag').textContent = ev.mag;
             document.getElementById('bigDepth').textContent = ev.depth;
 
+            // Marcar activo en la lista
             document.querySelectorAll('.event-item').forEach(el => {
                 el.classList.toggle('active', el.dataset.id == id);
             });
 
+            // Solo mostrar la X del sismo seleccionado
             clearMarkers();
             currentMarker = L.marker([ev.lat, ev.lon], { icon: xIcon }).addTo(map);
             currentMarker.bindPopup(`
@@ -1155,8 +1557,12 @@
                 Agencia: ${ev.agency}
             `).openPopup();
 
+            // Centrar y mover el círculo azul de resalte
             map.setView([ev.lat, ev.lon], Math.max(map.getZoom(), 7));
             highlight.setLatLng([ev.lat, ev.lon]);
+
+            // Mapa de intensidad por regiones (asíncrono, no bloquea la UI)
+            generateIntensityMap(ev).catch(() => {});
         }
 
         let lastEventIds = new Set();
@@ -1176,14 +1582,7 @@
             }
 
             renderEvents();
-            playDetectionSound(); // 🔔 Alarma de sismo nuevo en tiempo real
-
-            // Sintetizador de voz para el sismo en tiempo real
-            if (!announcedTtsIds.has(ev.id)) {
-                announcedTtsIds.add(ev.id);
-                speakEvent(ev);
-            }
-
+            // Zoom solo al último de la lista
             if (events.length > 0) selectEvent(events[0].id);
         }
 
@@ -1191,6 +1590,7 @@
             const status = document.querySelector('.status');
 
             try {
+                // TODAS las agencias
                 const [usgs, jma, cenc, emsc, gfz, afad, bmkg, geonet, ingv, ga, sgc, ssn] = await Promise.all([
                     fetchUSGS().catch(() => []),
                     fetchWolfxJMA().catch(() => []),
@@ -1207,15 +1607,18 @@
                 ]);
                 updateExistingApiStates();
 
-                let newEvents = [...usgs, ...jma, ...cenc, ...emsc, ...gfz, ...afad, ...bmkg, ...geonet, ...ingv, ...ga, ...sgc, ...ssn];
+                let newEvents = [...usgs, ...jma, ...cenc, ...emsc, ...gfz];
 
+                // Normalizar timestamps
                 const now = Date.now();
                 newEvents.forEach(e => {
                     e.ts = parseTs(e.ts) || parseTs(e.time) || 0;
                 });
 
+                // Solo sismos hasta el momento actual (+2 min de margen por desfase de reloj)
                 newEvents = newEvents.filter(e => e.ts > 0 && e.ts <= now + 2 * 60 * 1000);
 
+                // Quitar duplicados
                 const seen = new Set();
                 newEvents = newEvents.filter(e => {
                     if (seen.has(e.id)) return false;
@@ -1223,36 +1626,20 @@
                     return true;
                 });
 
+                // Ordenar por tiempo real (más reciente primero)
                 newEvents.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
+                // Detectar sismos nuevos
                 const currentIds = new Set(newEvents.map(e => e.id));
                 const hasNew = newEvents.some(e => !lastEventIds.has(e.id));
 
                 if (hasNew || isFirstLoad || force) {
                     events = newEvents;
                     renderEvents();
-
-                    if (hasNew && !isFirstLoad) {
-                        playDetectionSound(); // 🔔 Sismo nuevo detectado por polling
-                        
-                        // TTS para el nuevo evento detectado por polling
-                        const newest = events[0];
-                        if (newest && !announcedTtsIds.has(newest.id)) {
-                            announcedTtsIds.add(newest.id);
-                            speakEvent(newest);
-                        }
-                    } else if (!isFirstLoad) {
-                        playUpdateSound(); // 🔔 Sonido de lista actualizada
-                    }
-
-                    // En la primera carga marcamos los IDs como conocidos para no hablar todos de golpe
-                    if (isFirstLoad && events.length > 0) {
-                        events.forEach(e => announcedTtsIds.add(e.id));
-                    }
-
                     lastEventIds = currentIds;
                     isFirstLoad = false;
 
+                    // Zoom al sismo más reciente hasta este momento
                     if (events.length > 0) {
                         selectEvent(events[0].id);
                     }
@@ -1264,8 +1651,6 @@
                         if (cenc.length) src.push('CENC');
                         if (emsc.length) src.push('EMSC');
                         if (gfz.length) src.push('GFZ');
-                        if (ssn.length) src.push('SSN');
-                        if (sgc.length) src.push('SGC');
                         const clock = formatTime(new Date().toISOString());
                         status.textContent = `En vivo · ${events.length} · ${src.join('+') || '—'} · ${clock}`;
                         status.style.color = '#4caf50';
@@ -1291,6 +1676,7 @@
                     status.textContent = 'En vivo · HTTP (todas las agencias)';
                     status.style.color = '#4caf50';
                 }
+                console.warn('WebSocket no disponible aquí. Usando solo polling HTTP.');
                 return;
             }
 
@@ -1298,12 +1684,14 @@
             try {
                 ws = new WebSocket('wss://ws-api.wolfx.jp/all_eew');
             } catch (e) {
+                console.warn('No se pudo crear WebSocket Wolfx', e);
                 wsRetries++;
                 setTimeout(connectWolfxWS, 8000);
                 return;
             }
 
             ws.onopen = () => {
+                console.log('Wolfx WebSocket conectado ✔');
                 wsRetries = 0;
                 const status = document.querySelector('.status');
                 if (status) {
@@ -1322,11 +1710,13 @@
                 try {
                     let raw = msg.data;
                     if (typeof raw !== 'string') return;
+                    // Ignorar heartbeats simples
                     if (raw === 'ping' || raw === 'pong' || raw.length < 10) return;
 
                     const data = JSON.parse(raw);
                     if (!data || typeof data !== 'object') return;
 
+                    // A veces viene un array o un objeto con No1, No2...
                     let items = [];
                     if (Array.isArray(data)) {
                         items = data;
@@ -1341,6 +1731,7 @@
                     items.forEach(item => {
                         if (!item || typeof item !== 'object') return;
 
+                        // Detectar si es un sismo / EEW
                         const hasMag = item.Magunitude != null || item.Magnitude != null || item.magnitude != null || item.mag != null;
                         const hasPlace = item.Hypocenter || item.location || item.placeName || item.Title;
                         const hasInt = item.MaxIntensity != null || item.shindo != null || item.intensity != null;
@@ -1379,11 +1770,17 @@
 
                         addNewEvent(ev);
                     });
-                } catch (e) {}
+
+                    // También forzar refresh de listas HTTP por si acaso
+                    // (solo de vez en cuando para no saturar)
+                } catch (e) {
+                    // mensajes que no son JSON se ignoran
+                }
             };
 
             ws.onclose = () => {
                 wsRetries++;
+                console.log('Wolfx WS cerrado. Intento', wsRetries, '/', MAX_WS_RETRIES);
                 if (wsRetries < MAX_WS_RETRIES) {
                     const status = document.querySelector('.status');
                     if (status) {
@@ -1451,6 +1848,9 @@
             try {
                 const end = new Date();
                 const start = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+
+                // AFAD documenta start/end en ISO8601. El proxy solo evita el bloqueo
+                // CORS del navegador al abrir el HTML local.
                 const officialUrl = 'https://deprem.afad.gov.tr/apiv2/event/filter?' +
                     new URLSearchParams({
                         start: start.toISOString().slice(0,19),
@@ -1555,6 +1955,7 @@
 
         async function fetchGeoscienceAustralia() {
             try {
+                // Catálogo FDSN de Geoscience Australia.
                 const officialUrl =
                     'https://earthquakes.ga.gov.au/fdsnws/event/1/query?' +
                     new URLSearchParams({
@@ -1627,6 +2028,7 @@
             }
         }
 
+        // Agencias que ya tienen conexión funcional en el HTML base.
         async function updateExistingApiStates() {
             setApiState('usgs','ok');
             setApiState('emsc','ok');
@@ -1636,12 +2038,23 @@
             setApiState('trem','ok');
         }
 
-        async function fetchConCorsFallback(officialUrl, timeoutMs = 8000) {
+
+
+        // Helper compartido SOLO por SSN México y Early-Est: primero intenta la
+        // fuente oficial en directo (lo que ya funcionaba antes para SSN cuando
+        // solo se comprobaba la home, ahora aplicado al endpoint real de datos).
+        // Si el navegador la bloquea por CORS, cae a proxies públicos en cadena,
+        // y por último al Worker propio del usuario
+        // (sismosproxy.terremotis123.workers.dev) como respaldo adicional.
+        async function fetchConCorsFallback(officialUrl, timeoutMs = 9000) {
+            const workerPropio = 'https://sismosproxy.terremotis123.workers.dev/?url=' +
+                encodeURIComponent(officialUrl);
             const candidatos = [
                 officialUrl,
-                'https://api.allorigins.win/raw?url=' + encodeURIComponent(officialUrl),
                 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(officialUrl),
-                'https://corsproxy.io/?' + encodeURIComponent(officialUrl)
+                'https://api.allorigins.win/raw?url=' + encodeURIComponent(officialUrl),
+                'https://corsproxy.io/?url=' + encodeURIComponent(officialUrl),
+                workerPropio
             ];
             let ultimoError;
             for (const url of candidatos) {
@@ -1657,120 +2070,101 @@
                     ultimoError = e;
                 }
             }
-            // Fallback directo a AllOrigins JSON (Evita bloqueo estricto de CORS)
-            try {
-                const controller = new AbortController();
-                const timer = setTimeout(() => controller.abort(), timeoutMs);
-                const r = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(officialUrl), {cache:'no-store', signal: controller.signal});
-                clearTimeout(timer);
-                if (r.ok) {
-                    const json = await r.json();
-                    if (json && json.contents) {
-                        return new Response(json.contents, { status: 200, headers: { 'Content-Type': 'text/xml' } });
-                    }
-                }
-            } catch (_) {}
-
             throw ultimoError || new Error('Todas las fuentes/proxies fallaron');
         }
 
+        // Early-Est (INGV) — LIMITACIÓN CONOCIDA:
+        // El sistema Early-Est de INGV no publica un catálogo sísmico en tiempo real
+        // con API JSON/CORS apta para consumo directo desde un HTML estático. Su
+        // interfaz pública oficial es un monitor de "picks" de estaciones y una lista
+        // de hipocentros (https://s3.rm.ingv.it/warning/monitor.xml y hypolist.html),
+        // pero esas páginas públicas están congeladas como demo desde 2012 y no se
+        // actualizan con sismos actuales. Por tanto, aquí se abre una conexión real
+        // al endpoint XML oficial de Early-Est y se valida que la respuesta sea un
+        // documento XML válido del propio sistema (no un simple "ping" de la home);
+        // "Conectado" indica que esa fuente oficial responde y se pudo leer su XML,
+        // NO que se estén recibiendo sismos nuevos en vivo desde ella (ver conexiones
+        // Wolfx/USGS/EMSC/etc. para eventos en tiempo real).
         async function checkEarlyEst() {
-            const urls = [
-                'https://s3.rm.ingv.it/warning/monitor.xml',
-                'http://early-est.rm.ingv.it/warning/monitor.xml',
-                'https://webservices.ingv.it/fdsnws/event/1/query?format=xml&limit=1'
-            ];
-            for (const officialUrl of urls) {
-                try {
-                    const r = await fetchConCorsFallback(officialUrl, 6000);
-                    const text = await r.text();
-                    const xml = new DOMParser().parseFromString(text, 'text/xml');
-                    if (!xml.querySelector('parsererror')) {
-                        setApiState('earlyest','ok');
-                        return;
-                    }
-                } catch (e) {}
+            try {
+                const officialUrl = 'https://s3.rm.ingv.it/warning/monitor.xml';
+                const r = await fetchConCorsFallback(officialUrl);
+                const text = await r.text();
+                const xml = new DOMParser().parseFromString(text, 'text/xml');
+                if (xml.querySelector('parsererror') || !xml.querySelector('eqWarningMonitor')) {
+                    throw new Error('XML Early-Est no reconocido');
+                }
+                setApiState('earlyest','ok');
+            } catch (e) {
+                setApiState('earlyest','bad');
+                console.warn('Early-Est (INGV):', e);
             }
-            setApiState('earlyest','bad');
-            console.warn('Early-Est (INGV): No se pudo conectar a las fuentes de monitoreo');
         }
         checkEarlyEst();
         setInterval(checkEarlyEst, 8000);
 
+
+        // SSN México (UNAM) — fuente oficial real: RSS de últimos sismos del
+        // Servicio Sismológico Nacional (http://www.ssn.unam.mx/rss/ultimos-sismos.xml).
+        // Se parsea el XML y se extraen magnitud, ubicación, fecha/hora, profundidad
+        // y coordenadas (geo:lat / geo:long) de cada evento real reportado por el SSN.
         async function fetchSSN() {
-            const ssnUrls = [
-                'https://www.ssn.unam.mx/rss/ultimos-sismos.xml',
-                'http://www.ssn.unam.mx/rss/ultimos-sismos.xml'
-            ];
-            let lastErr = null;
-            for (const officialUrl of ssnUrls) {
-                try {
-                    const r = await fetchConCorsFallback(officialUrl);
-                    const text = await r.text();
-                    const xml = new DOMParser().parseFromString(text, 'text/xml');
-                    if (xml.querySelector('parsererror')) throw new Error('XML SSN inválido');
+            try {
+                const officialUrl = 'https://www.ssn.unam.mx/rss/ultimos-sismos.xml';
+                const r = await fetchConCorsFallback(officialUrl);
+                const text = await r.text();
+                const xml = new DOMParser().parseFromString(text, 'text/xml');
+                if (xml.querySelector('parsererror')) throw new Error('XML SSN inválido');
 
-                    const items = Array.from(xml.getElementsByTagName('item'));
-                    if (!items.length) throw new Error('RSS SSN sin eventos');
+                const items = Array.from(xml.getElementsByTagName('item'));
+                if (!items.length) throw new Error('RSS SSN sin eventos');
+                setApiState('ssn','ok');
 
-                    setApiState('ssn','ok');
+                return items.map((it, i) => {
+                    const title = (it.getElementsByTagName('title')[0]?.textContent || '').trim();
+                    const descRaw = it.getElementsByTagName('description')[0]?.textContent || '';
+                    const commaIdx = title.indexOf(',');
+                    const mag = parseFloat(commaIdx >= 0 ? title.slice(0, commaIdx) : title) || 0;
+                    const place = (commaIdx >= 0 ? title.slice(commaIdx + 1) : title).trim() || 'México';
 
-                    return items.map((it, i) => {
-                        const title = (it.getElementsByTagName('title')[0]?.textContent || '').trim();
-                        const descRaw = it.getElementsByTagName('description')[0]?.textContent || '';
-                        
-                        let mag = 0;
-                        let place = title || 'México';
-                        const magMatch = title.match(/(?:Magnitud|M)?\s*([\d.]+)/i);
-                        if (magMatch) mag = parseFloat(magMatch[1]) || 0;
-                        
-                        const cleanPlace = title.replace(/^(?:Magnitud|M)?\s*[\d.]+\s*[\s,-]*/i, '').trim();
-                        if (cleanPlace) place = cleanPlace;
+                    const fechaMatch = descRaw.match(/Fecha:\s*([\d-]+)\s+([\d:]+)/);
+                    const depthMatch = descRaw.match(/Profundidad:\s*([\d.]+)\s*km/);
 
-                        const fechaMatch = descRaw.match(/Fecha:\s*([\d/-]+)\s+([\d:]+)/i);
-                        const depthMatch = descRaw.match(/Profundidad:\s*([\d.]+)\s*km/i);
+                    let lat = 0, lon = 0;
+                    const latEl = it.getElementsByTagName('geo:lat')[0];
+                    const lonEl = it.getElementsByTagName('geo:long')[0];
+                    if (latEl) lat = Number(latEl.textContent);
+                    if (lonEl) lon = Number(lonEl.textContent);
 
-                        let lat = 0, lon = 0;
-                        const latEl = it.getElementsByTagNameNS('*', 'lat')[0] || it.getElementsByTagName('geo:lat')[0] || it.getElementsByTagName('lat')[0];
-                        const lonEl = it.getElementsByTagNameNS('*', 'long')[0] || it.getElementsByTagName('geo:long')[0] || it.getElementsByTagName('long')[0] || it.getElementsByTagNameNS('*', 'lon')[0];
-                        if (latEl) lat = Number(latEl.textContent);
-                        if (lonEl) lon = Number(lonEl.textContent);
+                    // Hora de México (SSN reporta en hora local; centro del país sin
+                    // horario de verano desde 2022 → UTC-6 todo el año).
+                    const isoTime = fechaMatch ? `${fechaMatch[1]}T${fechaMatch[2]}-06:00` : '';
+                    const depth = depthMatch ? depthMatch[1] + ' km' : '—';
 
-                        // Respaldo de coordenadas por regex si falla el tag XML
-                        const latMatch = descRaw.match(/Latitud:\s*([-\d.]+)/i);
-                        const lonMatch = descRaw.match(/Longitud:\s*([-\d.]+)/i);
-                        if (!lat && latMatch) lat = parseFloat(latMatch[1]);
-                        if (!lon && lonMatch) lon = parseFloat(lonMatch[1]);
-
-                        const isoTime = fechaMatch ? `${fechaMatch[1]}T${fechaMatch[2]}-06:00` : '';
-                        const depth = depthMatch ? depthMatch[1] + ' km' : '—';
-
-                        return {
-                            id: 'ssn-' + (isoTime || i) + '-' + lat + '-' + lon,
-                            intensity: magToMMI(mag),
-                            place,
-                            time: formatTime(isoTime),
-                            mag: 'M' + mag.toFixed(1),
-                            depth,
-                            agency: 'SSN',
-                            lat, lon,
-                            colorClass: intensityClass(magToMMI(mag)),
-                            ts: new Date(isoTime).getTime() || Date.now()
-                        };
-                    }).filter(e => e.mag !== 'M0.0');
-                } catch (e) {
-                    lastErr = e;
-                }
+                    return {
+                        id: 'ssn-' + (isoTime || i) + '-' + lat + '-' + lon,
+                        intensity: magToMMI(mag),
+                        place,
+                        time: formatTime(isoTime),
+                        mag: 'M' + mag.toFixed(1),
+                        depth,
+                        agency: 'SSN',
+                        lat, lon,
+                        colorClass: intensityClass(magToMMI(mag)),
+                        ts: new Date(isoTime).getTime() || Date.now()
+                    };
+                }).filter(e => e.mag !== 'M0.0');
+            } catch (e) {
+                setApiState('ssn','bad');
+                console.warn('SSN México API:', e);
+                return [];
             }
-            setApiState('ssn','bad');
-            console.warn('SSN México API:', lastErr);
-            return [];
         }
 
         // Primera carga
         loadAll(true);
 
-        // Polling cada 8 segundos de TODAS las agencias
+        // Polling cada 8 segundos de TODAS las agencias (USGS + JMA + CENC)
         setInterval(() => loadAll(false), 8000);
 
         // WebSocket Wolfx para avisos en tiempo real
@@ -1789,10 +2183,7 @@
         // Botón 🔄 → actualizar
         const btnRefresh = document.getElementById('btnRefresh');
         if (btnRefresh) {
-            btnRefresh.addEventListener('click', () => {
-                playUpdateSound();
-                loadAll(true);
-            });
+            btnRefresh.addEventListener('click', () => loadAll(true));
         }
 
         // Botón Taiwán → centrar mapa y forzar actualización de estaciones
@@ -1803,6 +2194,7 @@
                 if (typeof taiwanStationsLayer !== 'undefined' && !map.hasLayer(taiwanStationsLayer)) {
                     taiwanStationsLayer.addTo(map);
                 }
+                // ocultar Japón al ver Taiwán (opcional, menos saturación)
                 if (typeof japanStationsLayer !== 'undefined' && map.hasLayer(japanStationsLayer)) {
                     map.removeLayer(japanStationsLayer);
                 }
