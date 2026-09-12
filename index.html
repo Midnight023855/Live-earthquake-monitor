@@ -22,6 +22,18 @@
             flex-direction: column;
         }
 
+        /* Compatibilidad de renderizado al abrir como archivo local */
+        html.direct-file-safe * {
+            -webkit-backdrop-filter: none !important;
+            backdrop-filter: none !important;
+        }
+        html.direct-file-safe .leaflet-zoom-animated {
+            transition: none !important;
+            will-change: auto !important;
+        }
+        html.direct-file-safe .leaflet-fade-anim .leaflet-tile,
+        html.direct-file-safe .leaflet-fade-anim .leaflet-popup { transition: none !important; }
+
         /* Header */
         .header {
             background: #111;
@@ -1278,12 +1290,26 @@
         const alertCutoffTs = Date.now();
         let lastIntensityEventId = null;
         const MAX_EVENT_AGE_MS = 24 * 60 * 60 * 1000;
+        const directFileRender = location.protocol === 'file:';
+        document.documentElement.classList.toggle('direct-file-safe', directFileRender);
+        // Leaflet usa transformaciones 3D por defecto; al abrir directamente
+        // algunos drivers de Windows producen parpadeos o pantalla negra.
+        if (directFileRender && L.Browser) {
+            L.Browser.any3d = false;
+            L.Browser.transform3D = false;
+            L.Browser.zoomAnimation = false;
+            L.Browser.fadeAnimation = false;
+        }
         let map = L.map('map', {
             zoomControl: false,
             attributionControl: true,
             minZoom: 2,
             maxZoom: 19,
-            worldCopyJump: false
+            worldCopyJump: false,
+            zoomAnimation: !directFileRender,
+            fadeAnimation: !directFileRender,
+            markerZoomAnimation: !directFileRender,
+            preferCanvas: false
         }).setView([20, 140], 3);
         let programmaticMapMove = false;
         let autoRecenterTimer = null;
@@ -1642,12 +1668,17 @@
 
         function renderUsAlertsMap(alerts) {
             usAlertsLayer.clearLayers();
-            alerts.forEach(feature => {
-                if (!feature.geometry) return;
-                const p = feature.properties || {};
-                L.geoJSON(feature, {
-                    style: { color: usAlertColor(p.severity), weight: 2, fillColor: usAlertColor(p.severity), fillOpacity: .22 }
-                }).bindPopup(`<b>⚠️ ${p.event || 'Alerta NWS'}</b><br>${p.areaDesc || 'Estados Unidos'}<br>Severidad: ${p.severity || '—'}${feature.id ? `<br><a href="${feature.id}" target="_blank" rel="noopener">Aviso oficial NWS</a>` : ''}`).addTo(usAlertsLayer);
+            // El feed NWS puede traer cientos de polígonos. Limitar la capa
+            // evita bloquear el renderizado de Leaflet en equipos modestos.
+            const rank = { Extreme:4, Severe:3, Moderate:2, Minor:1 };
+            const mapAlerts = alerts.filter(f => f && f.geometry).sort((a,b) => (rank[b.properties?.severity] || 0) - (rank[a.properties?.severity] || 0)).slice(0, 40);
+            mapAlerts.forEach(feature => {
+                try {
+                    const p = feature.properties || {};
+                    L.geoJSON(feature, {
+                        style: { color: usAlertColor(p.severity), weight: 1.5, fillColor: usAlertColor(p.severity), fillOpacity: .18 }
+                    }).bindPopup(`<b>⚠️ ${p.event || 'Alerta NWS'}</b><br>${p.areaDesc || 'Estados Unidos'}<br>Severidad: ${p.severity || '—'}${feature.id ? `<br><a href="${feature.id}" target="_blank" rel="noopener">Aviso oficial NWS</a>` : ''}`).addTo(usAlertsLayer);
+                } catch (_) {}
             });
         }
 
@@ -3392,7 +3423,7 @@
             kmoniStationCanvas.className = 'kmoni-station-canvas';
             kmoniStationCanvas.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none;z-index:450;';
             map.getContainer().appendChild(kmoniStationCanvas);
-            kmoniStationCtx = kmoniStationCanvas.getContext('2d');
+            kmoniStationCtx = kmoniStationCanvas.getContext('2d', { alpha:true, willReadFrequently:true });
             const redraw = () => drawKmoniStationCanvas();
             map.on('move zoom resize viewreset', redraw);
             drawKmoniStationCanvas();
