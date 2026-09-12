@@ -763,10 +763,11 @@
                     <option value="GEONET">GeoNet</option>
                     <option value="INGV">INGV</option>
                     <option value="GA">Geoscience AU</option>
-                    <option value="FSSN">FSSN / FAN Studio</option>
-                    <option value="SED">SED Suiza</option>
-                    <option value="KMA">KMA Corea del Sur</option>
-                    <option value="PHIVOLCS">PHIVOLCS Filipinas</option>
+                    <option value="FSSN">FSSN</option>
+                    <option value="SED">SED</option>
+                    <option value="KMA">KMA</option>
+                    <option value="PHIVOLCS">PHIVOLCS</option>
+                    <option value="EARLY-EST">Early-Est</option>
                 </select>
             </div>
 
@@ -1021,6 +1022,9 @@
         const alertedEventIds = new Set();
         const alertedEventKeys = new Set();
         let hasCompletedInitialLoad = false;
+        // Nunca anunciar eventos que ya existían antes de abrir el monitor.
+        // Las fuentes pueden entregar catálogos históricos o repetir el último sismo.
+        const alertCutoffTs = Date.now();
         let lastIntensityEventId = null;
         const MAX_EVENT_AGE_MS = 24 * 60 * 60 * 1000;
         let map = L.map('map', {
@@ -1286,8 +1290,8 @@
             });
         }
 
-        // TTS del teléfono: prioriza una voz en español de México y deja
-        // es-MX como idioma solicitado si el dispositivo no expone una voz concreta.
+        // TTS del teléfono: prioriza español de Estados Unidos (es-US)
+        // y usa una voz latina como respaldo si no está disponible.
         let ttsVoices = [];
         function refreshTtsVoices() {
             if ('speechSynthesis' in window) ttsVoices = window.speechSynthesis.getVoices() || [];
@@ -1297,10 +1301,10 @@
             window.speechSynthesis.addEventListener('voiceschanged', refreshTtsVoices);
         }
 
-        function getMexicanSpanishVoice() {
+        function getUsSpanishVoice() {
             const voices = ttsVoices.length ? ttsVoices :
                 (('speechSynthesis' in window) ? window.speechSynthesis.getVoices() : []);
-            return voices.find(v => /^es[-_]MX$/i.test(v.lang)) ||
+            return voices.find(v => /^es[-_]US$/i.test(v.lang)) ||
                 voices.find(v => /^es[-_]419$/i.test(v.lang)) ||
                 voices.find(v => /^es/i.test(v.lang));
         }
@@ -1415,8 +1419,8 @@
             const text = ttsQueue.shift();
             try {
                 const utterance = new SpeechSynthesisUtterance(text);
-                const voice = getMexicanSpanishVoice();
-                utterance.lang = voice?.lang || 'es-MX';
+                const voice = getUsSpanishVoice();
+                utterance.lang = voice?.lang || 'es-US';
                 if (voice) utterance.voice = voice;
                 utterance.rate = 1.0;
                 utterance.pitch = 1.0;
@@ -1507,6 +1511,14 @@
         function announceNewEvent(ev) {
             if (!ev || !ev.id) return;
             const key = eventAlertKey(ev);
+            const eventTs = parseTs(ev.ts);
+            // No leer sismos pasados, aunque una fuente los entregue por
+            // primera vez o cambie su identificador al actualizarse.
+            if (eventTs && eventTs <= alertCutoffTs) {
+                alertedEventIds.add(ev.id);
+                alertedEventKeys.add(key);
+                return;
+            }
             if (alertedEventKeys.has(key)) return;
             alertedEventKeys.add(key);
             showRegionToast(`🔔 ${ev.agency || 'Sismo'} · ${ev.mag || '—'} · ${ev.place || 'ubicación desconocida'}`);
@@ -2422,21 +2434,38 @@
             } catch (e) { setApiState('gfz','bad'); return []; }
         }
 
-        // Las páginas oficiales KMA y PHIVOLCS no envían CORS desde sus
-        // servidores. Jina Reader solo retransmite el HTML oficial como
-        // Markdown y permite que el monitor lo lea sin inventar datos.
-        async function fetchOfficialMarkdown(url, scheme = 'https') {
-            const hostPath = url.replace(/^https?:\/\//, '');
-            const readerUrl = `https://r.jina.ai/${scheme}://${hostPath}`;
-            const res = await fetch(readerUrl, { cache: 'no-store' });
-            if (!res.ok) throw new Error('Fuente oficial no respondió');
-            return await res.text();
-        }
+        // Las páginas oficiales KMA y PHIVOLCS no envían CORS; se leen
+        // mediante el lector intermedio y se conservan en caché por 60 s.
 
         function markdownCells(line) {
             return String(line || '').trim().replace(/^\|/, '').replace(/\|$/, '')
                 .split('|').map(cell => cell.trim()
                     .replace(/^\[([^\]]+)\]\([^)]*\)$/, '$1'));
+        }
+
+        const officialMarkdownCache = new Map();
+        // Los catálogos web se consultan con menos frecuencia para no saturar
+        // el lector intermedio ni perder la conexión por límite de consultas.
+        async function fetchOfficialMarkdown(url, scheme = 'https') {
+            const cached = officialMarkdownCache.get(url);
+            if (cached && Date.now() - cached.at < 60000) return cached.text;
+            const hostPath = url.replace(/^https?:\/\//, '');
+            const readerUrls = [
+                `https://r.jina.ai/${scheme}://${hostPath}`,
+                `https://r.jina.ai/${url}`
+            ];
+            let lastError;
+            for (const readerUrl of readerUrls) {
+                try {
+                    const res = await fetch(readerUrl, { cache: 'no-store' });
+                    if (!res.ok) throw new Error('Fuente oficial no respondió');
+                    const text = await res.text();
+                    if (text.length < 100) throw new Error('Respuesta vacía');
+                    officialMarkdownCache.set(url, { text, at: Date.now() });
+                    return text;
+                } catch (e) { lastError = e; }
+            }
+            throw lastError || new Error('Fuente oficial no respondió');
         }
 
         // KMA (Corea del Sur): catálogo oficial; hora en KST (UTC+9).
@@ -2921,6 +2950,105 @@
             } catch(e) { setApiState('geonet','bad'); return []; }
         }
 
+        // Early-Est (INGV / ALomax): estimación automática rápida basada en
+        // formas de onda; sus resultados son preliminares y no revisados.
+        let earlyEstCache = [];
+        let earlyEstLastFetch = 0;
+        async function fetchEarlyEst() {
+            if (earlyEstCache.length && Date.now() - earlyEstLastFetch < 30000) return earlyEstCache.map(ev => ({ ...ev }));
+            const target = 'https://early-est.rm.ingv.it/monitor.xml?_=' + Date.now();
+            const targets = [
+                target,
+                'https://api.allorigins.win/raw?url=' + encodeURIComponent(target),
+                'https://r.jina.ai/http://early-est.rm.ingv.it/hypolist.html?_=' + Date.now()
+            ];
+            try {
+                let text = '';
+                for (const url of targets) {
+                    try {
+                        const r = await fetch(url, { cache: 'no-store' });
+                        if (!r.ok) continue;
+                        const candidate = await r.text();
+                        if (candidate.includes('<q:quakeml') || candidate.includes('<eventParameters') || candidate.includes('Latest Earthquakes - Past 10 days')) {
+                            text = candidate; break;
+                        }
+                    } catch (_) {}
+                }
+                if (!text) throw new Error('Early-Est no respondió');
+                const list = [];
+                if (text.includes('<q:quakeml') || text.includes('<eventParameters')) {
+                    const xml = new DOMParser().parseFromString(text, 'application/xml');
+                    const xmlEvents = [...xml.getElementsByTagNameNS('*', 'event')];
+                    xmlEvents.forEach((node, index) => {
+                        const value = name => node.getElementsByTagNameNS('*', name)[0]?.textContent?.trim() || '';
+                        const origins = [...node.getElementsByTagNameNS('*', 'origin')];
+                        const origin = origins[origins.length - 1];
+                        if (!origin) return;
+                        const originValue = name => origin.getElementsByTagNameNS('*', name)[0]?.textContent?.trim() || '';
+                        const rawTime = originValue('value');
+                        const ts = Date.parse(/Z$|[+-]\\d\\d:\\d\\d$/.test(rawTime) ? rawTime : rawTime + 'Z');
+                        const lat = Number(originValue('latitude'));
+                        const lon = Number(originValue('longitude'));
+                        const depthM = Number(originValue('depth'));
+                        const mags = [...node.getElementsByTagNameNS('*', 'magnitude')];
+                        const preferred = node.getAttribute('preferredMagnitudeID') || '';
+                        const magNode = mags.find(m => (m.getAttribute('publicID') || '') === preferred) || mags.find(m => ['mb','Mwp','Mwpd'].includes(m.getElementsByTagNameNS('*','type')[0]?.textContent?.trim())) || mags[0];
+                        const mag = Number(magNode?.getElementsByTagNameNS('*','value')[0]?.textContent?.trim());
+                        const desc = value('text') || value('description') || 'Early-Est';
+                        if (!ts || !Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(mag)) return;
+                        list.push({
+                            id: 'early-est-' + (node.getAttribute('publicID') || index),
+                            intensity: magToMMI(mag), place: desc,
+                            time: formatTime(ts), mag: 'M' + mag.toFixed(1),
+                            depth: Number.isFinite(depthM) ? (Math.abs(depthM) / 1000).toFixed(0) + ' km' : '—',
+                            agency: 'Early-Est / INGV', lat, lon,
+                            colorClass: intensityClass(magToMMI(mag)), ts
+                        });
+                    });
+                } else {
+                    // Respaldo para el formato Markdown de Jina cuando el XML
+                    // oficial no permite una lectura directa desde el navegador.
+                    const rowRe = /\[(\d+)\]\([^)]*\s+"View event information page - ([^"]+)"\)([\s\S]*?)(?=\n\[\d+\]\(|$)/g;
+                    let match;
+                    while ((match = rowRe.exec(text))) {
+                        const id = match[1], place = match[2];
+                        const body = match[3];
+                        const tm = body.match(/(\d{4})\.(\d{2})\.(\d{2})-(\d{2}):(\d{2}):(\d{2})/);
+                        if (!tm) continue;
+                        const ts = Date.parse(`${tm[1]}-${tm[2]}-${tm[3]}T${tm[4]}:${tm[5]}:${tm[6]}Z`);
+                        const afterTime = body.slice(tm.index + tm[0].length);
+                        const coords = [...afterTime.matchAll(/\*\*(-?\d+(?:\.\d+)?)\*\*/g)].map(m => Number(m[1]));
+                        const lat = coords[0], lon = coords[1];
+                        const boldNums = [...afterTime.matchAll(/\*\*(-?\d+(?:\.\d+)?)\*\*/g)].map(m => Number(m[1]));
+                        const depthMatch = afterTime.match(/\]\*\*(-?\d+(?:\.\d+)?)\*\*(-?\d+(?:\.\d+)?)/);
+                        const depth = depthMatch ? Number(depthMatch[2]) : NaN;
+                        // Solo aceptar magnitudes plausibles (M2+). Así no se
+                        // confunden el error horizontal, la profundidad o T50Ex
+                        // con la magnitud cuando Early-Est aún no la calculó.
+                        const magCandidates = boldNums.filter(n => n >= 2 && n <= 10);
+                        const mag = magCandidates[magCandidates.length - 1];
+                        if (!ts || !Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(mag)) continue;
+                        list.push({
+                            id: 'early-est-' + id, intensity: magToMMI(mag), place,
+                            time: formatTime(ts), mag: 'M' + mag.toFixed(1),
+                            depth: Number.isFinite(depth) ? depth.toFixed(0) + ' km' : '—',
+                            agency: 'Early-Est / INGV', lat, lon,
+                            colorClass: intensityClass(magToMMI(mag)), ts
+                        });
+                    }
+                }
+                const result = list.filter(ev => ev.ts > Date.now() - MAX_EVENT_AGE_MS).slice(0, 50);
+                if (!result.length) throw new Error('Early-Est sin eventos válidos');
+                earlyEstCache = result;
+                earlyEstLastFetch = Date.now();
+                setApiState('earlyEst', 'ok');
+                return result.map(ev => ({ ...ev }));
+            } catch (e) {
+                if (earlyEstCache.length) { setApiState('earlyEst', 'cached'); return earlyEstCache.map(ev => ({ ...ev })); }
+                setApiState('earlyEst', 'bad'); return [];
+            }
+        }
+
         async function fetchINGV() {
             try {
                 const r = await fetch('https://webservices.ingv.it/fdsnws/event/1/query?format=geojson&limit=20&orderby=time&minmagnitude=1',{cache:'no-store'});
@@ -3307,12 +3435,13 @@
         const apiState = {};
         const apiMetrics = {};
         const apiNames = [
-            ['USGS','usgs'], ['JMA / Wolfx','jma'], ['CENC / Wolfx + WS','cenc'],
-            ['EMSC','emsc'], ['GFZ / GEOFON','gfz'], ['TREM Taiwán','trem'],
-            ['SSN México · RSS','ssn'], ['AFAD Turquía','afad'],
-            ['BMKG Indonesia','bmkg'], ['GeoNet NZ','geonet'], ['INGV Italia','ingv'], ['Geoscience AU','ga'],
-            ['JMA EEW / Wolfx','jmaEew'], ['FSSN / FAN Studio','fssn'], ['SED Suiza','sed'],
-            ['KMA Corea del Sur','kma'], ['PHIVOLCS Filipinas','phivolcs'], ['Tifones FAN Studio','typhoon']
+            ['USGS','usgs'], ['JMA','jma'], ['CENC','cenc'],
+            ['EMSC','emsc'], ['GFZ','gfz'], ['TREM','trem'],
+            ['SSN','ssn'], ['AFAD','afad'],
+            ['BMKG','bmkg'], ['GeoNet','geonet'], ['INGV','ingv'], ['Geoscience AU','ga'],
+            ['JMA EEW','jmaEew'], ['FSSN','fssn'], ['SED','sed'],
+            ['KMA','kma'], ['PHIVOLCS','phivolcs'],
+            ['Early-Est','earlyEst'], ['FAN Studio','typhoon']
         ];
 
         function ageLabel(timestamp) {
@@ -3545,7 +3674,7 @@
         async function loadAll(force = false) {
             const status = document.querySelector('.status');
             try {
-                const [usgs, jma, cenc, emsc, gfz, afad, bmkg, geonet, ingv, ga, ssn, fssn, sed, kma, phivolcs] = await Promise.all([
+                const [usgs, jma, cenc, emsc, gfz, afad, bmkg, geonet, ingv, ga, ssn, fssn, sed, kma, phivolcs, earlyEst] = await Promise.all([
                     timedApi('usgs', fetchUSGS().catch(() => [])),
                     timedApi('jma', fetchWolfxJMA().catch(() => [])),
                     timedApi('cenc', fetchCENCReal().catch(() => [])),
@@ -3560,15 +3689,16 @@
                     timedApi('fssn', fetchFSSN().catch(() => [])),
                     timedApi('sed', fetchSED().catch(() => [])),
                     timedApi('kma', fetchKMA().catch(() => [])),
-                    timedApi('phivolcs', fetchPHIVOLCS().catch(() => []))
+                    timedApi('phivolcs', fetchPHIVOLCS().catch(() => [])),
+                    timedApi('earlyEst', fetchEarlyEst().catch(() => []))
                 ]);
 
                 const sourceCounts = { usgs: usgs.length, jma: jma.length, cenc: cenc.length,
                     emsc: emsc.length, gfz: gfz.length, afad: afad.length, bmkg: bmkg.length,
                     geonet: geonet.length, ingv: ingv.length, ga: ga.length, ssn: ssn.length, fssn: fssn.length, sed: sed.length,
-                    kma: kma.length, phivolcs: phivolcs.length };
+                    kma: kma.length, phivolcs: phivolcs.length, earlyEst: earlyEst.length };
                 Object.entries(sourceCounts).forEach(([key, count]) => recordApiCount(key, count));
-                const sourceEvents = { usgs, jma, cenc, emsc, gfz, afad, bmkg, geonet, ingv, ga, ssn, fssn, sed, kma, phivolcs };
+                const sourceEvents = { usgs, jma, cenc, emsc, gfz, afad, bmkg, geonet, ingv, ga, ssn, fssn, sed, kma, phivolcs, earlyEst };
                 Object.entries(sourceEvents).forEach(([key, list]) => {
                     const latest = (list || []).reduce((max, ev) => Math.max(max, parseTs(ev.ts) || 0), 0);
                     if (latest) {
@@ -3576,7 +3706,7 @@
                         apiMetrics[key].latestEventTs = latest;
                     }
                 });
-                let newEvents = [...usgs, ...jma, ...cenc, ...emsc, ...gfz, ...afad, ...bmkg, ...geonet, ...ingv, ...ga, ...ssn, ...fssn, ...sed, ...kma, ...phivolcs];
+                let newEvents = [...usgs, ...jma, ...cenc, ...emsc, ...gfz, ...afad, ...bmkg, ...geonet, ...ingv, ...ga, ...ssn, ...fssn, ...sed, ...kma, ...phivolcs, ...earlyEst];
                 const now = Date.now();
 
                 // Mantener solo sismos recientes y ya ocurridos según el reloj
