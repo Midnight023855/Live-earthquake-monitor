@@ -461,6 +461,84 @@
         #mainLayout.typhoon-focus #typhoonPanel .typhoon-title { color:#78e8ee; }
         #mainLayout.typhoon-focus #typhoonPanel .typhoon-item strong { color:#a7f5f7; }
 
+        /* Alertas de huracanes NOAA / NHC */
+        #hurricanePanel { display:none; }
+        #hurricanePanel.hurricane-active {
+            display:block; position:absolute; z-index:1100; left:12px; top:58px;
+            width:min(86vw,370px); max-height:48vh; overflow:auto;
+            box-sizing:border-box; padding:12px 14px; border:2px solid #4aa3df;
+            border-radius:12px; background:rgba(7,22,39,.95); color:#eaf6ff;
+            box-shadow:0 0 24px rgba(74,163,223,.3);
+        }
+        #hurricanePanel .hurricane-title { display:flex; justify-content:space-between; gap:10px; color:#8bd8ff; font-weight:700; font-size:13px; margin-bottom:8px; }
+        #hurricanePanel .hurricane-item { border-top:1px solid rgba(255,255,255,.14); padding:8px 0 2px; font-size:11px; line-height:1.4; }
+        #hurricanePanel .hurricane-item strong { color:#b8e7ff; font-size:13px; }
+        #hurricanePanel a { color:#8bd8ff; }
+        #mainLayout.hurricane-focus .left-panel,
+        #mainLayout.hurricane-focus .trem-side-panel,
+        #mainLayout.hurricane-focus #connectionPanel,
+        #mainLayout.hurricane-focus #intensityLegendPanel,
+        #mainLayout.hurricane-focus #multiClockPanel,
+        #mainLayout.hurricane-focus #jmaEewPanel,
+        #mainLayout.hurricane-focus #taiwanDetectorPanel,
+        #mainLayout.hurricane-focus #weatherPanel { display:none !important; }
+        #mainLayout.hurricane-focus .map-container { position:absolute; inset:0; width:100%; height:100%; }
+        #mainLayout.hurricane-focus #btnHurricanes { border-color:#4aa3df !important; color:#8bd8ff !important; }
+        #hurricaneTopbar { display:none; }
+        #hurricaneTopbar.hurricane-top-active {
+            display:flex; position:absolute; z-index:1200; left:12px; top:12px;
+            align-items:center; gap:22px; color:#f2f6ff; font-size:15px; font-weight:800;
+            text-shadow:0 1px 3px #000;
+        }
+        #hurricaneTopbar button {
+            background:rgba(9,16,28,.88); border:1px solid #6d7890; color:#f2f6ff;
+            border-radius:5px; padding:6px 15px; font-weight:700; cursor:pointer;
+        }
+        #mainLayout.hurricane-focus #hurricanePanel.hurricane-active {
+            left:auto; right:12px; top:auto; bottom:14px; width:min(82vw,350px);
+            max-height:45vh; border-color:#4aa3df; background:rgba(7,28,48,.94);
+        }
+
+        /* Alertas meteorológicas dentro de EE. UU. (NWS/NOAA) */
+        #usAlertsPanel { display:none; }
+        #usAlertsPanel.us-alerts-active {
+            display:block !important; visibility:visible; opacity:1;
+            position:absolute; z-index:1200; left:12px; top:58px;
+            width:min(86vw,390px); max-height:50vh; overflow:auto;
+            box-sizing:border-box; padding:12px 14px; border:2px solid #ffcf4a;
+            border-radius:12px; background:rgba(35,28,7,.95); color:#fff8dc;
+            box-shadow:0 0 24px rgba(255,207,74,.28);
+        }
+        #usAlertsPanel .us-alerts-title { display:flex; justify-content:space-between; gap:10px; color:#ffe27a; font-weight:700; font-size:13px; margin-bottom:8px; }
+        #usAlertsPanel .us-alert-item { border-top:1px solid rgba(255,255,255,.14); padding:8px 0 2px; font-size:11px; line-height:1.4; }
+        #usAlertsPanel .us-alert-item strong { color:#fff0a8; font-size:12px; }
+        #usAlertsPanel a { color:#ffe27a; }
+        #mainLayout.us-alerts-focus .left-panel,
+        #mainLayout.us-alerts-focus .trem-side-panel,
+        #mainLayout.us-alerts-focus #connectionPanel,
+        #mainLayout.us-alerts-focus #intensityLegendPanel,
+        #mainLayout.us-alerts-focus #multiClockPanel,
+        #mainLayout.us-alerts-focus #jmaEewPanel,
+        #mainLayout.us-alerts-focus #taiwanDetectorPanel,
+        #mainLayout.us-alerts-focus #weatherPanel,
+        #mainLayout.us-alerts-focus #hurricanePanel { display:none !important; }
+        #mainLayout.us-alerts-focus .map-container { position:absolute; inset:0; width:100%; height:100%; }
+        #mainLayout.us-alerts-focus #btnUsAlerts { border-color:#ffcf4a !important; color:#ffe27a !important; }
+        #usAlertsTopbar { display:none; }
+        #usAlertsTopbar.us-alerts-top-active {
+            display:flex; position:absolute; z-index:1200; left:12px; top:12px;
+            align-items:center; gap:22px; color:#f2f6ff; font-size:15px; font-weight:800;
+            text-shadow:0 1px 3px #000;
+        }
+        #usAlertsTopbar button {
+            background:rgba(9,16,28,.88); border:1px solid #6d7890; color:#f2f6ff;
+            border-radius:5px; padding:6px 15px; font-weight:700; cursor:pointer;
+        }
+        #mainLayout.us-alerts-focus #usAlertsPanel.us-alerts-active {
+            left:auto; right:12px; top:auto; bottom:14px; width:min(86vw,390px);
+            max-height:48vh; border-color:#ffcf4a; background:rgba(44,35,5,.94);
+        }
+
         /* Cuadro de conexiones API */
         #connectionPanel {
             position:absolute; top:12px; right:12px; z-index:1001;
@@ -814,6 +892,26 @@
                 <div id="typhoonInfo">Cargando datos de FAN Studio…</div>
             </div>
 
+            <div id="hurricaneTopbar">
+                <span id="hurricaneTopTitle">Alertas de huracanes de EE. UU.</span>
+                <button id="btnHurricaneBack">← Volver</button>
+            </div>
+
+            <div id="hurricanePanel">
+                <div class="hurricane-title"><span>🌀 NOAA / NHC</span><span id="hurricaneStatus">● Consultando</span></div>
+                <div id="hurricaneInfo">Cargando alertas oficiales…</div>
+            </div>
+
+            <div id="usAlertsTopbar">
+                <span id="usAlertsTopTitle">Alertas meteorológicas de EE. UU.</span>
+                <button id="btnUsAlertsBack">← Volver</button>
+            </div>
+
+            <div id="usAlertsPanel">
+                <div class="us-alerts-title"><span>⚠️ Alertas oficiales NWS</span><span id="usAlertsStatus">● Consultando</span></div>
+                <div id="usAlertsInfo">Cargando alertas de Estados Unidos…</div>
+            </div>
+
             <div id="taiwanDetectorPanel">
                 <div class="title">
                     <span>🇹🇼 Red TREM (Taiwán)</span>
@@ -978,6 +1076,38 @@
                     box-shadow: 0 2px 8px rgba(0,0,0,0.5);
                     white-space: nowrap;
                 ">🌀 Tifones</button>
+
+                <button id="btnHurricanes" title="Mostrar huracanes y alertas oficiales de NOAA/NHC" style="
+                    background: rgba(20,20,20,0.9);
+                    border: 1px solid #555;
+                    color: #eee;
+                    font-size: 13px;
+                    height: 32px;
+                    padding: 0 10px;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+                    white-space: nowrap;
+                ">🌀 Huracanes EE. UU.</button>
+
+                <button id="btnUsAlerts" title="Mostrar alertas meteorológicas oficiales dentro de Estados Unidos" style="
+                    background: rgba(20,20,20,0.9);
+                    border: 1px solid #555;
+                    color: #eee;
+                    font-size: 13px;
+                    height: 32px;
+                    padding: 0 10px;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+                    white-space: nowrap;
+                ">⚠️ Alertas EE. UU.</button>
 
                 <button id="btnKmoniStations" title="Fijar el mapa en Japón y mostrar estaciones KMONI en vivo" style="
                     background: rgba(20,20,20,0.9);
@@ -1179,6 +1309,242 @@
             if (!all.length) return setProgrammaticMapView([20, 140], 3);
             const bounds = L.latLngBounds(all.map(p => [p.lat, p.lon]));
             map.fitBounds(bounds.pad(0.3), { animate:false });
+        }
+
+        let hurricaneMode = false;
+        let hurricaneLayer = L.layerGroup().addTo(map);
+        let hurricaneData = [];
+        let hurricaneInitialized = false;
+        let hurricaneAlertSignature = '';
+        let hurricaneFocusId = '';
+
+        function hurricaneName(storm) {
+            const name = String(storm?.name || '').trim();
+            return name || `Sistema ${storm?.id || ''}`;
+        }
+
+        function hurricaneClassLabel(value) {
+            const c = String(value || '').toUpperCase();
+            return ({ HU:'Huracán', H1:'Huracán categoría 1', H2:'Huracán categoría 2', H3:'Huracán categoría 3', H4:'Huracán categoría 4', H5:'Huracán categoría 5', TS:'Tormenta tropical', TD:'Depresión tropical', PT:'Ciclón postropical' })[c] || c || 'Sistema tropical';
+        }
+
+        function hurricanePoint(storm) {
+            const lat = Number(storm?.latitudeNumeric);
+            const lon = Number(storm?.longitudeNumeric);
+            return Number.isFinite(lat) && Number.isFinite(lon) ? [lat, lon] : null;
+        }
+
+        function renderHurricanePanel(active) {
+            const info = document.getElementById('hurricaneInfo');
+            const status = document.getElementById('hurricaneStatus');
+            const title = document.getElementById('hurricaneTopTitle');
+            if (!info || !status) return;
+            if (!active.length) {
+                status.textContent = '● Sin sistemas activos';
+                status.style.color = '#8bd8ff';
+                info.innerHTML = 'NOAA/NHC no reporta huracanes ni tormentas tropicales activos en sus áreas de vigilancia.';
+                if (title) title.textContent = 'Alertas de huracanes de EE. UU.';
+                return;
+            }
+            status.textContent = `● ${active.length} activo${active.length > 1 ? 's' : ''}`;
+            status.style.color = '#ffd166';
+            if (title) title.textContent = `NOAA/NHC · ${hurricaneName(active[0])}`;
+            info.innerHTML = active.map(storm => {
+                const point = hurricanePoint(storm);
+                const windKt = Number(storm.intensity);
+                const windKmh = Number.isFinite(windKt) ? Math.round(windKt * 1.852) : null;
+                const last = storm.lastUpdate ? formatTime(storm.lastUpdate) : 'hora no disponible';
+                const pos = point ? `${point[0].toFixed(1)}°, ${point[1].toFixed(1)}°` : 'posición no disponible';
+                const advisory = storm.publicAdvisory?.url ? `<br><a href="${storm.publicAdvisory.url}" target="_blank" rel="noopener">Ver aviso oficial NHC</a>` : '';
+                return `<div class="hurricane-item"><strong>🌀 ${hurricaneName(storm)}</strong><br>Estado: ${hurricaneClassLabel(storm.classification)}<br>Viento: ${Number.isFinite(windKt) ? windKt + ' kt' + (windKmh ? ' · ' + windKmh + ' km/h' : '') : '—'}<br>Presión: ${storm.pressure || '—'} hPa<br>Centro: ${pos}<br>Movimiento: ${storm.movementSpeed || '—'} kt · ${storm.movementDir ?? '—'}°<br>Actualización: ${last}${advisory}</div>`;
+            }).join('');
+        }
+
+        function renderHurricaneMap(active) {
+            hurricaneLayer.clearLayers();
+            active.forEach(storm => {
+                const point = hurricanePoint(storm);
+                if (!point) return;
+                const color = String(storm.classification || '').toUpperCase().startsWith('H') ? '#ff4d6d' : '#ffd166';
+                const marker = L.circleMarker(point, { radius:10, color:'#fff', weight:2, fillColor:color, fillOpacity:.95 });
+                const windKt = Number(storm.intensity);
+                const advisory = storm.publicAdvisory?.url ? `<br><a href="${storm.publicAdvisory.url}" target="_blank" rel="noopener">Aviso oficial NHC</a>` : '';
+                marker.bindPopup(`<b>🌀 ${hurricaneName(storm)}</b><br>${hurricaneClassLabel(storm.classification)}<br>Viento: ${Number.isFinite(windKt) ? windKt + ' kt' : '—'}<br>Presión: ${storm.pressure || '—'} hPa${advisory}`).addTo(hurricaneLayer);
+            });
+        }
+
+        function centerHurricaneView() {
+            const points = hurricaneData.filter(s => hurricanePoint(s)).map(s => hurricanePoint(s));
+            if (!points.length) return setProgrammaticMapView([25, -85], 4);
+            map.fitBounds(L.latLngBounds(points).pad(1.2), { animate:false, maxZoom:6 });
+        }
+
+        async function loadHurricanes() {
+            try {
+                const officialUrl = 'https://www.nhc.noaa.gov/CurrentStorms.json?_=' + Date.now();
+                const targets = [
+                    officialUrl,
+                    'https://r.jina.ai/http://www.nhc.noaa.gov/CurrentStorms.json?_=' + Date.now(),
+                    'https://api.allorigins.win/raw?url=' + encodeURIComponent(officialUrl)
+                ];
+                let data = null;
+                for (const url of targets) {
+                    try {
+                        const res = await fetch(url, { cache:'no-store' });
+                        if (!res.ok) continue;
+                        const text = await res.text();
+                        try { data = JSON.parse(text); }
+                        catch (_) {
+                            const start = text.indexOf('{'), end = text.lastIndexOf('}');
+                            if (start >= 0 && end > start) data = JSON.parse(text.slice(start, end + 1));
+                        }
+                        if (data && Array.isArray(data.activeStorms)) break;
+                    } catch (_) {}
+                }
+                if (!data || !Array.isArray(data.activeStorms)) throw new Error('NOAA/NHC no respondió');
+                hurricaneData = data.activeStorms;
+                setApiState('nhc', 'ok', hurricaneData.length);
+                const signature = hurricaneData.map(s => `${s.id}:${s.lastUpdate || ''}:${s.classification || ''}:${s.intensity || ''}:${s.latitude || ''}:${s.longitude || ''}`).join('|');
+                const updateDetected = hurricaneInitialized && signature !== hurricaneAlertSignature && hurricaneData.length;
+                const active = hurricaneData;
+                if (updateDetected) {
+                    const updated = active.find(s => String(s.id) === String(hurricaneFocusId)) || active[0];
+                    hurricaneFocusId = String(updated.id || '');
+                    playUiSound('alert');
+                    speakAlert(`Actualización de huracán. ${hurricaneName(updated)}. ${hurricaneClassLabel(updated.classification)}.`);
+                    showRegionToast(`🌀 NOAA/NHC actualizado: ${hurricaneName(updated)}`);
+                    hurricaneMode = true;
+                    const layout = document.getElementById('mainLayout');
+                    layout.classList.add('hurricane-focus');
+                    document.getElementById('hurricanePanel').classList.add('hurricane-active');
+                    document.getElementById('hurricaneTopbar').classList.add('hurricane-top-active');
+                    clearMarkers();
+                    if (intensityZonesLayer) { map.removeLayer(intensityZonesLayer); intensityZonesLayer = null; }
+                    layout.classList.remove('taiwan-focus');
+                    taiwanMode = false;
+                    map.invalidateSize({ pan:false });
+                    renderHurricaneMap(active);
+                    centerHurricaneView();
+                }
+                hurricaneAlertSignature = signature;
+                hurricaneInitialized = true;
+                renderHurricanePanel(active);
+                if (hurricaneMode && !updateDetected) renderHurricaneMap(active);
+            } catch (_) {
+                setApiState('nhc', 'bad');
+                const status = document.getElementById('hurricaneStatus');
+                if (status) { status.textContent = '● Sin conexión'; status.style.color = '#ff6b6b'; }
+            }
+        }
+
+        let usAlertsMode = false;
+        let usAlertsLayer = L.layerGroup().addTo(map);
+        let usAlertsData = [];
+        let usAlertsInitialized = false;
+        let usAlertsSignature = '';
+
+        function isTropicalUsAlert(feature) {
+            // El feed oficial del NWS incluye las alertas que afectan zonas
+            // concretas de EE. UU.: huracanes, tornados, tormentas, inundaciones,
+            // incendios, nieve y demás avisos meteorológicos.
+            return !!String(feature?.properties?.event || '').trim();
+        }
+
+        function usAlertColor(severity) {
+            return ({ Extreme:'#ff1744', Severe:'#ff7b00', Moderate:'#ffd166', Minor:'#74c0fc' })[String(severity || '')] || '#ffe066';
+        }
+
+        function renderUsAlertsPanel(alerts) {
+            const info = document.getElementById('usAlertsInfo');
+            const status = document.getElementById('usAlertsStatus');
+            const title = document.getElementById('usAlertsTopTitle');
+            if (!info || !status) return;
+            if (!alerts.length) {
+                status.textContent = '● Sin alertas activas';
+                status.style.color = '#8bd8ff';
+                info.innerHTML = 'El NWS no reporta alertas meteorológicas activas dentro de Estados Unidos.';
+                if (title) title.textContent = 'Alertas meteorológicas de EE. UU.';
+                return;
+            }
+            status.textContent = `● ${alerts.length} activa${alerts.length > 1 ? 's' : ''}`;
+            status.style.color = '#ffe27a';
+            if (title) title.textContent = `NWS · ${alerts.length} alerta${alerts.length > 1 ? 's' : ''}`;
+            const ordered = [...alerts].sort((a,b) => {
+                const rank = { Extreme:4, Severe:3, Moderate:2, Minor:1 };
+                return (rank[b.properties?.severity] || 0) - (rank[a.properties?.severity] || 0);
+            });
+            info.innerHTML = ordered.slice(0, 30).map(feature => {
+                const p = feature.properties || {};
+                const link = feature.id || p['@id'] || '';
+                const expires = p.expires ? formatTime(p.expires) : 'sin hora de finalización';
+                return `<div class="us-alert-item"><strong style="color:${usAlertColor(p.severity)}">⚠️ ${p.event || 'Alerta meteorológica'}</strong><br>Zona: ${p.areaDesc || 'Estados Unidos'}<br>Severidad: ${p.severity || '—'} · Prioridad: ${p.urgency || '—'}<br>Válida hasta: ${expires}${p.headline ? `<br>${p.headline}` : ''}${link ? `<br><a href="${link}" target="_blank" rel="noopener">Ver aviso oficial NWS</a>` : ''}</div>`;
+            }).join('');
+            if (alerts.length > 30) info.insertAdjacentHTML('beforeend', `<div class="weather-muted">Se muestran las 30 alertas más importantes.</div>`);
+        }
+
+        function renderUsAlertsMap(alerts) {
+            usAlertsLayer.clearLayers();
+            alerts.forEach(feature => {
+                if (!feature.geometry) return;
+                const p = feature.properties || {};
+                L.geoJSON(feature, {
+                    style: { color: usAlertColor(p.severity), weight: 2, fillColor: usAlertColor(p.severity), fillOpacity: .22 }
+                }).bindPopup(`<b>⚠️ ${p.event || 'Alerta NWS'}</b><br>${p.areaDesc || 'Estados Unidos'}<br>Severidad: ${p.severity || '—'}${feature.id ? `<br><a href="${feature.id}" target="_blank" rel="noopener">Aviso oficial NWS</a>` : ''}`).addTo(usAlertsLayer);
+            });
+        }
+
+        function centerUsAlertsView() {
+            const layers = usAlertsLayer.getLayers();
+            if (!layers.length) return setProgrammaticMapView([38, -97], 4);
+            const group = L.featureGroup(layers);
+            const bounds = group.getBounds();
+            if (bounds.isValid()) map.fitBounds(bounds.pad(.12), { animate:false, maxZoom:8 });
+            else setProgrammaticMapView([38, -97], 4);
+        }
+
+        async function loadUsAlerts() {
+            try {
+                const res = await fetch('https://api.weather.gov/alerts/active', { cache:'no-store', headers:{ Accept:'application/geo+json' } });
+                if (!res.ok) throw new Error('NWS no respondió');
+                const data = await res.json();
+                usAlertsData = (Array.isArray(data.features) ? data.features : []).filter(isTropicalUsAlert);
+                setApiState('nws', 'ok', usAlertsData.length);
+                // Orden estable: una alerta existente puede cambiar de posición
+                // en el feed sin que eso cuente como una actualización nueva.
+                const signature = usAlertsData.map(f => `${f.id || ''}:${f.properties?.sent || ''}:${f.properties?.status || ''}:${f.properties?.expires || ''}`).sort().join('|');
+                const updateDetected = usAlertsInitialized && signature !== usAlertsSignature && usAlertsData.length;
+                if (updateDetected) {
+                    const updated = usAlertsData[0];
+                    playUiSound('alert');
+                    speakAlert(`Nueva alerta meteorológica en Estados Unidos. ${updated.properties?.event || 'Alerta tropical'}. ${updated.properties?.areaDesc || ''}.`);
+                    showRegionToast(`⚠️ NWS: ${updated.properties?.event || 'Alerta actualizada'}`);
+                    usAlertsMode = true;
+                    hurricaneMode = false;
+                    taiwanMode = false;
+                    const layout = document.getElementById('mainLayout');
+                    layout.classList.remove('hurricane-focus', 'taiwan-focus');
+                    layout.classList.add('us-alerts-focus');
+                    document.getElementById('hurricanePanel').classList.remove('hurricane-active');
+                    document.getElementById('hurricaneTopbar').classList.remove('hurricane-top-active');
+                    hurricaneLayer.clearLayers();
+                    typhoonLayer.clearLayers();
+                    document.getElementById('usAlertsPanel').classList.add('us-alerts-active');
+                    document.getElementById('usAlertsTopbar').classList.add('us-alerts-top-active');
+                    clearMarkers();
+                    if (intensityZonesLayer) { map.removeLayer(intensityZonesLayer); intensityZonesLayer = null; }
+                    map.invalidateSize({ pan:false });
+                    renderUsAlertsMap(usAlertsData);
+                    centerUsAlertsView();
+                }
+                usAlertsSignature = signature;
+                usAlertsInitialized = true;
+                renderUsAlertsPanel(usAlertsData);
+                if (usAlertsMode && !updateDetected) renderUsAlertsMap(usAlertsData);
+            } catch (_) {
+                setApiState('nws', 'bad');
+                const status = document.getElementById('usAlertsStatus');
+                if (status) { status.textContent = '● Sin conexión'; status.style.color = '#ff6b6b'; }
+            }
         }
 
         function centerTaiwanView() {
@@ -2475,6 +2841,7 @@
             return Date.parse(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}+09:00`);
         }
 
+        let kmaLastGoodEvents = [];
         async function fetchKMA() {
             try {
                 const markdown = await fetchOfficialMarkdown('https://www.weather.go.kr/neng/earthquake/earthquake-korea.do', 'http');
@@ -2504,9 +2871,11 @@
                 if (!list.length) throw new Error('KMA devolvió una lista vacía');
                 apiMetrics.kma = apiMetrics.kma || {};
                 apiMetrics.kma.latestEventTs = Math.max(...list.map(ev => parseTs(ev.ts)));
+                kmaLastGoodEvents = list;
                 setApiState('kma', 'ok');
                 return list;
             } catch (e) {
+                if (kmaLastGoodEvents.length) { setApiState('kma', 'cached'); return kmaLastGoodEvents.map(ev => ({ ...ev })); }
                 setApiState('kma', 'bad');
                 return [];
             }
@@ -2523,6 +2892,7 @@
             return Date.parse(`${m[3]}-${String(months[m[2].toLowerCase()]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}T${String(hour).padStart(2,'0')}:${m[5]}:00+08:00`);
         }
 
+        let phivolcsLastGoodEvents = [];
         async function fetchPHIVOLCS() {
             try {
                 const markdown = await fetchOfficialMarkdown('https://earthquake.phivolcs.dost.gov.ph/');
@@ -2552,9 +2922,11 @@
                 if (!list.length) throw new Error('PHIVOLCS devolvió una lista vacía');
                 apiMetrics.phivolcs = apiMetrics.phivolcs || {};
                 apiMetrics.phivolcs.latestEventTs = Math.max(...list.map(ev => parseTs(ev.ts)));
+                phivolcsLastGoodEvents = list;
                 setApiState('phivolcs', 'ok');
                 return list;
             } catch (e) {
+                if (phivolcsLastGoodEvents.length) { setApiState('phivolcs', 'cached'); return phivolcsLastGoodEvents.map(ev => ({ ...ev })); }
                 setApiState('phivolcs', 'bad');
                 return [];
             }
@@ -2846,6 +3218,7 @@
         // SED (Servicio Sismológico Suizo): catálogo oficial FDSN.
         // El servicio devuelve texto delimitado por | y puede incluir explosiones
         // de cantera; solo se conservan eventos cuyo tipo sea un terremoto.
+        let sedLastGoodEvents = [];
         async function fetchSED() {
             try {
                 const end = new Date();
@@ -2880,15 +3253,19 @@
                         time: formatTime(ts),
                         mag: 'M' + mag.toFixed(1),
                         depth: Number.isFinite(depth) ? depth.toFixed(0) + ' km' : '—',
-                        agency: 'SED Suiza',
+                        agency: 'SED',
                         lat, lon,
                         colorClass: intensityClass(intensity),
                         ts
                     };
                 }).filter(Boolean);
+                sedLastGoodEvents = result;
                 setApiState('sed', 'ok');
                 return result;
-            } catch (e) { setApiState('sed', 'bad'); return []; }
+            } catch (e) {
+                if (sedLastGoodEvents.length) { setApiState('sed', 'cached'); return sedLastGoodEvents.map(ev => ({ ...ev })); }
+                setApiState('sed', 'bad'); return [];
+            }
         }
 
         async function fetchAFAD() {
@@ -3441,7 +3818,7 @@
             ['BMKG','bmkg'], ['GeoNet','geonet'], ['INGV','ingv'], ['Geoscience AU','ga'],
             ['JMA EEW','jmaEew'], ['FSSN','fssn'], ['SED','sed'],
             ['KMA','kma'], ['PHIVOLCS','phivolcs'],
-            ['Early-Est','earlyEst'], ['FAN Studio','typhoon']
+            ['Early-Est','earlyEst'], ['NOAA / NHC','nhc'], ['NWS','nws'], ['FAN Studio','typhoon']
         ];
 
         function ageLabel(timestamp) {
@@ -3569,7 +3946,7 @@
         }
 
         function renderEvents() {
-            if (weatherListMode || taiwanMode || typhoonMode) return;
+            if (weatherListMode || taiwanMode || typhoonMode || hurricaneMode || usAlertsMode) return;
             events.sort((a, b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0));
 
             const minMag = parseFloat(document.getElementById('filterMag').value) || 0;
@@ -3642,7 +4019,7 @@
 
         function selectEvent(id) {
             const ev = events.find(e => e.id === id);
-            if (!ev || taiwanMode || typhoonMode) return;
+            if (!ev || taiwanMode || typhoonMode || hurricaneMode || usAlertsMode) return;
 
             selectedEventId = id;
 
@@ -3743,7 +4120,7 @@
                     .sort((a, b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0))[0];
                 // Cuando llega un sismo más reciente, el mapa lo enfoca
                 // automáticamente sin esperar a que el usuario pulse Inicio.
-                if (!weatherListMode && !taiwanMode && !typhoonMode && latestNow && latestNow.id !== previousLatestId && latestNow.id !== lastAutoFocusedEventId) {
+                if (!weatherListMode && !taiwanMode && !typhoonMode && !hurricaneMode && !usAlertsMode && latestNow && latestNow.id !== previousLatestId && latestNow.id !== lastAutoFocusedEventId) {
                     lastAutoFocusedEventId = latestNow.id;
                     setTimeout(() => {
                         if (!weatherListMode) selectEvent(latestNow.id);
@@ -3772,6 +4149,10 @@
         setInterval(() => loadAll(false), 8000);
         loadTyphoons();
         setInterval(loadTyphoons, 5 * 60 * 1000);
+        loadHurricanes();
+        setInterval(loadHurricanes, 5 * 60 * 1000);
+        loadUsAlerts();
+        setInterval(loadUsAlerts, 2 * 60 * 1000);
 
         // Botones e Interacciones
         document.getElementById('btnHome').addEventListener('click', () => {
@@ -3783,6 +4164,16 @@
             if (typhoonMode) {
                 centerTyphoonView();
                 showRegionToast('🌀 Tifones fijados en el mapa');
+                return;
+            }
+            if (hurricaneMode) {
+                centerHurricaneView();
+                showRegionToast('🌀 Huracanes NOAA/NHC fijados en el mapa');
+                return;
+            }
+            if (usAlertsMode) {
+                centerUsAlertsView();
+                showRegionToast('⚠️ Alertas NWS fijadas en el mapa');
                 return;
             }
             if (events.length > 0) selectEvent(events[0].id);
@@ -3808,6 +4199,16 @@
             const panel = document.getElementById('typhoonPanel');
             const topbar = document.getElementById('typhoonTopbar');
             if (typhoonMode) {
+                usAlertsMode = false;
+                document.getElementById('mainLayout').classList.remove('us-alerts-focus');
+                document.getElementById('usAlertsPanel').classList.remove('us-alerts-active');
+                document.getElementById('usAlertsTopbar').classList.remove('us-alerts-top-active');
+                usAlertsLayer.clearLayers();
+                hurricaneMode = false;
+                document.getElementById('mainLayout').classList.remove('hurricane-focus');
+                document.getElementById('hurricanePanel').classList.remove('hurricane-active');
+                document.getElementById('hurricaneTopbar').classList.remove('hurricane-top-active');
+                hurricaneLayer.clearLayers();
                 clearMarkers();
                 if (intensityZonesLayer) {
                     map.removeLayer(intensityZonesLayer);
@@ -3835,6 +4236,85 @@
             if (typhoonMode) document.getElementById('btnTyphoon').click();
         });
 
+        document.getElementById('btnHurricanes').addEventListener('click', () => {
+            playUiSound('success');
+            hurricaneMode = !hurricaneMode;
+            const layout = document.getElementById('mainLayout');
+            const panel = document.getElementById('hurricanePanel');
+            const topbar = document.getElementById('hurricaneTopbar');
+            if (hurricaneMode) {
+                typhoonMode = false;
+                taiwanMode = false;
+                usAlertsMode = false;
+                layout.classList.remove('us-alerts-focus');
+                document.getElementById('usAlertsPanel').classList.remove('us-alerts-active');
+                document.getElementById('usAlertsTopbar').classList.remove('us-alerts-top-active');
+                usAlertsLayer.clearLayers();
+                layout.classList.remove('typhoon-focus', 'taiwan-focus');
+                layout.classList.add('hurricane-focus');
+                document.getElementById('typhoonPanel').classList.remove('typhoon-active');
+                document.getElementById('typhoonTopbar').classList.remove('typhoon-top-active');
+                panel.classList.add('hurricane-active');
+                topbar.classList.add('hurricane-top-active');
+                clearMarkers();
+                if (intensityZonesLayer) { map.removeLayer(intensityZonesLayer); intensityZonesLayer = null; }
+                map.invalidateSize({ pan:false });
+                renderHurricaneMap(hurricaneData);
+                centerHurricaneView();
+                showRegionToast('🌀 Alertas NOAA/NHC centradas en el mapa');
+            } else {
+                layout.classList.remove('hurricane-focus');
+                panel.classList.remove('hurricane-active');
+                topbar.classList.remove('hurricane-top-active');
+                hurricaneLayer.clearLayers();
+                if (events.length) selectEvent(events[0].id);
+                else setProgrammaticMapView([20, 140], 3);
+                showRegionToast('🌍 Vista global restaurada');
+            }
+        });
+
+        document.getElementById('btnHurricaneBack').addEventListener('click', () => {
+            if (hurricaneMode) document.getElementById('btnHurricanes').click();
+        });
+
+        document.getElementById('btnUsAlerts').addEventListener('click', () => {
+            playUiSound('success');
+            usAlertsMode = !usAlertsMode;
+            const layout = document.getElementById('mainLayout');
+            const panel = document.getElementById('usAlertsPanel');
+            const topbar = document.getElementById('usAlertsTopbar');
+            if (usAlertsMode) {
+                hurricaneMode = false;
+                taiwanMode = false;
+                layout.classList.remove('hurricane-focus', 'taiwan-focus');
+                layout.classList.add('us-alerts-focus');
+                document.getElementById('hurricanePanel').classList.remove('hurricane-active');
+                document.getElementById('hurricaneTopbar').classList.remove('hurricane-top-active');
+                hurricaneLayer.clearLayers();
+                typhoonLayer.clearLayers();
+                panel.classList.add('us-alerts-active');
+                topbar.classList.add('us-alerts-top-active');
+                clearMarkers();
+                if (intensityZonesLayer) { map.removeLayer(intensityZonesLayer); intensityZonesLayer = null; }
+                map.invalidateSize({ pan:false });
+                renderUsAlertsMap(usAlertsData);
+                centerUsAlertsView();
+                showRegionToast('⚠️ Alertas NWS de EE. UU. centradas en el mapa');
+            } else {
+                layout.classList.remove('us-alerts-focus');
+                panel.classList.remove('us-alerts-active');
+                topbar.classList.remove('us-alerts-top-active');
+                usAlertsLayer.clearLayers();
+                if (events.length) selectEvent(events[0].id);
+                else setProgrammaticMapView([20, 140], 3);
+                showRegionToast('🌍 Vista global restaurada');
+            }
+        });
+
+        document.getElementById('btnUsAlertsBack').addEventListener('click', () => {
+            if (usAlertsMode) document.getElementById('btnUsAlerts').click();
+        });
+
         document.getElementById('btnTaiwan').addEventListener('click', () => {
             playUiSound('success');
             taiwanMode = !taiwanMode;
@@ -3843,6 +4323,16 @@
             const info = document.getElementById('twShakeInfo');
             const weatherPanel = document.getElementById('weatherPanel');
             if (taiwanMode) {
+                hurricaneMode = false;
+                usAlertsMode = false;
+                layout.classList.remove('us-alerts-focus');
+                document.getElementById('usAlertsPanel').classList.remove('us-alerts-active');
+                document.getElementById('usAlertsTopbar').classList.remove('us-alerts-top-active');
+                usAlertsLayer.clearLayers();
+                layout.classList.remove('hurricane-focus');
+                document.getElementById('hurricanePanel').classList.remove('hurricane-active');
+                document.getElementById('hurricaneTopbar').classList.remove('hurricane-top-active');
+                hurricaneLayer.clearLayers();
                 clearMarkers();
                 if (intensityZonesLayer) {
                     map.removeLayer(intensityZonesLayer);
