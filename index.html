@@ -60,6 +60,7 @@
 
         /* Main layout */
         .main {
+            position: relative;
             display: flex;
             flex: 1;
             overflow: hidden;
@@ -206,11 +207,48 @@
         }
 
         /* Event list */
-        .event-list {
+        .event-list-with-trem {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            overflow: hidden;
+        }
+        .event-list-with-trem .event-list {
+            min-width: 0;
             flex: 1;
             overflow-y: auto;
             padding: 6px;
         }
+        .trem-side-panel {
+            position: absolute;
+            left: 340px;
+            top: 0;
+            z-index: 1000;
+            width: 94px;
+            height: auto;
+            background: transparent;
+            border: 0;
+            display: block;
+            overflow: visible;
+            pointer-events: none;
+        }
+        .trem-side-panel #tremMetricsPanel { pointer-events: auto; }
+        #tremMetricsPanel {
+            width: 82px;
+            margin: 10px 6px 10px 6px;
+            padding: 8px 6px;
+            box-sizing: border-box;
+            border: 1px solid #3d6478;
+            border-radius: 6px;
+            background: linear-gradient(180deg, #172c3c, #10212d);
+            color: #cfe9f5;
+            text-align: center;
+            font-size: 9px;
+        }
+        #tremMetricsPanel .trem-metric-label { color:#9cc8d8; margin-top:7px; line-height:1.1; }
+        #tremMetricsPanel .trem-metric-label:first-child { margin-top:0; }
+        #tremMetricsPanel .trem-metric-value { color:#fff; font-size:13px; font-weight:800; margin-top:2px; line-height:1.1; word-break:break-word; }
+        #tremMetricsPanel .trem-metric-unit { color:#8faeba; font-size:8px; }
 
         .event-item {
             display: flex;
@@ -350,7 +388,9 @@
         #mainLayout.taiwan-focus #connectionPanel,
         #mainLayout.taiwan-focus #intensityLegendPanel,
         #mainLayout.taiwan-focus #multiClockPanel { display:none !important; }
-        #mainLayout.taiwan-focus .map-container { width:100%; }
+        #mainLayout.taiwan-focus .map-container {
+            position:absolute; inset:0; width:100%; height:100%;
+        }
         #taiwanDetectorPanel.taiwan-focus-panel {
             display:flex;
             position:absolute; z-index:1100; left:12px; top:12px;
@@ -371,6 +411,15 @@
             font-size:15px; font-weight:800; line-height:1.3;
         }
         #mainLayout.taiwan-focus #btnTaiwan { border-color:#4bafd8 !important; color:#8bd8ff !important; }
+        #mainLayout.taiwan-focus .trem-side-panel {
+            display:block; position:absolute; z-index:1110; left:12px; top:116px;
+            width:104px; height:auto; padding:0; background:transparent;
+            border:0; overflow:visible;
+        }
+        #mainLayout.taiwan-focus #tremMetricsPanel {
+            width:104px; margin:0; border-color:#3f7d95;
+            background:linear-gradient(180deg,#173346,#10212d);
+        }
 
         /* Tifones FAN Studio */
         #typhoonPanel { display:none; }
@@ -385,6 +434,7 @@
         #typhoonPanel .typhoon-item { border-top:1px solid rgba(255,255,255,.14); padding:8px 0 2px; font-size:11px; line-height:1.35; }
         #typhoonPanel .typhoon-item strong { color:#ffd8a8; font-size:13px; }
         #mainLayout.typhoon-focus .left-panel,
+        #mainLayout.typhoon-focus .trem-side-panel,
         #mainLayout.typhoon-focus #connectionPanel,
         #mainLayout.typhoon-focus #intensityLegendPanel,
         #mainLayout.typhoon-focus #multiClockPanel,
@@ -721,6 +771,22 @@
             </div>
 
             <div class="event-list" id="eventList"></div>
+        </div>
+
+        <div class="trem-side-panel">
+            <div id="tremMetricsPanel" title="Máximos actuales de las estaciones TREM">
+                <div class="trem-metric-label">Máx. Int.</div>
+                <div class="trem-metric-value" id="tremMaxInt">0</div>
+                <div class="trem-metric-label">Máx. PGA</div>
+                <div class="trem-metric-value" id="tremMaxPga">—</div>
+                <div class="trem-metric-unit">gal</div>
+                <div class="trem-metric-label">PGV</div>
+                <div class="trem-metric-value" id="tremMaxPgv">—</div>
+                <div class="trem-metric-unit">cm/s</div>
+                <div class="trem-metric-label">PGD</div>
+                <div class="trem-metric-value" id="tremMaxPgd">—</div>
+                <div class="trem-metric-unit">cm</div>
+            </div>
         </div>
 
         <div class="map-container">
@@ -1693,33 +1759,43 @@
             } catch (e) { setApiState('trem','bad'); }
         }
 
+        let taiwanRtsBusy = false;
         async function updateTaiwanRTS() {
+            if (taiwanRtsBusy) return;
+            taiwanRtsBusy = true;
             try {
                 const res = await fetch('https://api.lb-tpe1.exptech.dev/api/v2/trem/rts');
                 const data = await res.json();
                 const stations = (data && data.station) ? data.station : {};
-                let activeCount = 0, maxInt = -1, maxPga = 0;
+                let activeCount = 0, maxInt = -1, maxPga = 0, maxPgv = 0;
 
                 Object.keys(taiwanStationMeta).forEach(id => {
                     const meta = taiwanStationMeta[id];
                     const rt = stations[id];
                     const I = rt ? (rt.I != null ? rt.I : rt.i) : -3;
-                    const pga = rt ? parseFloat(rt.pga || 0) : 0;
+                    const pga = rt ? parseFloat(rt.pga) : NaN;
+                    const pgv = rt ? parseFloat(rt.pgv) : NaN;
+                    const pgd = rt ? parseFloat(rt.pgd ?? rt.PGD) : NaN;
                     const numI = parseFloat(I);
 
-                    if (numI >= 1) {
-                        activeCount++;
-                        if (numI > maxInt) maxInt = numI;
-                        if (pga > maxPga) maxPga = pga;
-                    }
+                    if (Number.isFinite(numI) && numI > maxInt) maxInt = numI;
+                    if (numI >= 1) activeCount++;
+                    if (Number.isFinite(pga) && pga > maxPga) maxPga = pga;
+                    if (Number.isFinite(pgv) && pgv > maxPgv) maxPgv = pgv;
 
                     const color = colorByTaiwanI(I);
                     const radius = (numI >= 1) ? 7 : 4;
 
+                    const intensityText = Number.isFinite(numI) && numI >= 1 ? numI.toFixed(1) : '—';
+                    const pgaText = Number.isFinite(pga) ? `${pga.toFixed(2)} gal` : '—';
+                    const pgvText = Number.isFinite(pgv) ? `${pgv.toFixed(2)} cm/s` : '—';
+                    const pgdText = Number.isFinite(pgd) ? `${pgd.toFixed(2)} cm` : 'no disponible';
+                    const popup = `<b>🇹🇼 Estación TREM · ${id}</b><br>Intensidad: <b>${intensityText}</b><br>PGA: <b>${pgaText}</b><br>PGV: <b>${pgvText}</b><br>PGD: <b>${pgdText}</b><br><small>Actualización en vivo</small>`;
                     if (taiwanMarkers[id]) {
                         taiwanMarkers[id].setStyle({ fillColor: color, color: numI >= 1 ? '#ffffff' : color, radius: radius });
+                        taiwanMarkers[id].setPopupContent(popup);
                     } else {
-                        const m = L.circleMarker([meta.lat, meta.lon], { radius: radius, fillColor: color, color: '#111', weight: 1, opacity: 0.9, fillOpacity: 0.85 }).addTo(taiwanStationsLayer);
+                        const m = L.circleMarker([meta.lat, meta.lon], { radius: radius, fillColor: color, color: '#111', weight: 1, opacity: 0.9, fillOpacity: 0.85 }).bindPopup(popup).addTo(taiwanStationsLayer);
                         taiwanMarkers[id] = m;
                     }
                 });
@@ -1727,11 +1803,19 @@
                 const twPanel = document.getElementById('taiwanDetectorPanel');
                 const twInfo = document.getElementById('twShakeInfo');
                 const twDot = document.getElementById('twStatusDot');
+                const maxIntEl = document.getElementById('tremMaxInt');
+                const maxPgaEl = document.getElementById('tremMaxPga');
+                const maxPgvEl = document.getElementById('tremMaxPgv');
+                const maxPgdEl = document.getElementById('tremMaxPgd');
+                if (maxIntEl) maxIntEl.textContent = maxInt >= 0 ? maxInt.toFixed(1).replace('.0','') : '0';
+                if (maxPgaEl) maxPgaEl.textContent = maxPga > 0 ? maxPga.toFixed(2) : '—';
+                if (maxPgvEl) maxPgvEl.textContent = maxPgv > 0 ? maxPgv.toFixed(2) : '—';
+                if (maxPgdEl) maxPgdEl.textContent = '—';
 
                 if (activeCount >= 2) {
                     twPanel.classList.add('active-shake');
                     twDot.style.color = '#ff4d4d'; twDot.textContent = '● SACUDIDA';
-                    twInfo.innerHTML = `<strong>¡SACUDIDA DETECTADA!</strong><br>Estaciones activas: <b>${activeCount}</b><br>Intensidad máx: <b>${maxInt}</b> (PGA: ${maxPga.toFixed(1)} gal)`;
+                    twInfo.innerHTML = `<strong>¡SACUDIDA DETECTADA!</strong><br>Estaciones activas: <b>${activeCount}</b><br>Intensidad máx: <b>${maxInt}</b><br>PGA máx: <b>${maxPga.toFixed(1)} gal</b> · PGV máx: <b>${maxPgv.toFixed(2)} cm/s</b>`;
                     if (!isShakingActiveTW) {
                         isShakingActiveTW = true;
                         playBeep(1100, 'sawtooth', 0.2);
@@ -1742,12 +1826,14 @@
                     twDot.style.color = '#4caf50'; twDot.textContent = '● En Vivo';
                     twInfo.innerHTML = taiwanMode
                         ? '<strong>Sin Alertas Tempranas de Terremotos</strong>'
-                        : `Estaciones en reposo (${Object.keys(taiwanStationMeta).length} activas)`;
+                        : `Estaciones en reposo (${Object.keys(taiwanStationMeta).length}) · PGA máx: ${maxPga.toFixed(2)} gal · PGV máx: ${maxPgv.toFixed(2)} cm/s`;
                     isShakingActiveTW = false;
                 }
-            } catch (e) {}
+            } catch (e) {} finally {
+                taiwanRtsBusy = false;
+            }
         }
-        loadTaiwanStations(); setInterval(updateTaiwanRTS, 3000);
+        loadTaiwanStations(); setInterval(updateTaiwanRTS, 1000);
 
         let lastToastMessage = '';
         let lastToastAt = 0;
