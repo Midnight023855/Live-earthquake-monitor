@@ -1261,12 +1261,6 @@
                     white-space: nowrap;
                 ">🇹🇼 Taiwán</button>
 
-                <button id="btnWaveMode" title="Mostrar ondas sísmicas estimadas y epicentro JMA" style="
-                    background: rgba(20,20,20,0.9); border:1px solid #555; color:#eee;
-                    font-size:13px; height:32px; padding:0 10px; border-radius:5px;
-                    cursor:pointer; display:flex; align-items:center; justify-content:center;
-                    box-shadow:0 2px 8px rgba(0,0,0,.5); white-space:nowrap;
-                ">〰️ Ondas JMA</button>
             </div>
         </div>
     </div>
@@ -1912,6 +1906,28 @@
             const ev = getCurrentWaveEvent();
             if (ev) setProgrammaticMapView([ev.lat, ev.lon], 5);
             else setProgrammaticMapView([35, 140], 4);
+        }
+
+        function activateWaveMode(showToast = true) {
+            waveMode = true; hurricaneMode = false; usAlertsMode = false; tsunamiMode = false; typhoonMode = false; taiwanMode = false;
+            const layout = document.getElementById('mainLayout');
+            layout.classList.remove('taiwan-focus','hurricane-focus','us-alerts-focus','tsunami-focus','typhoon-focus');
+            layout.classList.add('wave-focus');
+            document.getElementById('hurricanePanel').classList.remove('hurricane-active');
+            document.getElementById('hurricaneTopbar').classList.remove('hurricane-top-active');
+            document.getElementById('usAlertsPanel').classList.remove('us-alerts-active');
+            document.getElementById('usAlertsTopbar').classList.remove('us-alerts-top-active');
+            document.getElementById('tsunamiPanel').classList.remove('tsunami-active');
+            document.getElementById('tsunamiTopbar').classList.remove('tsunami-top-active');
+            document.getElementById('typhoonPanel').classList.remove('typhoon-active');
+            document.getElementById('typhoonTopbar').classList.remove('typhoon-top-active');
+            document.getElementById('waveModePanel').classList.add('wave-active');
+            document.getElementById('waveTopbar').classList.add('wave-top-active');
+            hurricaneLayer.clearLayers(); usAlertsLayer.clearLayers(); tsunamiLayer.clearLayers(); typhoonLayer.clearLayers();
+            taiwanStationsLayer.clearLayers(); clearMarkers();
+            if (intensityZonesLayer) { map.removeLayer(intensityZonesLayer); intensityZonesLayer = null; }
+            map.invalidateSize({ pan:false }); startWaveAnimation(); centerWaveMode();
+            if (showToast) showRegionToast('〰️ Ondas JMA centradas en el epicentro');
         }
 
         function deactivateWaveMode() {
@@ -4089,10 +4105,17 @@
             if (!data || data.type === 'heartbeat') return;
             const newTs = parseJmaEewTime(data.AnnouncedTime);
             const oldTs = parseJmaEewTime(jmaEewData?.AnnouncedTime);
+            const oldReportKey = jmaEewData ? `${jmaEewData.EventID || ''}-${jmaEewData.Serial || ''}` : '';
+            const newReportKey = `${data.EventID || ''}-${data.Serial || ''}`;
+            const isNewReport = !!jmaEewData && newReportKey !== oldReportKey && newReportKey !== '-';
             if (fromSocket || !jmaEewFromSocket || newTs >= oldTs) {
                 jmaEewData = data;
                 jmaEewFromSocket = fromSocket;
                 renderJmaEew();
+                if (isNewReport && jmaEewIsFresh(data) && !data.isCancel) {
+                    activateWaveMode(false);
+                    scheduleReturnToLastQuake();
+                }
                 if (waveMode) { renderWaveMode(); centerWaveMode(); }
                 setApiState('jmaEew', jmaEewIsFresh(data) ? 'ok' : 'stale', 1);
                 if (fromSocket) announceJmaEew(data);
@@ -4788,42 +4811,11 @@
             if (tsunamiMode) document.getElementById('btnTsunami').click();
         });
 
-        document.getElementById('btnWaveMode').addEventListener('click', () => {
-            playUiSound('success');
-            waveMode = !waveMode;
-            const layout = document.getElementById('mainLayout');
-            const panel = document.getElementById('waveModePanel');
-            const topbar = document.getElementById('waveTopbar');
-            if (waveMode) {
-                taiwanMode = false; hurricaneMode = false; usAlertsMode = false; tsunamiMode = false; typhoonMode = false;
-                layout.classList.remove('taiwan-focus','hurricane-focus','us-alerts-focus','tsunami-focus','typhoon-focus');
-                layout.classList.add('wave-focus');
-                document.getElementById('hurricanePanel').classList.remove('hurricane-active');
-                document.getElementById('hurricaneTopbar').classList.remove('hurricane-top-active');
-                document.getElementById('usAlertsPanel').classList.remove('us-alerts-active');
-                document.getElementById('usAlertsTopbar').classList.remove('us-alerts-top-active');
-                document.getElementById('tsunamiPanel').classList.remove('tsunami-active');
-                document.getElementById('tsunamiTopbar').classList.remove('tsunami-top-active');
-                document.getElementById('typhoonPanel').classList.remove('typhoon-active');
-                document.getElementById('typhoonTopbar').classList.remove('typhoon-top-active');
-                panel.classList.add('wave-active'); topbar.classList.add('wave-top-active');
-                hurricaneLayer.clearLayers(); usAlertsLayer.clearLayers(); tsunamiLayer.clearLayers(); typhoonLayer.clearLayers();
-                taiwanStationsLayer.clearLayers();
-                clearMarkers();
-                if (intensityZonesLayer) { map.removeLayer(intensityZonesLayer); intensityZonesLayer = null; }
-                map.invalidateSize({ pan:false }); startWaveAnimation(); centerWaveMode();
-                showRegionToast('〰️ Ondas JMA centradas en el epicentro');
-            } else {
-                layout.classList.remove('wave-focus'); panel.classList.remove('wave-active'); topbar.classList.remove('wave-top-active');
-                stopWaveAnimation();
-                taiwanStationsLayer.addTo(map);
-                if (events.length) selectEvent(events[0].id); else setProgrammaticMapView([20,140],3);
-                showRegionToast('🌍 Vista global restaurada');
-            }
-        });
-
         document.getElementById('btnWaveBack').addEventListener('click', () => {
-            if (waveMode) document.getElementById('btnWaveMode').click();
+            if (waveMode) {
+                deactivateWaveMode();
+                if (events.length) selectEvent(events[0].id); else setProgrammaticMapView([20, 140], 3);
+            }
         });
 
         document.getElementById('btnTaiwan').addEventListener('click', () => {
