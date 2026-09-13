@@ -2131,6 +2131,7 @@
         }
 
         function activateWaveMode(showToast = true) {
+            clearTimeout(autoSectionReturnTimer);
             waveMode = true; hurricaneMode = false; usAlertsMode = false; tsunamiMode = false; typhoonMode = false; taiwanMode = false;
             palertStationsLayer.remove();
             const layout = document.getElementById('mainLayout');
@@ -4593,7 +4594,6 @@
                 if (shouldShowWaves && waveReportKey && waveReportKey !== '-' && waveReportKey !== jmaEewLastWaveKey && (isNewReport || !waveMode)) {
                     jmaEewLastWaveKey = waveReportKey;
                     activateWaveMode(false);
-                    scheduleReturnToLastQuake();
                 }
                 if (waveMode) { renderWaveMode(); centerWaveMode(); }
                 setApiState('jmaEew', jmaEewIsFresh(data) ? 'ok' : 'stale', 1);
@@ -5009,7 +5009,7 @@
 
         const tickerItems = new Map();
         const tickerPriorityQueue = [];
-        const tickerCycle = ['weather', 'm5', 'tsunami', 'usalerts', 'volcano', 'random'];
+        const tickerCycle = ['weather', 'air', 'uv', 'transmi', 'mobility', 'water', 'emergency', 'airport', 'traffic', 'risk', 'power', 'm5', 'tsunami', 'usalerts', 'volcano', 'random'];
         let tickerCycleIndex = 0;
         let tickerCurrentKey = '';
         let tickerRunning = false;
@@ -5171,6 +5171,145 @@
             }
         }
 
+        async function readerText(url) {
+            const targets = [
+                'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
+                'https://r.jina.ai/http://' + url.replace(/^https?:\/\//, ''),
+                url
+            ];
+            for (const target of targets) {
+                try {
+                    const res = await fetch(target, { cache:'no-store' });
+                    if (res.ok) return res.text();
+                } catch (_) {}
+            }
+            throw new Error('reader');
+        }
+        function headlineMatches(text, pattern, max = 2) {
+            const lines = String(text || '').split(/\n|\r|•/).map(cleanTransmiText).filter(x => x.length >= 30 && x.length <= 300);
+            return [...new Set(lines.filter(x => pattern.test(x)))].slice(0, max);
+        }
+        async function updateTickerWater() {
+            try {
+                const text = await readerText('https://www.acueducto.com.co/wps/portal/EAB2/Home/atencion-al-usuario/programacion_cortes/cortes+de+la+semana');
+                const found = headlineMatches(text, /Fontib[oó]n|corte|suspensi[oó]n|mantenimiento/i, 3);
+                setTickerItem('water', 'Agua · Acueducto de Bogotá', found.length ? found.join('  |  ') : 'No se encontraron cortes de agua destacados para Fontibón.');
+            } catch (_) { setTickerItem('water', 'Agua · Acueducto de Bogotá', 'No se pudo consultar la programación oficial de cortes.'); }
+        }
+        async function updateTickerEmergencies() {
+            try {
+                const sources = ['https://www.bomberosbogota.gov.co/noticias', 'https://x.com/BomberosBogota'];
+                let text = '';
+                for (const source of sources) { try { text = await readerText(source); if (text) break; } catch (_) {} }
+                if (!text) throw new Error('bomberos');
+                const found = headlineMatches(text, /incendio|emergencia|rescate|sismo|explosi[oó]n|accidente/i, 2);
+                setTickerItem('emergency', 'Emergencias · Bomberos Bogotá', found.length ? found.join('  |  ') : 'Sin novedades destacadas de Bomberos Bogotá.');
+            } catch (_) { setTickerItem('emergency', 'Emergencias · Bomberos Bogotá', 'Fuente de Bomberos temporalmente no disponible; no se muestran datos inventados.'); }
+        }
+        async function updateTickerAirport() {
+            try {
+                const sections = [
+                    ['Salidas', 'https://eldorado.aero/vuelos/salidas'],
+                    ['Llegadas', 'https://eldorado.aero/vuelos/llegadas']
+                ];
+                const results = [];
+                for (const [label, url] of sections) {
+                    try {
+                        const text = await readerText(url);
+                        const found = headlineMatches(text, /retras|cancel|demor|salida|llegada|vuelo|operaci[oó]n/i, 2);
+                        results.push(`${label}: ${found.length ? found.join('  |  ') : 'sin novedades destacadas'}`);
+                    } catch (_) { results.push(`${label}: información temporalmente no disponible`); }
+                }
+                setTickerItem('airport', 'Aeropuerto El Dorado · Vuelos', results.join('  |  '));
+            } catch (_) { setTickerItem('airport', 'Aeropuerto El Dorado · Vuelos', 'No se pudo consultar el estado de salidas y llegadas.'); }
+        }
+        async function updateTickerTraffic() {
+            try {
+                const sources = ['https://www.movilidadbogota.gov.co/', 'https://x.com/BogotaTransito?lang=es'];
+                let text = '';
+                for (const source of sources) { try { text = await readerText(source); if (text) break; } catch (_) {} }
+                if (!text) throw new Error('traffic');
+                const found = headlineMatches(text, /accidente|siniestro|cierre|desv[ií]o|tr[aá]nsito|movilidad|vial/i, 2);
+                setTickerItem('traffic', 'Seguridad vial · Bogotá', found.length ? found.join('  |  ') : 'Sin novedades viales destacadas en la consulta oficial.');
+            } catch (_) { setTickerItem('traffic', 'Seguridad vial · Bogotá', 'Fuente vial temporalmente no disponible; no se muestran datos inventados.'); }
+        }
+
+        async function updateTickerAirQuality() {
+            try {
+                const url = 'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=4.6732943&longitude=-74.1447464&current=us_aqi,pm2_5,pm10&timezone=America%2FBogota';
+                const data = await (await fetch(url, { cache:'no-store' })).json();
+                const c = data.current || {};
+                const aqi = Number(c.us_aqi), pm25 = Number(c.pm2_5), pm10 = Number(c.pm10);
+                const label = !Number.isFinite(aqi) ? 'sin índice disponible' : aqi <= 50 ? 'buena' : aqi <= 100 ? 'moderada' : aqi <= 150 ? 'no saludable para grupos sensibles' : 'no saludable';
+                setTickerItem('air', 'Calidad del aire · Fontibón', `ICA: ${Number.isFinite(aqi) ? aqi : '—'} (${label}) · PM2.5: ${Number.isFinite(pm25) ? pm25.toFixed(1) : '—'} µg/m³ · PM10: ${Number.isFinite(pm10) ? pm10.toFixed(1) : '—'} µg/m³`);
+            } catch (_) { setTickerItem('air', 'Calidad del aire · Fontibón', 'No se pudo actualizar la calidad del aire.'); }
+        }
+
+        async function updateTickerUV() {
+            try {
+                const url = 'https://api.open-meteo.com/v1/forecast?latitude=4.6732943&longitude=-74.1447464&current=uv_index&timezone=America%2FBogota';
+                const data = await (await fetch(url, { cache:'no-store' })).json();
+                const uv = Number(data.current?.uv_index);
+                const label = !Number.isFinite(uv) ? 'sin dato' : uv < 3 ? 'bajo' : uv < 6 ? 'moderado' : uv < 8 ? 'alto' : uv < 11 ? 'muy alto' : 'extremo';
+                setTickerItem('uv', 'Índice UV · Fontibón', `UV: ${Number.isFinite(uv) ? uv.toFixed(1) : '—'} · Nivel ${label}`);
+            } catch (_) { setTickerItem('uv', 'Índice UV · Fontibón', 'No se pudo actualizar el índice UV.'); }
+        }
+
+        async function updateTickerRisk() {
+            try {
+                const res = await fetch('https://r.jina.ai/http://www.sab.gov.co/', { cache:'no-store' });
+                const text = await res.text();
+                const lines = text.split(/\n|\r|•/).map(cleanTransmiText).filter(x => x.length >= 30 && x.length <= 220);
+                const found = lines.filter(x => /alerta|lluvia|inundaci[oó]n|tormenta|riesgo/i.test(x)).slice(0, 2);
+                setTickerItem('risk', 'Alertas de lluvia · IDIGER/SAB', found.length ? found.join('  |  ') : 'Sin alerta de lluvia o inundación destacada en el Sistema de Alerta de Bogotá.');
+            } catch (_) { setTickerItem('risk', 'Alertas de lluvia · IDIGER/SAB', 'No se pudo consultar el Sistema de Alerta de Bogotá.'); }
+        }
+
+        async function updateTickerPower() {
+            try {
+                const text = (await readerText('https://www.enel.com.co/es/personas/mantenimientos-programados.html')).replace(/\s+/g, ' ');
+                const published = text.match(/Published Time:\s*([^M]+GMT)/i)?.[1]?.trim();
+                const local = text.match(/.{0,90}Fontib[oó]n.{0,150}/i)?.[0];
+                const detail = local ? local.trim() : `Enel publica la programación por localidad, zona o número de cliente${published ? ` · última actualización: ${published}` : ''}.`;
+                setTickerItem('power', 'Energía · Fontibón', detail);
+            } catch (_) {
+                setTickerItem('power', 'Energía · Fontibón', 'Enel no expone un listado general automático: los cortes se consultan por localidad, zona o número de cliente.');
+            }
+        }
+
+        let tickerTransmiLast = '';
+        function cleanTransmiText(value) {
+            let text = String(value || '');
+            try { text = new DOMParser().parseFromString(text, 'text/html').body.textContent || text; } catch (_) {}
+            return text.replace(/!\s*\[[^\]]*\]\([^)]*\)/g, '').replace(/\[[^\]]*\]\([^)]*\)/g, '').replace(/(?:https?:\/\/|blob:)[^\s)]+/gi, '').replace(/www\.\S+/gi, '').replace(/Ã¡/g, 'á').replace(/Ã©/g, 'é').replace(/Ã­/g, 'í').replace(/Ã³/g, 'ó').replace(/Ãº/g, 'ú').replace(/Ã±/g, 'ñ').replace(/Â/g, '').replace(/\s+/g, ' ').replace(/[�□]+/g, '').trim();
+        }
+        async function updateTickerTransmilenio() {
+            const officialUrl = 'https://www.transmilenio.gov.co/comunicaciones/noticias-de-transmilenio/boletines-informativos';
+            try {
+                const body = await readerText(officialUrl);
+                if (!body) throw new Error('transmilenio');
+                const raw = /<html|<body|<article/i.test(body)
+                    ? new DOMParser().parseFromString(body, 'text/html').body?.textContent || body
+                    : body;
+                const lines = raw.split(/\n|\r|•|·/).map(cleanTransmiText).filter(x => x.length >= 35 && x.length <= 260);
+                const headingLines = raw.split(/\n|\r/).filter(x => /##\s+/.test(x)).map(x => cleanTransmiText(x.split(/##\s+/)[1] || '').replace(/\s+(?:lunes|martes|miércoles|jueves|viernes|sábado|domingo)\s*,.*$/i, '')).filter(x => x.length >= 25 && x.length <= 260);
+                const candidates = headingLines.length ? headingLines : lines;
+                const noise = /última actualización|mostrando \d+ a \d+|páginas relacionadas|previous|next|^inicio$|^comunicaciones$|noticias de transmilenio/i;
+                const relevant = candidates.filter(x => !noise.test(x) && /cierre|cerrad|estaci[oó]n|desv[ií]o|operaci[oó]n|bloque|suspend|afect|troncal|TransMiCable|v[ií]a|TransMiZonal/i.test(x));
+                const selected = [...new Set((relevant.length ? relevant : candidates).filter(x => !noise.test(x) && !/boletines informativos|transmilenio s\.a\.?$/i.test(x)))].slice(0, 3);
+                if (!selected.length) {
+                    setTickerItem('transmi', 'TransMilenio · Movilidad Bogotá', 'No hay novedades operativas destacadas en el boletín oficial.');
+                    return;
+                }
+                const signature = selected.join('|');
+                const changed = !!tickerTransmiLast && tickerTransmiLast !== signature;
+                tickerTransmiLast = signature;
+                setTickerItem('transmi', 'TransMilenio · Movilidad Bogotá', selected.join('  |  '), changed);
+            } catch (_) {
+                setTickerItem('transmi', 'TransMilenio · Movilidad Bogotá', 'No se pudo consultar el boletín oficial en este momento.');
+            }
+        }
+
         async function updateTickerWeather() {
             try {
                 const url = 'https://api.open-meteo.com/v1/forecast?latitude=4.6732943&longitude=-74.1447464&current=temperature_2m,precipitation&hourly=precipitation_probability&forecast_days=1&timezone=America%2FBogota';
@@ -5205,16 +5344,44 @@
         }
 
         setTickerItem('weather', 'Clima · Fontibón, Bogotá', 'Consultando temperatura y probabilidad de lluvia…');
+        setTickerItem('air', 'Calidad del aire · Fontibón', 'Consultando calidad del aire…');
+        setTickerItem('water', 'Agua · Acueducto de Bogotá', 'Consultando cortes de agua…');
+        setTickerItem('emergency', 'Emergencias · Bomberos Bogotá', 'Consultando emergencias destacadas…');
+        setTickerItem('airport', 'Aeropuerto El Dorado · Salidas', 'Consultando estado de vuelos…');
+        setTickerItem('traffic', 'Seguridad vial · Bogotá', 'Consultando accidentes y cierres viales…');
+        setTickerItem('uv', 'Índice UV · Fontibón', 'Consultando índice UV…');
+        setTickerItem('transmi', 'TransMilenio · Movilidad Bogotá', 'Consultando novedades oficiales de estaciones y operación…');
+        setTickerItem('mobility', 'Movilidad vial · Bogotá', 'Consultando cierres y afectaciones viales…');
+        setTickerItem('risk', 'Alertas de lluvia · IDIGER/SAB', 'Consultando alertas de lluvia e inundación…');
+        setTickerItem('power', 'Energía · Fontibón', 'Consultando mantenimientos programados de Enel…');
         setTickerItem('m5', 'Último sismo M5.0 o superior', 'Consultando sismos de las últimas 24 horas…');
         setTickerItem('tsunami', 'Alertas de tsunami activas', 'Sin Alertas de Tsunami');
         setTickerItem('usalerts', 'Alertas meteorológicas de EE. UU.', 'Consultando alertas meteorológicas…');
         setTickerItem('volcano', 'Avisos volcánicos mundiales', 'Consultando avisos volcánicos…');
         setTickerItem('random', 'Dato aleatorio de Internet', 'Consultando un dato aleatorio…');
         updateTickerWeather();
+        updateTickerAirQuality();
+        updateTickerWater();
+        updateTickerEmergencies();
+        updateTickerAirport();
+        updateTickerTraffic();
+        updateTickerUV();
+        updateTickerTransmilenio();
+        updateTickerRisk();
+        updateTickerPower();
         updateTickerM5();
         updateTickerVolcanoes();
         updateTickerRandom();
         setInterval(updateTickerWeather, 10 * 60 * 1000);
+        setInterval(updateTickerAirQuality, 10 * 60 * 1000);
+        setInterval(updateTickerWater, 10 * 60 * 1000);
+        setInterval(updateTickerEmergencies, 5 * 60 * 1000);
+        setInterval(updateTickerAirport, 5 * 60 * 1000);
+        setInterval(updateTickerTraffic, 5 * 60 * 1000);
+        setInterval(updateTickerUV, 15 * 60 * 1000);
+        setInterval(updateTickerTransmilenio, 5 * 60 * 1000);
+        setInterval(updateTickerRisk, 5 * 60 * 1000);
+        setInterval(updateTickerPower, 10 * 60 * 1000);
         setInterval(updateTickerM5, 60 * 1000);
         setInterval(updateTickerVolcanoes, 10 * 60 * 1000);
         setInterval(updateTickerRandom, 15 * 60 * 1000);
