@@ -55,6 +55,35 @@
         body.compact-mode #regionSelect { display:none !important; }
         body.compact-mode #btnCompact { border-color:#4caf50 !important; color:#8cff9a !important; }
 
+        /* Botones meteorológicos agrupados junto a la barra informativa. */
+        #sectionButtonsToolbar {
+            position: fixed;
+            left: clamp(220px, 23vw, 350px);
+            bottom: 60px;
+            z-index: 5001;
+            display: flex;
+            gap: 5px;
+            max-width: calc(100vw - clamp(220px, 23vw, 350px) - 8px);
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 3px;
+            background: rgba(10,10,10,.78);
+            border: 1px solid rgba(120,160,180,.35);
+            border-radius: 7px;
+            scrollbar-width: thin;
+        }
+        #sectionButtonsToolbar { display:none !important; }
+        #btnKmoniStations { display:none !important; }
+        #btnHome, #mapStyleSelect, #btnTaiwan {
+            position: fixed !important;
+            bottom: 60px !important;
+            z-index: 5002 !important;
+        }
+        #btnHome { left: clamp(260px, 33vw, 370px) !important; }
+        #mapStyleSelect { display:none !important; }
+        #btnTaiwan { left: calc(clamp(260px, 33vw, 370px) + 42px) !important; }
+        #sectionButtonsToolbar button { flex: 0 0 auto; }
+
         /* Header */
         .header {
             background: #111;
@@ -84,6 +113,56 @@
             content: '●';
             margin-right: 4px;
             animation: pulse 1.5s infinite;
+        }
+
+        /* Barra informativa automática: cambia solo al terminar cada texto. */
+        #infoTickerPanel {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 10000 !important;
+            height: 52px;
+            padding: 5px 14px 6px;
+            background: linear-gradient(90deg, #111a24, #172534, #111a24);
+            border-bottom: 1px solid #29465b;
+            overflow: hidden;
+            color: #e9f7ff;
+        }
+        #infoTickerTitle {
+            height: 17px;
+            color: #8bd8ff;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #infoTickerViewport {
+            height: 23px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        #infoTickerText {
+            position: absolute;
+            left: 100%;
+            display: inline-block;
+            white-space: nowrap;
+            font-size: 14px;
+            color: #fff;
+            transform: translateX(0);
+        }
+        #infoTickerText.ticker-running {
+            animation: infoTickerMove var(--ticker-duration, 14s) linear 1;
+        }
+        /* Mantener visibles el reloj y la leyenda por encima de la barra. */
+        #multiClockPanel { bottom: 60px !important; }
+        #intensityLegendPanel { bottom: 150px !important; }
+        @keyframes infoTickerMove {
+            from { left: 100%; transform: translateX(0); }
+            to { left: 0; transform: translateX(calc(-1 * var(--ticker-text-width, 100px))); }
         }
 
         @keyframes pulse {
@@ -490,6 +569,8 @@
         }
         #waveModePanel .wave-title { display:flex; justify-content:space-between; gap:8px; color:#78e8ee; font-size:13px; font-weight:800; margin-bottom:8px; }
         #waveModePanel .wave-info { font-size:12px; line-height:1.45; }
+        .wave-front-label { background:rgba(8,18,28,.88); border:1px solid #54d9ff; color:#e9fbff; font-size:10px; font-weight:800; padding:2px 5px; border-radius:4px; box-shadow:0 0 8px rgba(84,217,255,.35); }
+        .wave-front-label::before { display:none; }
         #mainLayout.wave-focus .left-panel,
         #mainLayout.wave-focus .trem-side-panel,
         #mainLayout.wave-focus #connectionPanel,
@@ -690,11 +771,11 @@
         /* Cuadro de conexiones API */
         #connectionPanel {
             position:absolute; top:12px; right:12px; z-index:1001;
-            min-width:205px; max-width:260px; max-height:52vh;
+            min-width:190px; max-width:240px; max-height:35vh;
             overflow-y:auto; background:rgba(10,10,10,.90);
             border:1px solid rgba(255,255,255,.16); border-radius:7px;
-            padding:8px 10px; box-shadow:0 2px 10px rgba(0,0,0,.45);
-            font-size:11px; color:#ccc; backdrop-filter:blur(3px);
+            padding:6px 8px; box-shadow:0 2px 10px rgba(0,0,0,.45);
+            font-size:10px; color:#ccc; backdrop-filter:blur(3px);
         }
         #connectionPanel .conn-title {
             color:#eee; font-weight:700; margin-bottom:5px;
@@ -702,7 +783,7 @@
         }
         #connectionPanel .conn-row {
             display:flex; justify-content:space-between; align-items:center; gap:10px;
-            line-height:16px; white-space:nowrap; min-height:27px;
+            line-height:14px; white-space:nowrap; min-height:23px;
         }
         #connectionPanel .conn-right {
             display:flex; flex-direction:column; align-items:flex-end; line-height:13px;
@@ -713,6 +794,13 @@
         #connectionPanel .wait { color:#f0c84b; }
         #connectionPanel .cached { color:#f0c84b; }
         #connectionPanel .stale { color:#ff9f43; }
+        @media (max-width: 700px) {
+            #connectionPanel { top:8px; right:8px; min-width:175px; max-width:210px; max-height:30vh; padding:5px 6px; font-size:9px; }
+            #connectionPanel .conn-title { margin-bottom:3px; padding-bottom:3px; }
+            #connectionPanel .conn-row { gap:5px; line-height:11px; min-height:18px; }
+            #connectionPanel .conn-right { line-height:10px; }
+            #connectionPanel .conn-right small { font-size:8px; }
+        }
 
         /* KMONI: mapa oficial de movimiento fuerte de Japón */
         .kmoni-station-icon {
@@ -853,7 +941,6 @@
         #jmaEewPanel .eew-message { line-height:15px; }
         #jmaEewPanel .eew-muted { color:#999; }
         @media (max-width: 700px) { #jmaEewPanel { top:112px; left:8px; width:205px; } }
-
         /* Multi-time clock widget */
         #multiClockPanel {
             position: absolute; bottom: 16px; right: 12px; z-index: 1000;
@@ -864,6 +951,23 @@
         }
         #multiClockPanel div { display: flex; justify-content: space-between; gap: 12px; }
         #multiClockPanel span.val { color: #4a9eff; font-weight: bold; }
+        /* La barra inferior no debe tapar la hora ni la leyenda. */
+        #multiClockPanel {
+            position: fixed !important;
+            right: 12px !important;
+            bottom: 60px !important;
+            z-index: 9000 !important;
+        }
+        #intensityLegendPanel {
+            position: fixed !important;
+            right: 12px !important;
+            bottom: 150px !important;
+            z-index: 9000 !important;
+            transform: none !important;
+        }
+        /* Estos dos widgets deben seguir visibles aunque esté activo el modo compacto. */
+        body.compact-mode #multiClockPanel { display: flex !important; }
+        body.compact-mode #intensityLegendPanel { display: block !important; }
 
         /* Widget de Detección de Movimiento de Taiwán */
         #taiwanDetectorPanel {
@@ -940,6 +1044,13 @@
         </div>
     </div>
 
+    <div id="infoTickerPanel" aria-live="polite">
+        <div id="infoTickerTitle">Información automática</div>
+        <div id="infoTickerViewport">
+            <div id="infoTickerText">Preparando información…</div>
+        </div>
+    </div>
+
     <div class="main" id="mainLayout">
         <div class="left-panel">
             <div class="current-event" id="currentEvent">
@@ -961,11 +1072,6 @@
                     </div>
                 </div>
                 <div id="tsunamiStatus" class="tsunami-status">🌊 Sin amenaza de tsunami reportada</div>
-            </div>
-
-            <div class="list-header">
-                <span>Eventos recientes (en vivo)</span>
-                <span style="font-size:11px;color:#888;">USGS · JMA · CENC · EMSC · GFZ · CSN · IG-EPN · SED · KMA · PHIVOLCS</span>
             </div>
 
             <div class="filter-bar">
@@ -1189,6 +1295,7 @@
                     <option value="satellite">🛰️ Satélite</option>
                     <option value="terrain">⛰️ Terreno</option>
                 </select>
+                <div id="sectionButtonsToolbar" aria-label="Secciones meteorológicas y tsunami">
                 <button id="btnTyphoon" title="Mostrar tifones activos y su trayectoria" style="
                     background: rgba(20,20,20,0.9);
                     border: 1px solid #555;
@@ -1252,6 +1359,7 @@
                     box-shadow: 0 2px 8px rgba(0,0,0,0.5);
                     white-space: nowrap;
                 ">🌊 Tsunami</button>
+                </div>
 
                 <button id="btnKmoniStations" title="Fijar el mapa en Japón y mostrar estaciones KMONI en vivo" style="
                     background: rgba(20,20,20,0.9);
@@ -1744,12 +1852,15 @@
         }
 
         function centerUsAlertsView() {
-            const layers = usAlertsLayer.getLayers();
-            if (!layers.length) return setProgrammaticMapView([38, -97], 4);
-            const group = L.featureGroup(layers);
-            const bounds = group.getBounds();
-            if (bounds.isValid()) map.fitBounds(bounds.pad(.12), { animate:false, maxZoom:8 });
-            else setProgrammaticMapView([38, -97], 4);
+            // No usamos los límites de todos los polígonos: Alaska, Hawái,
+            // Puerto Rico y territorios pueden alejar demasiado el mapa.
+            map.invalidateSize({ pan:false });
+            setProgrammaticMapView([39, -98], 4);
+            setTimeout(() => {
+                if (!usAlertsMode) return;
+                map.invalidateSize({ pan:false });
+                setProgrammaticMapView([39, -98], 4);
+            }, 250);
         }
 
         async function loadUsAlerts() {
@@ -1758,11 +1869,13 @@
                 if (!res.ok) throw new Error('NWS no respondió');
                 const data = await res.json();
                 usAlertsData = (Array.isArray(data.features) ? data.features : []).filter(isTropicalUsAlert);
+                updateTickerWithUsAlerts(usAlertsData, false);
                 setApiState('nws', 'ok', usAlertsData.length);
                 // Orden estable: una alerta existente puede cambiar de posición
                 // en el feed sin que eso cuente como una actualización nueva.
                 const signature = usAlertsData.map(f => `${f.id || ''}:${f.properties?.sent || ''}:${f.properties?.status || ''}:${f.properties?.expires || ''}`).sort().join('|');
                 const updateDetected = usAlertsInitialized && signature !== usAlertsSignature && usAlertsData.length;
+                updateTickerWithUsAlerts(usAlertsData, !!updateDetected);
                 if (updateDetected) {
                     const updated = usAlertsData[0];
                     playUiSound('alert');
@@ -1907,6 +2020,7 @@
                 setApiState('tsunami', 'ok', tsunamiData.length);
                 const signature = tsunamiData.map(x => `${x.id}:${x.sent}:${x.expires}:${x.event}`).sort().join('|');
                 const updateDetected = tsunamiInitialized && signature !== tsunamiSignature && tsunamiData.length;
+                updateTickerWithTsunami(tsunamiData, !!updateDetected);
                 if (updateDetected) {
                     const x = tsunamiData[0];
                     playUiSound('alert');
@@ -1946,7 +2060,7 @@
         function getCurrentWaveEvent() {
             const d = (typeof jmaEewData !== 'undefined') ? jmaEewData : null;
             if (d && Number.isFinite(Number(d.Latitude)) && Number.isFinite(Number(d.Longitude))) {
-                return { lat:Number(d.Latitude), lon:Number(d.Longitude), mag:d.Magnitude ?? d.Magunitude ?? '—', depth:d.Depth ?? '—', place:d.Hypocenter || 'Japón', time:d.OriginTime || d.AnnouncedTime || '', report:d.Serial || '—', status:d.isFinal ? 'Reporte final' : 'En vivo' };
+                return { lat:Number(d.Latitude), lon:Number(d.Longitude), mag:d.Magnitude ?? d.Magunitude ?? '—', depth:d.Depth ?? '—', place:d.Hypocenter || 'Japón', time:d.OriginTime || d.AnnouncedTime || '', report:d.Serial || '—', status:d.isFinal ? 'Reporte final' : 'En vivo', raw:d };
             }
             const fallback = [...events].filter(e => String(e.agency || '').toUpperCase().includes('JMA')).sort((a,b) => parseTs(b.ts) - parseTs(a.ts))[0];
             return fallback ? { lat:fallback.lat, lon:fallback.lon, mag:fallback.mag, depth:fallback.depth, place:fallback.place, time:fallback.time, report:'—', status:'Último reporte' } : null;
@@ -1966,9 +2080,14 @@
             }
             const origin = [ev.lat, ev.lon];
             const magText = String(ev.mag).replace(/^M/i, '');
-            const marker = L.circleMarker(origin, { radius:10, color:'#fff', weight:3, fillColor:'#ff3030', fillOpacity:1 }).addTo(waveLayer);
+            const marker = L.marker(origin, { icon: xIcon, zIndexOffset: 900 }).addTo(waveLayer);
             marker.bindPopup(`<b>Epicentro JMA</b><br>${ev.place}<br>Magnitud: M${magText}<br>Profundidad: ${ev.depth}`);
-            if (info) info.innerHTML = `<b>${ev.status}</b><br>Epicentro: ${ev.place}<br>Magnitud: <b>M${magText}</b> · Profundidad: <b>${String(ev.depth).replace(/\s*km$/i,'')} km</b><br>Reporte: <b>${ev.report}</b><br>Origen: ${ev.time || '—'}<br><small>Ondas de propagación estimadas · sin estaciones</small>`;
+            const warnAreas = Array.isArray(ev.raw?.WarnArea) ? ev.raw.WarnArea : [];
+            const arrivedAreas = warnAreas.filter(a => a && (a.Arrive === true || a.Arrive === 1 || String(a.Arrive).toLowerCase() === 'true'));
+            const arrivalText = arrivedAreas.length
+                ? `Ondas JMA reportadas en: <b>${arrivedAreas.map(a => a.Chiiki).filter(Boolean).slice(0, 4).join(', ')}</b>`
+                : 'JMA aún no reporta llegada de ondas en las áreas de aviso';
+            if (info) info.innerHTML = `<b>${ev.status}</b><br>Epicentro: ${ev.place}<br>Magnitud: <b>M${magText}</b> · Profundidad: <b>${String(ev.depth).replace(/\s*km$/i,'')} km</b><br>Reporte: <b>${ev.report}</b><br>Origen: ${ev.time || '—'}<br><span style="color:${arrivedAreas.length ? '#8dffae' : '#ffd27a'}">${arrivalText}</span><br><small>Fuente: Wolfx → JMA EEW · anillos de propagación estimados</small>`;
             if (status) { status.textContent = ev.status === 'En vivo' ? '● EN VIVO' : '● ACTUALIZADO'; status.style.color = ev.status === 'En vivo' ? '#ff6b6b' : '#8bd8ff'; }
             if (title) title.textContent = `Ondas JMA · ${ev.place}`;
         }
@@ -1977,15 +2096,22 @@
             if (!waveMode) return;
             const ev = getCurrentWaveEvent();
             if (!ev) { renderWaveMode(); return; }
-            const elapsed = Math.max(0, (Date.now() - (Date.parse(ev.time) || Date.now())) / 1000);
-            const phase = (elapsed * 6000) % 1800000;
+            const originTs = ev.raw ? parseJmaEewTime(ev.raw.OriginTime || ev.raw.AnnouncedTime) : parseTs(ev.time);
+            const elapsed = Math.max(0, (Date.now() - (originTs || Date.now())) / 1000);
+            const pRadius = elapsed * 6000; // frente P aproximado desde el reporte JMA
+            const sRadius = elapsed * 3500; // frente S aproximado desde el reporte JMA
             waveLayer.clearLayers();
             const magText = String(ev.mag).replace(/^M/i, '');
-            L.circleMarker([ev.lat, ev.lon], { radius:10, color:'#fff', weight:3, fillColor:'#ff3030', fillOpacity:1 }).bindPopup(`<b>Epicentro JMA</b><br>${ev.place}<br>Magnitud: M${magText}<br>Profundidad: ${ev.depth}`).addTo(waveLayer);
-            [phase, phase - 600000, phase - 1200000].forEach((radius, i) => {
-                if (radius < 0) return;
-                L.circle([ev.lat, ev.lon], { radius:Math.max(5000, radius), color:'#ff5c5c', weight:2, opacity:.85 - i*.2, fill:false, dashArray:'8 8' }).addTo(waveLayer);
-            });
+            const originPoint = [ev.lat, ev.lon];
+            L.marker(originPoint, { icon: xIcon, zIndexOffset: 900 }).bindPopup(`<b>Epicentro JMA</b><br>${ev.place}<br>Magnitud: M${magText}<br>Profundidad: ${ev.depth}`).addTo(waveLayer);
+            if (pRadius > 0) {
+                L.circle(originPoint, { radius:Math.max(5000, pRadius), color:'#54d9ff', weight:3, opacity:.95, fill:false, dashArray:'10 7' })
+                    .bindTooltip('Onda P · JMA/Wolfx', { permanent:true, direction:'center', className:'wave-front-label' }).addTo(waveLayer);
+            }
+            if (sRadius > 0) {
+                L.circle(originPoint, { radius:Math.max(5000, sRadius), color:'#ffb04a', weight:3, opacity:.95, fill:false, dashArray:'10 7' })
+                    .bindTooltip('Onda S · JMA/Wolfx', { permanent:true, direction:'center', className:'wave-front-label' }).addTo(waveLayer);
+            }
         }
 
         function startWaveAnimation() {
@@ -4395,6 +4521,7 @@
         let jmaEewSocket = null;
         let jmaEewReconnectTimer = null;
         let jmaEewLastAlertKey = '';
+        let jmaEewLastWaveKey = '';
 
         function parseJmaEewTime(value) {
             const text = String(value || '').trim();
@@ -4458,7 +4585,13 @@
                 jmaEewData = data;
                 jmaEewFromSocket = fromSocket;
                 renderJmaEew();
-                if (isNewReport && jmaEewIsFresh(data) && !data.isCancel) {
+                /* Wolfx recibe los reportes JMA por WebSocket; al llegar un reporte
+                   fresco con coordenadas, activar automáticamente las ondas estimadas. */
+                const hasEpicenter = Number.isFinite(Number(data.Latitude)) && Number.isFinite(Number(data.Longitude));
+                const shouldShowWaves = jmaEewIsFresh(data) && !data.isCancel && !data.isFinal && hasEpicenter;
+                const waveReportKey = newReportKey !== '-' ? newReportKey : `${data.EventID || ''}-${data.AnnouncedTime || ''}`;
+                if (shouldShowWaves && waveReportKey && waveReportKey !== '-' && waveReportKey !== jmaEewLastWaveKey && (isNewReport || !waveMode)) {
+                    jmaEewLastWaveKey = waveReportKey;
                     activateWaveMode(false);
                     scheduleReturnToLastQuake();
                 }
@@ -4867,10 +5000,224 @@
             currentMarker = L.marker([ev.lat, ev.lon], { icon: xIcon }).addTo(map);
             // Al seleccionar o recibir un sismo, no acercar más de lo necesario.
             // Se conserva un zoom alejado si el usuario ya estaba viendo el mundo.
-            setProgrammaticMapView([ev.lat, ev.lon], Math.min(map.getZoom(), 5));
+            // Desde la vista mundial, un zoom 2–3 deja el sismo demasiado lejos.
+            // Usar al menos nivel 5 mantiene el epicentro visible y legible.
+            setProgrammaticMapView([ev.lat, ev.lon], Math.max(map.getZoom(), 5));
 
             drawIntensityZones(ev);
         }
+
+        const tickerItems = new Map();
+        const tickerPriorityQueue = [];
+        const tickerCycle = ['weather', 'm5', 'tsunami', 'usalerts', 'volcano', 'random'];
+        let tickerCycleIndex = 0;
+        let tickerCurrentKey = '';
+        let tickerRunning = false;
+
+        function setTickerItem(key, title, text, priority = false) {
+            const item = { key, title: String(title || 'Información'), text: String(text || 'Sin información disponible.') };
+            tickerItems.set(key, item);
+            if (priority && !tickerPriorityQueue.includes(key)) tickerPriorityQueue.push(key);
+            if (!tickerRunning) showNextTickerItem();
+        }
+
+        function showNextTickerItem() {
+            const titleEl = document.getElementById('infoTickerTitle');
+            const textEl = document.getElementById('infoTickerText');
+            const viewport = document.getElementById('infoTickerViewport');
+            if (!titleEl || !textEl || !viewport) return;
+
+            let key = tickerPriorityQueue.shift();
+            if (!key || !tickerItems.has(key)) {
+                for (let i = 0; i < tickerCycle.length; i++) {
+                    const candidate = tickerCycle[tickerCycleIndex % tickerCycle.length];
+                    tickerCycleIndex++;
+                    if (tickerItems.has(candidate)) { key = candidate; break; }
+                }
+            }
+            if (!key || !tickerItems.has(key)) return;
+
+            const item = tickerItems.get(key);
+            tickerCurrentKey = key;
+            tickerRunning = true;
+            titleEl.textContent = item.title;
+            textEl.textContent = item.text;
+            textEl.classList.remove('ticker-running');
+            textEl.style.removeProperty('--ticker-duration');
+            textEl.style.removeProperty('--ticker-text-width');
+            textEl.style.left = '100%';
+            textEl.style.transform = 'translateX(0)';
+            void textEl.offsetWidth;
+
+            requestAnimationFrame(() => {
+                const textWidth = textEl.scrollWidth;
+                const distance = Math.max(viewport.clientWidth + textWidth, viewport.clientWidth * 2);
+                const duration = Math.max(4, Math.min(18, distance / 130));
+                textEl.style.setProperty('--ticker-text-width', `${textWidth}px`);
+                textEl.style.setProperty('--ticker-duration', `${duration}s`);
+                textEl.classList.add('ticker-running');
+            });
+
+            textEl.onanimationend = () => {
+                textEl.classList.remove('ticker-running');
+                setTimeout(showNextTickerItem, 250);
+            };
+        }
+
+        function updateTickerWithEvents(list) {
+            const now = Date.now();
+            const candidates = (list || [])
+                .filter(ev => Number(parseFloat(String(ev.mag || '').replace(/[^\d.]/g, ''))) >= 5)
+                .filter(ev => { const ts = parseTs(ev.ts); return ts > 0 && now - ts <= 24 * 60 * 60 * 1000; })
+                .sort((a, b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0));
+            const ev = candidates[0];
+            if (!ev) {
+                setTickerItem('m5', 'Último sismo M5.0 o superior', 'No se ha encontrado un sismo M5.0 o superior en las últimas 24 horas.');
+                return;
+            }
+            setTickerItem('m5', 'Último sismo M5.0 o superior', `${ev.mag} · ${ev.place || 'ubicación no disponible'} · ${ev.time || 'hora no disponible'} · ${ev.agency || 'fuente no disponible'}`);
+        }
+
+        let tickerM5LastId = '';
+        async function updateTickerM5() {
+            try {
+                const res = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson', { cache:'no-store' });
+                if (!res.ok) throw new Error('USGS');
+                const data = await res.json();
+                const now = Date.now();
+                const candidates = (data.features || [])
+                    .map(f => {
+                        const p = f.properties || {};
+                        const c = f.geometry?.coordinates || [];
+                        return {
+                            id: f.id || `${p.time}-${p.place}`,
+                            mag: Number(p.mag),
+                            place: p.place || 'Ubicación no disponible',
+                            ts: Number(p.time),
+                            lat: Number(c[1]),
+                            lon: Number(c[0])
+                        };
+                    })
+                    .filter(ev => Number.isFinite(ev.mag) && ev.mag >= 5 && ev.ts > now - 24 * 60 * 60 * 1000 && ev.ts <= now + 120000)
+                    .sort((a, b) => b.ts - a.ts);
+                const ev = candidates[0];
+                if (!ev) {
+                    setTickerItem('m5', 'Último sismo M5.0 o superior', 'No se ha encontrado un sismo M5.0 o superior en las últimas 24 horas.');
+                    return;
+                }
+                const changed = tickerM5LastId && tickerM5LastId !== ev.id;
+                tickerM5LastId = ev.id;
+                const time = new Date(ev.ts).toLocaleString('es-CO', { dateStyle:'short', timeStyle:'short' });
+                setTickerItem('m5', 'Último sismo M5.0 o superior', `M${ev.mag.toFixed(1)} · ${ev.place} · ${time}`, changed);
+            } catch (_) {
+                setTickerItem('m5', 'Último sismo M5.0 o superior', 'No se pudo consultar USGS en este momento.');
+            }
+        }
+
+        function updateTickerWithUsAlerts(alerts, priority = false) {
+            const list = Array.isArray(alerts) ? alerts : [];
+            if (!list.length) {
+                setTickerItem('usalerts', 'Alertas meteorológicas de EE. UU.', 'No hay alertas meteorológicas activas reportadas por el NWS.', priority);
+                return;
+            }
+            const text = list.slice(0, 3).map(f => {
+                const p = f.properties || {};
+                return `${p.event || 'Alerta meteorológica'} · ${p.areaDesc || 'Estados Unidos'} · ${p.severity || 'sin severidad'}`;
+            }).join('  |  ');
+            setTickerItem('usalerts', 'Alertas meteorológicas de EE. UU.', text, priority);
+        }
+
+        function updateTickerWithTsunami(items, priority = false) {
+            const list = Array.isArray(items) ? items : [];
+            if (!list.length) {
+                setTickerItem('tsunami', 'Alertas de tsunami activas', 'Sin Alertas de Tsunami', priority);
+                return;
+            }
+            const text = list.map(x => `${x.event || 'Alerta de tsunami'} · ${x.area || 'área no especificada'} · ${x.source || 'fuente oficial'}`).join('  |  ');
+            setTickerItem('tsunami', 'Alertas de tsunami activas', text, priority);
+        }
+
+        let tickerVolcanoLast = '';
+        function translateVolcanoTitle(title) {
+            return String(title || '')
+                .replace(/Volcanic Ash Advisory/gi, 'Aviso de ceniza volcánica')
+                .replace(/Volcanic activity/gi, 'Actividad volcánica')
+                .replace(/Volcanoes Today/gi, 'Volcanes de hoy')
+                .replace(/ash plume/gi, 'penacho de ceniza')
+                .replace(/as of/gi, 'al')
+                .replace(/worldwide/gi, 'mundial')
+                .replace(/Today/gi, 'hoy');
+        }
+
+        async function updateTickerVolcanoes() {
+            try {
+                const res = await fetch('https://www.volcanodiscovery.com/volcanoesandearthquakenews.rss', { cache:'no-store' });
+                if (!res.ok) throw new Error('volcano');
+                const xml = new DOMParser().parseFromString(await res.text(), 'application/xml');
+                const titles = [...xml.querySelectorAll('item > title')]
+                    .map(node => String(node.textContent || '').trim())
+                    .filter(title => /volcan|ash advisory|ceniza/i.test(title));
+                const unique = [...new Set(titles)].slice(0, 3);
+                if (!unique.length) {
+                    setTickerItem('volcano', 'Avisos volcánicos mundiales', 'Sin avisos volcánicos recientes.');
+                    return;
+                }
+                const signature = unique.join('|');
+                const changed = tickerVolcanoLast && tickerVolcanoLast !== signature;
+                tickerVolcanoLast = signature;
+                setTickerItem('volcano', 'Avisos volcánicos mundiales', unique.map(translateVolcanoTitle).join('  |  '), changed);
+            } catch (_) {
+                setTickerItem('volcano', 'Avisos volcánicos mundiales', 'No se pudieron consultar los avisos volcánicos ahora.');
+            }
+        }
+
+        async function updateTickerWeather() {
+            try {
+                const url = 'https://api.open-meteo.com/v1/forecast?latitude=4.6732943&longitude=-74.1447464&current=temperature_2m,precipitation&hourly=precipitation_probability&forecast_days=1&timezone=America%2FBogota';
+                const res = await fetch(url, { cache:'no-store' });
+                if (!res.ok) throw new Error('weather');
+                const data = await res.json();
+                const current = data.current || {};
+                const times = data.hourly?.time || [];
+                const probs = data.hourly?.precipitation_probability || [];
+                const currentTs = Date.parse(String(current.time || '').replace(' ', 'T'));
+                let idx = 0, best = Infinity;
+                times.forEach((t, i) => { const d = Math.abs(Date.parse(String(t).replace(' ', 'T')) - currentTs); if (d < best) { best = d; idx = i; } });
+                const temp = Number(current.temperature_2m);
+                const rain = Number(probs[idx]);
+                const nextRain = Number(probs[Math.min(idx + 1, probs.length - 1)]);
+                setTickerItem('weather', 'Clima · Fontibón, Bogotá', `Temperatura: ${Number.isFinite(temp) ? temp.toFixed(1) + ' °C' : 'no disponible'} · Lluvia ahora: ${Number.isFinite(rain) ? rain + '%' : 'no disponible'} · Próxima hora: ${Number.isFinite(nextRain) ? nextRain + '%' : 'no disponible'}`, true);
+            } catch (_) {
+                setTickerItem('weather', 'Clima · Fontibón, Bogotá', 'No se pudo actualizar el clima en este momento.', true);
+            }
+        }
+
+        async function updateTickerRandom() {
+            try {
+                const res = await fetch('https://es.wikipedia.org/api/rest_v1/page/random/summary', { cache:'no-store' });
+                if (!res.ok) throw new Error('random');
+                const data = await res.json();
+                const extract = String(data.extract || data.description || '').replace(/\s+/g, ' ').trim();
+                setTickerItem('random', 'Dato aleatorio de Internet', `${data.title || 'Dato curioso'}: ${extract || 'Consulta una página aleatoria de Wikipedia en español.'}`);
+            } catch (_) {
+                setTickerItem('random', 'Dato aleatorio de Internet', 'No se pudo obtener un dato aleatorio en este momento.');
+            }
+        }
+
+        setTickerItem('weather', 'Clima · Fontibón, Bogotá', 'Consultando temperatura y probabilidad de lluvia…');
+        setTickerItem('m5', 'Último sismo M5.0 o superior', 'Consultando sismos de las últimas 24 horas…');
+        setTickerItem('tsunami', 'Alertas de tsunami activas', 'Sin Alertas de Tsunami');
+        setTickerItem('usalerts', 'Alertas meteorológicas de EE. UU.', 'Consultando alertas meteorológicas…');
+        setTickerItem('volcano', 'Avisos volcánicos mundiales', 'Consultando avisos volcánicos…');
+        setTickerItem('random', 'Dato aleatorio de Internet', 'Consultando un dato aleatorio…');
+        updateTickerWeather();
+        updateTickerM5();
+        updateTickerVolcanoes();
+        updateTickerRandom();
+        setInterval(updateTickerWeather, 10 * 60 * 1000);
+        setInterval(updateTickerM5, 60 * 1000);
+        setInterval(updateTickerVolcanoes, 10 * 60 * 1000);
+        setInterval(updateTickerRandom, 15 * 60 * 1000);
 
         let allLoadBusy = false;
         async function loadAll(force = false) {
@@ -4944,6 +5291,7 @@
                     .sort((a, b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0))[0]?.id || null;
                 events = newEvents;
                 saveEventCache(events);
+                updateTickerWithEvents(events);
                 renderEvents();
                 renderHeatmap();
                 renderAlertCenter();
