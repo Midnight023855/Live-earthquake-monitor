@@ -82,6 +82,17 @@
         #btnHome { left: clamp(260px, 33vw, 370px) !important; }
         #mapStyleSelect { display:none !important; }
         #btnTaiwan { left: calc(clamp(260px, 33vw, 370px) + 42px) !important; }
+        /* En modos automáticos de alerta, estos dos botones no deben tapar la vista. */
+        #mainLayout.us-alerts-focus #btnHome,
+        #mainLayout.us-alerts-focus #btnTaiwan,
+        #mainLayout.hurricane-focus #btnHome,
+        #mainLayout.hurricane-focus #btnTaiwan,
+        #mainLayout.typhoon-focus #btnHome,
+        #mainLayout.typhoon-focus #btnTaiwan,
+        #mainLayout.tsunami-focus #btnHome,
+        #mainLayout.tsunami-focus #btnTaiwan,
+        #mainLayout.wave-focus #btnHome,
+        #mainLayout.wave-focus #btnTaiwan { display:none !important; }
         #sectionButtonsToolbar button { flex: 0 0 auto; }
 
         /* Header */
@@ -1439,7 +1450,10 @@
                 const cached = Array.isArray(parsed?.events) ? parsed.events : [];
                 events = cached
                     .map(ev => ({ ...ev, ts: parseTs(ev.ts) }))
-                    .filter(ev => ev.id && ev.ts > 0 && ev.ts <= now + 120000 && now - ev.ts <= MAX_EVENT_AGE_MS);
+                    .filter(ev => {
+                        const mag = Number.parseFloat(String(ev.mag || '').replace(/[^\d.]/g, ''));
+                        return ev.id && ev.ts > 0 && ev.ts <= now + 120000 && now - ev.ts <= MAX_EVENT_AGE_MS && (!Number.isFinite(mag) || mag < 9.8);
+                    });
                 events.forEach(ev => {
                     alertedEventIds.add(ev.id);
                     alertedEventKeys.add(eventAlertKey(ev));
@@ -4302,7 +4316,7 @@
                         // Solo aceptar magnitudes plausibles (M2+). Así no se
                         // confunden el error horizontal, la profundidad o T50Ex
                         // con la magnitud cuando Early-Est aún no la calculó.
-                        const magCandidates = boldNums.filter(n => n >= 2 && n <= 10);
+                        const magCandidates = boldNums.filter(n => n >= 2 && n < 9.8);
                         const mag = magCandidates[magCandidates.length - 1];
                         if (!ts || !Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(mag)) continue;
                         list.push({
@@ -5009,7 +5023,7 @@
 
         const tickerItems = new Map();
         const tickerPriorityQueue = [];
-        const tickerCycle = ['weather', 'air', 'uv', 'transmi', 'mobility', 'water', 'emergency', 'airport', 'traffic', 'risk', 'power', 'm5', 'tsunami', 'usalerts', 'volcano', 'random'];
+        const tickerCycle = ['weather', 'usalerts', 'tsunami', 'transmi', 'mobility', 'water', 'emergency', 'airport', 'traffic', 'risk', 'power', 'air', 'uv', 'm5', 'volcano', 'random'];
         let tickerCycleIndex = 0;
         let tickerCurrentKey = '';
         let tickerRunning = false;
@@ -5171,16 +5185,35 @@
             }
         }
 
+        const BOGOTA_ALERTS_WORKER = 'https://alertasbogota.terremotis123.workers.dev';
         async function readerText(url) {
-            const targets = [
-                'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
-                'https://r.jina.ai/http://' + url.replace(/^https?:\/\//, ''),
-                url
+            const workerRoutes = [
+                ['transmilenio.gov.co/comunicaciones/noticias-de-transmilenio/boletines-informativos', 'transmilenio'],
+                ['acueducto.com.co/wps/portal/EAB2/Home/atencion-al-usuario/programacion_cortes', 'acueducto'],
+                ['bomberosbogota.gov.co/noticias', 'bomberos'],
+                ['movilidadbogota.gov.co', 'movilidad'],
+                ['enel.com.co/es/personas/mantenimientos-programados', 'enel'],
+                ['eldorado.aero/vuelos/salidas', 'eldorado_salidas'],
+                ['eldorado.aero/vuelos/llegadas', 'eldorado_llegadas']
             ];
+            const mapped = workerRoutes.find(([needle]) => url.includes(needle));
+            const freshUrl = url + (url.includes('?') ? '&' : '?') + '_=' + Date.now();
+            const targets = [];
+            if (mapped) targets.push({ url: `${BOGOTA_ALERTS_WORKER}/${mapped[1]}`, worker:true });
+            targets.push(
+                { url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent(freshUrl) },
+                { url: 'https://r.jina.ai/http://' + freshUrl.replace(/^https?:\/\//, '') },
+                { url: freshUrl }
+            );
             for (const target of targets) {
                 try {
-                    const res = await fetch(target, { cache:'no-store' });
-                    if (res.ok) return res.text();
+                    const res = await fetch(target.url, { cache:'no-store' });
+                    if (!res.ok) continue;
+                    if (target.worker) {
+                        const data = await res.json();
+                        return data.contenido || data.texto || '';
+                    }
+                    return await res.text();
                 } catch (_) {}
             }
             throw new Error('reader');
@@ -5257,8 +5290,7 @@
 
         async function updateTickerRisk() {
             try {
-                const res = await fetch('https://r.jina.ai/http://www.sab.gov.co/', { cache:'no-store' });
-                const text = await res.text();
+                const text = await readerText('https://www.sab.gov.co/');
                 const lines = text.split(/\n|\r|•/).map(cleanTransmiText).filter(x => x.length >= 30 && x.length <= 220);
                 const found = lines.filter(x => /alerta|lluvia|inundaci[oó]n|tormenta|riesgo/i.test(x)).slice(0, 2);
                 setTickerItem('risk', 'Alertas de lluvia · IDIGER/SAB', found.length ? found.join('  |  ') : 'Sin alerta de lluvia o inundación destacada en el Sistema de Alerta de Bogotá.');
@@ -5433,7 +5465,10 @@
                 // actual del navegador. Así no aparecen eventos históricos.
                 newEvents = newEvents
                     .map(ev => ({ ...ev, ts: parseTs(ev.ts) }))
-                    .filter(ev => ev.ts > 0 && ev.ts <= now + 120000 && (now - ev.ts) <= MAX_EVENT_AGE_MS);
+                    .filter(ev => {
+                        const mag = Number.parseFloat(String(ev.mag || '').replace(/[^\d.]/g, ''));
+                        return ev.ts > 0 && ev.ts <= now + 120000 && (now - ev.ts) <= MAX_EVENT_AGE_MS && (!Number.isFinite(mag) || mag < 9.8);
+                    });
 
                 // En la primera carga solo se inicializa el historial. Después,
                 // cada evento nuevo genera una alerta una sola vez, aunque su ID
