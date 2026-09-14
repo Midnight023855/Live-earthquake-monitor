@@ -2860,13 +2860,9 @@ global.TauPJS=api;
                 if (previous && Math.abs(previous.value - mag) >= 0.01) {
                     const noticeKey = `${key}|${previous.display}>${current.display}`;
                     if (!magnitudeRevisionSeen.has(noticeKey)) {
-                        ev.magnitudeRevision = `${previous.display} → ${current.display}`;
+                        // La revisión se conserva internamente para evitar duplicados,
+                        // pero no se muestra ni se anuncia en la interfaz por preferencia del usuario.
                         magnitudeRevisionSeen.add(noticeKey);
-                        setTickerItem('magnitude-revision', 'Revisión de magnitud', `${ev.agency || 'Agencia'} · ${ev.place || 'evento'} · ${ev.magnitudeRevision}`, true);
-                        if (hasCompletedInitialLoad) {
-                            playUiSound('alert');
-                            speakAlert(`Revisión de magnitud. ${ev.agency || 'Agencia'}. ${ev.magnitudeRevision}.`, 'quakes', 'es-US');
-                        }
                     }
                 }
                 magnitudeHistory.set(key, { value: mag, display: current.display });
@@ -5416,7 +5412,7 @@ global.TauPJS=api;
             return `<span class="report-confidence confidence-${c}">${c[0].toUpperCase()+c.slice(1)}</span>`;
         }
         function magnitudeRevisionHtml(ev) {
-            return ev?.magnitudeRevision ? `<span class="magnitude-revision">${ev.magnitudeRevision}</span>` : '';
+            return '';
         }
 
         function magToMMI(mag) {
