@@ -3548,6 +3548,27 @@ global.TauPJS=api;
 })(window);
     </script>
     <script>
+        // En páginas HTTPS las fuentes directas pueden ser bloqueadas por CORS.
+        // Enrutar las agencias permitidas por el proxy HTTPS propio.
+        const EQ_PROXY_URL = 'https://earthquakeproxy.terremotis123.workers.dev/?url=';
+        const EQ_PROXY_HOSTS = new Set([
+            'earthquake.usgs.gov','api.wolfx.jp','www.data.jma.go.jp',
+            'api.geonet.org.nz','webservices.ingv.it','geofon.gfz.de',
+            'api.p2pquake.net','data.bmkg.go.id','data.weather.gov.hk',
+            'earthquake.phivolcs.dost.gov.ph','api.fanstudio.tech',
+            'api.lb-tpe1.exptech.dev'
+        ]);
+        const eqNativeFetch = window.fetch.bind(window);
+        window.fetch = (input, init) => {
+            try {
+                const raw = typeof input === 'string' ? input : input?.url;
+                const target = new URL(raw, location.href);
+                if (target.protocol === 'https:' && EQ_PROXY_HOSTS.has(target.hostname) && target.hostname !== location.hostname) {
+                    return eqNativeFetch(EQ_PROXY_URL + encodeURIComponent(target.href), init);
+                }
+            } catch (_) {}
+            return eqNativeFetch(input, init);
+        };
         let events = [];
         let selectedEventId = null;
         let initialSelectionReady = false;
