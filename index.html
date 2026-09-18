@@ -6869,7 +6869,7 @@ global.TauPJS=api;
 
         async function fetchUSGS() {
             try {
-                const res = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson');
+                const res = await fetch('https://earthquakeproxy.terremotis123.workers.dev/?url=' + encodeURIComponent('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson'));
                 const data = await res.json();
                 setApiState('usgs','ok');
                 return (data.features || []).slice(0, 50).map((f, i) => {
@@ -12166,7 +12166,7 @@ window.addEventListener('load', () => {
   setTimeout(async () => {
     try {
       if (Array.isArray(events) && events.length === 0 && typeof fetchUSGS === 'function') {
-        const raw = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson', {cache:'no-store'});
+        const raw = await fetch('https://earthquakeproxy.terremotis123.workers.dev/?url=' + encodeURIComponent('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson'), {cache:'no-store'});
         const data = await raw.json();
         const basic = (data.features || []).slice(0, 50).map((f, i) => {
           const p = f.properties || {}, c = f.geometry?.coordinates || [];
