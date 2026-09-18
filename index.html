@@ -12166,13 +12166,21 @@ window.addEventListener('load', () => {
   setTimeout(async () => {
     try {
       if (Array.isArray(events) && events.length === 0 && typeof fetchUSGS === 'function') {
-        const basic = await fetchUSGS();
-        if (Array.isArray(basic) && basic.length) {
+        const raw = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson', {cache:'no-store'});
+        const data = await raw.json();
+        const basic = (data.features || []).slice(0, 50).map((f, i) => {
+          const p = f.properties || {}, c = f.geometry?.coordinates || [];
+          const mag = Number.isFinite(Number(p.mag)) ? Number(p.mag) : 0;
+          return { id:'usgs-direct-'+(p.id || i), place:p.place || 'Desconocido', mag:magnitudeDisplay(mag), depth:(Number(c[2])||0).toFixed(0)+' km', agency:'USGS', lat:Number(c[1]), lon:Number(c[0]), ts:Number(p.time)||Date.now(), intensity:magToMMI(mag), colorClass:intensityClass(magToMMI(mag)), tsunami:Number(p.tsunami)===1 };
+        });
+        if (basic.length) {
           events = basic;
           hasCompletedInitialLoad = true;
           saveEventCache(events);
           renderEvents();
           renderHeatmap();
+          const loc = document.getElementById('bigLoc');
+          if (loc && /cargando/i.test(loc.textContent)) loc.textContent = basic[0].place;
         }
       }
     } catch (_) {}
