@@ -8473,10 +8473,12 @@ global.TauPJS=api;
         async function timedApi(key, request) {
             const started = performance.now();
             setApiState(key, 'updating');
-            const result = await request;
+            const deadline = new Promise(resolve => setTimeout(() => resolve([]), 2600));
+            let result = [];
+            try { result = await Promise.race([request, deadline]); } catch (_) { result = []; }
             apiMetrics[key] = apiMetrics[key] || {};
             apiMetrics[key].latency = Math.round(performance.now() - started);
-            return result;
+            return Array.isArray(result) ? result : [];
         }
 
         apiNames.forEach(([,key]) => setApiState(key,'wait'));
