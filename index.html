@@ -3509,6 +3509,26 @@ global.TauPJS=api;
 })(window);
     </script>
     <script>
+        // Proxy HTTPS para las agencias que bloquean consultas desde GitHub Pages.
+        const EQ_PROXY_URL = 'https://earthquakeproxy.terremotis123.workers.dev/?url=';
+        const EQ_PROXY_HOSTS = new Set([
+            'earthquake.usgs.gov','api.wolfx.jp','www.data.jma.go.jp',
+            'api.geonet.org.nz','webservices.ingv.it','geofon.gfz.de',
+            'api.p2pquake.net','data.bmkg.go.id','data.weather.gov.hk',
+            'earthquake.phivolcs.dost.gov.ph','api.fanstudio.tech',
+            'api.lb-tpe1.exptech.dev'
+        ]);
+        const eqNativeFetch = window.fetch.bind(window);
+        window.fetch = (input, init) => {
+            try {
+                const raw = typeof input === 'string' ? input : input?.url;
+                const target = new URL(raw, location.href);
+                if (target.protocol === 'https:' && EQ_PROXY_HOSTS.has(target.hostname) && target.hostname !== location.hostname) {
+                    return eqNativeFetch(EQ_PROXY_URL + encodeURIComponent(target.href), init);
+                }
+            } catch (_) {}
+            return eqNativeFetch(input, init);
+        };
         let events = [];
         let selectedEventId = null;
         const EVENT_CACHE_KEY = 'zapia-monitor-earthquakes-v1';
@@ -9622,8 +9642,8 @@ global.TauPJS=api;
         const JMA_WEATHER_SEVERITY_COLORS = {
             advisory: '#f0d000',
             warning: '#ff9800',
-            severe: '#ff5722',
-            special: '#d50000'
+            severe: '#ff00a8',
+            special: '#c000ff'
         };
         const JMA_WEATHER_SEVERITY_LABELS = { advisory:'Aviso', warning:'Alerta', severe:'Alerta (nivel alto)', special:'Alerta especial' };
 
