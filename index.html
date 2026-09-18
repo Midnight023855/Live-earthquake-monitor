@@ -7941,10 +7941,14 @@ global.TauPJS=api;
                 return (d.features||[]).map(f => {
                     const p = f.properties || {}, g = f.geometry?.coordinates || [0,0,0];
                     const mag = Number(p.mag || 0);
+                    // INGV entrega UTC sin sufijo; sin la Z el navegador lo interpreta como hora local y parece que el sismo ocurre en el futuro.
+                    const rawTime = String(p.time || '').trim();
+                    const utcTime = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(rawTime) ? rawTime : rawTime + 'Z';
+                    const ts = Date.parse(utcTime);
                     return {
                         id:'ingv-'+(f.id || `${p.time}-${g[0]}-${g[1]}-${mag}`), intensity:magToMMI(mag), place:p.flynn_region || p.place || 'Italia',
-                        time:formatTime(p.time), mag:magnitudeDisplay(mag), depth:Math.abs(g[2]||0).toFixed(0)+' km',
-                        agency:'INGV', lat:g[1]||0, lon:g[0]||0, colorClass:intensityClass(magToMMI(mag)), ts:new Date(p.time).getTime()||Date.now()
+                        time:formatTime(new Date(ts).toISOString()), mag:magnitudeDisplay(mag), depth:Math.abs(g[2]||0).toFixed(0)+' km',
+                        agency:'INGV', lat:g[1]||0, lon:g[0]||0, colorClass:intensityClass(magToMMI(mag)), ts:Number.isFinite(ts) ? ts : 0
                     };
                 });
             } catch(e) { setApiState('ingv','bad'); return []; }
@@ -9711,12 +9715,18 @@ global.TauPJS=api;
             if (!m) return { phenomenon: name || '—', type: '' };
             return { phenomenon: m[1] || name, type: m[2] };
         }
-        function jmaWeatherSeverityFor(kinds) {
+        function jmaWeatherSeverityFor(kinds, headline = '') {
             let best = null;
+            const classify = type => type === '特別警報' ? 'special' : type === '危険警報' ? 'severe' : type === '警報' ? 'warning' : type === '注意報' ? 'advisory' : null;
             for (const k of kinds || []) {
                 const { type } = jmaWeatherSplitKind(k.name);
-                const sev = type === '特別警報' ? 'special' : type === '危険警報' ? 'severe' : type === '警報' ? 'warning' : type === '注意報' ? 'advisory' : null;
+                const sev = classify(type);
                 if (sev && (!best || JMA_WEATHER_SEV_RANK[sev] > JMA_WEATHER_SEV_RANK[best])) best = sev;
+            }
+            // JMA puede poner 危険警報 en el titular aunque el Kind diga solo 警報.
+            const title = String(headline || '');
+            for (const type of ['特別警報','危険警報','警報','注意報']) {
+                if (title.includes(type)) { const sev = classify(type); if (!best || JMA_WEATHER_SEV_RANK[sev] > JMA_WEATHER_SEV_RANK[best]) best = sev; break; }
             }
             return best;
         }
@@ -9902,6 +9912,7 @@ global.TauPJS=api;
             const xml = new DOMParser().parseFromString(xmlText, 'application/xml');
             if (xml.querySelector('parsererror')) throw new Error('xml');
             const reportTime = xml.getElementsByTagName('ReportDateTime')[0]?.textContent || '';
+            const headline = [...xml.getElementsByTagName('Headline'), ...xml.getElementsByTagName('Title')].map(x => x.textContent || '').join(' ');
             let name = JMA_PREF_CODES[code] || code;
             const kinds = [];
             for (const warning of [...xml.getElementsByTagName('Warning')]) {
@@ -9919,7 +9930,7 @@ global.TauPJS=api;
                     }
                 }
             }
-            return { code, name, reportTime, kinds };
+            return { code, name, reportTime, headline, kinds };
         }
         function jmaWeatherEnsurePane() {
             if (!map || !map.createPane) return 'overlayPane';
@@ -10167,7 +10178,7 @@ global.TauPJS=api;
                 const newActive = {};
                 for (const res of results) {
                     if (!res || !res.kinds.length) continue;
-                    const severity = jmaWeatherSeverityFor(res.kinds);
+                    const severity = jmaWeatherSeverityFor(res.kinds, res.headline);
                     if (!severity) continue;
                     newActive[res.code] = { name: res.name, kinds: res.kinds, severity, reportTime: res.reportTime };
                 }
