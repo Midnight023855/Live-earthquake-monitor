@@ -9316,34 +9316,51 @@ global.TauPJS=api;
 
         let allLoadBusy = false;
         let lastEarthquakeTickerEventId = '';
+        function mergeAgencyWhileLoading(items) {
+            if (!Array.isArray(items) || !items.length) return;
+            const byId = new Map((Array.isArray(events) ? events : []).map(ev => [String(ev.id || ev.eventId), ev]));
+            for (const ev of items) {
+                if (!ev) continue;
+                const id = String(ev.id || ev.eventId || `${ev.agency || 'source'}-${ev.ts || ev.time || Math.random()}`);
+                byId.set(id, { ...(byId.get(id) || {}), ...ev, id });
+            }
+            events = [...byId.values()].sort((a,b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0)).slice(0, 300);
+            try { saveEventCache(events); renderEvents(); renderHeatmap(); renderConnectionPanel(); } catch (_) {}
+        }
+        function incrementalAgency(key, loader) {
+            return Promise.resolve().then(() => loader()).then(items => {
+                mergeAgencyWhileLoading(items);
+                return Array.isArray(items) ? items : [];
+            }).catch(() => []);
+        }
         async function loadAll(force = false) {
             if (allLoadBusy) return;
             allLoadBusy = true;
             const status = document.querySelector('.status');
             try {
                 const [usgs, jma, jmaXml, cenc, csn, igepn, isc, igp, emsc, gfz, breq, afad, bmkg, geonet, ingv, ssn, fssn, sed, phivolcs, cwa, earlyEst, hko] = await Promise.all([
-                    timedApi('usgs', fetchUSGS().catch(() => [])),
-                    timedApi('jma', fetchWolfxJMA().catch(() => [])),
-                    timedApi('jmaXml', fetchJmaOfficial().catch(() => [])),
-                    timedApi('cenc', fetchCENCReal().catch(() => [])),
-                    timedApi('csn', fetchCSN().catch(() => [])),
-                    timedApi('igepn', fetchIGEPN().catch(() => [])),
-                    timedApi('isc', fetchISC().catch(() => [])),
-                    timedApi('igp', fetchIGP().catch(() => [])),
-                    timedApi('emsc', fetchEMSC().catch(() => [])),
-                    timedApi('gfz', fetchGFZ().catch(() => [])),
-                    timedApi('breq', fetchBREQ().catch(() => [])),
-                    timedApi('afad', fetchAFAD().catch(() => [])),
-                    timedApi('bmkg', fetchBMKG().catch(() => [])),
-                    timedApi('geonet', fetchGeoNet().catch(() => [])),
-                    timedApi('ingv', fetchINGV().catch(() => [])),
-                    timedApi('ssn', fetchSSN().catch(() => [])),
-                    timedApi('fssn', fetchFSSN().catch(() => [])),
-                    timedApi('sed', fetchSED().catch(() => [])),
-                    timedApi('phivolcs', fetchPHIVOLCS().catch(() => [])),
-                    timedApi('cwa', fetchCWATaiwan().catch(() => [])),
-                    timedApi('earlyEst', fetchEarlyEst().catch(() => [])),
-                    timedApi('hko', fetchHKO().catch(() => []))
+                    timedApi('usgs', incrementalAgency('usgs', fetchUSGS)),
+                    timedApi('jma', incrementalAgency('jma', fetchWolfxJMA)),
+                    timedApi('jmaXml', incrementalAgency('jmaXml', fetchJmaOfficial)),
+                    timedApi('cenc', incrementalAgency('cenc', fetchCENCReal)),
+                    timedApi('csn', incrementalAgency('csn', fetchCSN)),
+                    timedApi('igepn', incrementalAgency('igepn', fetchIGEPN)),
+                    timedApi('isc', incrementalAgency('isc', fetchISC)),
+                    timedApi('igp', incrementalAgency('igp', fetchIGP)),
+                    timedApi('emsc', incrementalAgency('emsc', fetchEMSC)),
+                    timedApi('gfz', incrementalAgency('gfz', fetchGFZ)),
+                    timedApi('breq', incrementalAgency('breq', fetchBREQ)),
+                    timedApi('afad', incrementalAgency('afad', fetchAFAD)),
+                    timedApi('bmkg', incrementalAgency('bmkg', fetchBMKG)),
+                    timedApi('geonet', incrementalAgency('geonet', fetchGeoNet)),
+                    timedApi('ingv', incrementalAgency('ingv', fetchINGV)),
+                    timedApi('ssn', incrementalAgency('ssn', fetchSSN)),
+                    timedApi('fssn', incrementalAgency('fssn', fetchFSSN)),
+                    timedApi('sed', incrementalAgency('sed', fetchSED)),
+                    timedApi('phivolcs', incrementalAgency('phivolcs', fetchPHIVOLCS)),
+                    timedApi('cwa', incrementalAgency('cwa', fetchCWATaiwan)),
+                    timedApi('earlyEst', incrementalAgency('earlyEst', fetchEarlyEst)),
+                    timedApi('hko', incrementalAgency('hko', fetchHKO))
                 ]);
 
                 const sourceCounts = { usgs: usgs.length, jma: jma.length, jmaXml: jmaXml.length, cenc: cenc.length,
@@ -9448,7 +9465,14 @@ global.TauPJS=api;
                         }
                     }
                 }
-                events = newEvents;
+                // No reiniciar la lista cuando una agencia responde vacía o tarde:
+                // conservar lo ya recibido y fusionar únicamente las novedades.
+                const mergedRound = new Map((Array.isArray(events) ? events : []).map(ev => [String(ev.id || ev.eventId), ev]));
+                for (const ev of newEvents) {
+                    const id = String(ev.id || ev.eventId || `${ev.agency || 'source'}-${ev.ts || ev.time || Math.random()}`);
+                    mergedRound.set(id, { ...(mergedRound.get(id) || {}), ...ev, id });
+                }
+                events = [...mergedRound.values()].sort((a,b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0)).slice(0, 300);
                 saveEventCache(events);
                 try {
                     if (!ynLiveJmaEvent && (waveMode || yahooNiedModeActive || ynMode)) {
