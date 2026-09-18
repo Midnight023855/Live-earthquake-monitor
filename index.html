@@ -8255,6 +8255,39 @@ global.TauPJS=api;
             } catch (_) { jmaEewReconnectTimer = setTimeout(connectJmaEewWebSocket, 10000); }
         }
 
+        // Wolfx All_EEW: una sola conexión para JMA, CWA, CENC, CEA y FEA.
+        let wolfxAllSocket = null;
+        let wolfxAllReconnect = null;
+        function handleWolfxAllEew(raw) {
+            if (!raw || raw.type === 'heartbeat') return;
+            const sourceNames = { jma_eew:'JMA EEW', cwa_eew:'CWA EEW', cenc_eew:'CENC EEW', sc_eew:'CEA EEW', cq_eew:'CEA EEW', fj_eew:'FEA EEW' };
+            const source = sourceNames[raw.type] || sourceNames[raw.source] || 'Wolfx EEW';
+            if (raw.type === 'jma_eew' || raw.source === 'jma_eew') {
+                try { handleJmaEew(raw, true); } catch (_) {}
+                return;
+            }
+            if (raw.isCancel || raw.isTraining || raw.isFinal) return;
+            const lat = Number(raw.Latitude), lon = Number(raw.Longitude), mag = Number(raw.Magnitude ?? raw.Magunitude);
+            if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(mag)) return;
+            const report = raw.ReportTime || raw.OriginTime || '';
+            const ts = typeof parseJmaEewTime === 'function' ? parseJmaEewTime(report) : Date.parse(report);
+            if (!ts || Date.now() - ts > 5 * 60 * 1000 || ts - Date.now() > 2 * 60 * 1000) return;
+            const ev = { id:'wolfx-all-'+source+'-'+(raw.EventID || raw.ID || report), place:raw.HypoCenter || source, lat, lon, mag:magnitudeDisplay(mag), depth:raw.Depth != null ? `${raw.Depth} km` : '—', agency:source, ts, time:raw.OriginTime || report, intensity:raw.MaxIntensity || '—', colorClass:intensityClass(raw.MaxIntensity || 0), reportConfidence:'preliminar' };
+            const i = events.findIndex(x => x.id === ev.id);
+            if (i >= 0) events[i] = { ...events[i], ...ev }; else events.unshift(ev);
+            try { renderEvents(); if (typeof activateWaveMode === 'function' && !waveMode) activateWaveMode(false); } catch (_) {}
+        }
+        function connectWolfxAllEew() {
+            if (!window.WebSocket) return;
+            try {
+                wolfxAllSocket = new WebSocket('wss://ws-api.wolfx.jp/all_eew');
+                wolfxAllSocket.onmessage = e => { try { handleWolfxAllEew(JSON.parse(e.data)); } catch (_) {} };
+                wolfxAllSocket.onclose = () => { clearTimeout(wolfxAllReconnect); wolfxAllReconnect = setTimeout(connectWolfxAllEew, 10000); };
+                wolfxAllSocket.onerror = () => { try { wolfxAllSocket.close(); } catch (_) {} };
+            } catch (_) { wolfxAllReconnect = setTimeout(connectWolfxAllEew, 10000); }
+        }
+        connectWolfxAllEew();
+
         let fssnLastEvent = null;
         let fssnSocket = null;
         let fssnReconnectTimer = null;
