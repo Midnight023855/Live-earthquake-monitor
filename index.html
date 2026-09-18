@@ -12161,6 +12161,22 @@ window.addEventListener('load', () => {
       }
     } catch (_) {}
   }, 12000);
+  // Respaldo mínimo: si la ronda multiagencia no termina, cargar USGS
+  // directamente para que la pantalla nunca quede vacía.
+  setTimeout(async () => {
+    try {
+      if (Array.isArray(events) && events.length === 0 && typeof fetchUSGS === 'function') {
+        const basic = await fetchUSGS();
+        if (Array.isArray(basic) && basic.length) {
+          events = basic;
+          hasCompletedInitialLoad = true;
+          saveEventCache(events);
+          renderEvents();
+          renderHeatmap();
+        }
+      }
+    } catch (_) {}
+  }, 6000);
 });
 </script>
 </body>
