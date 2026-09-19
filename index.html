@@ -2183,6 +2183,8 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+    <script src="https://unpkg.com/@joergdietrich/leaflet.terminator@1.3.0/L.Terminator.js"></script>
     <script>
 /* taup-js 1.0.0 bundled for EarthQuake; license: AGPL-3.0-only */
 (function(global){
@@ -3753,6 +3755,12 @@ global.TauPJS=api;
         function scheduleReturnToLastQuake() {
             clearTimeout(autoSectionReturnTimer);
             autoSectionReturnTimer = setTimeout(() => {
+                // Un tsunami activo mantiene la vista prioritaria hasta que
+                // desaparezca el aviso; no se reemplaza por otro sismo.
+                if (tsunamiMode && tsunamiData.some(x => !x.expires || Date.parse(x.expires) > Date.now())) {
+                    scheduleReturnToLastQuake();
+                    return;
+                }
                 if (nhkCoverageMode && nhkCoverageMainEvent) {
                     if (tsunamiMode && tsunamiData.some(hasJapanTsunami)) {
                         startNhkTsunamiView();
@@ -4551,6 +4559,14 @@ global.TauPJS=api;
                  (typeof yahooNiedModeActive !== 'undefined' && yahooNiedModeActive)));
         }
 
+        function protectedAutomaticViewOpen() {
+            const layout = document.getElementById('mainLayout');
+            if (!layout) return false;
+            if (japanDetectionLocked()) return true;
+            return ['jma-weather-focus','us-alerts-focus','tsunami-focus','hurricane-focus','typhoon-focus','taiwan-focus']
+                .some(c => layout.classList.contains(c));
+        }
+
         function interruptAlertViewForEarthquake(ev) {
             if (!isRealEarthquakeEvent(ev)) return false;
             // Mientras el apartado de detección/ondas de Japón está mostrando
@@ -4558,6 +4574,8 @@ global.TauPJS=api;
             // cambiar su mapa. La vista solo termina con intensidad oficial,
             // Final/Cancel o el respaldo de 2 minutos.
             if (japanDetectionLocked()) return false;
+            // Un tsunami activo conserva la vista hasta que el aviso expire.
+            if (tsunamiMode && tsunamiData.some(x => !x.expires || Date.parse(x.expires) > Date.now())) return false;
             // En Alertas meteorológicas JMA solo interrumpe un sismo real de la JMA.
             // USGS/EMSC/otros no sacan del apartado ni muestran la lista global.
             if (typeof jmaWeatherAlertMode !== 'undefined' && jmaWeatherAlertMode && !isJmaRealEarthquakeEvent(ev)) {
@@ -5048,12 +5066,50 @@ global.TauPJS=api;
         intensityPane.style.zIndex = 405;
         intensityPane.style.pointerEvents = 'none';
 
+        // Arquitectura de capas tipo Kanameishi: cada familia puede aparecer,
+        // actualizarse o apagarse sin borrar las demás.
+        const earthquakePane = map.createPane('earthquakePane');
+        earthquakePane.style.zIndex = 620;
+        const eewPane = map.createPane('eewPane');
+        eewPane.style.zIndex = 640;
+        const tsunamiPane = map.createPane('tsunamiPane');
+        tsunamiPane.style.zIndex = 610;
+        const stationsPane = map.createPane('stationsPane');
+        stationsPane.style.zIndex = 650;
+        const boundariesPane = map.createPane('boundariesPane');
+        boundariesPane.style.zIndex = 410;
+        const nightPane = map.createPane('nightPane');
+        nightPane.style.zIndex = 360;
+        nightPane.style.pointerEvents = 'none';
+        const regionalPane = map.createPane('regionalPane');
+        regionalPane.style.zIndex = 390;
+        regionalPane.style.pointerEvents = 'none';
+
+        // Capa día/noche, por debajo de intensidad, ondas y marcadores.
+        let dayNightLayer = null;
+        try {
+            if (L.terminator) {
+                dayNightLayer = L.terminator({ pane: 'nightPane', fillColor:'#000', fillOpacity:.22, color:'#202020', weight:1, opacity:.35 }).addTo(map);
+                setInterval(() => { try { dayNightLayer.setTime(new Date()); } catch (_) {} }, 60000);
+            }
+        } catch (err) { console.warn('[día/noche]', err); }
+
         // Basemap oscuro tipo monitor sísmico: países oscuros y fronteras visibles.
         const tileDark = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, attribution: '© Esri, HERE, Garmin, USGS, NGA, EPA, NPS | Datos sísmicos: USGS + JMA + CENC + Wolfx' });
         // Respaldo visual únicamente si el servicio oscuro de Esri no entrega
         // teselas; no cambia el mapa preferido mientras funcione.
-        const tileDarkFallback = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, attribution: '© Esri' });
+        const tileDarkFallback = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' });
         let darkTileErrors = 0;
+        function applyDarkFallbackFilter(active) {
+            try {
+                const pane = map.getPane('tilePane');
+                if (pane) pane.style.filter = active
+                    ? 'invert(0.9) hue-rotate(180deg) brightness(.68) contrast(1.12)'
+                    : 'none';
+            } catch (_) {}
+        }
+        tileDark.on('add', () => applyDarkFallbackFilter(false));
+        tileDarkFallback.on('add', () => applyDarkFallbackFilter(true));
         tileDark.on('tileerror', () => {
             darkTileErrors++;
             if (darkTileErrors >= 3 && map.hasLayer(tileDark) && !map.hasLayer(tileDarkFallback)) {
@@ -5087,7 +5143,70 @@ global.TauPJS=api;
 
         // Estilo limpio: solo el fondo oscuro, sin las capas recargadas de carreteras/lugares.
         tileDark.addTo(map);
+        // Si el navegador no logra cargar ninguna tesela oscura, activar el
+        // respaldo aunque el servidor no dispare tileerror.
+        setTimeout(() => {
+            try {
+                if (!map.getContainer().querySelector('.leaflet-tile-loaded') && !map.hasLayer(tileDarkFallback)) {
+                    tileDarkFallback.addTo(map);
+                    tileDark.setOpacity(0);
+                }
+            } catch (_) {}
+        }, 7000);
         const tigerUsBounds = L.latLngBounds([[24,-126],[50,-65]]);
+
+        // Fondo vectorial oscuro inspirado en Kanameishi: no depende de
+        // teselas ni de una API key. Las capas sísmicas permanecen encima.
+        let kanameishiBaseLayer = null;
+        const KANAMEISHI_WORLD_TOPO = 'https://raw.githubusercontent.com/Lipomoea/kanameishi/main/public/json/medium.global.modified.topo.json';
+        fetch(KANAMEISHI_WORLD_TOPO, { cache: 'no-store' }).then(r => {
+            if (!r.ok) throw new Error('base vectorial no disponible');
+            return r.json();
+        }).then(topo => {
+            if (!window.topojson || !topo.objects?.region) throw new Error('TopoJSON no compatible');
+            const geo = topojson.feature(topo, topo.objects.region);
+            const pane = map.createPane('kanameishiBasePane');
+            pane.style.zIndex = 201;
+            kanameishiBaseLayer = L.geoJSON(geo, {
+                pane: 'kanameishiBasePane',
+                interactive: false,
+                style: { color: '#9aa0a6', weight: 0.7, opacity: 0.9, fillColor: '#393939', fillOpacity: 1 }
+            }).addTo(map);
+            if (map.hasLayer(tileDark)) tileDark.setOpacity(0);
+            if (map.hasLayer(tileDarkFallback)) tileDarkFallback.setOpacity(0);
+            try { map.attributionControl.addAttribution('Base vectorial: Kanameishi'); } catch (_) {}
+        }).catch(err => console.warn('[mapa vectorial]', err));
+
+        const regionalTopoLayers = new Map();
+        const regionalTopoUrls = {
+            jp: 'https://raw.githubusercontent.com/Lipomoea/kanameishi/main/public/json/jp.pref.topo.json',
+            cn: 'https://raw.githubusercontent.com/Lipomoea/kanameishi/main/public/json/cn.province.topo.json'
+        };
+        async function ensureRegionalTopo(key) {
+            if (regionalTopoLayers.has(key) || !window.topojson) return;
+            try {
+                const r = await fetch(regionalTopoUrls[key], { cache:'force-cache' });
+                if (!r.ok) return;
+                const topo = await r.json();
+                const geo = topojson.feature(topo, topo.objects.region);
+                const layer = L.geoJSON(geo, { pane:'regionalPane', interactive:false,
+                    style:{ color:'#aeb6bf', weight:0.75, opacity:.7, fillColor:'#4a4f55', fillOpacity:.16 }
+                }).addTo(map);
+                regionalTopoLayers.set(key, layer);
+            } catch (err) { console.warn('[detalle regional]', key, err); }
+        }
+        function updateRegionalTopo() {
+            const z = map.getZoom();
+            if (z >= 4) { ensureRegionalTopo('jp'); ensureRegionalTopo('cn'); }
+            regionalTopoLayers.forEach(layer => {
+                try { if (z >= 4 && !map.hasLayer(layer)) layer.addTo(map); }
+                catch (_) {}
+            });
+            if (z < 4) regionalTopoLayers.forEach(layer => { try { map.removeLayer(layer); } catch (_) {} });
+        }
+        map.on('zoomend', updateRegionalTopo);
+        updateRegionalTopo();
+
         function updateTigerLayerVisibility() {
             const visible = false; // La capa TIGER se conserva para consultar geometrías, no para dibujar líneas.
             if (visible && !map.hasLayer(tigerUsLayer)) tigerUsLayer.addTo(map);
@@ -5103,7 +5222,7 @@ global.TauPJS=api;
             map.removeLayer(tileDark); map.removeLayer(tileSatellite); map.removeLayer(tileTerrain);
             map.removeLayer(tileTransportation); map.removeLayer(tilePlaces); map.removeLayer(tigerUsLayer);
             const mapEl = document.getElementById('map');
-            if (style === 'dark') { tileDark.setOpacity(1); tileDark.addTo(map); updateTigerLayerVisibility(); mapEl.style.filter = 'none'; }
+            if (style === 'dark') { if (map.hasLayer(tileDarkFallback)) map.removeLayer(tileDarkFallback); tileDark.setOpacity(1); tileDark.addTo(map); applyDarkFallbackFilter(false); updateTigerLayerVisibility(); mapEl.style.filter = 'none'; }
             else if (style === 'satellite') { tileSatellite.addTo(map); mapEl.style.filter = 'none'; }
             else if (style === 'terrain') { tileTerrain.addTo(map); mapEl.style.filter = 'none'; }
             playUiSound('select');
@@ -5587,7 +5706,7 @@ global.TauPJS=api;
             const layout = document.getElementById('mainLayout');
             layout.classList.add('nhk-coverage-focus');
             clearMarkers();
-            currentMarker = L.marker([ev.lat, ev.lon], { icon: xIcon, zIndexOffset: 1000 }).addTo(map);
+            currentMarker = L.marker([ev.lat, ev.lon], { icon: xIcon, pane: 'earthquakePane', zIndexOffset: 1000 }).addTo(map);
             if (typeof drawIntensityZones === 'function') drawIntensityZones(ev);
             loadGeoBoundariesForEvent(ev);
             setProgrammaticMapView([ev.lat, ev.lon], 5);
@@ -6203,6 +6322,29 @@ global.TauPJS=api;
             return colors[Math.max(0, Math.min(12, Math.round(v)))] || '#ffffff';
         }
 
+        function intensityScaleForEvent(ev) {
+            const agency = String(ev?.agency || ev?.source || '').toUpperCase();
+            if (/YAHOO|NIED|KMONI/.test(agency)) return 'Yahoo/NIED estimada';
+            if (/TREM/.test(agency)) return 'TREM estimada';
+            if (/JMA|WOLFX|JAPAN/.test(agency)) return 'JMA Shindo';
+            if (/CWA|TAIWAN/.test(agency)) return 'CWA';
+            if (/CENC|CEA|FEA|CHINA|CSIS/.test(agency)) return 'CSIS';
+            if (/USGS|EMSC|GEONET|INGV|IG[- ]?EPN|CSN|BRAZIL/.test(agency)) return 'MMI';
+            return 'estimada';
+        }
+        function colorByEventIntensity(level, scale) {
+            const v = Math.max(0, Math.min(12, Math.round(Number(level) || 0)));
+            if (scale === 'MMI') {
+                const mmi = ['#ffffff','#d9f0ff','#a6d96a','#ffff66','#fdae61','#f46d43','#d73027','#a50026','#7b3294','#542788','#2d004b'];
+                return mmi[Math.min(10, v)] || '#ffffff';
+            }
+            if (scale === 'CSIS') {
+                const csis = ['#ffffff','#b9d0e8','#8fa8d5','#4fe3ef','#5cff5c','#fff200','#ffbd00','#ff7518','#ff1010','#b00000','#800080','#000000'];
+                return csis[Math.min(csis.length - 1, v)] || '#ffffff';
+            }
+            return colorByTaiwanI(v);
+        }
+
         async function loadTaiwanStations() {
             try {
                 const res = await fetch('https://cdn.jsdelivr.net/gh/ExpTechTW/API@master/resource/station.json');
@@ -6604,7 +6746,9 @@ global.TauPJS=api;
             // Modelo visual mejorado: usa la intensidad publicada por la
             // agencia cuando existe y, si no, estima un centro según magnitud
             // y profundidad. Es una estimación, no sustituye un ShakeMap oficial.
+            const intensityScale = intensityScaleForEvent(ev);
             const intensityText = String(ev.intensity || '').trim().toUpperCase();
+            const intensityIsRoman = /^(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII)([+−\-]?)$/.test(intensityText);
             const romanIntensity = { I:1, II:2, III:3, IV:4, V:5, VI:6, VII:7, VIII:8, IX:9, X:10 };
             const reportedIntensity = Number.isFinite(parseFloat(intensityText.replace(/[^\d.]/g, '')))
                 ? parseFloat(intensityText.replace(/[^\d.]/g, ''))
@@ -6703,7 +6847,7 @@ global.TauPJS=api;
                     // gradualmente en lugar de pintarse artificialmente fuertes.
                     intensityLevel = Math.max(1, Math.min(10, intensityLevel));
 
-                    const colorHex = colorByTaiwanI(intensityLevel);
+                    const colorHex = intensityIsRoman ? colorByTaiwanI(intensityLevel) : colorByEventIntensity(intensityLevel, intensityScale);
 
                     coloredRegions.push({
                         type: 'Feature',
@@ -6728,7 +6872,7 @@ global.TauPJS=api;
                         .sort((a,b) => a.d - b.d)[0];
                     if (nearest && nearest.d < 500) {
                         const f = nearest.f;
-                        coloredRegions.push({ type:'Feature', geometry:f.geometry, properties:{ color:colorByTaiwanI(maxIntensityCenter), name:f.properties?.name || f.properties?.NAME || 'Región local' } });
+                        coloredRegions.push({ type:'Feature', geometry:f.geometry, properties:{ color:intensityIsRoman ? colorByTaiwanI(maxIntensityCenter) : colorByEventIntensity(maxIntensityCenter, intensityScale), name:f.properties?.name || f.properties?.NAME || 'Región local' } });
                     }
                 }
 
@@ -6747,7 +6891,7 @@ global.TauPJS=api;
                         })
                     }).addTo(intensityZonesLayer);
 
-                    showRegionToast(`🟢 Intensidad estimada por distancia: ${coloredRegions.length} regiones`);
+                    showRegionToast(`🟢 ${intensityScale}: intensidad ${Number.isFinite(reportedIntensity) ? 'oficial' : 'estimada'} · ${coloredRegions.length} regiones`);
                 } else {
                     // No inventar círculos ni polígonos: si no hay una geometría
                     // administrativa local válida, se conserva únicamente el epicentro.
@@ -8986,7 +9130,15 @@ global.TauPJS=api;
             }
         }
 
+        let renderEventsFrame = 0;
         function renderEvents() {
+            if (renderEventsFrame) return;
+            renderEventsFrame = requestAnimationFrame(() => {
+                renderEventsFrame = 0;
+                renderEventsNow();
+            });
+        }
+        function renderEventsNow() {
             if (nhkCoverageMode) { renderNhkJapanList(); return; }
             // Solo el modo clima capitales sustituye la lista. El resto NUNCA la vacía.
             if (weatherListMode) return;
@@ -9174,7 +9326,7 @@ global.TauPJS=api;
             if (kmoniStationsVisible) return;
 
             clearMarkers();
-            currentMarker = L.marker([ev.lat, ev.lon], { icon: xIcon }).addTo(map);
+            currentMarker = L.marker([ev.lat, ev.lon], { icon: xIcon, pane: 'earthquakePane' }).addTo(map);
             // Al seleccionar o recibir un sismo, no acercar más de lo necesario.
             // Se conserva un zoom alejado si el usuario ya estaba viendo el mundo.
             // Desde la vista mundial, un zoom 2–3 deja el sismo demasiado lejos.
@@ -10024,10 +10176,10 @@ global.TauPJS=api;
                 // Cuando llega un sismo más reciente, el mapa lo enfoca
                 // automáticamente sin esperar a que el usuario pulse Inicio.
                 if (!wasInitialLoad && latestNow && latestNow.id !== previousLatestId && latestNow.id !== lastAutoFocusedEventId) {
-                    const sectionBusy = (typeof isSpecialMapSectionOpen === 'function' && isSpecialMapSectionOpen());
-                    // El último sismo global no puede quitar el evento JMA
-                    // principal mientras la detección de Japón esté activa.
-                    if (!sectionBusy && !japanDetectionLocked()) {
+                    // Solo una vista automática realmente activa puede bloquear
+                    // el enfoque; una clase wave-focus vieja no debe congelar el mapa.
+                    const sectionBusy = protectedAutomaticViewOpen();
+                    if (!sectionBusy) {
                         lastAutoFocusedEventId = latestNow.id;
                         setTimeout(() => {
                             if (typeof isSpecialMapSectionOpen === 'function' && isSpecialMapSectionOpen()) return;
