@@ -9747,6 +9747,11 @@ global.TauPJS=api;
             if (allLoadBusy) return;
             allLoadBusy = true;
             const status = document.querySelector('.status');
+            // Guardar el último evento antes de consultar las agencias. Las
+            // cargas incrementales pueden añadir un sismo durante Promise.all;
+            // si se calcula después, el monitor cree que ya estaba enfocado.
+            const previousLatestId = [...events]
+                .sort((a, b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0))[0]?.id || null;
             try {
                 const [usgs, jma, jmaXml, cenc, csn, igepn, isc, igp, emsc, gfz, breq, afad, bmkg, geonet, ingv, ssn, fssn, sed, phivolcs, cwa, earlyEst, hko] = await Promise.all([
                     timedApi('usgs', incrementalAgency('usgs', fetchUSGS)),
@@ -9853,8 +9858,6 @@ global.TauPJS=api;
                     hasCompletedInitialLoad = true;
                 }
 
-                const previousLatestId = [...events]
-                    .sort((a, b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0))[0]?.id || null;
                 // La actualización normalizada también puede incorporar eventos
                 // sin pasar por addNewEvent: darles prioridad solo al entrar o
                 // al pasar de estimado a real, no en cada sondeo repetido.
@@ -10048,7 +10051,8 @@ global.TauPJS=api;
         // KMONI retirado del mapa y del apartado de conexiones.
         restoreEventCache();
         loadAll(true);
-        setInterval(() => { if (!document.hidden) loadAll(false); }, 10000);
+        // Actualización de la lista y agencias cada 2 segundos.
+        setInterval(() => { if (!document.hidden) loadAll(false); }, 2000);
 
         // Reinicio completo de estado de agencias solo en punto de hora (1:00, 2:00, …)
         function msUntilNextHourMark() {
