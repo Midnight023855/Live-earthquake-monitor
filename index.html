@@ -562,28 +562,32 @@
         }
 
         /* Intensity colors */
-        .int-0 { background: #555555; color: #ffffff !important; }
+        /* Colores Mercalli de la tabla proporcionada por el usuario. */
+        .int-0 { background: #ffffff; color: #000000 !important; }
         .int-1 { background: #ffffff; color: #000000 !important; }
-        .int-2 { background: #bfccff; color: #000000 !important; }
-        .int-3 { background: #99b3ff; color: #000000 !important; }
-        .int-4 { background: #80e6ff; color: #000000 !important; }
-        .int-5 { background: #7ad5a6; color: #000000 !important; }
-        .int-6 { background: #ffff00; color: #000000 !important; }
-        .int-7 { background: #ffc800; color: #000000 !important; }
-        .int-8 { background: #ff9100; color: #ffffff !important; }
-        .int-9 { background: #ff0000; color: #ffffff !important; }
-        .int-10 { background: #c80000; color: #ffffff !important; }
+        .int-2 { background: #b9d0e8; color: #000000 !important; }
+        .int-3 { background: #8fa8d5; color: #000000 !important; }
+        .int-4 { background: #4fe3ef; color: #000000 !important; }
+        .int-5 { background: #5cff5c; color: #000000 !important; }
+        .int-6 { background: #fff200; color: #000000 !important; }
+        .int-7 { background: #ffbd00; color: #000000 !important; }
+        .int-8 { background: #ff7518; color: #000000 !important; }
+        .int-9 { background: #ff1010; color: #000000 !important; }
+        .int-10 { background: #b00000; color: #ffffff !important; }
 
+        /* La intensidad I corresponde al blanco de la escala mostrada. */
         .int-I { background: #ffffff; color: #000000 !important; }
-        .int-II { background: #bfccff; color: #000000 !important; }
-        .int-III { background: #99b3ff; color: #000000 !important; }
-        .int-IV { background: #80e6ff; color: #000000 !important; }
-        .int-V { background: #7ad5a6; color: #000000 !important; }
-        .int-VI { background: #ffff00; color: #000000 !important; }
-        .int-VII { background: #ffc800; color: #000000 !important; }
-        .int-VIII { background: #ff9100; color: #ffffff !important; }
-        .int-IX { background: #ff0000; color: #ffffff !important; }
-        .int-X { background: #c80000; color: #ffffff !important; }
+        .int-II { background: #b9d0e8; color: #000000 !important; }
+        .int-III { background: #8fa8d5; color: #000000 !important; }
+        .int-IV { background: #4fe3ef; color: #000000 !important; }
+        .int-V { background: #5cff5c; color: #000000 !important; }
+        .int-VI { background: #fff200; color: #000000 !important; }
+        .int-VII { background: #ffbd00; color: #000000 !important; }
+        .int-VIII { background: #ff7518; color: #000000 !important; }
+        .int-IX { background: #ff1010; color: #000000 !important; }
+        .int-X { background: #b00000; color: #ffffff !important; }
+        .int-XI { background: #800080; color: #ffffff !important; }
+        .int-XII { background: #000000; color: #ffffff !important; }
 
         /* Scrollbar */
         .event-list::-webkit-scrollbar {
@@ -1109,6 +1113,9 @@
             display: flex; flex-direction: column; justify-content: space-between;
             line-height: 12px; min-width: 20px;
         }
+        /* La barra visual de intensidades se retira de la interfaz; los colores
+           siguen aplicándose a la lista, marcadores y mapa. */
+        #intensityLegendPanel { display: none !important; }
         #intensityLegendPanel .legend-values { color: #ddd; min-width: 22px; }
         #intensityLegendPanel .legend-scale {
             width: 10px; display: flex; flex-direction: column;
@@ -2001,23 +2008,14 @@
             <div id="intensityLegendPanel" title="Escala de intensidad sísmica">
                 <div class="legend-title">▣ Leyenda</div>
                 <div class="legend-content">
-                    <div class="legend-labels">
-                        <span>XII</span><span>XI</span><span>X</span><span>IX</span>
-                        <span>VIII</span><span>VII</span><span>VI</span><span>V</span>
-                        <span>IV</span><span>III</span><span>II</span><span>I</span>
-                    </div>
-                    <div class="legend-scale">
-                        <span class="legend-color int-X"></span><span class="legend-color int-IX"></span>
-                        <span class="legend-color int-VIII"></span><span class="legend-color int-VII"></span>
-                        <span class="legend-color int-VI"></span><span class="legend-color int-V"></span>
-                        <span class="legend-color int-IV"></span><span class="legend-color int-III"></span>
-                        <span class="legend-color int-II"></span><span class="legend-color int-I"></span>
-                        <span class="legend-color int-1"></span><span class="legend-color int-0"></span>
-                    </div>
-                    <div class="legend-values">
-                        <span>7</span><span>6+</span><span>6−</span><span>5+</span>
-                        <span>5−</span><span>4</span><span>3</span><span>3</span>
-                        <span>2</span><span>2</span><span>1</span><span>0</span>
+                    <!-- Solo colores, en orden I → XII, como la escala de Mercalli. -->
+                    <div class="legend-scale legend-colors-only" aria-label="Colores de intensidad I a XII">
+                        <span class="legend-color int-I"></span><span class="legend-color int-II"></span>
+                        <span class="legend-color int-III"></span><span class="legend-color int-IV"></span>
+                        <span class="legend-color int-V"></span><span class="legend-color int-VI"></span>
+                        <span class="legend-color int-VII"></span><span class="legend-color int-VIII"></span>
+                        <span class="legend-color int-IX"></span><span class="legend-color int-X"></span>
+                        <span class="legend-color int-XI"></span><span class="legend-color int-XII"></span>
                     </div>
                 </div>
             </div>
@@ -6167,18 +6165,10 @@ global.TauPJS=api;
 
 
         function colorByTaiwanI(I) {
-            const v = parseFloat(I);
-            if (isNaN(v) || v < 0) return '#2a4a6a';
-            if (v < 1) return '#ffffff';
-            if (v < 2) return '#bfccff';
-            if (v < 3) return '#99b3ff';
-            if (v < 4) return '#80e6ff';
-            if (v < 5) return '#7ad5a6';
-            if (v < 6) return '#ffff00';
-            if (v < 7) return '#ffc800';
-            if (v < 8) return '#ff9100';
-            if (v < 9) return '#ff0000';
-            return '#c80000';
+            const v = parseFloat(String(I).replace(/[−–—]/g, '-'));
+            if (!Number.isFinite(v)) return '#ffffff';
+            const colors = ['#ffffff','#ffffff','#b9d0e8','#8fa8d5','#4fe3ef','#5cff5c','#fff200','#ffbd00','#ff7518','#ff1010','#b00000','#800080','#000000'];
+            return colors[Math.max(0, Math.min(12, Math.round(v)))] || '#ffffff';
         }
 
         async function loadTaiwanStations() {
@@ -6704,32 +6694,15 @@ global.TauPJS=api;
             if (currentMarker) currentMarker.bringToFront();
         }
 
+        // Una sola escala para la barra, la lista, los marcadores y el mapa.
+        // Acepta también 5−/5+/10− y números con texto adicional.
         function intensityClass(int) {
-            const s = String(int).trim().toUpperCase();
-
-            if (s === '0') return 'int-0';
-            if (s === '1') return 'int-1';
-            if (s === '2') return 'int-2';
-            if (s === '3') return 'int-3';
-            if (s === '4') return 'int-4';
-            if (s.startsWith('5')) return 'int-5';
-            if (s.startsWith('6')) return 'int-6';
-            if (s === '7') return 'int-7';
-            if (s === '8') return 'int-8';
-            if (s === '9') return 'int-9';
-            if (s === '10') return 'int-10';
-
-            if (s === 'I') return 'int-I';
-            if (s === 'II') return 'int-II';
-            if (s === 'III') return 'int-III';
-            if (s === 'IV') return 'int-IV';
-            if (s === 'V') return 'int-V';
-            if (s === 'VI') return 'int-VI';
-            if (s === 'VII') return 'int-VII';
-            if (s === 'VIII') return 'int-VIII';
-            if (s === 'IX') return 'int-IX';
-            if (s === 'X' || s === 'XI' || s === 'XII') return 'int-X';
-
+            const s = String(int ?? '').trim().toUpperCase().replace(/[−–—]/g, '-');
+            const roman = { I:1, II:2, III:3, IV:4, V:5, VI:6, VII:7, VIII:8, IX:9, X:10, XI:10, XII:10 };
+            if (roman[s] != null) return 'int-' + (s === 'I' ? 'I' : s === 'II' ? 'II' : s === 'III' ? 'III' : s === 'IV' ? 'IV' : s === 'V' ? 'V' : s === 'VI' ? 'VI' : s === 'VII' ? 'VII' : s === 'VIII' ? 'VIII' : s === 'IX' ? 'IX' : 'X');
+            const m = s.match(/(?:^|\s)(10|[0-9])(?:\s|$|[-+])/);
+            const n = m ? Number(m[1]) : NaN;
+            if (Number.isFinite(n)) return 'int-' + Math.max(0, Math.min(10, n));
             return 'int-1';
         }
 
