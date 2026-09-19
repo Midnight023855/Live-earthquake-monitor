@@ -9297,7 +9297,9 @@ global.TauPJS=api;
 
             // En apartados (tifones, EE.UU., En vivo, etc.) NO saltar al último sismo
             // salvo alerta sísmica explícita (alertInterrupt) o forceMap de esa vista.
-            const sectionOpen = typeof isSpecialMapSectionOpen === 'function' && isSpecialMapSectionOpen();
+            const sectionOpen = options.autoFocus
+                ? protectedAutomaticViewOpen()
+                : (typeof isSpecialMapSectionOpen === 'function' && isSpecialMapSectionOpen());
             const blockMap = !options.alertInterrupt && sectionOpen && !options.sectionMap;
             if (blockMap) {
                 document.querySelectorAll('.event-item').forEach(el => {
@@ -10182,7 +10184,7 @@ global.TauPJS=api;
                     if (!sectionBusy) {
                         lastAutoFocusedEventId = latestNow.id;
                         setTimeout(() => {
-                            if (typeof isSpecialMapSectionOpen === 'function' && isSpecialMapSectionOpen()) return;
+                            if (protectedAutomaticViewOpen()) return;
                             try { mapUserHasControl = false; } catch (_) {}
                             selectEvent(latestNow.id, { autoFocus: true, forceMap: true });
                         }, 150);
@@ -10300,7 +10302,13 @@ global.TauPJS=api;
         restoreEventCache();
         loadAll(true);
         // Actualización de la lista y agencias cada 2 segundos.
-        setInterval(() => { if (!document.hidden) loadAll(false); }, 2000);
+        setInterval(() => {
+            if (document.hidden) return;
+            // Refresca visualmente la lista cada 2 s aunque ninguna fuente
+            // haya publicado un evento nuevo; el render está agrupado por RAF.
+            renderEvents();
+            loadAll(false);
+        }, 2000);
 
         // Reinicio completo de estado de agencias solo en punto de hora (1:00, 2:00, …)
         function msUntilNextHourMark() {
@@ -10405,6 +10413,7 @@ global.TauPJS=api;
         let jmaWeatherAlertMode = false;
         let jmaWeatherAlertTimer = null;
         let jmaWeatherWatchdogTimer = null;
+        let jmaWeatherAutoCloseTimer = null;
         // Temporizadores separados: enfoque meteorológico (25 s), prioridad
         // sísmica (10 s desde la última actualización) y retorno a Japón.
         let jmaWeatherZoomTimer = null;
@@ -11039,6 +11048,7 @@ global.TauPJS=api;
             if (panel) panel.style.display = 'none';
             clearInterval(jmaWeatherAlertTimer); jmaWeatherAlertTimer = null;
             clearInterval(jmaWeatherWatchdogTimer); jmaWeatherWatchdogTimer = null;
+            clearTimeout(jmaWeatherAutoCloseTimer); jmaWeatherAutoCloseTimer = null;
             clearTimeout(jmaWeatherZoomTimer); jmaWeatherZoomTimer = null;
             clearTimeout(jmaWeatherSeismicTimer); jmaWeatherSeismicTimer = null;
             clearTimeout(jmaWeatherReturnTimer); jmaWeatherReturnTimer = null;
@@ -11121,6 +11131,12 @@ global.TauPJS=api;
             clearInterval(jmaWeatherAlertTimer);
             jmaWeatherAlertTimer = setInterval(() => refreshJmaWeatherAlerts(), JMA_WEATHER_REFRESH_MS);
             jmaWeatherStartWatchdog();
+            // Las alertas nuevas abren esta vista solo temporalmente.
+            // La apertura manual con el botón no se cierra sola.
+            clearTimeout(jmaWeatherAutoCloseTimer);
+            jmaWeatherAutoCloseTimer = options.fromAlert ? setTimeout(() => {
+                if (jmaWeatherAlertMode) jmaWeatherDeactivate();
+            }, 10000) : null;
         }
         document.getElementById('btnJmaWeatherAlerts')?.addEventListener('click', async () => {
             if (jmaWeatherAlertMode) { jmaWeatherDeactivate(); return; }
