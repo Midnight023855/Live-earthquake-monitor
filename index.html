@@ -106,7 +106,9 @@
         #mainLayout.typhoon-focus #btnHome,
         #mainLayout.tsunami-focus #btnHome,
         #mainLayout.wave-focus #btnHome { display:none !important; }
-        /* btnLiveJapan permanece visible para cerrar estaciones/ondas en vivo. */
+        /* Las estaciones/ondas Japón se abren automáticamente con JMA EEW;
+           no se muestra el botón manual En vivo. */
+        #btnLiveJapan { display: none !important; }
         #sectionButtonsToolbar button { flex: 0 0 auto; }
 
         /* El encabezado informativo se oculta; el botón de pantalla completa conserva
@@ -1791,6 +1793,15 @@
 
         
         #btnLiveJapan { pointer-events: auto !important; z-index: 2000 !important; position: relative; }
+        /* Ocultar definitivamente el botón manual En vivo; las alertas JMA/Wolfx
+           abren la vista automáticamente. */
+        #mapActionToolbar #btnLiveJapan,
+        #mainLayout.wave-focus #btnLiveJapan,
+        #mainLayout.japan-focus #btnLiveJapan {
+            display: none !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
         </style>
 </head>
 <body>
@@ -2132,21 +2143,6 @@
 
                 <button id="btnKmoniStations" type="button" hidden aria-hidden="true" style="display:none!important">🇯🇵 Japón</button>
 
-                <button id="btnLiveJapan" type="button" title="Estaciones Japón + sismos en vivo (ondas y epicentro)" style="
-                    background: rgba(20,20,20,0.9);
-                    border: 1px solid #555;
-                    color: #eee;
-                    font-size: 13px;
-                    height: 32px;
-                    padding: 0 10px;
-                    border-radius: 5px;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-                    white-space: nowrap;
-                ">🇯🇵 En vivo</button>
 
                 <button id="btnJmaWeatherAlerts" type="button" title="Alertas meteorológicas JMA de Japón" style="
                     background: rgba(20,20,20,0.9); border: 1px solid #555; color: #eee;
@@ -4546,8 +4542,22 @@ global.TauPJS=api;
         let alertEarthquakeInterruptTimer = null;
         let alertEarthquakeInterruptState = null;
 
+        function japanDetectionLocked() {
+            const layout = document.getElementById('mainLayout');
+            return !!(layout?.classList.contains('japan-focus') &&
+                ((typeof waveMode !== 'undefined' && waveMode) ||
+                 (typeof ynLiveJmaEvent !== 'undefined' && ynLiveJmaEvent) ||
+                 (typeof ynMode !== 'undefined' && ynMode) ||
+                 (typeof yahooNiedModeActive !== 'undefined' && yahooNiedModeActive)));
+        }
+
         function interruptAlertViewForEarthquake(ev) {
             if (!isRealEarthquakeEvent(ev)) return false;
+            // Mientras el apartado de detección/ondas de Japón está mostrando
+            // un EEW activo, un sismo nuevo de la lista no puede expulsarlo ni
+            // cambiar su mapa. La vista solo termina con intensidad oficial,
+            // Final/Cancel o el respaldo de 2 minutos.
+            if (japanDetectionLocked()) return false;
             // En Alertas meteorológicas JMA solo interrumpe un sismo real de la JMA.
             // USGS/EMSC/otros no sacan del apartado ni muestran la lista global.
             if (typeof jmaWeatherAlertMode !== 'undefined' && jmaWeatherAlertMode && !isJmaRealEarthquakeEvent(ev)) {
@@ -5040,6 +5050,17 @@ global.TauPJS=api;
 
         // Basemap oscuro tipo monitor sísmico: países oscuros y fronteras visibles.
         const tileDark = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, attribution: '© Esri, HERE, Garmin, USGS, NGA, EPA, NPS | Datos sísmicos: USGS + JMA + CENC + Wolfx' });
+        // Respaldo visual únicamente si el servicio oscuro de Esri no entrega
+        // teselas; no cambia el mapa preferido mientras funcione.
+        const tileDarkFallback = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, attribution: '© Esri' });
+        let darkTileErrors = 0;
+        tileDark.on('tileerror', () => {
+            darkTileErrors++;
+            if (darkTileErrors >= 3 && map.hasLayer(tileDark) && !map.hasLayer(tileDarkFallback)) {
+                tileDarkFallback.addTo(map);
+                try { tileDark.setOpacity(0); } catch (_) {}
+            }
+        });
         const tileSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 });
         const tileTerrain = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17 });
         // Capas de transporte, ciudades y límites para aproximar el detalle de SesnaQuake.
@@ -5082,7 +5103,7 @@ global.TauPJS=api;
             map.removeLayer(tileDark); map.removeLayer(tileSatellite); map.removeLayer(tileTerrain);
             map.removeLayer(tileTransportation); map.removeLayer(tilePlaces); map.removeLayer(tigerUsLayer);
             const mapEl = document.getElementById('map');
-            if (style === 'dark') { tileDark.addTo(map); updateTigerLayerVisibility(); mapEl.style.filter = 'none'; }
+            if (style === 'dark') { tileDark.setOpacity(1); tileDark.addTo(map); updateTigerLayerVisibility(); mapEl.style.filter = 'none'; }
             else if (style === 'satellite') { tileSatellite.addTo(map); mapEl.style.filter = 'none'; }
             else if (style === 'terrain') { tileTerrain.addTo(map); mapEl.style.filter = 'none'; }
             playUiSound('select');
@@ -5615,8 +5636,19 @@ global.TauPJS=api;
             return ['5-', '5+', '6-', '6+', '7', '5'].includes(value) || /^(5|6|7)/.test(value);
         }
 
+        function isJapanJmaEvent(ev) {
+            if (!ev) return false;
+            const agency = String(ev.agency || ev.source || '').toLowerCase();
+            const japanAgency = /jma|wolfx/.test(agency);
+            const lat = Number(ev.lat), lon = Number(ev.lon);
+            const japanCoords = Number.isFinite(lat) && Number.isFinite(lon) && lat >= 24 && lat <= 46 && lon >= 122 && lon <= 146;
+            const japanText = /japan|japón|hokkaido|honshu|kyushu|shikoku|okinawa|tokyo|tokio|fukushima|noto/i.test(`${ev.place || ''} ${ev.region || ''}`);
+            return japanAgency && (japanCoords || japanText);
+        }
         function showNhkGForQuake(ev) {
-            if (!hasJmaIntensityFiveMinus(ev)) return;
+            // NHK G solo se abre automáticamente por intensidad JMA ≥ 5−
+            // en territorio japonés; no por sismos globales de otras agencias.
+            if (!isJapanJmaEvent(ev) || !hasJmaIntensityFiveMinus(ev)) return;
             const key = eventAlertKey(ev);
             const intensity = String(ev.intensity || '').trim();
             if (!key || (key === nhkGLastEventKey && intensity === nhkGLastIntensity && document.getElementById('nhkGPanel')?.classList.contains('nhk-active'))) return;
@@ -6426,7 +6458,7 @@ global.TauPJS=api;
         function countryISOForEvent(ev) {
             const agency = String(ev?.agency || '').toUpperCase();
             const place = String(ev?.place || '').toUpperCase();
-            if (agency.includes('CENC')) return 'CHN';
+            if (agency.includes('CENC') || agency.includes('CEA') || agency.includes('FEA')) return 'CHN';
             if (agency.includes('JMA')) return 'JPN';
             if (agency.includes('SSN')) return 'MEX';
             if (agency.includes('AFAD')) return 'TUR';
@@ -6458,6 +6490,40 @@ global.TauPJS=api;
             return null;
         }
 
+        const chinaDataVCache = {};
+        async function loadChinaCityBoundary(ev) {
+            const lat = Number(ev?.lat), lon = Number(ev?.lon);
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+            try {
+                const countryUrl = 'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json';
+                const country = chinaDataVCache.country || await (await fetch(countryUrl, { cache:'force-cache' })).json();
+                chinaDataVCache.country = country;
+                let candidates = (country.features || []).filter(f => f.geometry && geometryContainsPoint(lat, lon, f.geometry));
+                if (!candidates.length) return null;
+                // Bajar por la jerarquía DataV hasta la división local más
+                // pequeña que contiene el epicentro, no quedarse en la
+                // provincia/prefectura completa.
+                for (let level = 0; level < 3; level++) {
+                    const parent = candidates[0]?.properties?.adcode;
+                    if (!parent) break;
+                    const key = String(parent);
+                    const data = chinaDataVCache[key] || await (await fetch(`https://geo.datav.aliyun.com/areas_v3/bound/${key}_full.json`, { cache:'force-cache' })).json();
+                    chinaDataVCache[key] = data;
+                    const children = (data.features || []).filter(f => f.geometry && geometryContainsPoint(lat, lon, f.geometry));
+                    if (!children.length) break;
+                    candidates = children;
+                    if (children.every(f => Number(f.properties?.childrenNum || 0) === 0)) break;
+                }
+                if (!candidates.length) return null;
+                const chosen = candidates[0];
+                try { prepareAdmin1Data({ features:[chosen] }); } catch (_) {}
+                const b = chosen.__bounds;
+                // Si incluso el nivel más detallado sigue siendo una región
+                // enorme, no rellenarla como si fuera una ciudad.
+                if (b && ((b.maxLat - b.minLat) > 4.5 || (b.maxLon - b.minLon) > 6.0)) return null;
+                return { type:'FeatureCollection', features:[chosen] };
+            } catch (_) { return null; }
+        }
         async function loadSmallestAdminBoundary(iso) {
             if (!iso) return null;
             // GeoBoundaries vuelve a ser la fuente general; ADM2 es el nivel principal.
@@ -6590,7 +6656,9 @@ global.TauPJS=api;
                 // (ADM2: condado/municipio/provincia), no el ADM1 global.
                 // Así un evento en Alaska no rellena todo el estado.
                 const countryIso = countryISOForEvent(ev) || geoBoundaryIsoForEvent(ev);
-                let boundaryData = countryIso === 'USA' ? await loadTigerLocalBoundary(ev) : await loadSmallestAdminBoundary(countryIso);
+                let boundaryData = countryIso === 'CHN'
+                    ? await loadChinaCityBoundary(ev)
+                    : (countryIso === 'USA' ? await loadTigerLocalBoundary(ev) : await loadSmallestAdminBoundary(countryIso));
                 // Respaldo real de geoBoundaries/Natural Earth: seleccionar las
                 // subdivisiones del país, nunca el mundo completo.
                 if (!boundaryData && countryIso !== 'USA' && worldAdmin1Data?.features?.length) {
@@ -6840,6 +6908,7 @@ global.TauPJS=api;
                         place: p.place || 'Desconocido',
                         time: formatTime(new Date(p.time).toISOString()),
                         mag: magnitudeDisplay(p.mag),
+                        magnitudeDisplay: magnitudeDisplay(p.mag),
                         depth: (coords[2] || 0).toFixed(0) + ' km',
                         agency: 'USGS',
                         lat: coords[1],
@@ -8394,9 +8463,15 @@ global.TauPJS=api;
                 const shouldShowWaves = jmaEewIsFresh(data) && !data.isCancel && !data.isFinal && hasEpicenter;
                 const waveReportKey = newReportKey !== '-' ? newReportKey : `${data.EventID || ''}-${data.AnnouncedTime || ''}`;
                 if (shouldShowWaves && waveReportKey && waveReportKey !== '-') {
-                    if (isInitialReport && !fromSocket) {
+                    const reportAge = Date.now() - parseJmaEewTime(data.AnnouncedTime || data.ReportTime || data.OriginTime);
+                    const staleInitialHttp = isInitialReport && !fromSocket && reportAge > 90 * 1000;
+                    if (staleInitialHttp) {
+                        // Snapshot HTTP antiguo: mostrar epicentro, pero no
+                        // reconstruir ondas de un EEW ya terminado.
                         jmaEewLastWaveKey = waveReportKey;
                     } else {
+                        // Un reporte HTTP muy reciente también puede activar
+                        // ondas; no depende exclusivamente del WebSocket.
                         const needWaves = !waveMode || waveReportKey !== jmaEewLastWaveKey || isNewReport || fromSocket;
                         jmaEewLastWaveKey = waveReportKey;
                         if (needWaves) {
@@ -8458,7 +8533,8 @@ global.TauPJS=api;
             if (!('WebSocket' in window)) return;
             if (jmaEewSocket && (jmaEewSocket.readyState === WebSocket.OPEN || jmaEewSocket.readyState === WebSocket.CONNECTING)) return;
             try {
-                jmaEewSocket = new WebSocket('wss://ws-api.wolfx.jp/jma_eew');
+                const jmaRelay = window.WOLFX_JMA_EEW_RELAY || new URL(location.href).searchParams.get('wolfxJmaRelay') || 'wss://ws-api.wolfx.jp/jma_eew';
+                jmaEewSocket = new WebSocket(jmaRelay);
                 jmaEewSocket.onopen = () => { apiMetrics.jmaEew = apiMetrics.jmaEew || {}; apiMetrics.jmaEew.wsState = 'activo'; setApiState('jmaEew', 'ok'); };
                 jmaEewSocket.onmessage = e => { try { handleJmaEew(JSON.parse(e.data), true); } catch (_) {} };
                 jmaEewSocket.onclose = () => {
@@ -8552,7 +8628,7 @@ global.TauPJS=api;
                             try { wolfxAllSocket.close(); } catch (_) {}
                         }
                     } catch (_) {}
-                }, 12000);
+                }, 8000);
                 wolfxAllSocket.onopen = () => {
                     clearTimeout(wolfxAllConnectWatch);
                     wolfxAllConnectAttempts = 0;
@@ -8600,7 +8676,10 @@ global.TauPJS=api;
                     wolfxAllPingTimer = null;
                     wolfxAllSocket = null;
                     clearTimeout(wolfxAllReconnect);
-                    const delay = Math.min(45000, 3000 * Math.pow(1.6, Math.min(wolfxAllConnectAttempts, 8)));
+                    // Reintento corto y estable: la VPN puede tardar unos
+                    // segundos en recuperar la ruta, pero no dejar Wolfx
+                    // desconectado hasta 45 s.
+                    const delay = 5000;
                     wolfxAllReconnect = setTimeout(connectWolfxAllEew, delay);
                 };
                 wolfxAllSocket.onerror = () => {
@@ -9732,7 +9811,9 @@ global.TauPJS=api;
                 if (!ev) continue;
                 const existing = revisionMatch([...byId.values()], ev);
                 const id = existing ? String(existing.id) : String(ev.id || ev.eventId || `${ev.agency || 'source'}-${ev.ts || ev.time || Math.random()}`);
-                byId.set(id, { ...(existing || {}), ...ev, id });
+                const merged = { ...(existing || {}), ...ev, id };
+                if (ev.mag != null) merged.magnitudeDisplay = ev.magnitudeDisplay || ev.mag;
+                byId.set(id, merged);
             }
             events = [...byId.values()].sort((a,b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0)).slice(0, 300);
             try { saveEventCache(events); renderEvents(); renderHeatmap(); renderConnectionPanel(); } catch (_) {}
@@ -9891,20 +9972,33 @@ global.TauPJS=api;
                 for (const ev of newEvents) {
                     const existing = revisionMatch([...mergedRound.values()], ev);
                     const id = existing ? String(existing.id) : String(ev.id || ev.eventId || `${ev.agency || 'source'}-${ev.ts || ev.time || Math.random()}`);
-                    mergedRound.set(id, { ...(existing || {}), ...ev, id });
+                    const merged = { ...(existing || {}), ...ev, id };
+                    if (ev.mag != null) merged.magnitudeDisplay = ev.magnitudeDisplay || ev.mag;
+                    mergedRound.set(id, merged);
                 }
                 events = [...mergedRound.values()].sort((a,b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0)).slice(0, 300);
-                saveEventCache(events);
+                // Si la información oficial de intensidad JMA ya llegó a la
+                // lista, cerrar la vista EEW/ondas aunque Wolfx no haya enviado
+                // todavía el paquete Final.
                 try {
-                    if (!ynLiveJmaEvent && (waveMode || yahooNiedModeActive || ynMode)) {
-                        waveMode = false;
-                        yahooNiedModeActive = false;
-                        ynMode = false;
-                        document.getElementById('mainLayout')?.classList.remove('wave-focus', 'japan-focus');
-                        document.getElementById('waveModePanel')?.classList.remove('wave-active');
-                        document.getElementById('waveTopbar')?.classList.remove('wave-top-active');
+                    const officialJma = [...newEvents]
+                        .filter(e => /JMA/i.test(String(e.agency || '')) && !/EEW/i.test(String(e.agency || '')) &&
+                            Number.isFinite(Number(e.lat)) && Number.isFinite(Number(e.lon)) &&
+                            Number.isFinite(parseTs(e.ts)))
+                        .sort((a,b) => parseTs(b.ts) - parseTs(a.ts))[0];
+                    const live = typeof ynLiveJmaEvent !== 'undefined' ? ynLiveJmaEvent : null;
+                    const nearLive = officialJma && live && Math.abs(parseTs(officialJma.ts) - parseTs(live.ts)) <= 10 * 60 * 1000 &&
+                        Math.abs(Number(officialJma.lat) - Number(live.lat)) <= 0.6 &&
+                        Math.abs(Number(officialJma.lon) - Number(live.lon)) <= 0.6;
+                    if (nearLive && (waveMode || yahooNiedModeActive || document.getElementById('mainLayout')?.classList.contains('wave-focus'))) {
+                        closeJapanAfterJmaQuake?.('JMA publicó la intensidad oficial · vista normal');
                     }
                 } catch (_) {}
+                saveEventCache(events);
+                // No cerrar la vista de detección durante el polling. La lista
+                // puede recibir otros sismos, pero Japón permanece anclado hasta
+                // intensidad oficial, Final/Cancel o el respaldo de 2 minutos.
+                // La limpieza se realiza únicamente desde closeJapanAfterJmaQuake().
                 try {
                     const loc = document.getElementById('bigLoc')?.textContent || '';
                     if ((!selectedEventId || /cargando/i.test(loc)) && events.length) {
@@ -9931,7 +10025,9 @@ global.TauPJS=api;
                 // automáticamente sin esperar a que el usuario pulse Inicio.
                 if (!wasInitialLoad && latestNow && latestNow.id !== previousLatestId && latestNow.id !== lastAutoFocusedEventId) {
                     const sectionBusy = (typeof isSpecialMapSectionOpen === 'function' && isSpecialMapSectionOpen());
-                    if (!sectionBusy) {
+                    // El último sismo global no puede quitar el evento JMA
+                    // principal mientras la detección de Japón esté activa.
+                    if (!sectionBusy && !japanDetectionLocked()) {
                         lastAutoFocusedEventId = latestNow.id;
                         setTimeout(() => {
                             if (typeof isSpecialMapSectionOpen === 'function' && isSpecialMapSectionOpen()) return;
@@ -11819,11 +11915,18 @@ global.TauPJS=api;
                     ynHostUsed = host.replace(/^https?:\/\//, '');
                     return value;
                 } catch (e) { last = e; }
-                // Proxy propio primero: evita que Android bloquee Yahoo desde content://.
+                // Proxy propio primero: evitar la cadena de proxies públicos
+                // y leer directamente el JSON Yahoo desde content://.
                 try {
-                    const value = await ynFetchJsonProxied(ynProxyUrl(url), Math.max(timeout, 6000));
-                    ynHostUsed = host.replace(/^https?:\/\//, '') + '+EarthQuakeProxy';
-                    return value;
+                    const controller = new AbortController();
+                    const timer = setTimeout(() => controller.abort(), Math.max(timeout, 6000));
+                    try {
+                        const res = await fetch(ynProxyUrl(url), { cache:'no-store', signal:controller.signal });
+                        if (!res.ok) throw new Error('EarthQuakeProxy HTTP ' + res.status);
+                        const value = await res.json();
+                        ynHostUsed = host.replace(/^https?:\/\//, '') + '+EarthQuakeProxy';
+                        return value;
+                    } finally { clearTimeout(timer); }
                 } catch (e) { last = e; }
                 try {
                     const value = await ynFetchJsonProxied(url, Math.max(timeout, 6000));
@@ -11990,9 +12093,11 @@ global.TauPJS=api;
 
         function openJapanForRealJmaQuake(ev) {
             if (!ev || typeof isJmaRealEarthquakeEvent !== 'function' || !isJmaRealEarthquakeEvent(ev)) return false;
-            // No abrir con el histórico al cargar la página.
-            if (typeof hasCompletedInitialLoad !== 'undefined' && !hasCompletedInitialLoad) return false;
+            // No abrir con el histórico al cargar la página. Un JMA EEW
+            // recién publicado sí puede abrirse aunque la carga inicial siga.
             const ageMs = Date.now() - (parseTs(ev.ts) || parseTs(ev.time) || 0);
+            const freshJmaEew = /JMA\s*EEW/i.test(String(ev.agency || '')) && ageMs >= -120000 && ageMs <= 90000;
+            if (typeof hasCompletedInitialLoad !== 'undefined' && !hasCompletedInitialLoad && !freshJmaEew) return false;
             // Hasta 45 min: catálogo JMA a veces llega unos minutos después del EEW.
             if (Number.isFinite(ageMs) && (ageMs < 0 || ageMs > 45 * 60 * 1000)) return false;
 
@@ -12045,16 +12150,16 @@ global.TauPJS=api;
             const intNum = parseFloat(intRaw.replace(/[^\d.]/g, ''));
             const weakOrNoInt = !intRaw || intRaw === '—' || intRaw === '0' || intRaw === '-'
                 || (Number.isFinite(intNum) && intNum < 1);
-            const closeMs = weakOrNoInt ? 75 * 1000 : 150 * 1000;
+            // La vista permanece abierta mientras esperamos la intensidad
+            // oficial. Si JMA no la publica, usar un respaldo de 2 minutos.
+            // La llegada de otros sismos no reinicia ni reemplaza esta vista.
             clearTimeout(ynLiveJmaCloseTimer);
             ynLiveJmaCloseTimer = setTimeout(() => {
                 ynLiveJmaCloseTimer = null;
                 if (ynLiveJmaEvent && String(ynLiveJmaEvent.id) === String(ev.id)) {
-                    closeJapanAfterJmaQuake(weakOrNoInt
-                        ? 'Sin intensidad ≥1 · overview Japón'
-                        : 'Sismo estabilizado · overview Japón');
+                    closeJapanAfterJmaQuake('Sin intensidad oficial en 2 minutos · vista normal');
                 }
-            }, closeMs);
+            }, 2 * 60 * 1000);
             return true;
         }
 
