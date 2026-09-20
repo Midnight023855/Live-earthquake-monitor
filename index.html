@@ -5200,7 +5200,7 @@ global.TauPJS=api;
                 const topo = await r.json();
                 const geo = topojson.feature(topo, topo.objects.region);
                 const layer = L.geoJSON(geo, { pane:'regionalPane', interactive:false,
-                    style:{ color:'#aeb6bf', weight:0.75, opacity:.7, fillColor:'#4a4f55', fillOpacity:.16 }
+                    style:{ color:'#9aa0a6', weight:0.75, opacity:.8, fillColor:'#393939', fillOpacity:1 }
                 }).addTo(map);
                 regionalTopoLayers.set(key, layer);
             } catch (err) { console.warn('[detalle regional]', key, err); }
@@ -5216,6 +5216,32 @@ global.TauPJS=api;
         }
         map.on('zoomend', updateRegionalTopo);
         updateRegionalTopo();
+
+        const eventCountryDetailLayers = new Map();
+        async function ensureEventCountryDetail(ev) {
+            try {
+                const iso = String(countryISOForEvent?.(ev) || geoBoundaryIsoForEvent?.(ev) || '').toUpperCase();
+                if (!/^[A-Z]{3}$/.test(iso)) return;
+                const key = `event-${iso}`;
+                eventCountryDetailLayers.forEach((layer, oldKey) => {
+                    if (oldKey !== key) { try { map.removeLayer(layer); } catch (_) {} }
+                });
+                if (eventCountryDetailLayers.has(key)) {
+                    const existing = eventCountryDetailLayers.get(key);
+                    if (!map.hasLayer(existing)) existing.addTo(map);
+                    return;
+                }
+                const meta = await fetch(`https://www.geoboundaries.org/api/current/gbOpen/${iso}/ADM1/`, { cache:'force-cache' }).then(r => r.ok ? r.json() : null);
+                const url = meta?.simplifiedGeometryGeoJSON || meta?.gjDownloadURL;
+                if (!url) return;
+                const data = await fetch(url, { cache:'force-cache', mode:'cors' }).then(r => r.ok ? r.json() : null);
+                if (!data?.features?.length) return;
+                const layer = L.geoJSON(data, { pane:'regionalPane', interactive:false,
+                    style:{ color:'#9aa0a6', weight:.75, opacity:.8, fillColor:'#393939', fillOpacity:1 }
+                }).addTo(map);
+                eventCountryDetailLayers.set(key, layer);
+            } catch (_) {}
+        }
 
         function updateTigerLayerVisibility() {
             const visible = false; // La capa TIGER se conserva para consultar geometrías, no para dibujar líneas.
@@ -6606,6 +6632,19 @@ global.TauPJS=api;
         const admin1Cache = {};
         let intensityZonesLayer = null;
         let intensityLayerHasRealBounds = false;
+        let globalAdmin1Outline = null;
+        // Límites administrativos ADM1 mundiales: solo líneas, sin relleno.
+        // Se cargan una vez para que todos los países tengan subdivisiones
+        // visibles, como China y Japón, sin tapar el mapa oscuro.
+        fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson', { cache:'force-cache' })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (!data?.features?.length) return;
+                worldAdmin1Data = prepareAdmin1Data(data);
+                globalAdmin1Outline = L.geoJSON(data, { pane:'boundariesPane', interactive:false,
+                    style:{ color:'#68737d', weight:.45, opacity:.72, fillOpacity:0, fillColor:'transparent' }
+                }).addTo(map);
+            }).catch(() => {});
 
         function countryISOForEvent(ev) {
             const agency = String(ev?.agency || '').toUpperCase();
@@ -9288,6 +9327,8 @@ global.TauPJS=api;
             if (!ev) return;
 
             selectedEventId = id;
+            // Cargar solo el detalle administrativo del país del evento.
+            ensureEventCountryDetail(ev);
 
             // El cuadro de info del sismo SIEMPRE se actualiza (aunque haya un
             // modo de alerta abierto). Solo el mapa puede quedar bloqueado.
