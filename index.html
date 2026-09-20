@@ -11241,7 +11241,12 @@ global.TauPJS=api;
                 showRegionToast('〰️ Ondas JMA fijadas en el mapa');
                 return;
             }
-            if (events.length > 0) selectEvent(events[0].id);
+            if (events.length > 0) {
+                const latest = [...events].sort((a,b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0))[0];
+                // Inicio siempre vuelve al último sismo y aplica el zoom de
+                // enfoque, aunque ya estuviera seleccionado en la lista.
+                if (latest) selectEvent(latest.id, { autoFocus:true, forceMap:true });
+            }
         });
         document.getElementById('btnFullscreen').addEventListener('click', () => {
             playUiSound('click');
