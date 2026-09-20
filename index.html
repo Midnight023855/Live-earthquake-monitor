@@ -3677,8 +3677,13 @@ global.TauPJS=api;
             attributionControl: true,
             // Evita alejarse tanto que aparezcan zonas vacías alrededor del
             // mundo; el nivel 3 mantiene una vista global útil.
+            // Limitar el mapa al mundo visible y evitar alejarse hasta dejar
+            // zonas vacías alrededor.
             minZoom: 3,
             maxZoom: 19,
+            maxBounds: [[-82, -180], [82, 180]],
+            maxBoundsViscosity: 1,
+            bounceAtZoomLimits: false,
             worldCopyJump: false,
             // Zoom estándar de Leaflet: el punto bajo el cursor permanece
             // fijo y las capas siguen una transición suave.
@@ -3693,6 +3698,11 @@ global.TauPJS=api;
         map.attributionControl.addAttribution('<a href="https://www.geoboundaries.org/" target="_blank" rel="noopener">geoBoundaries</a>');
         let programmaticMapMove = false;
         let mapUserInteractionRevision = 0;
+        // Leaflet puede dejar un pequeño desplazamiento lateral después de
+        // un gesto de pellizco; lo corregimos al terminar el zoom.
+        map.on('zoomend', () => {
+            try { map.panInsideBounds(map.options.maxBounds, { animate:false }); } catch (_) {}
+        });
         // Evita que Leaflet quede dibujado solo en un lado tras cambiar
         // paneles, girar el celular o redimensionar la ventana.
         const mapResizeRefresh = () => { try { map.invalidateSize({ pan:false, animate:false }); } catch (_) {} };
