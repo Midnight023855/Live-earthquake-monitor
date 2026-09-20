@@ -3669,31 +3669,37 @@ global.TauPJS=api;
 
         const directFileRender = location.protocol === 'file:' || location.protocol === 'content:' || /^content:/i.test(String(location.href || ''));
         document.documentElement.classList.toggle('direct-file-safe', directFileRender);
-        // Leaflet usa transformaciones 3D por defecto; al abrir directamente
-        // algunos drivers de Windows producen parpadeos o pantalla negra.
-        if (directFileRender && L.Browser) {
-            L.Browser.any3d = false;
-            L.Browser.transform3D = false;
-            L.Browser.zoomAnimation = false;
-            L.Browser.fadeAnimation = false;
-        }
         let nhkCoverageMode = false;
         let nhkCoverageMainEvent = null;
         let nhkTsunamiFlashTimer = null;
         let map = L.map('map', {
             zoomControl: false,
             attributionControl: true,
-            minZoom: 2,
+            // Evita alejarse tanto que aparezcan zonas vacías alrededor del
+            // mundo; el nivel 3 mantiene una vista global útil.
+            minZoom: 3,
             maxZoom: 19,
             worldCopyJump: false,
-            zoomAnimation: !directFileRender,
-            fadeAnimation: !directFileRender,
-            markerZoomAnimation: !directFileRender,
-            preferCanvas: false
+            // Zoom estándar de Leaflet: el punto bajo el cursor permanece
+            // fijo y las capas siguen una transición suave.
+            zoomAnimation: true,
+            fadeAnimation: true,
+            markerZoomAnimation: true,
+            preferCanvas: false,
+            scrollWheelZoom: true,
+            doubleClickZoom: true,
+            touchZoom: true
         }).setView([20, 140], 3);
         map.attributionControl.addAttribution('<a href="https://www.geoboundaries.org/" target="_blank" rel="noopener">geoBoundaries</a>');
         let programmaticMapMove = false;
         let mapUserInteractionRevision = 0;
+        // Evita que Leaflet quede dibujado solo en un lado tras cambiar
+        // paneles, girar el celular o redimensionar la ventana.
+        const mapResizeRefresh = () => { try { map.invalidateSize({ pan:false, animate:false }); } catch (_) {} };
+        window.addEventListener('resize', mapResizeRefresh, { passive:true });
+        if (window.ResizeObserver) {
+            new ResizeObserver(() => requestAnimationFrame(mapResizeRefresh)).observe(document.getElementById('map'));
+        }
         let autoFocusRequestId = 0;
         let autoRecenterTimer = null;
         let lastAutoFocusedEventId = null;
@@ -3827,15 +3833,49 @@ global.TauPJS=api;
             if (mapUserHasControl && !force) return false;
             if (yahooNiedModeActive && !yahooNiedInternalView && typeof ynUserMapControl !== 'undefined' && ynUserMapControl && !force) return false;
             programmaticMapMove = true;
-            map.fitBounds(bounds, { padding: [36, 36], animate: false });
+            try {
+                // Encaja TODO el mapa de intensidad con margen; no acercar de más.
+                map.fitBounds(bounds, {
+                    padding: options.padding || [48, 48],
+                    maxZoom: options.maxZoom != null ? options.maxZoom : 9,
+                    animate: options.animate === true
+                });
+            } catch (_) {
+                try { map.fitBounds(bounds, { padding: [40, 40], maxZoom: 8 }); } catch (_) {}
+            }
             setTimeout(() => {
                 programmaticMapMove = false;
                 try {
                     const c = map.getCenter();
                     mapSavedView = { center: [c.lat, c.lng], zoom: map.getZoom(), at: Date.now() };
                 } catch (_) {}
-            }, 80);
+            }, 100);
             return true;
+        }
+
+        // Tras dibujar intensidad: zoom para que se vea todo el polígono coloreado.
+        function focusMapOnIntensityOrEpicenter(ev, options = {}) {
+            const force = options.force !== false;
+            try { mapUserHasControl = false; } catch (_) {}
+            const lat = Number(ev?.lat), lon = Number(ev?.lon);
+            let fitted = false;
+            try {
+                if (intensityLayerHasRealBounds && intensityZonesLayer) {
+                    const b = intensityZonesLayer.getBounds?.();
+                    if (b && b.isValid?.()) {
+                        fitted = setProgrammaticMapBounds(b, {
+                            force: true,
+                            padding: [56, 56],
+                            maxZoom: 9
+                        });
+                    }
+                }
+            } catch (_) {}
+            if (!fitted && Number.isFinite(lat) && Number.isFinite(lon)) {
+                // Sin geometría: zoom moderado al epicentro (no demasiado cerca).
+                setProgrammaticMapView([lat, lon], options.fallbackZoom || NEW_EARTHQUAKE_FOCUS_ZOOM, { force: true });
+            }
+            return fitted;
         }
 
         let suppressNextModeSound = false;
@@ -5103,11 +5143,11 @@ global.TauPJS=api;
         const tileDark = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, attribution: '© Esri, HERE, Garmin, USGS, NGA, EPA, NPS | Datos sísmicos: USGS + JMA + CENC + Wolfx' });
         // Respaldo visual únicamente si el servicio oscuro de Esri no entrega
         // teselas; no cambia el mapa preferido mientras funcione.
-        const tileDarkFallback = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { pane:'osmOceanPane', maxZoom: 19, attribution: '© OpenStreetMap contributors' });
+        const tileDarkFallback = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { pane:'osmOceanPane', maxZoom: 19, noWrap:true, bounds:[[-85,-180],[85,180]], attribution: '© OpenStreetMap contributors' });
         // OpenStreetMap queda debajo del mapa vectorial: la tierra se cubre
         // con los polígonos oscuros de Kanameishi y el mar conserva el estilo
         // azul real de OSM, no un color plano.
-        const tileOceanOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { pane:'osmOceanPane', maxZoom: 19, opacity: 1, attribution: '© OpenStreetMap contributors' });
+        const tileOceanOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { pane:'osmOceanPane', maxZoom: 19, noWrap:true, bounds:[[-85,-180],[85,180]], opacity: 1, attribution: '© OpenStreetMap contributors' });
         tileOceanOSM.addTo(map);
         let darkTileErrors = 0;
         function applyDarkFallbackFilter(active) {
@@ -6819,7 +6859,7 @@ global.TauPJS=api;
             let outerKm = (25 + mag * 24 + maxIntensityCenter * 12) * (0.72 + depthFactor * 0.45);
             outerKm = Math.max(35, Math.min(420, outerKm));
 
-            intensityZonesLayer = L.layerGroup();
+            intensityZonesLayer = L.featureGroup(); // featureGroup tiene getBounds()
 
             // Para magnitudes mayores de 2 se dibuja también una intensidad estimada
             // cuando la agencia no publica un valor oficial.
@@ -8275,107 +8315,209 @@ global.TauPJS=api;
         }
 
         // Early-Est (INGV / ALomax): estimación automática rápida basada en
-        // formas de onda; sus resultados son preliminares y no revisados.
+        // formas de onda; resultados preliminares.
         let earlyEstCache = [];
         let earlyEstLastFetch = 0;
-        // Identidad estable: las revisiones de Early-Est cambian la magnitud,
-        // pero deben actualizar la misma entrada y no crear otra.
         function earlyEstStableId(ts, lat, lon) {
             return `early-est-${Math.round(Number(ts) / 60000)}-${Number(lat).toFixed(1)}-${Number(lon).toFixed(1)}`;
         }
+        function earlyEstPickMag(mb, mwp, mwpd) {
+            // Preferir Mwp/Mwpd válidos; -9.0 = ausente en hypolist.
+            const cands = [mwp, mwpd, mb].map(Number).filter(v => Number.isFinite(v) && v > 0 && v < 9.5);
+            return cands.length ? cands[0] : NaN;
+        }
+        function earlyEstParseHypolistHtml(text) {
+            const list = [];
+            const rowRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+            let m;
+            while ((m = rowRe.exec(text))) {
+                const row = m[1];
+                if (/event id|otime|locSeq/i.test(row) && /<th/i.test(row)) continue;
+                const cells = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map(c =>
+                    c[1].replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim()
+                );
+                if (cells.length < 22) continue;
+                // Columnas hypolist (31): id, locSeq, ..., otime(9), lat(10), lon(11), errH(12), depth(13), ..., mb(21), n, Mwp(23), n, T0, n, Mwpd(27), n, fm, region(30)
+                const otime = cells[9] || '';
+                const tm = otime.match(/(\d{4})\.(\d{2})\.(\d{2})-(\d{2}):(\d{2}):(\d{2})/);
+                if (!tm) continue;
+                const ts = Date.parse(`${tm[1]}-${tm[2]}-${tm[3]}T${tm[4]}:${tm[5]}:${tm[6]}Z`);
+                const lat = Number(cells[10]);
+                const lon = Number(cells[11]);
+                const depth = Number(cells[13]);
+                const mb = Number(cells[21]);
+                const mwp = Number(cells[23]);
+                const mwpd = Number(cells[27]);
+                const mag = earlyEstPickMag(mb, mwp, mwpd);
+                const place = cells[cells.length - 1] || cells[30] || 'Early-Est';
+                if (!Number.isFinite(ts) || !Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(mag)) continue;
+                list.push({
+                    id: earlyEstStableId(ts, lat, lon),
+                    intensity: magToMMI(mag),
+                    place: String(place).trim() || 'Early-Est',
+                    time: formatTime(ts),
+                    mag: magnitudeDisplay(mag),
+                    depth: Number.isFinite(depth) && depth >= 0 ? depth.toFixed(0) + ' km' : '—',
+                    agency: 'Early-Est / INGV',
+                    lat, lon,
+                    colorClass: intensityClass(magToMMI(mag)),
+                    ts,
+                    reportConfidence: 'preliminar'
+                });
+            }
+            return list;
+        }
+        function earlyEstParseQuakeML(text) {
+            const list = [];
+            const xml = new DOMParser().parseFromString(text, 'application/xml');
+            if (xml.querySelector('parsererror')) return list;
+            const xmlEvents = [...xml.getElementsByTagNameNS('*', 'event')].filter(n =>
+                (n.localName || n.tagName || '').toLowerCase() === 'event'
+            );
+            xmlEvents.forEach(node => {
+                const origins = [...node.getElementsByTagNameNS('*', 'origin')].filter(o =>
+                    (o.localName || o.tagName || '').toLowerCase() === 'origin'
+                );
+                const origin = origins[origins.length - 1];
+                if (!origin) return;
+                const nestedVal = (el, child) => {
+                    if (!el) return '';
+                    const c = el.getElementsByTagNameNS('*', child)[0];
+                    return (c?.textContent || el.textContent || '').trim().split(/\s+/)[0] || '';
+                };
+                const timeEl = origin.getElementsByTagNameNS('*', 'time')[0];
+                const latEl = origin.getElementsByTagNameNS('*', 'latitude')[0];
+                const lonEl = origin.getElementsByTagNameNS('*', 'longitude')[0];
+                const depEl = origin.getElementsByTagNameNS('*', 'depth')[0];
+                const rawTime = nestedVal(timeEl, 'value');
+                const ts = Date.parse(/Z$|[+-]\d{2}:?\d{2}$/.test(rawTime) ? rawTime : rawTime + 'Z');
+                const lat = Number(nestedVal(latEl, 'value'));
+                const lon = Number(nestedVal(lonEl, 'value'));
+                const depthM = Number(nestedVal(depEl, 'value'));
+                const mags = [...node.getElementsByTagNameNS('*', 'magnitude')];
+                // preferredMagnitudeID es ELEMENTO hijo, no atributo.
+                let preferred = '';
+                try {
+                    preferred = node.getElementsByTagNameNS('*', 'preferredMagnitudeID')[0]?.textContent?.trim() || '';
+                } catch (_) {}
+                let mag = NaN;
+                const readMag = m => Number(m?.getElementsByTagNameNS('*', 'value')[0]?.textContent?.trim());
+                if (preferred) {
+                    const hit = mags.find(m => (m.getAttribute('publicID') || '').includes(preferred.split('/').pop() || '___'));
+                    if (hit) mag = readMag(hit);
+                }
+                if (!Number.isFinite(mag)) {
+                    for (const type of ['Mwp', 'Mwpd', 'mb', 'Mw']) {
+                        const hit = mags.find(m => (m.getElementsByTagNameNS('*', 'type')[0]?.textContent || '').trim() === type);
+                        const v = readMag(hit);
+                        if (Number.isFinite(v) && v > 0 && v < 9.5) { mag = v; break; }
+                    }
+                }
+                if (!Number.isFinite(mag)) mag = readMag(mags[0]);
+                let place = 'Early-Est';
+                try {
+                    const desc = node.getElementsByTagNameNS('*', 'text')[0]?.textContent?.trim();
+                    if (desc) place = desc;
+                } catch (_) {}
+                // Comentario en origin a menudo trae la región.
+                try {
+                    const comment = (origin.innerHTML || '').match(/;\s*([^;<]+)\s*-->/);
+                    if (comment && comment[1]) place = comment[1].trim();
+                } catch (_) {}
+                if (!Number.isFinite(ts) || !Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(mag) || mag <= 0) return;
+                list.push({
+                    id: earlyEstStableId(ts, lat, lon),
+                    intensity: magToMMI(mag),
+                    place,
+                    time: formatTime(ts),
+                    mag: magnitudeDisplay(mag),
+                    depth: Number.isFinite(depthM) ? (Math.abs(depthM) / 1000).toFixed(0) + ' km' : '—',
+                    agency: 'Early-Est / INGV',
+                    lat, lon,
+                    colorClass: intensityClass(magToMMI(mag)),
+                    ts,
+                    reportConfidence: 'preliminar'
+                });
+            });
+            return list;
+        }
         async function fetchEarlyEst() {
-            if (earlyEstCache.length && Date.now() - earlyEstLastFetch < 30000) return earlyEstCache.map(ev => ({ ...ev }));
-            const target = 'https://early-est.rm.ingv.it/monitor.xml?_=' + Date.now();
+            if (earlyEstCache.length && Date.now() - earlyEstLastFetch < 25000) {
+                return earlyEstCache.map(ev => ({ ...ev }));
+            }
+            // El host Early-Est tiene certificado inválido + sin CORS.
+            // HTTP + cors.eu.org es el camino que funciona desde el navegador.
+            const stamp = Date.now();
+            const htmlHttp = 'http://early-est.rm.ingv.it/hypolist.html?_=' + stamp;
+            const htmlHttps = 'https://early-est.rm.ingv.it/hypolist.html?_=' + stamp;
+            const xmlHttp = 'http://early-est.rm.ingv.it/monitor.xml?_=' + stamp;
             const targets = [
-                target,
-                'https://api.allorigins.win/raw?url=' + encodeURIComponent(target),
-                'https://r.jina.ai/http://early-est.rm.ingv.it/hypolist.html?_=' + Date.now()
+                'https://cors.eu.org/' + htmlHttp,
+                'https://cors.eu.org/' + htmlHttps,
+                'https://cors.eu.org/' + xmlHttp,
+                'https://api.allorigins.win/raw?url=' + encodeURIComponent(htmlHttp),
+                'https://api.allorigins.win/get?url=' + encodeURIComponent(htmlHttp),
+                'https://corsproxy.io/?' + encodeURIComponent(htmlHttp),
+                htmlHttp,
+                htmlHttps
             ];
             try {
                 let text = '';
                 for (const url of targets) {
                     try {
-                        const r = await fetch(url, { cache: 'no-store' });
-                        if (!r.ok) continue;
-                        const candidate = await r.text();
-                        if (candidate.includes('<q:quakeml') || candidate.includes('<eventParameters') || candidate.includes('Latest Earthquakes - Past 10 days')) {
-                            text = candidate; break;
+                        const ctrl = new AbortController();
+                        const timer = setTimeout(() => ctrl.abort(), 12000);
+                        let candidate = '';
+                        try {
+                            const r = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+                            if (!r.ok) continue;
+                            candidate = await r.text();
+                        } finally { clearTimeout(timer); }
+                        // allorigins /get envuelve en JSON { contents: "..." }
+                        if (candidate.trim().startsWith('{') && candidate.includes('"contents"')) {
+                            try {
+                                const j = JSON.parse(candidate);
+                                if (j && typeof j.contents === 'string') candidate = j.contents;
+                            } catch (_) {}
+                        }
+                        if (!candidate || candidate.length < 200) continue;
+                        if (
+                            candidate.includes('<q:quakeml') ||
+                            candidate.includes('<eventParameters') ||
+                            candidate.includes('Latest Earthquakes - Past 10 days') ||
+                            candidate.includes('Early-est') ||
+                            candidate.includes('Early-Est') ||
+                            (candidate.indexOf('2026.') >= 0 || candidate.indexOf('2025.') >= 0)
+                        ) {
+                            text = candidate;
+                            break;
                         }
                     } catch (_) {}
                 }
                 if (!text) throw new Error('Early-Est no respondió');
-                const list = [];
+                let list = [];
                 if (text.includes('<q:quakeml') || text.includes('<eventParameters')) {
-                    const xml = new DOMParser().parseFromString(text, 'application/xml');
-                    const xmlEvents = [...xml.getElementsByTagNameNS('*', 'event')];
-                    xmlEvents.forEach((node, index) => {
-                        const value = name => node.getElementsByTagNameNS('*', name)[0]?.textContent?.trim() || '';
-                        const origins = [...node.getElementsByTagNameNS('*', 'origin')];
-                        const origin = origins[origins.length - 1];
-                        if (!origin) return;
-                        const originValue = name => origin.getElementsByTagNameNS('*', name)[0]?.textContent?.trim() || '';
-                        const rawTime = originValue('value');
-                        const ts = Date.parse(/Z$|[+-]\\d\\d:\\d\\d$/.test(rawTime) ? rawTime : rawTime + 'Z');
-                        const lat = Number(originValue('latitude'));
-                        const lon = Number(originValue('longitude'));
-                        const depthM = Number(originValue('depth'));
-                        const mags = [...node.getElementsByTagNameNS('*', 'magnitude')];
-                        const preferred = node.getAttribute('preferredMagnitudeID') || '';
-                        const magNode = mags.find(m => (m.getAttribute('publicID') || '') === preferred) || mags.find(m => ['mb','Mwp','Mwpd'].includes(m.getElementsByTagNameNS('*','type')[0]?.textContent?.trim())) || mags[0];
-                        const mag = Number(magNode?.getElementsByTagNameNS('*','value')[0]?.textContent?.trim());
-                        const desc = value('text') || value('description') || 'Early-Est';
-                        if (!ts || !Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(mag)) return;
-                        list.push({
-                            id: earlyEstStableId(ts, lat, lon),
-                            intensity: magToMMI(mag), place: desc,
-                            time: formatTime(ts), mag: magnitudeDisplay(mag),
-                            depth: Number.isFinite(depthM) ? (Math.abs(depthM) / 1000).toFixed(0) + ' km' : '—',
-                            agency: 'Early-Est / INGV', lat, lon,
-                            colorClass: intensityClass(magToMMI(mag)), ts
-                        });
-                    });
-                } else {
-                    // Respaldo para el formato Markdown de Jina cuando el XML
-                    // oficial no permite una lectura directa desde el navegador.
-                    const rowRe = /\[(\d+)\]\([^)]*\s+"View event information page - ([^"]+)"\)([\s\S]*?)(?=\n\[\d+\]\(|$)/g;
-                    let match;
-                    while ((match = rowRe.exec(text))) {
-                        const id = match[1], place = match[2];
-                        const body = match[3];
-                        const tm = body.match(/(\d{4})\.(\d{2})\.(\d{2})-(\d{2}):(\d{2}):(\d{2})/);
-                        if (!tm) continue;
-                        const ts = Date.parse(`${tm[1]}-${tm[2]}-${tm[3]}T${tm[4]}:${tm[5]}:${tm[6]}Z`);
-                        const afterTime = body.slice(tm.index + tm[0].length);
-                        const coords = [...afterTime.matchAll(/\*\*(-?\d+(?:\.\d+)?)\*\*/g)].map(m => Number(m[1]));
-                        const lat = coords[0], lon = coords[1];
-                        const depthMatch = afterTime.match(/\]\*\*(-?\d+(?:\.\d+)?)\*\*(-?\d+(?:\.\d+)?)/);
-                        const depth = depthMatch ? Number(depthMatch[2]) : NaN;
-                        // En el Markdown, los números finales "-9.0" son valores
-                        // ausentes, no magnitudes. La magnitud válida aparece
-                        // resaltada inmediatamente después del campo 0.0 (mb).
-                        // No buscar simplemente el último número: eso convertía
-                        // los valores ausentes 9.0 en terremotos M9.0.
-                        const magMatch = afterTime.match(/0\.0[\s\S]{0,30}?\*\*(\d+(?:\.\d+)?)\*\*/);
-                        const mag = magMatch ? Number(magMatch[1]) : NaN;
-                        if (!ts || !Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(mag)) continue;
-                        list.push({
-                            id: earlyEstStableId(ts, lat, lon), intensity: magToMMI(mag), place,
-                            time: formatTime(ts), mag: magnitudeDisplay(mag),
-                            depth: Number.isFinite(depth) ? depth.toFixed(0) + ' km' : '—',
-                            agency: 'Early-Est / INGV', lat, lon,
-                            colorClass: intensityClass(magToMMI(mag)), ts
-                        });
-                    }
+                    list = earlyEstParseQuakeML(text);
                 }
-                const result = list.filter(ev => ev.ts > Date.now() - MAX_EVENT_AGE_MS).slice(0, 50);
+                if (!list.length) {
+                    list = earlyEstParseHypolistHtml(text);
+                }
+                const result = list
+                    .filter(ev => Number.isFinite(ev.ts) && ev.ts > Date.now() - MAX_EVENT_AGE_MS)
+                    .sort((a, b) => b.ts - a.ts)
+                    .slice(0, 40);
                 if (!result.length) throw new Error('Early-Est sin eventos válidos');
                 earlyEstCache = result;
                 earlyEstLastFetch = Date.now();
-                setApiState('earlyEst', 'ok');
+                setApiState('earlyEst', 'ok', result.length);
                 return result.map(ev => ({ ...ev }));
             } catch (e) {
-                if (earlyEstCache.length) { setApiState('earlyEst', 'cached'); return earlyEstCache.map(ev => ({ ...ev })); }
-                setApiState('earlyEst', 'bad'); return [];
+                if (earlyEstCache.length) {
+                    setApiState('earlyEst', 'cached', earlyEstCache.length);
+                    return earlyEstCache.map(ev => ({ ...ev }));
+                }
+                setApiState('earlyEst', 'bad');
+                return [];
             }
         }
 
@@ -9387,34 +9529,31 @@ global.TauPJS=api;
             const eventLat = Number(ev.lat), eventLon = Number(ev.lon);
             if (yahooNiedModeActive && options.niedNew && Number.isFinite(eventLat) && Number.isFinite(eventLon)) {
                 showYahooNiedTemporaryFocus([eventLat, eventLon], Math.max(map.getZoom(), 5));
-            } else if (options.autoFocus) {
-                // Zoom al último sismo: siempre forzar (aunque el usuario haya movido el mapa).
+            } else if (options.autoFocus || options.forceMap || !options.skipIntensityFocus) {
+                // Zoom automático al área del mapa de intensidad (no solo epicentro).
                 const requestId = ++autoFocusRequestId;
                 const userRevision = mapUserInteractionRevision;
                 try { mapUserHasControl = false; } catch (_) {}
+                // Primer encuadre rápido al epicentro mientras carga la geometría.
                 if (Number.isFinite(eventLat) && Number.isFinite(eventLon)) {
                     setProgrammaticMapView([eventLat, eventLon], NEW_EARTHQUAKE_FOCUS_ZOOM, { force: true });
                 }
-                drawIntensityZones(ev).then(() => {
+                const afterIntensity = () => {
                     if (requestId !== autoFocusRequestId || selectedEventId !== ev.id) return;
-                    // Si el usuario tocó el mapa mientras cargaba intensidad, respetar.
                     if (userRevision !== mapUserInteractionRevision && mapUserHasControl) return;
-                    const bounds = intensityLayerHasRealBounds && intensityZonesLayer?.getBounds?.();
-                    if (bounds && bounds.isValid?.()) {
-                        setProgrammaticMapBounds(bounds, { force: true });
-                    } else if (Number.isFinite(eventLat) && Number.isFinite(eventLon)) {
-                        setProgrammaticMapView([eventLat, eventLon], NEW_EARTHQUAKE_FOCUS_ZOOM, { force: true });
-                    }
-                }).catch(() => {});
+                    focusMapOnIntensityOrEpicenter(ev, { force: true });
+                };
+                drawIntensityZones(ev).then(afterIntensity).catch(afterIntensity);
             } else if (!(yahooNiedModeActive && document.getElementById('mainLayout')?.classList.contains('japan-focus'))) {
-                // Selección manual / lista: centrar en el epicentro.
                 if (Number.isFinite(eventLat) && Number.isFinite(eventLon)) {
                     setProgrammaticMapView([eventLat, eventLon], Math.max(map.getZoom() || 3, 5), { force: !!options.forceMap });
                 }
+                drawIntensityZones(ev).then(() => {
+                    if (selectedEventId !== ev.id) return;
+                    focusMapOnIntensityOrEpicenter(ev, { force: true });
+                }).catch(() => {});
             }
             loadGeoBoundariesForEvent(ev);
-
-            if (!options.autoFocus) drawIntensityZones(ev);
         }
 
         const tickerItems = new Map();
