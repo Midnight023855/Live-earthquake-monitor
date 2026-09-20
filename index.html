@@ -513,13 +513,15 @@
         .map-container {
             flex: 1;
             position: relative;
-            background: #0a0a0a;
+            background: #0b4668;
         }
 
         #map {
             width: 100%;
             height: 100%;
-            background: #0a0a0a;
+            /* El océano queda visible incluso cuando el mapa vectorial
+               mundial oculta las teselas externas. */
+            background: #0b4668;
             filter: none !important;
             isolation: isolate;
         }
@@ -5099,6 +5101,11 @@ global.TauPJS=api;
         // Respaldo visual únicamente si el servicio oscuro de Esri no entrega
         // teselas; no cambia el mapa preferido mientras funcione.
         const tileDarkFallback = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' });
+        // OpenStreetMap queda debajo del mapa vectorial: la tierra se cubre
+        // con los polígonos oscuros de Kanameishi y el mar conserva el estilo
+        // azul real de OSM, no un color plano.
+        const tileOceanOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, opacity: 1, attribution: '© OpenStreetMap contributors' });
+        tileOceanOSM.addTo(map);
         let darkTileErrors = 0;
         function applyDarkFallbackFilter(active) {
             try {
