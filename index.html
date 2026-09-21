@@ -1772,6 +1772,74 @@
             pointer-events: none !important;
         }
         </style>
+<style id="modern-ui-only">
+/* Rediseño visual únicamente: no cambia posiciones, fuentes, polling ni lógica. */
+:root {
+  --ui-glass: rgba(12, 20, 34, .88);
+  --ui-glass-strong: rgba(17, 27, 45, .96);
+  --ui-line: rgba(137, 190, 255, .22);
+  --ui-accent: #62d9ff;
+  --ui-text: #eef7ff;
+  --ui-muted: #9eb2c8;
+}
+body { background: #07111d; color: var(--ui-text); }
+button, select, input { font-family: inherit; }
+button, select {
+  border: 1px solid var(--ui-line) !important;
+  border-radius: 9px !important;
+  background: linear-gradient(180deg, rgba(34,52,78,.94), rgba(13,24,41,.96)) !important;
+  color: var(--ui-text) !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.07) !important;
+  transition: transform .16s ease, border-color .16s ease, filter .16s ease !important;
+}
+button:hover, select:hover { border-color: rgba(98,217,255,.72) !important; filter: brightness(1.12); }
+button:active { transform: translateY(1px) scale(.98); }
+.left-panel, #connectionPanel, #intensityLegendPanel, #jmaEewPanel,
+#weatherPanel, #hurricanePanel, #typhoonPanel, #usAlertsPanel,
+#tsunamiPanel, #waveModePanel, #jmaWeatherAlertPanel {
+  border-color: var(--ui-line) !important;
+  border-radius: 14px !important;
+  background: linear-gradient(145deg, rgba(19,32,53,.96), rgba(7,16,29,.94)) !important;
+  box-shadow: 0 12px 32px rgba(0,0,0,.34), inset 0 1px rgba(255,255,255,.05) !important;
+  backdrop-filter: blur(12px);
+}
+.conn-title, .title, .eew-title, .typhoon-title, .hurricane-title,
+.us-alerts-title, .legend-title { letter-spacing: .04em; }
+.event-card, .quake-item, .conn-row, .weather-item, .alert-entry {
+  border-radius: 10px !important;
+  border-color: rgba(137,190,255,.16) !important;
+  background: rgba(255,255,255,.035) !important;
+  transition: background .16s ease, transform .16s ease;
+}
+.event-card:hover, .quake-item:hover, .weather-item:hover, .alert-entry:hover {
+  background: rgba(98,217,255,.09) !important;
+  transform: translateX(2px);
+}
+#infoTickerPanel, #multiClockPanel { border-color: rgba(98,217,255,.24) !important; }
+#infoTickerPanel {
+  height: 56px !important;
+  padding: 6px 18px 7px !important;
+  background: linear-gradient(115deg, rgba(8,18,32,.98), rgba(15,42,63,.96) 52%, rgba(8,18,32,.98)) !important;
+  border-top: 1px solid rgba(98,217,255,.30) !important;
+  border-bottom: 1px solid rgba(98,217,255,.18) !important;
+  box-shadow: 0 -8px 28px rgba(0,0,0,.32), inset 0 1px rgba(255,255,255,.06) !important;
+  backdrop-filter: blur(14px);
+}
+#infoTickerTitle {
+  height: 18px !important;
+  display: flex; align-items: center;
+  color: #79e4ff !important;
+  font-size: 11px !important;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+#infoTickerTitle::before { content:'●'; color:#45e0a5; margin-right:7px; font-size:9px; text-shadow:0 0 8px #45e0a5; }
+#infoTickerViewport { height: 25px !important; border-top: 1px solid rgba(255,255,255,.07); }
+#infoTickerText { color:#f5fbff !important; font-size:13px !important; font-weight:600; text-shadow:0 1px 3px #000; }
+::-webkit-scrollbar { width: 7px; height: 7px; }
+::-webkit-scrollbar-thumb { background: rgba(98,217,255,.35); border-radius: 10px; }
+::-webkit-scrollbar-track { background: rgba(0,0,0,.18); }
+</style>
 </head>
 <body>
     <div id="regionToast"></div>
