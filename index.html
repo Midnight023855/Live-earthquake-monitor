@@ -367,14 +367,14 @@
             display: block;
             font-weight: 800;
             color: #fff;
-            font-size: 20px;
+            font-size: 24px;
             letter-spacing: 0.04em;
             line-height: 1.35;
             text-shadow: 0 0 6px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
         }
         #jmaJaBanner .ja-es {
             display: block;
-            font-size: 13px;
+            font-size: 16px;
             color: #e8f4ff;
             margin-top: 4px;
             text-shadow: 0 0 4px #000, 1px 1px 0 #000;
@@ -13234,6 +13234,9 @@ global.TauPJS=api;
 (function () {
     let timer = null;
     let idx = 0;
+    let lastRenderKey = null;
+    let autoHideTimer = null;
+    const LINE_MS = 5000; // Tiempo que se muestra cada línea del cartel.
     function box() { return document.getElementById('jmaJaBanner'); }
     function fmtTimes(ms) {
         const d = new Date(Number.isFinite(ms) && ms > 0 ? ms : Date.now());
@@ -13281,15 +13284,23 @@ global.TauPJS=api;
     }
     function stop() {
         if (timer) { clearInterval(timer); timer = null; }
+        if (autoHideTimer) { clearTimeout(autoHideTimer); autoHideTimer = null; }
         idx = 0;
     }
-    window.hideJmaTvText = function () {
+    // Oculta el cartel sin olvidar qué reporte se mostró: el auto-ocultado usa
+    // esta función para que ese MISMO reporte no se vuelva a mostrar apenas
+    // llegue otro mensaje duplicado (eso era lo que causaba el bucle).
+    function hideVisual() {
         stop();
         const el = box();
         if (!el) return;
         el.classList.remove('visible');
         el.style.display = 'none';
         el.innerHTML = '';
+    }
+    window.hideJmaTvText = function () {
+        hideVisual();
+        lastRenderKey = null;
     };
     function next() {
         const el = box();
@@ -13328,7 +13339,23 @@ global.TauPJS=api;
         el.classList.add('visible');
         el.style.display = 'block';
         idx = 1;
-        timer = setInterval(next, 5000);
+        // Recorre cada línea una sola vez (una pasada completa) y, apenas
+        // termina de mostrar la última, se oculta solo — no se repite en bucle.
+        const total = rows.length;
+        let shown = 1; // la línea 0 ya quedó visible arriba
+        if (total <= 1) {
+            autoHideTimer = setTimeout(function () { hideVisual(); }, LINE_MS);
+            return;
+        }
+        timer = setInterval(function () {
+            next();
+            shown++;
+            if (shown >= total) {
+                clearInterval(timer);
+                timer = null;
+                autoHideTimer = setTimeout(function () { hideVisual(); }, LINE_MS);
+            }
+        }, LINE_MS);
     }
     window.showJmaTvText = function (ev) {
         ev = ev || {};
@@ -13425,8 +13452,35 @@ global.TauPJS=api;
         });
     };
     // Router principal
+    const FRESH_WINDOW_MS = 20 * 60 * 1000; // Solo se considera "en vivo" si pasó hace ≤20 min.
+    function isFreshEnough(ev) {
+        const t = typeof parseTs === 'function' ? parseTs(ev.ts) : (Number.isFinite(ev.ts) ? ev.ts : 0);
+        if (!t) return true; // sin timestamp usable: no bloquear un evento en vivo por falta de dato.
+        return (Date.now() - t) <= FRESH_WINDOW_MS;
+    }
     window.updateJmaJapaneseText = function (ev) {
         if (!ev) { window.hideJmaTvText(); return; }
+        // Evita que actualizaciones repetidas del MISMO reporte (heartbeats,
+        // reconexiones de socket, refrescos periódicos que reseleccionan el
+        // mismo sismo, etc.) reinicien el ciclo de texto una y otra vez —
+        // eso es lo que dejaba el cartel "congelado" mostrando solo la hora.
+        // Solo se vuelve a dibujar si el contenido realmente cambió.
+        const key = [
+            ev.id, ev.agency || ev.source || '', ev.reportConfidence || '',
+            ev.mag != null ? ev.mag : '', ev.intensity != null ? ev.intensity : '',
+            ev.place || '', String(!!ev.isFinal), String(isTsunamiEv(ev))
+        ].join('|');
+        const isQualifying = isTsunamiEv(ev) || isJmaEv(ev) || isStrongEv(ev);
+        // Navegar la lista de sismos (botón Home, salir de un modo, cargar la
+        // página, etc.) reselecciona sismos VIEJOS — eso no debe reabrir el
+        // cartel. Solo cuenta si además es reciente.
+        if (!isQualifying || !isFreshEnough(ev)) { window.hideJmaTvText(); return; }
+        // No comparar solo "si está visible": aunque ya se haya auto-ocultado,
+        // si el reporte es idéntico al último mostrado, no se vuelve a mostrar.
+        // Solo un cambio real de contenido (nueva magnitud, intensidad,
+        // confirmación final, etc.) dispara un nuevo cartel.
+        if (key === lastRenderKey) return;
+        lastRenderKey = key;
         // Prioridad: tsunami en el evento > JMA > M5.0+
         if (isTsunamiEv(ev) && !isJmaEv(ev)) {
             window.showTsunamiTvText({
@@ -13442,11 +13496,7 @@ global.TauPJS=api;
             window.showJmaTvText(ev);
             return;
         }
-        if (isStrongEv(ev)) {
-            window.showStrongTvText(ev);
-            return;
-        }
-        window.hideJmaTvText();
+        window.showStrongTvText(ev);
     };
     // Cuando el panel de tsunami oficial se actualiza
     window.showTsunamiTvFromBulletin = function (item) {
