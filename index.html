@@ -4901,7 +4901,7 @@ global.TauPJS=api;
             // el modo de ondas JMA dibuje el frente calculado con sus parámetros.
             realEarthquakePriority = { id:String(ev.id), ts:Date.now(), event:ev };
             tremEstimatedWave = null;
-            try { if (typeof window.updateJmaJapaneseText === 'function') window.updateJmaJapaneseText(ev); } catch (_) {}
+            try { if (typeof window.updateJmaJapaneseText === 'function') window.updateJmaJapaneseText(ev, { liveUpdate: true }); } catch (_) {}
             // Si Alertas JMA está activo, el sismo real toma prioridad y su
             // temporizador se reinicia incluso cuando llega una actualización
             // del mismo ID. La capa meteorológica no se toca.
@@ -4952,7 +4952,12 @@ global.TauPJS=api;
             if (d && !d.isFinal && !d.isCancel && jmaEewIsFresh(d) && Number.isFinite(Number(d.Latitude)) && Number.isFinite(Number(d.Longitude))) {
                 return { lat:Number(d.Latitude), lon:Number(d.Longitude), mag:d.Magnitude ?? d.Magunitude ?? '—', depth:d.Depth ?? '—', place:d.Hypocenter || 'Japón', time:d.OriginTime || d.AnnouncedTime || '', report:d.Serial || '—', status:d.isFinal ? 'Reporte final' : 'En vivo', raw:d };
             }
-            const fallback = [...events].filter(e => /JMA\s*EEW/i.test(String(e.agency || '')) && !e.isFinal).sort((a,b) => parseTs(b.ts) - parseTs(a.ts))[0];
+            // El filtro debe reconocer las mismas agencias JMA que abren este
+            // panel (isJmaRealEarthquakeEvent), no solo "JMA EEW" literal —
+            // si no, un evento tipo "JMA (Wolfx)"/"JMA-XML" que sí lo abrió
+            // nunca se encuentra acá y el panel se queda en "esperando" aunque
+            // sí tenga el dato del sismo guardado.
+            const fallback = [...events].filter(e => isJmaRealEarthquakeEvent(e) && !e.isFinal && Number.isFinite(Number(e.lat)) && Number.isFinite(Number(e.lon))).sort((a,b) => parseTs(b.ts) - parseTs(a.ts))[0];
             return fallback ? { lat:fallback.lat, lon:fallback.lon, mag:fallback.mag, depth:fallback.depth, place:fallback.place, time:fallback.time, report:'—', status:'Último reporte' } : null;
         }
 
@@ -7450,6 +7455,18 @@ global.TauPJS=api;
             } finally { clearTimeout(timer); }
         }
 
+        // JMA solo publica su nota de tsunami en la entrada No1 del catálogo
+        // (item.info). Si dice algo como "…津波の心配はありません" no hay
+        // amenaza; cualquier otro texto (área con aviso/warning) sí la hay.
+        // Si no viene info (entradas 2 en adelante), no se sabe — no hay que
+        // inventar "sin amenaza" por defecto.
+        function parseJmaTsunamiInfo(info) {
+            const text = String(info || '').trim();
+            if (!text) return { tsunami: null, tsunamiInfo: '' };
+            const noThreat = /心配(は)?ありません|心配はない|被害の心配はありません|no tsunami/i.test(text);
+            return { tsunami: !noThreat, tsunamiInfo: text };
+        }
+
         async function fetchWolfxJMA() {
             try {
                 const res = await fetch('https://api.wolfx.jp/jma_eqlist.json?_=' + Date.now(), { cache: 'no-store' });
@@ -7467,6 +7484,7 @@ global.TauPJS=api;
                     const lat = parseFloat(item.latitude);
                     const lon = parseFloat(item.longitude);
                     if (!Number.isFinite(ts) || !Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+                    const tsunamiInfo = parseJmaTsunamiInfo(item.info);
                     list.push({
                         id: 'jma-' + (item.EventID || item.md5 || item.time_full || item.time || i),
                         intensity: String(int),
@@ -7479,7 +7497,9 @@ global.TauPJS=api;
                         colorClass: intensityClass(int),
                         ts,
                         reportConfidence: 'confirmado',
-                        source: 'JMA eqlist'
+                        source: 'JMA eqlist',
+                        tsunami: tsunamiInfo.tsunami,
+                        tsunamiInfo: tsunamiInfo.tsunamiInfo
                     });
                 }
                 return list;
@@ -7508,6 +7528,7 @@ global.TauPJS=api;
                 const lat = parseFloat(item.latitude);
                 const lon = parseFloat(item.longitude);
                 if (!Number.isFinite(ts) || !Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+                const tsunamiInfo = parseJmaTsunamiInfo(item.info);
                 const ev = {
                     id: 'jma-' + (item.EventID || item.md5 || item.time_full || item.time || ts),
                     intensity: String(int),
@@ -7520,7 +7541,9 @@ global.TauPJS=api;
                     colorClass: intensityClass(int),
                     ts,
                     reportConfidence: 'confirmado',
-                    source: 'JMA eqlist WS'
+                    source: 'JMA eqlist WS',
+                    tsunami: tsunamiInfo.tsunami,
+                    tsunamiInfo: tsunamiInfo.tsunamiInfo
                 };
                 const idx = events.findIndex(x => x.id === ev.id);
                 if (idx >= 0) events[idx] = { ...events[idx], ...ev };
@@ -9058,7 +9081,12 @@ global.TauPJS=api;
             const ts = jmaEewReportTime(data);
             // Aceptar un pequeño desfase de reloj, pero nunca un reporte viejo.
             const age = Date.now() - ts;
-            return ts > 0 && age <= 10 * 60 * 1000 && age >= -2 * 60 * 1000;
+            // El informe FINAL (intensidad ya confirmada/observada) suele llegar
+            // varios minutos después del EEW inicial — no hay que exigirle la
+            // misma ventana estricta que a una alerta todavía en curso, o se
+            // descarta como "viejo" justo cuando trae la info definitiva.
+            const maxAge = (data && data.isFinal) ? 40 * 60 * 1000 : 10 * 60 * 1000;
+            return ts > 0 && age <= maxAge && age >= -2 * 60 * 1000;
         }
 
         function renderJmaEew() {
@@ -9188,7 +9216,12 @@ global.TauPJS=api;
                 const waveReportKey = newReportKey !== '-' ? newReportKey : `${data.EventID || ''}-${data.AnnouncedTime || ''}`;
                 if (shouldShowWaves && waveReportKey && waveReportKey !== '-') {
                     const reportAge = Date.now() - jmaEewReportTime(data);
-                    const staleInitialHttp = isInitialReport && !fromSocket && reportAge > 90 * 1000;
+                    // 90s era demasiado estricto: una reconexión de socket o un
+                    // sondeo HTTP de respaldo puede tardar más que eso en traer
+                    // el primer reporte y aun así seguir siendo un sismo real en
+                    // curso. Se amplía a 4 min, coherente con el resto del
+                    // margen de "reciente" que se usa para EEW.
+                    const staleInitialHttp = isInitialReport && !fromSocket && reportAge > 4 * 60 * 1000;
                     if (staleInitialHttp) {
                         // Snapshot HTTP antiguo: mostrar epicentro, pero no
                         // reconstruir ondas de un EEW ya terminado.
@@ -9524,7 +9557,25 @@ global.TauPJS=api;
         let fssnLastEvent = null;
         let fssnSocket = null;
         let fssnReconnectTimer = null;
+        let fssnWatchdogTimer = null;
         let fssnInitialized = false;
+        let fssnLastMessageAt = 0;
+        let fssnReconnectAttempts = 0;
+        const FSSN_CACHE_KEY = 'earthquake_fssn_last_v1';
+        const FSSN_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000; // No arrastrar un sismo de hace más de 6 h.
+        const FSSN_WATCHDOG_MS = 45000; // Sin ningún mensaje (ni heartbeat) en 45s: se asume "zombi" y reconecta.
+
+        function fssnCacheRead() {
+            try {
+                const raw = JSON.parse(localStorage.getItem(FSSN_CACHE_KEY) || 'null');
+                if (!raw || !raw.event || !raw.savedAt) return null;
+                if (Date.now() - raw.savedAt > FSSN_CACHE_MAX_AGE_MS) return null;
+                return raw.event;
+            } catch (_) { return null; }
+        }
+        function fssnCacheWrite(event) {
+            try { localStorage.setItem(FSSN_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), event })); } catch (_) {}
+        }
 
         function parseFssnTimestamp(value) {
             const text = String(value || '').trim();
@@ -9560,27 +9611,45 @@ global.TauPJS=api;
         }
 
         function handleFssnMessage(payload, type = 'update') {
+            fssnLastMessageAt = Date.now();
             if (!payload || payload.type === 'heartbeat') return;
             const event = normalizeFssnEvent(payload);
             if (!event) return;
             fssnLastEvent = event;
+            fssnCacheWrite(event);
             setApiState('fssn', 'ok', 1);
             if (type === 'update' && fssnInitialized) announceNewEvent(event);
             fssnInitialized = true;
             loadAll(false);
         }
 
+        function fssnWatchdogTick() {
+            clearTimeout(fssnWatchdogTimer);
+            fssnWatchdogTimer = setTimeout(() => {
+                // Nada llegó en FSSN_WATCHDOG_MS, ni siquiera un heartbeat: la
+                // conexión puede seguir "abierta" para el navegador pero muerta
+                // del lado del servidor. Forzar cierre y reconectar ya mismo.
+                if (fssnSocket) { try { fssnSocket.close(); } catch (_) {} }
+                else connectFssnWebSocket();
+            }, FSSN_WATCHDOG_MS);
+        }
+
         function connectFssnWebSocket() {
             if (!('WebSocket' in window)) return;
             if (fssnSocket && (fssnSocket.readyState === WebSocket.OPEN || fssnSocket.readyState === WebSocket.CONNECTING)) return;
+            clearTimeout(fssnReconnectTimer);
             try {
                 fssnSocket = new WebSocket('wss://ws.fanstudio.tech/fssn');
                 fssnSocket.onopen = () => {
                     apiMetrics.fssn = apiMetrics.fssn || {};
                     apiMetrics.fssn.wsState = 'activo';
+                    fssnReconnectAttempts = 0;
+                    fssnLastMessageAt = Date.now();
+                    fssnWatchdogTick();
                     setApiState('fssn', 'ok', fssnLastEvent ? 1 : 0);
                 };
                 fssnSocket.onmessage = e => {
+                    fssnWatchdogTick();
                     try {
                         const message = JSON.parse(e.data);
                         handleFssnMessage(message, message.type === 'initial' ? 'initial' : 'update');
@@ -9590,14 +9659,49 @@ global.TauPJS=api;
                     apiMetrics.fssn = apiMetrics.fssn || {};
                     apiMetrics.fssn.wsState = 'reconectando';
                     renderConnectionPanel();
+                    clearTimeout(fssnWatchdogTimer);
                     clearTimeout(fssnReconnectTimer);
-                    fssnReconnectTimer = setTimeout(connectFssnWebSocket, 10000);
+                    // Backoff corto y creciente (2s, 4s, 8s… tope 15s) para volver a
+                    // engancharse lo antes posible en vez de esperar 10s fijos.
+                    const delay = Math.min(15000, 2000 * (2 ** fssnReconnectAttempts));
+                    fssnReconnectAttempts++;
+                    fssnReconnectTimer = setTimeout(connectFssnWebSocket, delay);
                 };
                 fssnSocket.onerror = () => { try { fssnSocket.close(); } catch (_) {} };
             } catch (_) {
-                fssnReconnectTimer = setTimeout(connectFssnWebSocket, 10000);
+                clearTimeout(fssnReconnectTimer);
+                const delay = Math.min(15000, 2000 * (2 ** fssnReconnectAttempts));
+                fssnReconnectAttempts++;
+                fssnReconnectTimer = setTimeout(connectFssnWebSocket, delay);
             }
         }
+
+        // Restaurar el último sismo FSSN conocido (localStorage) al cargar la
+        // página, para no empezar en blanco mientras el socket reconecta.
+        (function fssnRestoreFromCache() {
+            const cached = fssnCacheRead();
+            if (cached) { fssnLastEvent = cached; fssnInitialized = true; }
+        })();
+
+        // Si el socket quedó "colgado" (no CLOSED pero sin datos) al volver a la
+        // pestaña o al recuperar la red, forzar una reconexión inmediata.
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) return;
+            try {
+                if (!fssnSocket || fssnSocket.readyState === WebSocket.CLOSED || fssnSocket.readyState === WebSocket.CLOSING) {
+                    connectFssnWebSocket();
+                } else if (fssnLastMessageAt && Date.now() - fssnLastMessageAt > FSSN_WATCHDOG_MS) {
+                    try { fssnSocket.close(); } catch (_) { connectFssnWebSocket(); }
+                }
+            } catch (_) {}
+        });
+        window.addEventListener('online', () => {
+            try {
+                if (!fssnSocket || fssnSocket.readyState === WebSocket.CLOSED || fssnSocket.readyState === WebSocket.CLOSING) {
+                    connectFssnWebSocket();
+                }
+            } catch (_) {}
+        });
 
         const apiState = {};
         const apiMetrics = {};
@@ -9799,6 +9903,11 @@ global.TauPJS=api;
                 // temporalmente la vista Japón/NIED.
                 if (yahooNiedModeActive && Number.isFinite(Number(ev.lat)) && Number.isFinite(Number(ev.lon))) {
                     selectEvent(ev.id, { niedNew:true });
+                } else if (Number.isFinite(Number(ev.lat)) && Number.isFinite(Number(ev.lon))) {
+                    // Sismo nuevo en la vista normal: centrar el mapa en él
+                    // automáticamente (respeta apartados especiales abiertos,
+                    // igual que hace interruptAlertViewForEarthquake arriba).
+                    selectEvent(ev.id, { autoFocus: true });
                 }
             }
         }
@@ -11006,6 +11115,11 @@ global.TauPJS=api;
             // haya publicado un evento nuevo; el render está agrupado por RAF.
             renderEvents();
             loadAll(false);
+            // Red de seguridad: si por lo que sea el socket de FSSN quedó sin
+            // temporizador de reconexión (error no controlado, etc.), esto lo
+            // vuelve a levantar. connectFssnWebSocket() no hace nada si ya
+            // está abierto o conectando, así que es seguro llamarlo siempre.
+            try { connectFssnWebSocket(); } catch (_) {}
         }, 2000);
 
         // Reinicio completo de estado de agencias solo en punto de hora (1:00, 2:00, …)
@@ -11809,6 +11923,19 @@ global.TauPJS=api;
             jmaWeatherAlertMode = true;
             jmaWeatherOpenedAt = Date.now();
             jmaWeatherLastFetchOk = null;
+            // "Armar" la firma con el sismo real JMA ya conocido ANTES de activar
+            // este apartado. Si no se hace, la primera comparación del sondeo ve
+            // window.__jmaWeatherLastRealSignature sin definir, trata cualquier
+            // sismo real que ya estuviera en memoria (aunque sea viejo) como
+            // "nuevo" y dispara el cartel saltándose el chequeo de antigüedad —
+            // eso es lo que lo reactivaba con un sismo viejo al cambiar de apartado.
+            try {
+                const latestReal = [...events].filter(isJmaRealEarthquakeEvent)
+                    .sort((a,b) => (parseTs(b.ts)||0) - (parseTs(a.ts)||0))[0];
+                window.__jmaWeatherLastRealSignature = latestReal
+                    ? [latestReal.id, latestReal.ts, latestReal.mag, latestReal.depth, latestReal.intensity, latestReal.reportConfidence || latestReal.confidence || ''].join('|')
+                    : null;
+            } catch (_) {}
             try { if (typeof deactivateWaveMode === 'function') deactivateWaveMode(); } catch (_) {}
             typhoonMode = false; hurricaneMode = false; usAlertsMode = false; tsunamiMode = false; taiwanMode = false;
             const layout = document.getElementById('mainLayout');
@@ -12996,10 +13123,15 @@ global.TauPJS=api;
             // No abrir con el histórico al cargar la página. Un JMA EEW
             // recién publicado sí puede abrirse aunque la carga inicial siga.
             const ageMs = Date.now() - (parseTs(ev.ts) || parseTs(ev.time) || 0);
-            const freshJmaEew = /JMA\s*EEW/i.test(String(ev.agency || '')) && ageMs >= -120000 && ageMs <= 90000;
+            // Mismo motivo que en handleJmaEew: 90s era muy poco margen para
+            // una reconexión o un sondeo de respaldo; se amplía a 4 min.
+            const freshJmaEew = /JMA\s*EEW/i.test(String(ev.agency || '')) && ageMs >= -120000 && ageMs <= 4 * 60 * 1000;
             if (typeof hasCompletedInitialLoad !== 'undefined' && !hasCompletedInitialLoad && !freshJmaEew) return false;
-            // Hasta 45 min: catálogo JMA a veces llega unos minutos después del EEW.
-            if (Number.isFinite(ageMs) && (ageMs < 0 || ageMs > 45 * 60 * 1000)) return false;
+            // 45 min era demasiado: dejaba abrir todo el panel de ondas para
+            // un sismo de media hora atrás, cuando ya no hay nada "en vivo"
+            // que mostrar. El catálogo JMA suele llegar pocos minutos después
+            // del EEW, así que 15 min alcanza de sobra sin arrastrar sismos viejos.
+            if (Number.isFinite(ageMs) && (ageMs < 0 || ageMs > 15 * 60 * 1000)) return false;
 
             // Si el reporte ya es final, no abrir (o cerrar si estaba abierto el mismo).
             if (jmaQuakeIsFinished(ev)) {
@@ -13299,6 +13431,19 @@ global.TauPJS=api;
         return /jma|wolfx/i.test(ag) ||
             (typeof isJmaRealEarthquakeEvent === 'function' && isJmaRealEarthquakeEvent(ev));
     }
+    function isJmaListUpdate(ev) {
+        // Solo cuenta cuando la JMA agrega/confirma algo en su lista de
+        // sismos: el catálogo "JMA (Wolfx)"/"JMA eqlist"/"JMA (XML oficial)",
+        // o un EEW que ya llegó a informe FINAL (intensidad confirmada). El
+        // EEW preliminar/estimado (todavía "en curso") no cuenta — eso es lo
+        // que hacía saltar el cartel con cada actualización de una alerta que
+        // ni siquiera había terminado.
+        if (!isJmaEv(ev)) return false;
+        const ag = String(ev.agency || ev.source || '').toLowerCase();
+        if (/\(wolfx\)|eqlist|xml/.test(ag)) return true;
+        const conf = String(ev.reportConfidence || ev.confidence || '').toLowerCase();
+        return ev.isFinal === true || conf === 'confirmado' || conf === 'final';
+    }
     function isTsunamiEv(ev) {
         if (!ev) return false;
         if (ev.tsunami === true || ev.tsunami === 1 || ev.tsunami === '1') return true;
@@ -13346,12 +13491,25 @@ global.TauPJS=api;
         const depth = String(ev.depth || '10 km');
         const mag = String(ev.mag != null ? ev.mag : '3.0').replace(/^M\s*/i, '');
         const intensity = String(ev.intensity || '3');
-        const hasTsunami = isTsunamiEv(ev);
+        // Con dato real de JMA hay 3 estados posibles: amenaza confirmada,
+        // sin amenaza confirmada, o sin dato (no inventar "sin amenaza" por
+        // defecto solo porque no vino el campo — eso no es lo que dijo JMA).
+        const tsunamiKnown = ev.tsunami === true || ev.tsunami === false;
+        const hasTsunami = ev.tsunami === true;
         const times = fmtTimes(ev.ts);
         const prelim = String(ev.reportConfidence || 'preliminar').toLowerCase();
         const isPrelim = /preliminar|preliminary|速報|推定|^$/.test(prelim);
         const stJp = isPrelim ? '（速報）' : '（確定）';
         const stEs = isPrelim ? '(preliminar)' : '(confirmado)';
+        function tsunamiLine() {
+            if (!tsunamiKnown) {
+                return { jp: 'この報告には津波情報が含まれていません。', es: 'Este reporte no incluye dato de tsunami.', cls: '' };
+            }
+            if (hasTsunami) {
+                return { jp: 'この地震による津波の心配があります。', es: 'Hay preocupación de tsunami por este sismo.', cls: 'ja-tsunami warn' };
+            }
+            return { jp: 'この地震による津波の心配はありません。', es: 'No hay preocupación de tsunami por este sismo.', cls: 'ja-tsunami' };
+        }
         function build(placeEsFinal) {
             renderLines([
                 { jp: times.jst + ' JST', es: times.co + ' (Colombia)', cls: '' },
@@ -13360,9 +13518,7 @@ global.TauPJS=api;
                 { jp: '深さ　' + depth, es: 'Profundidad: ' + depth, cls: '' },
                 { jp: 'マグニチュード　Mj' + mag, es: 'Magnitud: Mj' + mag, cls: '' },
                 { jp: '最大震度　' + intensity + '　（' + placeJp + '）', es: 'Intensidad máxima: ' + intensity + ' en ' + placeEsFinal, cls: '' },
-                { jp: hasTsunami ? 'この地震による津波の心配があります。' : 'この地震による津波の心配はありません。',
-                  es: hasTsunami ? 'Hay preocupación de tsunami por este sismo.' : 'No hay preocupación de tsunami por este sismo.',
-                  cls: hasTsunami ? 'ja-tsunami warn' : 'ja-tsunami' }
+                tsunamiLine()
             ]);
         }
         build(placeEs);
@@ -13434,14 +13590,20 @@ global.TauPJS=api;
         });
     };
     // Router principal
-    const FRESH_WINDOW_MS = 20 * 60 * 1000; // Solo se considera "en vivo" si pasó hace ≤20 min.
-    function isFreshEnough(ev) {
+    const FRESH_WINDOW_MS = 20 * 60 * 1000; // Navegar/zoom/abrir apartado: "reciente" si pasó hace ≤20 min.
+    const LIVE_FRESH_WINDOW_MS = 90 * 60 * 1000; // Actualización en vivo real: margen más amplio (sigue confirmándose), pero NO infinito.
+    function isFreshEnough(ev, maxAge) {
         const t = typeof parseTs === 'function' ? parseTs(ev.ts) : (Number.isFinite(ev.ts) ? ev.ts : 0);
-        if (!t) return true; // sin timestamp usable: no bloquear un evento en vivo por falta de dato.
-        return (Date.now() - t) <= FRESH_WINDOW_MS;
+        // Sin hora utilizable no se puede CONFIRMAR que sea reciente, así que
+        // no se muestra — dejarlo pasar (como antes) hacía que un sismo viejo
+        // con ts=0 (falla al leer OriginTime/AnnouncedTime) quedara "fresco"
+        // para siempre y reapareciera en cada zoom o al abrir un apartado.
+        if (!t) return false;
+        return (Date.now() - t) <= (maxAge || FRESH_WINDOW_MS);
     }
-    window.updateJmaJapaneseText = function (ev) {
+    window.updateJmaJapaneseText = function (ev, opts) {
         if (!ev) { window.hideJmaTvText(); return; }
+        opts = opts || {};
         // Evita que actualizaciones repetidas del MISMO reporte (heartbeats,
         // reconexiones de socket, refrescos periódicos que reseleccionan el
         // mismo sismo, etc.) reinicien el ciclo de texto una y otra vez —
@@ -13452,11 +13614,15 @@ global.TauPJS=api;
             ev.mag != null ? ev.mag : '', ev.intensity != null ? ev.intensity : '',
             ev.place || '', String(!!ev.isFinal), String(isTsunamiEv(ev))
         ].join('|');
-        const isQualifying = isTsunamiEv(ev) || isJmaEv(ev) || isStrongEv(ev);
+        const isQualifying = isTsunamiEv(ev) || isJmaListUpdate(ev) || isStrongEv(ev);
         // Navegar la lista de sismos (botón Home, salir de un modo, cargar la
         // página, etc.) reselecciona sismos VIEJOS — eso no debe reabrir el
-        // cartel. Solo cuenta si además es reciente.
-        if (!isQualifying || !isFreshEnough(ev)) { window.hideJmaTvText(); return; }
+        // cartel: se exige ≤20 min. Una ACTUALIZACIÓN real en vivo (liveUpdate)
+        // usa un margen más amplio, 90 min, porque un reporte puede seguir
+        // confirmándose un buen rato — pero NUNCA se salta el chequeo del todo:
+        // eso era lo que dejaba pasar sismos de horas atrás cuando el catálogo
+        // JMA (Wolfx) traía por primera vez una entrada vieja de su historial.
+        if (!isQualifying || !isFreshEnough(ev, opts.liveUpdate ? LIVE_FRESH_WINDOW_MS : FRESH_WINDOW_MS)) { window.hideJmaTvText(); return; }
         // No comparar solo "si está visible": aunque ya se haya auto-ocultado,
         // si el reporte es idéntico al último mostrado, no se vuelve a mostrar.
         // Solo un cambio real de contenido (nueva magnitud, intensidad,
