@@ -381,23 +381,6 @@
         }
         #jmaJaBanner .ja-tsunami .ja-jp { color: #8be28f; }
         #jmaJaBanner .ja-tsunami.warn .ja-jp { color: #ffb0b0; }
-        #btnTestJmaJa {
-            background: rgba(20,20,20,0.9) !important;
-            border: 1px solid #555 !important;
-            color: #9fd4ff !important;
-            font-size: 13px !important;
-            height: 32px !important;
-            padding: 0 10px !important;
-            border-radius: 5px !important;
-            cursor: pointer !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.5) !important;
-            white-space: nowrap !important;
-        }
-
-
         /* List header & Filter Bar */
         .list-header {
             padding: 8px 14px;
@@ -2135,7 +2118,6 @@ button:active { transform:translateY(1px) scale(.98); }
                     justify-content: center;
                     box-shadow: 0 2px 8px rgba(0,0,0,0.5);
                 ">🏠</button>
-                <button type="button" id="btnTestJmaJa" title="Probar texto japonés JMA">🇯🇵 JMA</button>
                 <select id="mapStyleSelect" title="Cambiar mapa base" style="
                     background: rgba(20,20,20,0.9);
                     border: 1px solid #555;
@@ -13510,30 +13492,6 @@ global.TauPJS=api;
         });
     };
     function bind() {
-        const btn = document.getElementById('btnTestJmaJa');
-        if (btn && !btn._jmaBound) {
-            const modes = ['jma', 'strong', 'tsunami'];
-            let mi = 0;
-            btn.addEventListener('click', function (e) {
-                e.preventDefault(); e.stopPropagation();
-                const mode = modes[mi % modes.length];
-                mi++;
-                if (mode === 'jma') {
-                    window.testJmaJapaneseText();
-                    btn.textContent = '💥 M5+';
-                    btn.title = 'Probar sismo M5+ (siguiente)';
-                } else if (mode === 'strong') {
-                    window.testStrongText();
-                    btn.textContent = '🌊 TSUNAMI';
-                    btn.title = 'Probar aviso tsunami (siguiente)';
-                } else {
-                    window.testTsunamiText();
-                    btn.textContent = '🇯🇵 JMA';
-                    btn.title = 'Probar texto JMA (siguiente)';
-                }
-            });
-            btn._jmaBound = true;
-        }
         // Envolver renderTsunamiPanel si existe
         if (typeof window.renderTsunamiPanel === 'function' && !window.renderTsunamiPanel._tvWrapped) {
             const orig = window.renderTsunamiPanel;
