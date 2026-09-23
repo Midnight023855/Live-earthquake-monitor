@@ -393,12 +393,10 @@
         }
 
         .filter-bar {
-            padding: 6px 10px;
-            background: #181818;
-            border-bottom: 1px solid #222;
-            display: flex;
-            gap: 6px;
-            font-size: 11px;
+            /* Oculto a pedido: los selects siguen existiendo (con su valor
+               por defecto "todas") para no romper el JS que los lee/escucha,
+               pero ya no se muestran ni ocupan espacio en la lista. */
+            display: none;
         }
 
         .filter-bar select {
@@ -521,6 +519,9 @@
         .event-item .meta { font-size:10px; color:#929292; margin-top:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .event-item .mag { font-size:20px; line-height:1; font-weight:800; color:#f1f1f1; min-width:48px; text-align:right; }
         .event-item .agency-tag { display:inline-block; font-size:9px; color:#aeb8c1; background:#282d31; margin-left:3px; }
+        .source-badge { display:inline-block; margin-left:4px; padding:1px 4px; border-radius:3px; font-size:8px; font-weight:700; }
+        .source-official { color:#9be7ff; background:rgba(20,105,145,.32); border:1px solid rgba(80,190,235,.35); }
+        .source-estimated { color:#ffd18a; background:rgba(145,88,20,.28); border:1px solid rgba(255,180,70,.35); }
         .event-item .report-confidence, .event-item .magnitude-revision { vertical-align:middle; }
         @media (max-width:700px) {
             .event-item { grid-template-columns:38px minmax(0,1fr) auto; gap:8px; min-height:60px; padding:8px; }
@@ -2093,6 +2094,7 @@ button:active { transform:translateY(1px) scale(.98); }
             <div id="multiClockPanel" aria-label="Fecha y hora local">
                 <div class="clock-date" id="clockDate">martes, 15 de septiembre de 2026</div>
                 <div class="clock-time" id="clockLoc">8:48 p. m.</div>
+                <div id="todayQuakeCount" style="font-size:10px;color:#9fb3c0;text-align:right;margin-top:2px;">— sismos hoy</div>
             </div>
 
             <div id="mapActionToolbar" style="
@@ -2226,6 +2228,63 @@ button:active { transform:translateY(1px) scale(.98); }
                     white-space: nowrap;
                 ">🔊 TTS</button>
 
+                <div id="ttsVoicePickerWrap" style="position:relative;display:flex;align-items:center;">
+                    <button id="btnTtsVoicePicker" type="button" title="Elegir voz de TTS" style="
+                        background: rgba(20,20,20,0.9);
+                        border: 1px solid #555;
+                        color: #eee;
+                        font-size: 13px;
+                        height: 32px;
+                        width: 32px;
+                        padding: 0;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+                    ">🎙️</button>
+                    <div id="ttsVoicePickerPanel" style="
+                        display:none;
+                        position:absolute;
+                        bottom:36px;
+                        right:0;
+                        z-index:1500;
+                        width:230px;
+                        padding:10px;
+                        background:rgba(12,15,20,.97);
+                        border:1px solid #55606d;
+                        border-radius:7px;
+                        box-shadow:0 3px 12px #000;
+                        font-size:11px;
+                        color:#ddd;
+                        max-height:70vh;
+                        overflow-y:auto;
+                    ">
+                        <div style="margin-bottom:6px;color:#9fb3c0;">Voz para alertas en español</div>
+                        <select id="ttsVoiceSelect" style="
+                            width:100%;
+                            background:#1b1f24;
+                            color:#eee;
+                            border:1px solid #444;
+                            border-radius:4px;
+                            padding:5px;
+                            font-size:11px;
+                            margin-bottom:8px;
+                        "></select>
+                        <div style="display:flex;gap:6px;">
+                            <button id="btnTtsVoiceTest" type="button" style="
+                                flex:1; background:#233; border:1px solid #456; color:#dff; border-radius:4px;
+                                padding:5px 0; font-size:11px; cursor:pointer;
+                            ">Probar</button>
+                            <button id="btnTtsVoiceReset" type="button" style="
+                                flex:1; background:#332; border:1px solid #654; color:#fed; border-radius:4px;
+                                padding:5px 0; font-size:11px; cursor:pointer;
+                            ">Automática</button>
+                        </div>
+                    </div>
+                </div>
+
                 <button id="btnYahooNied" type="button" hidden aria-hidden="true" tabindex="-1" style="display:none!important">NIED</button>
 
                 <label title="Modelo para frentes P/S" style="display:flex;align-items:center;gap:4px;height:32px;color:#b9d7e5;font-size:10px;white-space:nowrap;">
@@ -2243,7 +2302,6 @@ button:active { transform:translateY(1px) scale(.98); }
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
-    <script src="https://unpkg.com/@joergdietrich/leaflet.terminator@1.3.0/L.Terminator.js"></script>
     <script>
 /* taup-js 1.0.0 bundled for EarthQuake; license: AGPL-3.0-only */
 (function(global){
@@ -3776,10 +3834,8 @@ global.TauPJS=api;
             // zonas vacías alrededor.
             minZoom: 3,
             maxZoom: 19,
-            maxBounds: [[-82, -180], [82, 180]],
-            maxBoundsViscosity: 1,
             bounceAtZoomLimits: false,
-            worldCopyJump: false,
+            worldCopyJump: true,
             // Zoom estándar de Leaflet: el punto bajo el cursor permanece
             // fijo y las capas siguen una transición suave.
             zoomAnimation: true,
@@ -3795,9 +3851,6 @@ global.TauPJS=api;
         let mapUserInteractionRevision = 0;
         // Leaflet puede dejar un pequeño desplazamiento lateral después de
         // un gesto de pellizco; lo corregimos al terminar el zoom.
-        map.on('zoomend', () => {
-            try { map.panInsideBounds(map.options.maxBounds, { animate:false }); } catch (_) {}
-        });
         // Evita que Leaflet quede dibujado solo en un lado tras cambiar
         // paneles, girar el celular o redimensionar la ventana.
         const mapResizeRefresh = () => { try { map.invalidateSize({ pan:false, animate:false }); } catch (_) {} };
@@ -4209,7 +4262,7 @@ global.TauPJS=api;
                     const updated = updatedJma || active.find(t => String(t.tfid) === String(typhoonFocusId)) || active[0];
                     const label = updatedJma ? updatedJma.name : (updated ? typhoonDisplayName(updated) : 'sistema tropical');
                     playUiSound('alert');
-                    speakAlert(`Actualización meteorológica. ${label}.`, 'typhoons', updatedJma ? 'ja-JP' : 'zh-TW');
+                    speakAlert(`Actualización meteorológica. ${label}.`, 'typhoons', 'es-US');
                     setTickerItem('jma-typhoon', 'JMA · Ciclones tropicales', `${label} · ${updatedJma ? jmaCategoryLabel(updatedJma.category) : 'actualización'} · fuente RSMC Tokyo`, true);
                     showRegionToast(`🌀 Actualizado: ${label}`);
                     eewWaveCoordinatorInterrupt();
@@ -4339,7 +4392,7 @@ global.TauPJS=api;
                     const updated = active.find(s => String(s.id) === String(hurricaneFocusId)) || active[0];
                     hurricaneFocusId = String(updated.id || '');
                     playUiSound('alert');
-                    speakAlert(`Hurricane update. ${hurricaneName(updated)}. ${hurricaneClassLabel(updated.classification)}.`, 'hurricanes', 'en-US');
+                    speakAlert(`Actualización de huracán. ${hurricaneName(updated)}. ${hurricaneClassLabel(updated.classification)}.`, 'hurricanes', 'es-US');
                     showRegionToast(`🌀 NOAA/NHC actualizado: ${hurricaneName(updated)}`);
                     eewWaveCoordinatorInterrupt();
                     hurricaneMode = true;
@@ -4642,7 +4695,7 @@ global.TauPJS=api;
                 if (updateDetected) {
                     const x = tsunamiData[0];
                     playUiSound('alert');
-                    speakAlert(`Tsunami update. ${x.event}. ${x.area || ''}.`, 'tsunami', 'en-US');
+                    speakAlert(`Actualización de tsunami. ${x.event}. ${x.area || ''}.`, 'tsunami', 'es-US');
                     showRegionToast(`🌊 ${x.event}`);
                     eewWaveCoordinatorInterrupt();
                     tsunamiMode = true;
@@ -5294,36 +5347,12 @@ global.TauPJS=api;
         stationsPane.style.zIndex = 650;
         const boundariesPane = map.createPane('boundariesPane');
         boundariesPane.style.zIndex = 410;
-        const nightPane = map.createPane('nightPane');
-        nightPane.style.zIndex = 360;
-        nightPane.style.pointerEvents = 'none';
         const regionalPane = map.createPane('regionalPane');
         regionalPane.style.zIndex = 390;
         regionalPane.style.pointerEvents = 'none';
-        const osmOceanPane = map.createPane('osmOceanPane');
-        osmOceanPane.style.zIndex = 199;
-        osmOceanPane.style.pointerEvents = 'none';
-        osmOceanPane.style.filter = 'brightness(.48) saturate(.78) contrast(1.12)';
-
-        // Capa día/noche, por debajo de intensidad, ondas y marcadores.
-        let dayNightLayer = null;
-        try {
-            if (L.terminator) {
-                dayNightLayer = L.terminator({ pane: 'nightPane', fillColor:'#000', fillOpacity:.22, color:'#202020', weight:1, opacity:.35 }).addTo(map);
-                setInterval(() => { try { dayNightLayer.setTime(new Date()); } catch (_) {} }, 60000);
-            }
-        } catch (err) { console.warn('[día/noche]', err); }
-
         // Basemap oscuro tipo monitor sísmico: países oscuros y fronteras visibles.
-        const tileDark = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, attribution: '© Esri, HERE, Garmin, USGS, NGA, EPA, NPS | Datos sísmicos: USGS + JMA + CENC + Wolfx' });
-        // Respaldo visual únicamente si el servicio oscuro de Esri no entrega
-        // teselas; no cambia el mapa preferido mientras funcione.
-        const tileDarkFallback = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { pane:'osmOceanPane', maxZoom: 19, noWrap:true, bounds:[[-85,-180],[85,180]], attribution: '© OpenStreetMap contributors' });
-        // OpenStreetMap queda debajo del mapa vectorial: la tierra se cubre
-        // con los polígonos oscuros de Kanameishi y el mar conserva el estilo
-        // azul real de OSM, no un color plano.
-        const tileOceanOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { pane:'osmOceanPane', maxZoom: 19, noWrap:true, bounds:[[-85,-180],[85,180]], opacity: 1, attribution: '© OpenStreetMap contributors' });
-        tileOceanOSM.addTo(map);
+        const tileDark = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, opacity:.78, attribution: '© Esri, HERE, Garmin, USGS, NGA, EPA, NPS | Datos sísmicos: USGS + JMA + CENC + Wolfx' });
+
         let darkTileErrors = 0;
         function applyDarkFallbackFilter(active) {
             try {
@@ -5334,14 +5363,7 @@ global.TauPJS=api;
             } catch (_) {}
         }
         tileDark.on('add', () => applyDarkFallbackFilter(false));
-        tileDarkFallback.on('add', () => applyDarkFallbackFilter(true));
-        tileDark.on('tileerror', () => {
-            darkTileErrors++;
-            if (darkTileErrors >= 3 && map.hasLayer(tileDark) && !map.hasLayer(tileDarkFallback)) {
-                tileDarkFallback.addTo(map);
-                try { tileDark.setOpacity(0); } catch (_) {}
-            }
-        });
+        tileDark.on('tileerror', () => { darkTileErrors++; });
         const tileSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 });
         const tileTerrain = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17 });
         // Capas de transporte, ciudades y límites para aproximar el detalle de SesnaQuake.
@@ -5368,16 +5390,6 @@ global.TauPJS=api;
 
         // Estilo limpio: solo el fondo oscuro, sin las capas recargadas de carreteras/lugares.
         tileDark.addTo(map);
-        // Si el navegador no logra cargar ninguna tesela oscura, activar el
-        // respaldo aunque el servidor no dispare tileerror.
-        setTimeout(() => {
-            try {
-                if (!map.getContainer().querySelector('.leaflet-tile-loaded') && !map.hasLayer(tileDarkFallback)) {
-                    tileDarkFallback.addTo(map);
-                    tileDark.setOpacity(0);
-                }
-            } catch (_) {}
-        }, 7000);
         const tigerUsBounds = L.latLngBounds([[24,-126],[50,-65]]);
 
         // Fondo vectorial oscuro inspirado en Kanameishi: no depende de
@@ -5398,7 +5410,6 @@ global.TauPJS=api;
                 style: { color: '#9aa0a6', weight: 0.7, opacity: 0.9, fillColor: '#393939', fillOpacity: 1 }
             }).addTo(map);
             if (map.hasLayer(tileDark)) tileDark.setOpacity(0);
-            if (map.hasLayer(tileDarkFallback)) tileDarkFallback.setOpacity(0);
             try { map.attributionControl.addAttribution('Base vectorial: Kanameishi'); } catch (_) {}
         }).catch(err => console.warn('[mapa vectorial]', err));
 
@@ -5473,7 +5484,7 @@ global.TauPJS=api;
             map.removeLayer(tileDark); map.removeLayer(tileSatellite); map.removeLayer(tileTerrain);
             map.removeLayer(tileTransportation); map.removeLayer(tilePlaces); map.removeLayer(tigerUsLayer);
             const mapEl = document.getElementById('map');
-            if (style === 'dark') { if (map.hasLayer(tileDarkFallback)) map.removeLayer(tileDarkFallback); tileDark.setOpacity(1); tileDark.addTo(map); applyDarkFallbackFilter(false); updateTigerLayerVisibility(); mapEl.style.filter = 'none'; }
+            if (style === 'dark') { tileDark.setOpacity(.78); tileDark.addTo(map); applyDarkFallbackFilter(false); updateTigerLayerVisibility(); mapEl.style.filter = 'none'; }
             else if (style === 'satellite') { tileSatellite.addTo(map); mapEl.style.filter = 'none'; }
             else if (style === 'terrain') { tileTerrain.addTo(map); mapEl.style.filter = 'none'; }
             playUiSound('select');
@@ -5546,13 +5557,85 @@ global.TauPJS=api;
         let ttsVoices = [];
         function refreshTtsVoices() {
             if ('speechSynthesis' in window) ttsVoices = window.speechSynthesis.getVoices() || [];
+            populateTtsVoiceSelect();
         }
         if ('speechSynthesis' in window) {
             refreshTtsVoices();
             window.speechSynthesis.addEventListener('voiceschanged', refreshTtsVoices);
         }
 
+        // Voz preferida elegida a mano por el usuario (entre las que ya trae
+        // instaladas el teléfono — de cualquier motor TTS que tenga puesto,
+        // no solo el de Google). Se guarda por voiceURI, que es estable
+        // entre recargas mientras el motor siga instalado.
+        const TTS_PREFERRED_VOICE_KEY = 'earthquake_tts_preferred_voice_uri';
+        function getPreferredVoiceURI() {
+            try { return localStorage.getItem(TTS_PREFERRED_VOICE_KEY) || ''; } catch (_) { return ''; }
+        }
+        function setPreferredVoiceURI(uri) {
+            try {
+                if (uri) localStorage.setItem(TTS_PREFERRED_VOICE_KEY, uri);
+                else localStorage.removeItem(TTS_PREFERRED_VOICE_KEY);
+            } catch (_) {}
+        }
+        function getPreferredVoiceObj() {
+            const uri = getPreferredVoiceURI();
+            if (!uri) return null;
+            const voices = ttsVoices.length ? ttsVoices : (('speechSynthesis' in window) ? window.speechSynthesis.getVoices() : []);
+            return voices.find(v => v.voiceURI === uri) || null;
+        }
+        function populateTtsVoiceSelect() {
+            const select = document.getElementById('ttsVoiceSelect');
+            if (!select) return;
+            const voices = ttsVoices.length ? ttsVoices : (('speechSynthesis' in window) ? window.speechSynthesis.getVoices() : []);
+            // Todas las voces en español que el teléfono tenga instaladas,
+            // de cualquier motor (Google, Samsung, RHVoice, etc.) — no solo es-US.
+            const esVoices = voices.filter(v => /^es/i.test(v.lang || ''));
+            const list = esVoices.length ? esVoices : voices;
+            const current = select.value;
+            const preferredUri = getPreferredVoiceURI();
+            select.innerHTML = '<option value="">Automática (recomendada)</option>' +
+                list.map(v => `<option value="${v.voiceURI}">${v.name} (${v.lang})</option>`).join('');
+            select.value = preferredUri && list.some(v => v.voiceURI === preferredUri) ? preferredUri : (current || '');
+        }
+        document.getElementById('btnTtsVoicePicker')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const panel = document.getElementById('ttsVoicePickerPanel');
+            if (!panel) return;
+            const willShow = panel.style.display !== 'block';
+            if (willShow) populateTtsVoiceSelect();
+            panel.style.display = willShow ? 'block' : 'none';
+        });
+        document.addEventListener('click', (e) => {
+            const wrap = document.getElementById('ttsVoicePickerWrap');
+            const panel = document.getElementById('ttsVoicePickerPanel');
+            if (panel && panel.style.display === 'block' && wrap && !wrap.contains(e.target)) panel.style.display = 'none';
+        });
+        document.getElementById('ttsVoiceSelect')?.addEventListener('change', (e) => {
+            setPreferredVoiceURI(e.target.value || '');
+        });
+        document.getElementById('btnTtsVoiceTest')?.addEventListener('click', () => {
+            if (!('speechSynthesis' in window)) return;
+            try {
+                const select = document.getElementById('ttsVoiceSelect');
+                const uri = select ? select.value : getPreferredVoiceURI();
+                const voices = ttsVoices.length ? ttsVoices : window.speechSynthesis.getVoices();
+                const voice = uri ? voices.find(v => v.voiceURI === uri) : getVoiceForLanguage('es-US');
+                const u = new SpeechSynthesisUtterance('Así suena esta voz para las alertas sísmicas.');
+                if (voice) { u.voice = voice; u.lang = voice.lang; }
+                window.speechSynthesis.cancel();
+                window.speechSynthesis.speak(u);
+            } catch (_) {}
+        });
+        document.getElementById('btnTtsVoiceReset')?.addEventListener('click', () => {
+            setPreferredVoiceURI('');
+            const select = document.getElementById('ttsVoiceSelect');
+            if (select) select.value = '';
+        });
+
         function getUsSpanishVoice() {
+            const preferred = getPreferredVoiceObj();
+            if (preferred && /^es/i.test(preferred.lang || '')) return preferred;
             const voices = ttsVoices.length ? ttsVoices :
                 (('speechSynthesis' in window) ? window.speechSynthesis.getVoices() : []);
             // No usar voces es-ES ni sustitutos de otros idiomas: la solicitud es es-US.
@@ -5563,6 +5646,12 @@ global.TauPJS=api;
             const voices = ttsVoices.length ? ttsVoices :
                 (('speechSynthesis' in window) ? window.speechSynthesis.getVoices() : []);
             const lang = String(language || 'es-US').replace('_', '-').toLowerCase();
+            // Si el usuario eligió una voz a mano y coincide con el idioma
+            // pedido (español), se usa esa en vez de la automática.
+            if (lang.startsWith('es')) {
+                const preferred = getPreferredVoiceObj();
+                if (preferred) return preferred;
+            }
             const exact = voices.find(v => String(v.lang || '').replace('_', '-').toLowerCase() === lang);
             const family = voices.find(v => String(v.lang || '').replace('_', '-').toLowerCase().startsWith(lang.slice(0, 2)));
             // Para idiomas como indonesio, no saltar directamente a una voz española:
@@ -5576,12 +5665,7 @@ global.TauPJS=api;
         }
 
         function ttsLanguageForAgency(agency = '') {
-            const a = String(agency || '').toLowerCase();
-            if (/hko/.test(a)) return /tc|zh[-_]?tw|traditional/.test(a) ? 'zh-TW' : 'en-US';
-            if (/bmkg|indonesia|indonesian/.test(a)) return 'id-ID';
-            if (/jma|wolfx|jap[aó]n|japan|eew|tsunami.*jma|volc[aá]n.*jma|nhk/.test(a)) return 'ja-JP';
-            if (/cwa|cenc|china|taiwan|taiw[aá]n/.test(a)) return /cenc|china/.test(a) ? 'zh-CN' : 'zh-TW';
-            if (/usgs|noaa|nws|emsc|gfz|geonet|new zealand|ingv|italy|hurricane|tsunami/.test(a)) return /geonet|new zealand|ingv/.test(a) ? 'en-GB' : 'en-US';
+            // A pedido: todo se lee en español, sin importar la fuente.
             return 'es-US';
         }
 
@@ -6744,7 +6828,7 @@ global.TauPJS=api;
                             showRegionToast('⚡ TREM: movimiento detectado · epicentro local estimado');
                             playBeep(1100, 'sawtooth', 0.2);
                         }
-                        speakAlert(`台灣：${activeCount}個 TREM 測站偵測到震動。估計本地震央。`, 'trem', 'zh-TW');
+                        speakAlert(`Taiwán: ${activeCount} estaciones TREM detectaron movimiento. Epicentro local estimado.`, 'trem', 'es-US');
                     }
                 } else {
                     twPanel.classList.remove('active-shake');
@@ -7720,7 +7804,7 @@ global.TauPJS=api;
                 lastCencStationNoticeKey = noticeKey;
                 if (hasCompletedInitialLoad && wasSeen) {
                     playUiSound('alert');
-                    speakAlert(`CENC快速震度報告。${cencStationMetrics.length}個測站。`, 'quakes', 'zh-CN');
+                    speakAlert(`Reporte rápido de intensidad de CENC. ${cencStationMetrics.length} estaciones.`, 'quakes', 'es-US');
                 }
             }
             return rows;
@@ -8875,27 +8959,39 @@ global.TauPJS=api;
         }
 
         async function fetchINGV() {
-            try {
-                const r = await fetchWithTimeoutRetry('https://webservices.ingv.it/fdsnws/event/1/query?format=geojson&limit=20&orderby=time&minmagnitude=0', {}, 1, 12000);
-                const d = await r.json();
-                const features = Array.isArray(d.features) ? d.features : [];
-                const events = features.map(f => {
-                    const p = f.properties || {}, g = f.geometry?.coordinates || [];
-                    const mag = Number(p.mag);
-                    // INGV entrega UTC sin sufijo; sin la Z el navegador lo interpreta como hora local y parece que el sismo ocurre en el futuro.
-                    const rawTime = String(p.time || '').trim();
-                    const utcTime = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(rawTime) ? rawTime : rawTime + 'Z';
-                    const ts = Date.parse(utcTime);
-                    return {
-                        id:'ingv-'+(f.id || `${p.time}-${g[0]}-${g[1]}-${mag}`), intensity:magToMMI(mag), place:p.flynn_region || p.place || 'Italia',
-                        time:formatTime(new Date(ts).toISOString()), mag:magnitudeDisplay(mag), depth:Math.abs(g[2]||0).toFixed(0)+' km',
-                        agency:'INGV', lat:g[1]||0, lon:g[0]||0, colorClass:intensityClass(magToMMI(mag)), ts:Number.isFinite(ts) ? ts : 0
-                    };
-                }).filter(ev => Number.isFinite(ev.mag === '—' ? NaN : Number.parseFloat(String(ev.mag).replace('M',''))) && Number.isFinite(ev.ts) && ev.ts > 0 && Number.isFinite(ev.lat) && Number.isFinite(ev.lon));
-                if (!events.length) throw new Error('INGV sin eventos válidos');
-                setApiState('ingv','ok',events.length);
-                return events;
-            } catch(e) { setApiState('ingv','bad'); return []; }
+            // El webservice FDSN de INGV es conocido por no traer cabeceras CORS
+            // para acceso desde navegador — sin un proxy de respaldo, el fetch
+            // directo falla silenciosamente casi siempre. Se intenta directo
+            // primero (por si algún día lo habilitan) y si falla, por proxy.
+            const direct = 'https://webservices.ingv.it/fdsnws/event/1/query?format=geojson&limit=20&orderby=time&minmagnitude=0';
+            const targets = [direct, 'https://api.allorigins.win/raw?url=' + encodeURIComponent(direct)];
+            let lastErr = null;
+            for (const url of targets) {
+                try {
+                    const r = await fetchWithTimeoutRetry(url, {}, 0, 12000);
+                    const d = await r.json();
+                    const features = Array.isArray(d.features) ? d.features : [];
+                    const events = features.map(f => {
+                        const p = f.properties || {}, g = f.geometry?.coordinates || [];
+                        const mag = Number(p.mag);
+                        // INGV entrega UTC sin sufijo; sin la Z el navegador lo interpreta como hora local y parece que el sismo ocurre en el futuro.
+                        const rawTime = String(p.time || '').trim();
+                        const utcTime = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(rawTime) ? rawTime : rawTime + 'Z';
+                        const ts = Date.parse(utcTime);
+                        return {
+                            id:'ingv-'+(f.id || `${p.time}-${g[0]}-${g[1]}-${mag}`), intensity:magToMMI(mag), place:p.flynn_region || p.place || 'Italia',
+                            time:formatTime(new Date(ts).toISOString()), mag:magnitudeDisplay(mag), depth:Math.abs(g[2]||0).toFixed(0)+' km',
+                            agency:'INGV', lat:g[1]||0, lon:g[0]||0, colorClass:intensityClass(magToMMI(mag)), ts:Number.isFinite(ts) ? ts : 0
+                        };
+                    }).filter(ev => Number.isFinite(ev.mag === '—' ? NaN : Number.parseFloat(String(ev.mag).replace('M',''))) && Number.isFinite(ev.ts) && ev.ts > 0 && Number.isFinite(ev.lat) && Number.isFinite(ev.lon));
+                    if (!events.length) throw new Error('INGV sin eventos válidos');
+                    setApiState('ingv','ok',events.length);
+                    return events;
+                } catch(e) { lastErr = e; }
+            }
+            console.warn('[INGV]', lastErr);
+            setApiState('ingv','bad');
+            return [];
         }
 
         // SSN México: la URL RSS suele estar caída o sin CORS. Se usa primero
@@ -9123,7 +9219,7 @@ global.TauPJS=api;
             showRegionToast(`⚠️ JMA: alerta temprana en ${place}`);
             try { if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 500]); } catch (_) {}
             playUiSound('alert');
-            speakAlert(`地震速報。マグニチュード ${mag}。深さ ${depth}。震央 ${place}。`, 'quakes', 'ja-JP');
+            speakAlert(`Alerta sísmica temprana de JMA. Magnitud ${mag}. Profundidad ${depth}. Epicentro ${place}.`, 'quakes', 'es-US');
             if (typeof notificationsEnabled !== 'undefined' && notificationsEnabled && 'Notification' in window) {
                 try { new Notification('⚠️ JMA · Alerta temprana', { body: `Sismo en ${place}. Magnitud ${mag}`, tag: 'jma-eew-' + key }); } catch (_) {}
             }
@@ -9920,12 +10016,46 @@ global.TauPJS=api;
                 renderEventsNow();
             });
         }
+        function eventSourceKind(ev) {
+            const agency = String(ev?.agency || ev?.source || '').toLowerCase();
+            const confidence = String(ev?.reportConfidence || ev?.confidence || '').toLowerCase();
+            if (/yahoo|nied|trem|estimated|estimad|detector/.test(agency) || /estimated|estimad/.test(confidence)) return 'estimated';
+            return 'official';
+        }
+        function eventSourceBadge(ev) {
+            return eventSourceKind(ev) === 'estimated'
+                ? '<span class="source-badge source-estimated">Estimado</span>'
+                : '<span class="source-badge source-official">Oficial</span>';
+        }
+        function updateTodayQuakeCount() {
+            const el = document.getElementById('todayQuakeCount');
+            if (!el) return;
+            const now = new Date();
+            const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+            // Cuenta por evento físico (agrupando duplicados que varias agencias
+            // reportan del mismo sismo), no por fila cruda de la lista — si no,
+            // un sismo grande contado por 5 agencias infla el número x5.
+            const seen = new Set();
+            let count = 0;
+            for (const ev of events) {
+                const ts = parseTs(ev.ts);
+                if (!ts || ts < startOfDay) continue;
+                const dedupeKey = typeof eventDedupeKey === 'function' ? eventDedupeKey(ev) :
+                    `${Math.round((ev.lat||0)*10)}:${Math.round((ev.lon||0)*10)}:${Math.round(ts/60000)}`;
+                if (seen.has(dedupeKey)) continue;
+                seen.add(dedupeKey);
+                count++;
+            }
+            el.textContent = `${count} sismo${count === 1 ? '' : 's'} hoy`;
+        }
+
         function renderEventsNow() {
             if (nhkCoverageMode) { renderNhkJapanList(); return; }
             // Solo el modo clima capitales sustituye la lista. El resto NUNCA la vacía.
             if (weatherListMode) return;
             try {
             events.sort((a, b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0));
+            updateTodayQuakeCount();
 
             const minMag = parseFloat(document.getElementById('filterMag')?.value) || 0;
             const agencyFilter = document.getElementById('filterAgency')?.value || 'ALL';
@@ -9982,11 +10112,11 @@ global.TauPJS=api;
             }
         }
 
-        document.getElementById('filterMag').addEventListener('change', () => {
+        document.getElementById('filterMag')?.addEventListener('change', () => {
             playUiSound('select');
             renderEvents();
         });
-        document.getElementById('filterAgency').addEventListener('change', () => {
+        document.getElementById('filterAgency')?.addEventListener('change', () => {
             playUiSound('select');
             renderEvents();
         });
@@ -10384,7 +10514,7 @@ global.TauPJS=api;
                     setTickerItem('jma-volcano', 'JMA · Volcanes', text, true);
                     if (report.coords) L.circleMarker(report.coords, {radius:10,color:'#fff',weight:2,fillColor:eruption?'#ff2d1b':'#ffb000',fillOpacity:.95}).bindPopup(`<b>🌋 JMA · ${name}</b><br>${text}`).addTo(jmaVolcanoLayer);
                     playUiSound('alert');
-                    speakAlert(`気象庁の${name}火山警報。${eruption ? '噴火が報告されています。' : '新しい火山情報です。'}`, 'volcano', 'ja-JP');
+                    speakAlert(`Alerta volcánica de JMA para ${name}. ${eruption ? 'Se reportó una erupción.' : 'Hay nueva información volcánica.'}`, 'volcano', 'es-US');
                     showRegionToast(`🌋 JMA · ${name}: ${eruption ? 'erupción' : 'nuevo boletín'}`);
                 }
             } catch (_) {
