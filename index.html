@@ -1976,7 +1976,7 @@ button:active { transform:translateY(1px) scale(.98); }
                     <option value="0">Todas las mag.</option><option value="2.5">M2.5+</option><option value="4.0">M4.0+</option><option value="5.5">M5.5+</option><option value="7.0">M7.0+</option>
                 </select>
                 <select id="filterAgency" title="Filtrar por agencia">
-                    <option value="ALL">Todas las agencias</option><option value="USGS">USGS</option><option value="JMA">JMA</option><option value="CENC">CENC</option><option value="EMSC">EMSC</option><option value="GFZ">GFZ</option><option value="SSN">SSN</option><option value="AFAD">AFAD</option><option value="BMKG">BMKG</option><option value="GEONET">GeoNet</option><option value="INGV">INGV</option><option value="FSSN">FSSN</option><option value="SED">SED</option><option value="PHIVOLCS">PHIVOLCS</option><option value="CSN">CSN</option><option value="IG-EPN">IG-EPN</option><option value="EARLY-EST">Early-Est</option><option value="HKO">HKO</option>
+                    <option value="ALL">Todas las agencias</option><option value="USGS">USGS</option><option value="JMA">JMA</option><option value="CENC">CENC</option><option value="EMSC">EMSC</option><option value="GFZ">GFZ</option><option value="SSN">SSN</option><option value="AFAD">AFAD</option><option value="BMKG">BMKG</option><option value="GEONET">GeoNet</option><option value="INGV">INGV</option><option value="FSSN">FSSN</option><option value="SED">SED</option><option value="PHIVOLCS">PHIVOLCS</option><option value="CSN">CSN</option><option value="IG-EPN">IG-EPN</option><option value="EARLY-EST">Early-Est</option><option value="HKO">HKO</option><option value="EARTHSCOPE">EarthScope</option><option value="NOA">NOA</option><option value="KOERI">KOERI</option><option value="SGC">SGC</option>
                 </select>
             </div>
 
@@ -5032,7 +5032,7 @@ global.TauPJS=api;
             const confidence = String(ev.reportConfidence || ev.confidence || '').toLowerCase();
             const agency = String(ev.agency || ev.source || '').toLowerCase();
             return /prelim|confirm|final|actualiz/.test(confidence) ||
-                /wolfx|jma|cwa|usgs|emsc|ingv|gfz|geofon|cenc|csn|ig-?epn|sed|geonet|bmkg|afad|funvisis|ssn|phivolcs|fssn|breq|igp|isc|hko/.test(agency);
+                /wolfx|jma|cwa|usgs|emsc|ingv|gfz|geofon|cenc|csn|ig-?epn|sed|geonet|bmkg|afad|funvisis|ssn|phivolcs|fssn|breq|igp|isc|hko|earthscope|noa(?!a)|koeri|sgc/.test(agency);
         }
         // Solo reportes reales de la JMA (incl. Wolfx/JMA XML/eqlist). No USGS/EMSC/etc.
         function isJmaRealEarthquakeEvent(ev) {
@@ -5429,7 +5429,7 @@ global.TauPJS=api;
         const geoBoundaryIsoByAgency = {
             JMA:'JPN', CWA:'TWN', CENC:'CHN', PHIVOLCS:'PHL', BMKG:'IDN',
             SSN:'MEX', CSN:'CHL', 'IG-EPN':'ECU', SED:'CHE', INGV:'ITA', AFAD:'TUR',
-            GEONET:'NZL', FSSN:'FJI'
+            GEONET:'NZL', FSSN:'FJI', SGC:'COL', KOERI:'TUR', NOA:'GRC'
         };
         function geoBoundaryIsoForEvent(ev) {
             const agency = String(ev?.agency || '').toUpperCase();
@@ -7011,17 +7011,18 @@ global.TauPJS=api;
             if (/USGS|EMSC|GEONET|INGV|IG[- ]?EPN|CSN|BRAZIL/.test(agency)) return 'MMI';
             return 'estimada';
         }
+        // Paleta Mercalli I→XII: idéntica a las clases CSS .int-I … .int-XII
+        // (leyenda, lista y badges). Nivel 1 = I (blanco), 4 = IV (cian), etc.
+        function mercalliColor(level) {
+            const pal = ['#ffffff','#b9d0e8','#8fa8d5','#4fe3ef','#5cff5c','#fff200','#ffbd00','#ff7518','#ff1010','#b00000','#800080','#000000'];
+            const v = Math.max(1, Math.min(12, Math.round(Number(level) || 1)));
+            return pal[v - 1];
+        }
         function colorByEventIntensity(level, scale) {
-            const v = Math.max(0, Math.min(12, Math.round(Number(level) || 0)));
-            if (scale === 'MMI') {
-                const mmi = ['#ffffff','#d9f0ff','#a6d96a','#ffff66','#fdae61','#f46d43','#d73027','#a50026','#7b3294','#542788','#2d004b'];
-                return mmi[Math.min(10, v)] || '#ffffff';
-            }
-            if (scale === 'CSIS') {
-                const csis = ['#ffffff','#b9d0e8','#8fa8d5','#4fe3ef','#5cff5c','#fff200','#ffbd00','#ff7518','#ff1010','#b00000','#800080','#000000'];
-                return csis[Math.min(csis.length - 1, v)] || '#ffffff';
-            }
-            return colorByTaiwanI(v);
+            // Escalas tipo Mercalli (MMI, CSIS, estimada): mismos colores que la leyenda.
+            if (scale === 'MMI' || scale === 'CSIS' || scale === 'estimada') return mercalliColor(level);
+            // Escalas Shindo/CWA/TREM: barra NIED (−3→7).
+            return colorByTaiwanI(Math.max(0, Math.min(12, Math.round(Number(level) || 0))));
         }
 
         async function loadTaiwanStations() {
@@ -7495,6 +7496,8 @@ global.TauPJS=api;
             const intensityScale = intensityScaleForEvent(ev);
             const intensityText = String(ev.intensity || '').trim().toUpperCase();
             const intensityIsRoman = /^(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII)([+−\-]?)$/.test(intensityText);
+            // Un número romano es Mercalli por definición: se pinta con la paleta de la leyenda.
+            const regionColorScale = intensityIsRoman ? 'MMI' : intensityScale;
             const romanIntensity = { I:1, II:2, III:3, IV:4, V:5, VI:6, VII:7, VIII:8, IX:9, X:10 };
             const reportedIntensity = Number.isFinite(parseFloat(intensityText.replace(/[^\d.]/g, '')))
                 ? parseFloat(intensityText.replace(/[^\d.]/g, ''))
@@ -7593,7 +7596,7 @@ global.TauPJS=api;
                     // gradualmente en lugar de pintarse artificialmente fuertes.
                     intensityLevel = Math.max(1, Math.min(10, intensityLevel));
 
-                    const colorHex = intensityIsRoman ? colorByTaiwanI(intensityLevel) : colorByEventIntensity(intensityLevel, intensityScale);
+                    const colorHex = colorByEventIntensity(intensityLevel, regionColorScale);
 
                     coloredRegions.push({
                         type: 'Feature',
@@ -7618,7 +7621,7 @@ global.TauPJS=api;
                         .sort((a,b) => a.d - b.d)[0];
                     if (nearest && nearest.d < 500) {
                         const f = nearest.f;
-                        coloredRegions.push({ type:'Feature', geometry:f.geometry, properties:{ color:intensityIsRoman ? colorByTaiwanI(maxIntensityCenter) : colorByEventIntensity(maxIntensityCenter, intensityScale), name:f.properties?.name || f.properties?.NAME || 'Región local' } });
+                        coloredRegions.push({ type:'Feature', geometry:f.geometry, properties:{ color:colorByEventIntensity(maxIntensityCenter, regionColorScale), name:f.properties?.name || f.properties?.NAME || 'Región local' } });
                     }
                 }
 
@@ -8295,7 +8298,7 @@ global.TauPJS=api;
 
         // ISC FDSN e IGP/CENSIS: feeds oficiales verificados el 2026-09-15.
         // Cada fuente conserva su propia caché y nunca se declara conectada por una respuesta vacía.
-        const verifiedSourceCache = { afad: 'earthquake-afad-v1', isc: 'earthquake-isc-v1', igp: 'earthquake-igp-v1', igepn: 'earthquake-igepn-v1', phivolcs: 'earthquake-phivolcs-v1' };
+        const verifiedSourceCache = { afad: 'earthquake-afad-v1', isc: 'earthquake-isc-v1', igp: 'earthquake-igp-v1', igepn: 'earthquake-igepn-v1', phivolcs: 'earthquake-phivolcs-v1', earthscope: 'earthquake-earthscope-v1', noa: 'earthquake-noa-v1', koeri: 'earthquake-koeri-v2', sgc: 'earthquake-sgc-v1' };
         const eqRequestState = new Map();
         async function fetchWithTimeoutRetry(url, options = {}, retries = 2, timeoutMs = 12000) {
             // Una sola consulta activa por ruta evita reintentos simultáneos del
@@ -8357,6 +8360,136 @@ global.TauPJS=api;
                 if (!events.length) throw new Error('ISC sin eventos válidos');
                 saveVerifiedCache('isc', events); apiMetrics.isc = apiMetrics.isc || {}; apiMetrics.isc.latestEventTs = Math.max(...events.map(x => x.ts)); setApiState('isc','ok',events.length); return events;
             } catch (_) { const cached = readVerifiedCache('isc'); if (cached.length) { setApiState('isc','cached',cached.length); return cached; } setApiState('isc','bad',0); return []; }
+        }
+        // ── EarthScope (FDSN global), NOA (Grecia) y KOERI/Kandilli (Turquía) ──
+        async function fetchTextChain(urls, timeoutMs = 15000) {
+            let last;
+            for (const u of urls) {
+                try {
+                    const t = await (await fetchWithTimeoutRetry(u, {}, 1, timeoutMs)).text();
+                    if (t && t.length > 40) return t;
+                } catch (e) { last = e; }
+            }
+            throw last || new Error('sin respuesta');
+        }
+        async function fetchFdsnAgency(key, agency, base, extra) {
+            const since = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 19);
+            const q = `${base}/fdsnws/event/1/query?format=text&limit=60&orderby=time&starttime=${encodeURIComponent(since)}${extra || ''}`;
+            try {
+                const text = await fetchTextChain([q, 'https://r.jina.ai/http://' + q.replace(/^https?:\/\//i, '')]);
+                const events = text.split(/\r?\n/).filter(x => x && !x.startsWith('#')).map((line, i) => {
+                    const p = line.split('|');
+                    if (p.length < 11 || (p[13] && !/earthquake/i.test(p[13]))) return null;
+                    return normalizeVerifiedEvent(p[0] || `${key}-${i}`, p[1], p[10], p[2], p[3], p[4], p[12], agency);
+                }).filter(Boolean);
+                if (!events.length) throw new Error(agency + ' sin eventos válidos');
+                saveVerifiedCache(key, events);
+                apiMetrics[key] = apiMetrics[key] || {}; apiMetrics[key].latestEventTs = Math.max(...events.map(e => e.ts));
+                setApiState(key, 'ok', events.length); return events;
+            } catch (_) {
+                const cached = readVerifiedCache(key);
+                if (cached.length) { setApiState(key, 'cached', cached.length); return cached; }
+                setApiState(key, 'bad', 0); return [];
+            }
+        }
+        // EarthScope: catálogo global (respaldo de USGS/EMSC), solo M4.5+ para no duplicar ruido.
+        const fetchEarthScope = () => fetchFdsnAgency('earthscope', 'EarthScope', 'https://service.iris.edu', '&minmagnitude=4.5');
+        const fetchNOA = () => fetchFdsnAgency('noa', 'NOA', 'https://eida.gein.noa.gr');
+        // KOERI: lista pública (texto) de Kandilli; la hora viene en TSİ (UTC+3), no en UTC. Sin CORS y en http → proxies.
+        async function fetchKOERI() {
+            const src = 'http://www.koeri.boun.edu.tr/scripts/lst0.asp';
+            try {
+                const text = await fetchTextChain([
+                    'https://api.allorigins.win/raw?url=' + encodeURIComponent(src),
+                    'https://corsproxy.io/?url=' + encodeURIComponent(src),
+                    'https://r.jina.ai/' + src
+                ]);
+                const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : NaN; }; // '-.-' → NaN
+                const events = [];
+                for (const line of text.split(/\r?\n/)) {
+                    const t = line.trim().split(/\s+/);
+                    if (t.length < 9 || !/^\d{4}\.\d\d\.\d\d$/.test(t[0]) || !/^\d\d:\d\d:\d\d$/.test(t[1])) continue;
+                    const mag = [t[7], t[6], t[5]].map(num).find(Number.isFinite); // Mw > ML > MD
+                    const hasQuality = /^(\S?lksel|revize)/i.test(t[t.length - 1]);
+                    const place = (hasQuality ? t.slice(8, -1) : t.slice(8)).join(' ') || 'Turquía';
+                    const ev = normalizeVerifiedEvent(t[0] + t[1], `${t[0].replace(/\./g, '-')}T${t[1]}+03:00`, mag, t[2], t[3], t[4], place, 'KOERI');
+                    if (ev) events.push(ev);
+                    if (events.length >= 60) break;
+                }
+                if (!events.length) throw new Error('KOERI sin eventos válidos');
+                saveVerifiedCache('koeri', events);
+                apiMetrics.koeri = apiMetrics.koeri || {}; apiMetrics.koeri.latestEventTs = Math.max(...events.map(e => e.ts));
+                setApiState('koeri', 'ok', events.length); return events;
+            } catch (_) {
+                const cached = readVerifiedCache('koeri');
+                if (cached.length) { setApiState('koeri', 'cached', cached.length); return cached; }
+                setApiState('koeri', 'bad', 0); return [];
+            }
+        }
+        // ── SGC Colombia: API pública quincenal + respaldo ArcGIS ──
+        // Los nombres de campo se buscan con variantes (ES/EN, ESP_*), porque el
+        // formato exacto de la respuesta no está documentado.
+        const SGC_WORKER = ''; // pega aquí la URL de tu Cloudflare Worker (sgc-worker.js) si el navegador bloquea la API
+        let sgcDiagShown = false;
+        const SGC_NAIVE_TZ = '-05:00'; // fecha sin zona = hora local de Colombia (como el catálogo SGC)
+        async function fetchSGC() {
+            const main = 'https://api.sgc.gov.co/biweekly/biweekly_earthquakes';
+            const arc = 'https://services9.arcgis.com/MiPNygm1rIJLIzzO/ArcGIS/rest/services/Sismos/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&resultRecordCount=500&f=json';
+            const urls = [...(SGC_WORKER ? [SGC_WORKER] : []), main, 'https://api.allorigins.win/raw?url=' + encodeURIComponent(main),
+                'https://corsproxy.io/?url=' + encodeURIComponent(main), arc];
+            const diag = [];
+            const pick = (o, keys) => { for (const k of keys) { const v = o?.[k]; if (v !== undefined && v !== null && v !== '') return v; } };
+            const num = v => { const n = parseFloat(String(v).replace(',', '.').replace(/[^\d.\-]/g, '')); return Number.isFinite(n) ? n : NaN; };
+            const toTs = v => {
+                if (typeof v === 'number' || /^\d{9,13}$/.test(String(v).trim())) { const n = Number(v); return n < 1e11 ? n * 1000 : n; }
+                const t = String(v).trim().replace(/\//g, '-').replace(' ', 'T');
+                return Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(t) ? t : t + SGC_NAIVE_TZ);
+            };
+            const rows = raw => { const l = Array.isArray(raw) ? raw : (raw?.features || raw?.data || raw?.results || raw?.earthquakes || raw?.items || []); return Array.isArray(l) ? l : []; };
+            const parse = raw => {
+                return rows(raw).map((f, i) => {
+                    const o = f?.attributes || f?.properties || f || {}, g = f?.geometry || {};
+                    const lat = num(pick(o, ['latitude','latitud','lat','Latitud','LATITUD','ESP_LATITUD']) ?? (Array.isArray(g.coordinates) ? g.coordinates[1] : g.y));
+                    const lon = num(pick(o, ['longitude','longitud','lon','lng','Longitud','LONGITUD','ESP_LONGITUD']) ?? (Array.isArray(g.coordinates) ? g.coordinates[0] : g.x));
+                    const mag = num(pick(o, ['magnitude','magnitud','mag','Magnitud','MAGNITUD','ESP_MAGNITUD']));
+                    const depth = num(pick(o, ['depth','profundidad','Profundidad','PROFUNDIDAD','ESP_PROFUNDIDAD']));
+                    const time = pick(o, ['origin_time','origintime','time','datetime','date_time','fecha_hora','fecha','Fecha','FECHA','ESP_FECHA','created_at']);
+                    const place = pick(o, ['place','lugar','location','Lugar','LUGAR','ESP_LUGAR','municipio','epicentro']) || 'Colombia';
+                    const id = pick(o, ['id','event_id','eventid','codigo','code','OBJECTID','ESP_ID']) ?? `${time}-${i}`;
+                    const ts = time === undefined ? NaN : toTs(time);
+                    return Number.isFinite(ts) ? normalizeVerifiedEvent(id, new Date(ts).toISOString(), mag, lat, lon, depth, place, 'SGC') : null;
+                }).filter(Boolean).sort((a, b) => b.ts - a.ts).slice(0, 60);
+            };
+            try {
+                let events = [];
+                for (const u of urls) {
+                    const label = u === SGC_WORKER ? 'worker' : u === main ? 'directo' : u === arc ? 'arcgis' : u.includes('allorigins') ? 'proxy1' : 'proxy2';
+                    try {
+                        const raw = JSON.parse(await (await fetchWithTimeoutRetry(u, {}, 1, 15000)).text());
+                        events = parse(raw);
+                        if (events.length) break;
+                        const first = rows(raw)[0]; const o = first?.attributes || first?.properties || first;
+                        diag.push(`${label}: ${rows(raw).length} filas sin datos válidos${o ? ' · campos: ' + Object.keys(o).slice(0, 12).join(',') : ''}`);
+                    } catch (e) { diag.push(`${label}: ${String(e?.message || e).slice(0, 40)}`); }
+                }
+                if (!events.length) {
+                    console.warn('[SGC]', diag);
+                    // Una sola vez por sesión: muestra por qué falló (captura de pantalla útil para depurar).
+                    if (!sgcDiagShown) {
+                        sgcDiagShown = true;
+                        const el = document.getElementById('regionToast');
+                        if (el) { el.textContent = '⚠️ SGC: ' + diag.join(' | '); el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 20000); }
+                    }
+                    throw new Error('SGC sin eventos válidos');
+                }
+                saveVerifiedCache('sgc', events);
+                apiMetrics.sgc = apiMetrics.sgc || {}; apiMetrics.sgc.latestEventTs = Math.max(...events.map(e => e.ts));
+                setApiState('sgc', 'ok', events.length); return events;
+            } catch (_) {
+                const cached = readVerifiedCache('sgc');
+                if (cached.length) { setApiState('sgc', 'cached', cached.length); return cached; }
+                setApiState('sgc', 'bad', 0); return [];
+            }
         }
         async function fetchIGP() {
             const url = 'https://ultimosismo.igp.gob.pe/api/ultimo-sismo';
@@ -10333,7 +10466,8 @@ global.TauPJS=api;
             ['BMKG','bmkg'], ['GeoNet','geonet'], ['INGV','ingv'],
             ['JMA EEW','jmaEew'], ['ShakeAlert zona','shakeAlert'], ['Volcanes','volcanoes'], ['Clima CO','weatherCo'], ['FSSN','fssn'], ['SED','sed'],
             ['PHIVOLCS','phivolcs'], ['CWA Taiwán','cwa'],
-            ['Early-Est','earlyEst'], ['NOAA / NHC','nhc'], ['NWS','nws'], ['NOAA Tsunami','tsunami'], ['FAN Studio','typhoon'], ['HKO','hko']
+            ['Early-Est','earlyEst'], ['NOAA / NHC','nhc'], ['NWS','nws'], ['NOAA Tsunami','tsunami'], ['FAN Studio','typhoon'], ['HKO','hko'],
+            ['EarthScope','earthscope'], ['NOA','noa'], ['KOERI','koeri'], ['SGC','sgc']
         ];
 
         function ageLabel(timestamp) {
@@ -11706,7 +11840,7 @@ global.TauPJS=api;
             const previousLatestId = [...events]
                 .sort((a, b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0))[0]?.id || null;
             try {
-                const [usgs, jma, jmaXml, cenc, csn, igepn, isc, igp, emsc, funvisis, gfz, breq, afad, bmkg, geonet, ingv, ssn, fssn, sed, phivolcs, cwa, earlyEst, hko] = await Promise.all([
+                const [usgs, jma, jmaXml, cenc, csn, igepn, isc, igp, emsc, funvisis, gfz, breq, afad, bmkg, geonet, ingv, ssn, fssn, sed, phivolcs, cwa, earlyEst, hko, earthscope, noa, koeri, sgc] = await Promise.all([
                     timedApi('usgs', incrementalAgency('usgs', fetchUSGS)),
                     timedApi('jma', incrementalAgency('jma', fetchWolfxJMA)),
                     timedApi('jmaXml', incrementalAgency('jmaXml', fetchJmaOfficial)),
@@ -11729,15 +11863,20 @@ global.TauPJS=api;
                     timedApi('phivolcs', incrementalAgency('phivolcs', fetchPHIVOLCS)),
                     timedApi('cwa', incrementalAgency('cwa', fetchCWATaiwan)),
                     timedApi('earlyEst', incrementalAgency('earlyEst', fetchEarlyEst)),
-                    timedApi('hko', incrementalAgency('hko', fetchHKO))
+                    timedApi('hko', incrementalAgency('hko', fetchHKO)),
+                    timedApi('earthscope', incrementalAgency('earthscope', fetchEarthScope)),
+                    timedApi('noa', incrementalAgency('noa', fetchNOA)),
+                    timedApi('koeri', incrementalAgency('koeri', fetchKOERI)),
+                    timedApi('sgc', incrementalAgency('sgc', fetchSGC))
                 ]);
 
                 const sourceCounts = { usgs: usgs.length, jma: jma.length, jmaXml: jmaXml.length, cenc: cenc.length,
                     csn: csn.length, igepn: igepn.length, isc: isc.length, igp: igp.length, emsc: emsc.length, funvisis: funvisis.length, gfz: gfz.length, breq: breq.length, afad: afad.length, bmkg: bmkg.length,
                     geonet: geonet.length, ingv: ingv.length, ssn: ssn.length, fssn: fssn.length, sed: sed.length,
-                    phivolcs: phivolcs.length, cwa: cwa.length, earlyEst: earlyEst.length, hko: hko.length };
+                    phivolcs: phivolcs.length, cwa: cwa.length, earlyEst: earlyEst.length, hko: hko.length,
+                    earthscope: earthscope.length, noa: noa.length, koeri: koeri.length, sgc: sgc.length };
                 Object.entries(sourceCounts).forEach(([key, count]) => recordApiCount(key, count));
-                const sourceEvents = { usgs, jma, jmaXml, cenc, csn, igepn, isc, igp, emsc, funvisis, gfz, breq, afad, bmkg, geonet, ingv, ssn, fssn, sed, phivolcs, cwa, earlyEst, hko };
+                const sourceEvents = { usgs, jma, jmaXml, cenc, csn, igepn, isc, igp, emsc, funvisis, gfz, breq, afad, bmkg, geonet, ingv, ssn, fssn, sed, phivolcs, cwa, earlyEst, hko, earthscope, noa, koeri, sgc };
                 Object.keys(sourceEvents).forEach(key => {
                     sourceEvents[key] = keepLastGoodSourceEvents(key, sourceEvents[key]);
                 });
@@ -11748,7 +11887,7 @@ global.TauPJS=api;
                         apiMetrics[key].latestEventTs = latest;
                     }
                 });
-                let newEvents = [...usgs, ...jma, ...jmaXml, ...cenc, ...csn, ...igepn, ...isc, ...igp, ...emsc, ...funvisis, ...gfz, ...breq, ...afad, ...bmkg, ...geonet, ...ingv, ...ssn, ...fssn, ...sed, ...phivolcs, ...cwa, ...earlyEst, ...hko];
+                let newEvents = [...usgs, ...jma, ...jmaXml, ...cenc, ...csn, ...igepn, ...isc, ...igp, ...emsc, ...funvisis, ...gfz, ...breq, ...afad, ...bmkg, ...geonet, ...ingv, ...ssn, ...fssn, ...sed, ...phivolcs, ...cwa, ...earlyEst, ...hko, ...earthscope, ...noa, ...koeri, ...sgc];
                 const now = Date.now();
                 // IDs are authoritative within each feed.  JMA's official XML
                 // also republishes events already present in Wolfx: suppress only
