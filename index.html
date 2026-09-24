@@ -1971,7 +1971,8 @@ button:active { transform:translateY(1px) scale(.98); }
 #mapActionToolbar #mapStyleSelect { display:none !important; }
 #mapActionToolbar #multiClockPanel {
   display:flex !important; visibility:visible !important; position:relative !important;
-  inset:auto !important; flex:0 0 auto !important; align-items:center !important;
+  inset:auto !important; flex:0 0 auto !important; flex-direction:row !important; flex-wrap:nowrap !important;
+  justify-content:flex-start !important; align-items:center !important;
   gap:8px !important; height:42px !important; min-width:0 !important; max-width:calc(100vw - 165px) !important;
   margin:0 !important; padding:0 11px !important; overflow:hidden !important;
   border:1px solid rgba(137,190,255,.34) !important; border-radius:9px !important;
@@ -3963,6 +3964,26 @@ global.TauPJS=api;
         map.attributionControl.addAttribution('<a href="https://www.geoboundaries.org/" target="_blank" rel="noopener">geoBoundaries</a>');
         let programmaticMapMove = false;
         let mapUserInteractionRevision = 0;
+        let manualMapGestureActive = false;
+        let manualMapHoldActive = false;
+        let manualMapUserInputUntil = 0;
+        function manualMapControlActive() { return manualMapGestureActive || manualMapHoldActive; }
+        function noteManualMapInput() { manualMapUserInputUntil = Date.now() + 350; }
+        const manualMapContainer = map.getContainer();
+        ['pointerdown','touchstart','wheel','dblclick'].forEach(type => {
+            try { manualMapContainer.addEventListener(type, noteManualMapInput, { capture:true, passive:type !== 'dblclick' }); } catch (_) {}
+        });
+        // Bloquea recentrados automáticos mientras el usuario explora el mapa;
+        // los gestos directos siguen habilitados.
+        ['setView','fitBounds','flyTo','flyToBounds','panTo'].forEach(method => {
+            const original = map[method];
+            if (typeof original !== 'function') return;
+            const bound = original.bind(map);
+            map[method] = function(...args) {
+                if (manualMapControlActive() && Date.now() > manualMapUserInputUntil) return this;
+                return bound(...args);
+            };
+        });
         // Leaflet puede dejar un pequeño desplazamiento lateral después de
         // un gesto de pellizco; lo corregimos al terminar el zoom.
         // Evita que Leaflet quede dibujado solo en un lado tras cambiar
@@ -3993,6 +4014,10 @@ global.TauPJS=api;
             if (typeof protectedAutomaticViewOpen === 'function' && protectedAutomaticViewOpen()) {
                 // Aun así actualizar panel de info, sin pelear con EEW/tsunami activos
                 try { selectEvent(ev.id, { autoFocus: false, forceMap: false }); } catch (_) {}
+                return false;
+            }
+            if (manualMapControlActive()) {
+                try { selectEvent(ev.id, { autoFocus:false, forceMap:false, skipIntensityFocus:true }); } catch (_) {}
                 return false;
             }
             try { mapUserHasControl = false; } catch (_) {}
@@ -4169,7 +4194,7 @@ global.TauPJS=api;
         const YAHOO_NIED_JAPAN_ZOOM = 5.2;
 
         function enforcePinnedJapanMapView() {
-            if (!japanLiveStationsPinned || japanPinnedInternalMove) return;
+            if (!japanLiveStationsPinned || japanPinnedInternalMove || manualMapControlActive()) return;
             try {
                 const target = L.latLng(YAHOO_NIED_JAPAN_CENTER[0], YAHOO_NIED_JAPAN_CENTER[1]);
                 const center = map.getCenter();
@@ -4190,7 +4215,7 @@ global.TauPJS=api;
         }
 
         function restoreYahooNiedJapanView() {
-            if (!yahooNiedModeActive) return;
+            if (!yahooNiedModeActive || manualMapControlActive()) return;
             clearYahooNiedReturnTimer();
             if ((ynUserMapControl || mapUserHasControl) && !japanLiveStationsPinned) return;
             const layout = document.getElementById('mainLayout');
@@ -4287,6 +4312,7 @@ global.TauPJS=api;
         }
 
         function setProgrammaticMapView(center, zoom, options = {}) {
+            if (manualMapControlActive()) return;
             if (japanLiveStationsPinned && !japanPinnedInternalMove) return;
             // La pantalla principal puede enfocar automáticamente un sismo nuevo;
             // las vistas especiales y los movimientos normales siguen respetando
@@ -4308,6 +4334,7 @@ global.TauPJS=api;
         }
 
         function setProgrammaticMapBounds(bounds, options = {}) {
+            if (manualMapControlActive()) return false;
             if (japanLiveStationsPinned && !japanPinnedInternalMove) return false;
             if (!bounds || !bounds.isValid?.()) return false;
             const force = options?.force === true;
@@ -4336,6 +4363,7 @@ global.TauPJS=api;
 
         // Tras dibujar intensidad: zoom para que se vea todo el polígono coloreado.
         function focusMapOnIntensityOrEpicenter(ev, options = {}) {
+            if (manualMapControlActive()) return false;
             const force = options.force !== false;
             try { mapUserHasControl = false; } catch (_) {}
             const lat = Number(ev?.lat), lon = Number(ev?.lon);
@@ -5613,7 +5641,7 @@ global.TauPJS=api;
         }
 
         // Vista guardada al empezar a tocar el mapa (cualquier modo/alerta).
-        // Tras 10 s sin interacción, vuelve a esa vista.
+        // Tras 60 s sin interacción, vuelve a esa vista.
         let mapSavedView = null;
         let mapIdleRestoreTimer = null;
         let mapUserHasControl = false;
@@ -5622,6 +5650,18 @@ global.TauPJS=api;
             clearTimeout(mapIdleRestoreTimer);
             mapIdleRestoreTimer = null;
         }
+
+        function clearMapManualOverride() {
+            manualMapGestureActive = false;
+            manualMapHoldActive = false;
+            manualMapUserInputUntil = 0;
+            clearMapIdleRestore();
+            mapUserHasControl = false;
+            if (typeof ynUserMapControl !== 'undefined') ynUserMapControl = false;
+        }
+        document.addEventListener('pointerdown', e => {
+            if (e.target?.closest?.('button,a,select,input,.event-item,[role="button"]')) clearMapManualOverride();
+        }, true);
 
         function saveMapViewBeforeUserGesture() {
             if (mapUserHasControl || programmaticMapMove) return;
@@ -5653,19 +5693,23 @@ global.TauPJS=api;
             clearMapIdleRestore();
             mapIdleRestoreTimer = setTimeout(() => {
                 mapIdleRestoreTimer = null;
+                manualMapGestureActive = false;
+                manualMapHoldActive = false;
+                manualMapUserInputUntil = 0;
                 if (!mapSavedView || programmaticMapMove) return;
                 restoreMapSavedView();
-            }, 10000);
+            }, 60000);
         }
 
-        // Compat: ya no recentra al último sismo a los 10 s si el usuario movió el mapa.
-        // En su lugar restaura la vista que tenía antes del gesto.
+        // Compat: tras 1 minuto, restaura la vista que tenía antes del gesto manual.
         function scheduleAutoRecenter() {
             scheduleMapViewRestore();
         }
 
         function handleUserMapMove() {
-            if (programmaticMapMove) return;
+            if (programmaticMapMove || !manualMapGestureActive) return;
+            manualMapGestureActive = false;
+            manualMapHoldActive = true;
             if (yahooNiedModeActive && !yahooNiedInternalView) clearYahooNiedReturnTimer();
             scheduleMapViewRestore();
         }
@@ -5674,7 +5718,9 @@ global.TauPJS=api;
         function ynScheduleMapViewRestore() { scheduleMapViewRestore(); }
 
         map.on('dragstart zoomstart', () => {
-            if (programmaticMapMove) return;
+            if (programmaticMapMove || Date.now() > manualMapUserInputUntil) return;
+            manualMapGestureActive = true;
+            manualMapHoldActive = true;
             mapUserInteractionRevision++;
             clearTimeout(autoRecenterTimer);
             clearMapIdleRestore();
@@ -11103,6 +11149,9 @@ global.TauPJS=api;
 
             clearMarkers();
             currentMarker = L.marker([ev.lat, ev.lon], { icon: xIcon, pane: 'earthquakePane' }).addTo(map);
+            // Durante el minuto de control manual se actualiza la selección,
+            // pero ningún evento automático puede mover el encuadre del mapa.
+            if (manualMapControlActive()) return;
             // Al seleccionar o recibir un sismo, no acercar más de lo necesario.
             // Se conserva un zoom alejado si el usuario ya estaba viendo el mundo.
             // Desde la vista mundial, un zoom 2–3 deja el sismo demasiado lejos.
