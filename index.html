@@ -2621,10 +2621,10 @@ body {
 
             <div id="taiwanDetectorPanel">
                 <div class="title">
-                    <span id="twPanelTitle">🇹🇼 Movimiento en estaciones</span>
-                    <span id="twStatusDot" style="color:#4caf50;">● En Vivo</span>
+                    <span id="twPanelTitle">🇹🇼 Movimiento en Taiwán</span>
+                    <span id="twStatusDot" style="color:#ffd166;">● Sin alerta</span>
                 </div>
-                <div id="twShakeInfo">Estaciones en reposo</div>
+                <div id="twShakeInfo">Sin Alertas Tempranas de Terremotos</div>
             </div>
 
             <div id="jmaEewPanel">
@@ -6904,6 +6904,10 @@ global.TauPJS=api;
         function processTtsQueue() {
             if (!audioEnabled || !ttsEnabled || !('speechSynthesis' in window) || ttsSpeaking || !ttsQueue.length) return;
             const item = ttsQueue.shift();
+            if (item && Number(item.expiresAt) > 0 && Date.now() > Number(item.expiresAt)) {
+                setTimeout(processTtsQueue, 80);
+                return;
+            }
             try {
                 const text = typeof item === 'string' ? item : item.text;
                 const language = typeof item === 'string' ? 'es-US' : (item.lang || 'es-US');
@@ -6931,7 +6935,7 @@ global.TauPJS=api;
             }
         }
 
-        function speakAlert(text, channel = 'general', language = 'es-US', dedupeKey = '') {
+        function speakAlert(text, channel = 'general', language = 'es-US', dedupeKey = '', expiresAt = 0) {
             if (!audioEnabled || !ttsEnabled || !('speechSynthesis' in window) || !text || ttsChannels[channel] === false) return;
             const selectedLanguage = language || 'es-US';
             const prepared = String(selectedLanguage).toLowerCase().startsWith('es')
@@ -6939,7 +6943,7 @@ global.TauPJS=api;
             const key = `${selectedLanguage}|${channel}|${dedupeKey || prepared}`;
             // Solo deduplicar el mismo evento/aviso pendiente, nunca descartar otros sismos.
             if (ttsCurrentKey === key || ttsQueue.some(item => item.key === key)) return;
-            ttsQueue.push({ text: prepared, lang: selectedLanguage, key });
+            ttsQueue.push({ text: prepared, lang: selectedLanguage, key, ...(Number(expiresAt) > 0 ? { expiresAt:Number(expiresAt) } : {}) });
             processTtsQueue();
         }
 
@@ -6994,16 +6998,25 @@ global.TauPJS=api;
             return quakeSpeechText(ev);
         }
 
+        function recentQuakeTtsExpiry(ev) {
+            const ts = parseTs(ev?.ts) || parseTs(ev?.time);
+            if (!Number.isFinite(ts) || ts <= 0) return 0;
+            const age = Date.now() - ts;
+            return age >= 0 && age <= 120000 ? ts + 120000 : 0;
+        }
         function triggerQuakeAlert(ev) {
             if (!audioEnabled || !ev) return;
-            // El filtro aplica solo a la voz de sismos que entran a la lista;
-            // alertas visuales, sonidos y el contenido de la lista no se filtran.
+            // La voz de sismos solo anuncia M3.0+ ocurridos en los últimos 2 min.
             const magnitude = magnitudeValue(ev.magnitudeDisplay || ev.mag || ev.magnitude);
-            if (!Number.isFinite(magnitude) || magnitude < 3.5) return;
-            // Cada fila nueva M3.5+ entra en cola sin descartar avisos.
+            if (!Number.isFinite(magnitude) || magnitude < 3.0) return;
+            const expiresAt = recentQuakeTtsExpiry(ev);
+            if (!expiresAt) return;
             const language = ttsLanguageForAgency(`${ev.agency || ''} ${ev.hkoLanguage || ''}`);
             const eventKey = String(ev.id || eventAlertKey(ev));
-            setTimeout(() => speakAlert(localizedQuakeSpeechText(ev, language), 'quakes', language, `quake:${eventKey}`), 400);
+            setTimeout(() => {
+                if (Date.now() > expiresAt) return;
+                speakAlert(localizedQuakeSpeechText(ev, language), 'quakes', language, `quake:${eventKey}`, expiresAt);
+            }, 400);
         }
 
         // Alerta visual + audio para eventos nuevos de cualquier agencia, incluido CENC.
@@ -7666,6 +7679,7 @@ global.TauPJS=api;
         let palertMotionActive = false;
         let palertMotionStations = [];
         let taiwanMotionViewActive = false;
+        let taiwanMotionSoundActive = false;
         const taiwanMotionSources = { palert:[], trem:[] };
         let taiwanMotionReturnTimer = null;
         let taiwanMotionFocusSignature = '';
@@ -7680,18 +7694,45 @@ global.TauPJS=api;
             if (layout.classList.contains('wave-focus') && !(waveMode && tremEstimatedWave?.estimated && isShakingActiveTW)) return true;
             return false;
         }
+        const TAIWAN_AREA_NAMES = [
+            ['新北市','Nuevo Taipéi'],['臺北市','Taipéi'],['台北市','Taipéi'],['基隆市','Keelung'],['桃園市','Taoyuan'],
+            ['新竹縣','Hsinchu'],['新竹市','Hsinchu'],['苗栗縣','Miaoli'],['臺中市','Taichung'],['台中市','Taichung'],
+            ['彰化縣','Changhua'],['南投縣','Nantou'],['雲林縣','Yunlin'],['嘉義縣','Chiayi'],['嘉義市','Chiayi'],
+            ['臺南市','Tainan'],['台南市','Tainan'],['高雄市','Kaohsiung'],['屏東縣','Pingtung'],['宜蘭縣','Yilan'],
+            ['花蓮縣','Hualien'],['臺東縣','Taitung'],['台東縣','Taitung'],['澎湖縣','Penghu'],['金門縣','Kinmen'],['連江縣','Lienchiang'],
+            ['新北','Nuevo Taipéi'],['台北','Taipéi'],['臺北','Taipéi'],['基隆','Keelung'],['桃園','Taoyuan'],['新竹','Hsinchu'],['苗栗','Miaoli'],
+            ['台中','Taichung'],['臺中','Taichung'],['彰化','Changhua'],['南投','Nantou'],['雲林','Yunlin'],['嘉義','Chiayi'],['台南','Tainan'],['臺南','Tainan'],
+            ['高雄','Kaohsiung'],['屏東','Pingtung'],['宜蘭','Yilan'],['花蓮','Hualien'],['台東','Taitung'],['臺東','Taitung'],['澎湖','Penghu'],['金門','Kinmen'],['連江','Lienchiang']
+        ];
+        function taiwanStationAreaLabel(st) {
+            const candidates = [st?.area,st?.county,st?.city,st?.region,st?.place,st?.name,st?.location];
+            for (const candidate of candidates) {
+                const raw = String(candidate || '').trim();
+                if (!raw || /^[A-Z0-9_-]{1,12}$/i.test(raw)) continue;
+                const known = TAIWAN_AREA_NAMES.find(([zh]) => raw.includes(zh));
+                if (known) return known[1];
+                return raw.replace(/\s+/g,' ').slice(0,50);
+            }
+            const lat = Number(st?.lat), lon = Number(st?.lon);
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return 'Taiwán';
+            if (lon >= 121.35) return 'este de Taiwán';
+            if (lat >= 24.6) return 'norte de Taiwán';
+            if (lat >= 23.5) return 'centro de Taiwán';
+            return 'sur de Taiwán';
+        }
         function updateTaiwanMovementPanel() {
-            const pCount = taiwanMotionSources.palert.length;
-            const tCount = taiwanMotionSources.trem.length;
+            const stations = Object.values(taiwanMotionSources).filter(list => list.length >= 2).flat();
+            const active = stations.length > 0;
             const dot = document.getElementById('twStatusDot');
             const info = document.getElementById('twShakeInfo');
             const title = document.getElementById('twPanelTitle');
-            document.getElementById('taiwanDetectorPanel')?.classList.toggle('active-shake', pCount + tCount > 0);
-            if (title) title.textContent = '🇹🇼 Movimiento detectado · estaciones activas';
-            if (dot) { dot.textContent = pCount + tCount ? '● MOVIMIENTO' : '● Esperando'; dot.style.color = pCount + tCount ? '#ff6b6b' : '#ffd166'; }
-            if (info) info.innerHTML = pCount + tCount
-                ? `<strong>Movimiento confirmado</strong><br>P-Alert: <b>${pCount}</b> · TREM: <b>${tCount}</b><br>El mapa encuadra las estaciones activas; no es un epicentro oficial.`
-                : '<strong>Movimiento reciente</strong><br>Esperando una nueva lectura de las estaciones.';
+            document.getElementById('taiwanDetectorPanel')?.classList.toggle('active-shake', active);
+            if (title) title.textContent = '🇹🇼 Movimiento en Taiwán';
+            if (dot) { dot.textContent = active ? '● MOVIMIENTO' : '● Sin alerta'; dot.style.color = active ? '#ff6b6b' : '#ffd166'; }
+            if (info) {
+                const areas = [...new Set(stations.map(taiwanStationAreaLabel).filter(Boolean))];
+                info.textContent = active ? `Movimiento detectado en: ${areas.join(', ') || 'Taiwán'}` : 'Sin Alertas Tempranas de Terremotos';
+            }
         }
         function closeTaiwanMovementView(restoreMap = true) {
             if (taiwanMotionReturnTimer) clearTimeout(taiwanMotionReturnTimer);
@@ -7735,6 +7776,11 @@ global.TauPJS=api;
                 ? stations.filter(st => Number.isFinite(Number(st?.lat)) && Number.isFinite(Number(st?.lon)))
                 : [];
             const active = Object.values(taiwanMotionSources).some(list => list.length >= 2);
+            updateTaiwanMovementPanel();
+            if (active && !taiwanMotionSoundActive) {
+                taiwanMotionSoundActive = true;
+                try { playMotionAlertSound(`taiwan-motion:${Date.now()}`); } catch (_) {}
+            } else if (!active) taiwanMotionSoundActive = false;
             const layout = document.getElementById('mainLayout');
             const panel = document.getElementById('taiwanDetectorPanel');
             if (taiwanMovementViewBlocked()) {
@@ -7961,7 +8007,7 @@ global.TauPJS=api;
 
                 const sustained = Object.entries(palertStationMeta)
                     .filter(([,m]) => m.motionStreak >= PALERT_MIN_FRAMES && Number.isFinite(m.lat) && Number.isFinite(m.lon))
-                    .map(([id,m]) => ({ id, lat:m.lat, lon:m.lon, network:'P-Alert' }));
+                    .map(([id,m]) => ({ id, lat:m.lat, lon:m.lon, area:m.area, name:m.name, network:'P-Alert' }));
                 const cluster = palertNearbyCluster(sustained);
                 const qualifies = cluster.length >= PALERT_MIN_STATIONS;
                 if (qualifies && newFrame) {
@@ -8209,7 +8255,9 @@ global.TauPJS=api;
                         lat: Number(info.lat),
                         lon: Number(info.lon),
                         net: st.net || 'TREM',
-                        work: st.work !== false
+                        work: st.work !== false,
+                        area: info.area || info.county || info.city || info.region || info.district || st.area || st.county || st.city || '',
+                        name: info.locname || info.name || info.location || info.place || info.station || st.locname || st.name || ''
                     };
                 });
                 const n = Object.keys(taiwanStationMeta).length;
@@ -8260,7 +8308,7 @@ global.TauPJS=api;
                     if (Number.isFinite(recentI) && recentI > maxInt) maxInt = recentI;
                     if (recentI >= 1) {
                         activeCount++;
-                        activeStations.push({ id, lat: Number(meta.lat), lon: Number(meta.lon), intensity: recentI, pga:Number.isFinite(pga) ? pga : previous?.pga, pgv:Number.isFinite(pgv) ? pgv : previous?.pgv });
+                        activeStations.push({ id, lat: Number(meta.lat), lon: Number(meta.lon), intensity: recentI, area:meta.area, name:meta.name, pga:Number.isFinite(pga) ? pga : previous?.pga, pgv:Number.isFinite(pgv) ? pgv : previous?.pgv });
                     }
                     if (Number.isFinite(pga) && pga > maxPga) maxPga = pga;
                     if (Number.isFinite(pgv) && pgv > maxPgv) maxPgv = pgv;
@@ -8309,7 +8357,7 @@ global.TauPJS=api;
                 if (activeCount >= 2) {
                     twPanel.classList.add('active-shake');
                     twDot.style.color = '#ff4d4d'; twDot.textContent = '● SACUDIDA';
-                    twInfo.innerHTML = `<strong>¡SACUDIDA DETECTADA!</strong><br>Estaciones activas: <b>${activeCount}</b><br>Intensidad máx: <b>${maxInt}</b><br>PGA máx: <b>${maxPga.toFixed(1)} gal</b> · PGV máx: <b>${maxPgv.toFixed(2)} cm/s</b>`;
+                    // El panel central solo muestra las zonas de Taiwán detectadas.
                     if (!isShakingActiveTW) {
                         isShakingActiveTW = true;
                         const usable = activeStations.filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lon));
@@ -8338,16 +8386,14 @@ global.TauPJS=api;
                                 }, 180);
                             }
                             showRegionToast('⚡ TREM: movimiento detectado · epicentro local estimado');
-                            playBeep(1100, 'sawtooth', 0.2);
+                            // El aviso sonoro de Taiwán se reproduce una vez por activación.
                         }
                         speakAlert(`Taiwán: ${activeCount} estaciones TREM detectaron movimiento. Epicentro local estimado.`, 'trem', 'es-US');
                     }
                 } else {
                     twPanel.classList.remove('active-shake');
                     twDot.style.color = '#4caf50'; twDot.textContent = '● En Vivo';
-                    twInfo.innerHTML = taiwanMode
-                        ? '<strong>Sin Alertas Tempranas de Terremotos</strong>'
-                        : `Estaciones en reposo (${Object.keys(taiwanStationMeta).length}) · PGA máx: ${maxPga.toFixed(2)} gal · PGV máx: ${maxPgv.toFixed(2)} cm/s`;
+                    twInfo.textContent = 'Sin Alertas Tempranas de Terremotos';
                     if (tremEstimatedWave && waveMode) {
                         tremEstimatedWave = null;
                         deactivateWaveMode();
@@ -11424,10 +11470,25 @@ global.TauPJS=api;
         }, { once: true });
 
 
-        // Mangxu Project: agregado ALL y canal individual SA (ShakeAlert).
-        // Se usa WebSocket porque el JSON REST no anuncia CORS para WebView.
+        // Mangxu Project: catálogo agregado y canales EEW independientes por agencia.
+        // Se usan WebSockets por compatibilidad con WebView y para aislar estados.
         const MANGXU_ALL_WS = 'wss://ws.mangxufurry.cc.cd/ws/agency/all';
         const MANGXU_SA_WS = 'wss://ws.mangxufurry.cc.cd/ws/agency/sa_eew';
+        const MANGXU_EEW_WS_BASE = 'wss://ws.mangxufurry.cc.cd/ws/agency/';
+        // Mangxu publica canales EEW independientes además del agregado general.
+        const MANGXU_EEW_CHANNELS = [
+            { id:'sa_eew', key:'shakeAlert', agency:'ShakeAlert EEW (Mangxu)', label:'ShakeAlert EEW' },
+            { id:'cea', key:'mangxuCeaEew', agency:'CEA EEW (Mangxu)', label:'CEA EEW' },
+            { id:'cea_pr', key:'mangxuCeaPrEew', agency:'CEA-PR EEW (Mangxu)', label:'CEA-PR EEW' },
+            { id:'jma_eew', key:'mangxuJmaEew', agency:'JMA EEW (Mangxu)', label:'JMA EEW' },
+            { id:'cwa_eew', key:'mangxuCwaEew', agency:'CWA EEW (Mangxu)', label:'CWA EEW' }
+        ];
+        const mangxuEewSockets = Object.fromEntries(MANGXU_EEW_CHANNELS.map(x => [x.id, null]));
+        const mangxuEewRetryTimers = Object.fromEntries(MANGXU_EEW_CHANNELS.map(x => [x.id, null]));
+        const mangxuEewRetryCounts = Object.fromEntries(MANGXU_EEW_CHANNELS.map(x => [x.id, 0]));
+        const mangxuEewPendingByChannel = Object.fromEntries(MANGXU_EEW_CHANNELS.map(x => [x.id, new Map()]));
+        const mangxuEewInitializedByChannel = Object.fromEntries(MANGXU_EEW_CHANNELS.map(x => [x.id, false]));
+        const mangxuEewActiveByChannel = Object.create(null);
         const mangxuEventsByKind = { all: [], sa: [] };
         const mangxuPendingByKind = { all: new Map(), sa: new Map() };
         const mangxuSockets = { all: null, sa: null };
@@ -11518,9 +11579,79 @@ global.TauPJS=api;
             };
         }
 
+        function mangxuAbsoluteTime(value) {
+            if (value == null || value === '') return 0;
+            const numeric = Number(value);
+            if (Number.isFinite(numeric) && numeric > 0) return numeric < 1e12 ? numeric * 1000 : numeric;
+            const text = String(value).trim().replace(/\//g, '-').replace(' ', 'T');
+            if (!text) return 0;
+            const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(text);
+            const parsed = Date.parse(hasZone ? text : text + 'Z');
+            return Number.isFinite(parsed) ? parsed : 0;
+        }
+        function mangxuEewOriginTime(item, channel, payload) {
+            const offsetHours = channel.id === 'jma_eew' ? 9 : (channel.id === 'cea' || channel.id === 'cea_pr' ? 8 : 0);
+            const exactValues = [item.cwa_eew_raw?.payload?.originTime,item.cea_data?.event_time,item.cea_pr_raw?.payload?.originTime,item.jma_eew_raw?.payload?.originTime,item.sa_raw?.originTime,item.originTime,item.OriginTime,item.event_time,payload.originTime,payload.OriginTime];
+            for (const value of exactValues) {
+                if (value == null || value === '') continue;
+                const ts = mangxuAbsoluteTime(value);
+                if (!ts) continue;
+                const isNaiveString = typeof value === 'string' && !/(?:Z|[+-]\d{2}:?\d{2})$/i.test(value.trim());
+                return isNaiveString && offsetHours ? ts - offsetHours * 3600000 : ts;
+            }
+            for (const value of [item.timestamp,item.time_utc,item.time]) {
+                if (value == null || value === '') continue;
+                const ts = mangxuAbsoluteTime(value);
+                if (!ts) continue;
+                const hasZone = typeof value === 'string' && /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value.trim());
+                return offsetHours && !hasZone ? ts - offsetHours * 3600000 : ts;
+            }
+            return 0;
+        }
+        function firstMangxuNumber(...values) {
+            for (const value of values) {
+                if (value == null || String(value).trim() === '') continue;
+                const n = Number(value);
+                if (Number.isFinite(n)) return n;
+            }
+            return NaN;
+        }
+        function normalizeMangxuEewEvent(item, channel) {
+            if (!item || typeof item !== 'object') return null;
+            const nested = item.cwa_eew_raw || item.cea_pr_raw || item.jma_eew_raw || item.sa_raw || item.raw || item.cea_data || item.p2p_raw || {};
+            const payload = nested.payload && typeof nested.payload === 'object' ? nested.payload : nested;
+            let latitude = firstMangxuNumber(item.latitude,item.lat,item.Latitude,item.cea_data?.latitude,payload.latitude,payload.lat,payload.Latitude,payload.epicenterLat,item.earthquake?.latitude);
+            let longitude = firstMangxuNumber(item.longitude,item.lon,item.Longitude,item.cea_data?.longitude,payload.longitude,payload.lon,payload.Longitude,payload.epicenterLon,item.earthquake?.longitude);
+            if (latitude === 0 && longitude === 0) {
+                const nestedLat = firstMangxuNumber(item.cwa_eew_raw?.payload?.epicenterLat,item.cwa_eew_raw?.payload?.latitude,item.cea_data?.latitude);
+                const nestedLon = firstMangxuNumber(item.cwa_eew_raw?.payload?.epicenterLon,item.cwa_eew_raw?.payload?.longitude,item.cea_data?.longitude);
+                if (Number.isFinite(nestedLat) && Number.isFinite(nestedLon) && (nestedLat !== 0 || nestedLon !== 0)) { latitude = nestedLat; longitude = nestedLon; }
+            }
+            const magnitude = firstMangxuNumber(item.magnitude,item.mag,item.Magnitude,item.cea_data?.magnitude,payload.magnitude,payload.mag,payload.Magnitude);
+            const depth = firstMangxuNumber(item.depth_km,item.depth,item.Depth,item.cea_data?.depth,payload.depth,payload.Depth);
+            const eventTs = mangxuEewOriginTime(item, channel, payload);
+            if (!eventTs || eventTs > Date.now() + 120000 || Date.now() - eventTs > MAX_EVENT_AGE_MS || !Number.isFinite(magnitude) || magnitude <= 0 || !Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude)>90 || Math.abs(longitude)>180 || (latitude === 0 && longitude === 0)) return null;
+            const status = String(item.status || item.state || payload.status || payload.reportStatus || '').trim();
+            const isFinal = item.isFinal === true || payload.isFinal === true || /^(final|finished|ended|reviewed)$/i.test(status);
+            const isCancel = item.isCancel === true || payload.isCancel === true || /^(cancel|cancelled|canceled|cancelado)$/i.test(status);
+            const rawId = String(item.id || item.eventId || item.event_id || payload.identifier || payload.eventId || item.timestamp || eventTs);
+            const magText = magnitudeDisplay(magnitude);
+            const intensity = item.intensity ?? item.maxIntensity ?? item.estimatedIntensity ?? payload.intensity ?? payload.maxIntensity ?? '—';
+            return {
+                id:`mangxu-${channel.id}-${rawId}`, intensity, place:item.location || item.place || item.Hypocenter || item.hypocenter || item.cea_data?.placeName || payload.description || channel.label,
+                time:formatTime(eventTs), waveTime:formatTime(eventTs), mag:magText, magnitudeDisplay:magText,
+                depth:Number.isFinite(depth) ? `${Math.abs(depth).toFixed(1)} km` : '—', agency:channel.agency,
+                lat:latitude, lon:longitude, ts:eventTs, waveOriginTs:eventTs, colorClass:intensityClass(intensity),
+                isTaupEew:true, isFinal, isCancel, reportConfidence:isFinal?'final':'preliminar',
+                report:item.serial || item.update || item.cea_data?.updates || payload.number || payload.identifier || '—',
+                source:`Mangxu · ${channel.label}`, status:status || (isFinal?'Final':'En vivo'), mangxuEewChannel:channel.id
+            };
+        }
         function mangxuRowsFromFrame(frame) {
             if (!frame || typeof frame !== 'object') return [];
+            if (Array.isArray(frame)) return frame;
             const root = frame.data && typeof frame.data === 'object' ? frame.data : frame;
+            if (Array.isArray(root)) return root;
             if (Array.isArray(root.earthquakes)) return root.earthquakes;
             if (Array.isArray(root.events)) return root.events;
             const nested = root.earthquake || root.event || root.Data || root.data;
@@ -11533,7 +11664,10 @@ global.TauPJS=api;
             if (!frame || frame.type === 'heartbeat' || frame.type === 'pong') return;
             const key = kind === 'all' ? 'mangxuAll' : 'shakeAlert';
             const rows = mangxuRowsFromFrame(frame);
-            const normalized = rows.map(row => normalizeMangxuEvent(row, kind)).filter(Boolean);
+            const allNormalized = rows.map(row => normalizeMangxuEvent(row, kind)).filter(Boolean);
+            // Los canales EEW dedicados procesan las alertas; el agregado queda
+            // para catálogos normales y así no duplica ni pisa las ondas.
+            const normalized = kind === 'all' ? allNormalized.filter(ev => !ev.isTaupEew) : allNormalized;
             const liveTaupAlert = normalized.filter(ev => ev.isTaupEew && !ev.isFinal && !ev.isCancel && taupEewWaveIsFresh(ev))
                 .sort((a,b) => (Number(b.waveOriginTs)||0) - (Number(a.waveOriginTs)||0))[0];
             const endedTaupAlert = normalized.find(ev => ev.isTaupEew && (ev.isFinal || ev.isCancel) && String(ev.id) === String(taupEewWaveEvent?.id || ''));
@@ -11567,6 +11701,61 @@ global.TauPJS=api;
             if (changedRows.length) setTimeout(() => { try { loadAll(false); } catch (_) {} }, 200);
         }
 
+        function markMangxuEewConnection(channel, state = 'ok', count = 0) {
+            apiMetrics[channel.key] = apiMetrics[channel.key] || {};
+            if (state === 'ok') { apiMetrics[channel.key].wsState = 'activo'; apiMetrics[channel.key].lastSeen = Date.now(); }
+            else if (state === 'bad') apiMetrics[channel.key].wsState = 'reconectando';
+            setApiState(channel.key, state, count);
+        }
+        function handleMangxuEewFrame(channel, frame) {
+            if (!frame) return;
+            if (frame.type === 'heartbeat' || frame.type === 'pong') {
+                if (!mangxuEewInitializedByChannel[channel.id]) mangxuEewInitializedByChannel[channel.id] = true;
+                markMangxuEewConnection(channel, 'ok', mangxuEewActiveByChannel[channel.id] ? 1 : 0);
+                return;
+            }
+            const rows = mangxuRowsFromFrame(frame);
+            const normalized = rows.map(row => normalizeMangxuEewEvent(row, channel)).filter(Boolean);
+            markMangxuEewConnection(channel, 'ok', normalized.length);
+            if (!mangxuEewInitializedByChannel[channel.id]) {
+                normalized.forEach(ev => { alertedEventIds.add(String(ev.id)); alertedEventKeys.add(eventAlertKey(ev)); });
+                mangxuEewInitializedByChannel[channel.id] = true;
+            }
+            normalized.forEach(ev => {
+                mangxuEewPendingByChannel[channel.id].set(String(ev.id), ev);
+                if (ev.isFinal || ev.isCancel) {
+                    if (String(mangxuEewActiveByChannel[channel.id]?.id || '') === String(ev.id)) delete mangxuEewActiveByChannel[channel.id];
+                    return;
+                }
+            });
+            const channelBest = normalized.filter(ev => !ev.isFinal && !ev.isCancel && taupEewWaveIsFresh(ev))
+                .sort((a,b) => (Number(b.waveOriginTs)||0) - (Number(a.waveOriginTs)||0))[0];
+            const existingForChannel = mangxuEewActiveByChannel[channel.id];
+            if (channelBest && (!taupEewWaveIsFresh(existingForChannel) || Number(channelBest.waveOriginTs) >= Number(existingForChannel.waveOriginTs))) {
+                mangxuEewActiveByChannel[channel.id] = channelBest;
+            }
+            if (normalized.length) setTimeout(() => { try { loadAll(false); } catch (_) {} }, 200);
+            const best = Object.values(mangxuEewActiveByChannel).filter(taupEewWaveIsFresh)
+                .sort((a,b) => (Number(b.waveOriginTs)||0) - (Number(a.waveOriginTs)||0))[0];
+            if (!best) {
+                if (taupEewWaveEvent?.mangxuEewChannel && !taupEewWaveIsFresh(taupEewWaveEvent)) {
+                    taupEewWaveEvent = null;
+                    const replacement = getCurrentWaveEvent();
+                    if (waveMode && !taupEewWaveIsFresh(replacement)) deactivateWaveMode();
+                }
+                return;
+            }
+            if (String(best.id) === String(taupWaveSuppressedEventId || '')) return;
+            const currentOrigin = Number(taupEewWaveEvent?.waveOriginTs || taupEewWaveEvent?.ts) || 0;
+            const bestOrigin = Number(best.waveOriginTs || best.ts) || 0;
+            if (!taupEewWaveIsFresh(taupEewWaveEvent) || bestOrigin >= currentOrigin || String(best.id) === String(taupEewWaveEvent?.id || '')) {
+                const isNew = String(taupEewWaveEvent?.id || '') !== String(best.id);
+                taupEewWaveEvent = { ...best, isTaupEew:true, status:'En vivo' };
+                if (isNew) taupWaveSuppressedEventId = null;
+                if (!waveMode) activateWaveMode(false);
+                if (waveMode) { renderWaveMode(); centerWaveMode(); }
+            }
+        }
         async function drainMangxuEvents(kind) {
             const pending = mangxuPendingByKind[kind];
             const rows = [...pending.values()].map(ev => ({ ...ev }));
@@ -11574,7 +11763,18 @@ global.TauPJS=api;
             return rows;
         }
         async function fetchMangxuAll() { return drainMangxuEvents('all'); }
-        async function fetchMangxuShakeAlert() { return drainMangxuEvents('sa'); }
+        async function drainMangxuEewChannel(channelId) {
+            const pending = mangxuEewPendingByChannel[channelId];
+            if (!pending) return [];
+            const rows = [...pending.values()].map(ev => ({ ...ev }));
+            pending.clear();
+            return rows;
+        }
+        async function fetchMangxuShakeAlert() { return drainMangxuEewChannel('sa_eew'); }
+        async function fetchMangxuCeaEew() { return drainMangxuEewChannel('cea'); }
+        async function fetchMangxuCeaPrEew() { return drainMangxuEewChannel('cea_pr'); }
+        async function fetchMangxuJmaEew() { return drainMangxuEewChannel('jma_eew'); }
+        async function fetchMangxuCwaEew() { return drainMangxuEewChannel('cwa_eew'); }
 
         function connectMangxuFeed(kind) {
             if (mangxuPageClosing || !('WebSocket' in window)) return;
@@ -11615,15 +11815,49 @@ global.TauPJS=api;
             }
         }
 
-        setTimeout(() => { connectMangxuFeed('all'); connectMangxuFeed('sa'); }, 4000);
-        window.addEventListener('online', () => { connectMangxuFeed('all'); connectMangxuFeed('sa'); });
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) { connectMangxuFeed('all'); connectMangxuFeed('sa'); }
-        });
+        function connectMangxuEewFeed(channel) {
+            if (mangxuPageClosing || !('WebSocket' in window)) return;
+            const current = mangxuEewSockets[channel.id];
+            if (current && (current.readyState === WebSocket.OPEN || current.readyState === WebSocket.CONNECTING)) return;
+            clearTimeout(mangxuEewRetryTimers[channel.id]);
+            try {
+                const ws = new WebSocket(MANGXU_EEW_WS_BASE + encodeURIComponent(channel.id));
+                mangxuEewSockets[channel.id] = ws;
+                ws.onopen = () => {
+                    mangxuEewRetryCounts[channel.id] = 0;
+                    markMangxuEewConnection(channel, 'ok', mangxuEewActiveByChannel[channel.id] ? 1 : 0);
+                    renderConnectionPanel();
+                };
+                ws.onmessage = event => { try { handleMangxuEewFrame(channel, JSON.parse(event.data)); } catch (_) {} };
+                ws.onclose = () => {
+                    markMangxuEewConnection(channel, 'bad', mangxuEewActiveByChannel[channel.id] ? 1 : 0);
+                    renderConnectionPanel();
+                    if (mangxuPageClosing) return;
+                    const delay = Math.min(30000, 2000 * (2 ** mangxuEewRetryCounts[channel.id]));
+                    mangxuEewRetryCounts[channel.id]++;
+                    mangxuEewRetryTimers[channel.id] = setTimeout(() => connectMangxuEewFeed(channel), delay);
+                };
+                ws.onerror = () => { try { ws.close(); } catch (_) {} };
+            } catch (_) {
+                markMangxuEewConnection(channel, 'bad', mangxuEewActiveByChannel[channel.id] ? 1 : 0);
+                const delay = Math.min(30000, 2000 * (2 ** mangxuEewRetryCounts[channel.id]));
+                mangxuEewRetryCounts[channel.id]++;
+                mangxuEewRetryTimers[channel.id] = setTimeout(() => connectMangxuEewFeed(channel), delay);
+            }
+        }
+        function connectMangxuFeeds() {
+            connectMangxuFeed('all');
+            MANGXU_EEW_CHANNELS.forEach(connectMangxuEewFeed);
+        }
+        setTimeout(connectMangxuFeeds, 4000);
+        window.addEventListener('online', connectMangxuFeeds);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) connectMangxuFeeds(); });
         window.addEventListener('pagehide', () => {
             mangxuPageClosing = true;
             Object.keys(mangxuRetryTimers).forEach(kind => clearTimeout(mangxuRetryTimers[kind]));
+            Object.keys(mangxuEewRetryTimers).forEach(id => clearTimeout(mangxuEewRetryTimers[id]));
             Object.values(mangxuSockets).forEach(ws => { try { ws?.close(); } catch (_) {} });
+            Object.values(mangxuEewSockets).forEach(ws => { try { ws?.close(); } catch (_) {} });
         }, { once: true });
 
 
@@ -11945,7 +12179,7 @@ global.TauPJS=api;
             ['EMSC','emsc'], ['FUNVISIS','funvisis'], ['GFZ','gfz'], ['BREQ','breq'], ['TREM','trem'], ['P-Alert','palert'],
             ['SSN','ssn'], ['AFAD','afad'],
             ['BMKG','bmkg'], ['GeoNet','geonet'], ['INGV','ingv'],
-            ['JMA EEW','jmaEew'], ['Mangxu','mangxuAll'], ['Mangxu · ShakeAlert','shakeAlert'], ['Volcanes','volcanoes'], ['Clima CO','weatherCo'], ['FSSN','fssn'], ['SED','sed'],
+            ['JMA EEW','jmaEew'], ['Mangxu','mangxuAll'], ['Mangxu · ShakeAlert EEW','shakeAlert'], ['Mangxu · CEA EEW','mangxuCeaEew'], ['Mangxu · CEA-PR EEW','mangxuCeaPrEew'], ['Mangxu · JMA EEW','mangxuJmaEew'], ['Mangxu · CWA EEW','mangxuCwaEew'], ['Volcanes','volcanoes'], ['Clima CO','weatherCo'], ['FSSN','fssn'], ['SED','sed'],
             ['PHIVOLCS','phivolcs'], ['CWA Taiwán','cwa'],
             ['Early-Est','earlyEst'], ['NOAA / NHC','nhc'], ['NWS','nws'], ['NOAA Tsunami','tsunami'], ['FAN Studio','typhoon'], ['HKO','hko'],
             ['NOA','noa'], ['KOERI','koeri']
@@ -12477,9 +12711,49 @@ global.TauPJS=api;
         let tickerCycleIndex = 0;
         let tickerCurrentKey = '';
         let tickerRunning = false;
+        let tickerItemExpiryTimer = null;
         let earthquakeTickerTimer = null;
         let earthquakeTickerKey = '';
         let earthquakeTickerUntil = 0;
+        const EARTHQUAKE_TICKER_MAX_AGE_MS = 2 * 60 * 1000;
+        function earthquakeTickerOriginTime(ev) {
+            return (typeof parseTs === 'function' ? parseTs(ev?.ts) : 0)
+                || Date.parse(String(ev?.time || ev?.originTime || '')) || 0;
+        }
+        function tickerEarthquakeIsFresh(item, now = Date.now()) {
+            if (!item?.event) return true;
+            const ts = earthquakeTickerOriginTime(item.event);
+            const age = now - ts;
+            return ts > 0 && age >= 0 && age <= EARTHQUAKE_TICKER_MAX_AGE_MS;
+        }
+        function finishEarthquakeTicker(key, resume = true) {
+            if (!key || earthquakeTickerKey !== key) return;
+            earthquakeTickerKey = '';
+            earthquakeTickerUntil = 0;
+            if (earthquakeTickerTimer) clearTimeout(earthquakeTickerTimer);
+            earthquakeTickerTimer = null;
+            if (tickerItemExpiryTimer) clearTimeout(tickerItemExpiryTimer);
+            tickerItemExpiryTimer = null;
+            tickerItems.delete(key);
+            const textEl = document.getElementById('infoTickerText');
+            if (textEl) { textEl.onanimationend = null; textEl.classList.remove('ticker-running'); }
+            restoreTickerColors();
+            tickerRunning = false;
+            tickerCurrentKey = '';
+            if (resume) showNextTickerItem();
+        }
+        function finishTickerEventItem(key) {
+            if (!key || tickerCurrentKey !== key) return;
+            if (tickerItemExpiryTimer) clearTimeout(tickerItemExpiryTimer);
+            tickerItemExpiryTimer = null;
+            tickerCurrentKey = '';
+            tickerRunning = false;
+            const textEl = document.getElementById('infoTickerText');
+            const titleEl = document.getElementById('infoTickerTitle');
+            if (textEl) { textEl.onanimationend = null; textEl.classList.remove('ticker-running'); textEl.textContent = ''; }
+            if (titleEl) titleEl.textContent = 'Información automática';
+            showNextTickerItem();
+        }
 
         function earthquakeTickerColors(mag) {
             if (mag >= 6) return { bg: 'linear-gradient(90deg, #5b0710, #b31225, #5b0710)', border: '#ff394d' };
@@ -12497,8 +12771,10 @@ global.TauPJS=api;
 
         function renderEarthquakeTicker() {
             const key = earthquakeTickerKey;
-            if (!key || Date.now() >= earthquakeTickerUntil) return;
+            if (!key) return;
+            if (Date.now() >= earthquakeTickerUntil) { finishEarthquakeTicker(key); return; }
             const item = tickerItems.get(key);
+            if (!item || !tickerEarthquakeIsFresh(item)) { finishEarthquakeTicker(key); return; }
             const titleEl = document.getElementById('infoTickerTitle');
             const textEl = document.getElementById('infoTickerText');
             const viewport = document.getElementById('infoTickerViewport');
@@ -12546,11 +12822,10 @@ global.TauPJS=api;
             const mag = Number.parseFloat(String(rawMag ?? '').replace(/[^0-9.+-]/g,''));
             const isStrong = Number.isFinite(mag) && mag >= 5;
             if (!isJmaCwa && !isStrong) return;
-            const eventTime = (typeof parseTs === 'function' ? parseTs(ev.ts) : 0) || Date.parse(String(ev.time || ev.originTime || '')) || 0;
+            const eventTime = earthquakeTickerOriginTime(ev);
             const ageMs = Date.now() - eventTime;
-            const maxAge = opts.liveUpdate === true ? 90 * 60 * 1000 : 20 * 60 * 1000;
-            // Igual que el texto tipo TV: no mostrar históricos/caché viejos.
-            if (!eventTime || ageMs < -120000 || ageMs > maxAge) return;
+            // El ticker solo muestra sismos ocurridos en los últimos 2 minutos.
+            if (!eventTime || ageMs < 0 || ageMs > EARTHQUAKE_TICKER_MAX_AGE_MS) return;
             const confidence = String(ev.reportConfidence || ev.confidence || ev.status || '').toLowerCase();
             const isFinal = ev.isFinal === true || ev.raw?.isFinal === true || /final|oficial|official|cancel/.test(confidence);
             if (/eew/i.test(agency) && !isFinal) return;
@@ -12568,26 +12843,18 @@ global.TauPJS=api;
                 ev.time || ev.originTime || ''
             ].filter(Boolean).join(' · ');
             const key = 'jma-cwa-earthquake';
+            if (tickerItemExpiryTimer) clearTimeout(tickerItemExpiryTimer);
+            tickerItemExpiryTimer = null;
             tickerItems.set(key,{key,title,text:details,magnitude:mag,event:ev,sourceName});
             earthquakeTickerKey = key;
-            earthquakeTickerUntil = Date.now() + 5 * 60 * 1000;
+            earthquakeTickerUntil = eventTime + EARTHQUAKE_TICKER_MAX_AGE_MS;
             clearTimeout(earthquakeTickerTimer);
-            earthquakeTickerTimer = setTimeout(() => {
-                if (earthquakeTickerKey !== key) return;
-                earthquakeTickerKey = '';
-                earthquakeTickerUntil = 0;
-                earthquakeTickerTimer = null;
-                const textEl = document.getElementById('infoTickerText');
-                if (textEl) { textEl.onanimationend = null; textEl.classList.remove('ticker-running'); }
-                restoreTickerColors();
-                tickerRunning = false;
-                showNextTickerItem();
-            },5 * 60 * 1000);
+            earthquakeTickerTimer = setTimeout(() => finishEarthquakeTicker(key), Math.max(0, earthquakeTickerUntil - Date.now()));
             renderEarthquakeTicker();
         }
 
-        function setTickerItem(key, title, text, priority = false) {
-            const item = { key, title: String(title || 'Información'), text: String(text || 'Sin información disponible.') };
+        function setTickerItem(key, title, text, priority = false, metadata = null) {
+            const item = { key, title: String(title || 'Información'), text: String(text || 'Sin información disponible.'), ...(metadata && typeof metadata === 'object' ? metadata : {}) };
             tickerItems.set(key, item);
             if (priority && !tickerPriorityQueue.includes(key)) tickerPriorityQueue.push(key);
             if (!tickerRunning) showNextTickerItem();
@@ -12595,29 +12862,45 @@ global.TauPJS=api;
 
         function showNextTickerItem() {
             if (earthquakeTickerKey && Date.now() < earthquakeTickerUntil) return;
-            if (earthquakeTickerKey) {
-                earthquakeTickerKey = '';
-                earthquakeTickerUntil = 0;
-                clearTimeout(earthquakeTickerTimer);
-                earthquakeTickerTimer = null;
-                restoreTickerColors();
-            }
+            if (earthquakeTickerKey) finishEarthquakeTicker(earthquakeTickerKey, false);
+            if (tickerItemExpiryTimer) clearTimeout(tickerItemExpiryTimer);
+            tickerItemExpiryTimer = null;
             const titleEl = document.getElementById('infoTickerTitle');
             const textEl = document.getElementById('infoTickerText');
             const viewport = document.getElementById('infoTickerViewport');
             if (!titleEl || !textEl || !viewport) return;
 
-            let key = tickerPriorityQueue.shift();
-            if (!key || !tickerItems.has(key)) {
+            let key = '';
+            while (tickerPriorityQueue.length && !key) {
+                const candidate = tickerPriorityQueue.shift();
+                const item = tickerItems.get(candidate);
+                if (item && tickerEarthquakeIsFresh(item)) key = candidate;
+                else if (item?.event) tickerItems.delete(candidate);
+            }
+            if (!key) {
                 for (let i = 0; i < tickerCycle.length; i++) {
                     const candidate = tickerCycle[tickerCycleIndex % tickerCycle.length];
                     tickerCycleIndex++;
-                    if (tickerItems.has(candidate)) { key = candidate; break; }
+                    const item = tickerItems.get(candidate);
+                    if (item && tickerEarthquakeIsFresh(item)) { key = candidate; break; }
+                    if (item?.event) tickerItems.delete(candidate);
                 }
             }
-            if (!key || !tickerItems.has(key)) return;
+            if (!key) {
+                tickerRunning = false;
+                tickerCurrentKey = '';
+                textEl.onanimationend = null;
+                textEl.classList.remove('ticker-running');
+                titleEl.textContent = 'Información automática';
+                textEl.textContent = 'Sin sismos en los últimos 2 minutos.';
+                return;
+            }
 
             const item = tickerItems.get(key);
+            if (item?.event) {
+                const expiresAt = earthquakeTickerOriginTime(item.event) + EARTHQUAKE_TICKER_MAX_AGE_MS;
+                tickerItemExpiryTimer = setTimeout(() => finishTickerEventItem(key), Math.max(0, expiresAt - Date.now()));
+            }
             tickerCurrentKey = key;
             tickerRunning = true;
             titleEl.textContent = item.title;
@@ -12630,6 +12913,10 @@ global.TauPJS=api;
             void textEl.offsetWidth;
 
             requestAnimationFrame(() => {
+                if (tickerCurrentKey !== key || !tickerEarthquakeIsFresh(item)) {
+                    if (item?.event) finishTickerEventItem(key);
+                    return;
+                }
                 const textWidth = textEl.scrollWidth;
                 const distance = Math.max(viewport.clientWidth + textWidth, viewport.clientWidth * 2);
                 const duration = Math.max(4, Math.min(18, distance / 130));
@@ -12639,8 +12926,9 @@ global.TauPJS=api;
             });
 
             textEl.onanimationend = () => {
+                if (tickerCurrentKey !== key) return;
                 textEl.classList.remove('ticker-running');
-                setTimeout(showNextTickerItem, 250);
+                setTimeout(() => { if (tickerCurrentKey === key) showNextTickerItem(); },250);
             };
         }
 
@@ -12648,14 +12936,14 @@ global.TauPJS=api;
             const now = Date.now();
             const candidates = (list || [])
                 .filter(ev => Number(parseFloat(String(ev.mag || '').replace(/[^\d.]/g, ''))) >= 5)
-                .filter(ev => { const ts = parseTs(ev.ts); return ts > 0 && now - ts <= 90 * 60 * 1000; })
+                .filter(ev => { const ts = parseTs(ev.ts); const age = now - ts; return ts > 0 && age >= 0 && age <= EARTHQUAKE_TICKER_MAX_AGE_MS; })
                 .sort((a, b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0));
             const ev = candidates[0];
             if (!ev) {
-                setTickerItem('m5', 'Último sismo M5.0 o superior', 'No se ha encontrado un sismo M5.0 o superior reciente.');
+                setTickerItem('m5', 'Último sismo M5.0 o superior', 'No se ha registrado un sismo M5.0 o superior en los últimos 2 minutos.');
                 return;
             }
-            setTickerItem('m5', 'Último sismo M5.0 o superior', `${ev.mag} · ${ev.place || 'ubicación no disponible'} · ${ev.time || 'hora no disponible'} · ${ev.agency || 'fuente no disponible'}`);
+            setTickerItem('m5', 'Último sismo M5.0 o superior', `${ev.mag} · ${ev.place || 'ubicación no disponible'} · ${ev.time || 'hora no disponible'} · ${ev.agency || 'fuente no disponible'}`, false, { event:ev });
         }
 
         let tickerM5LastId = '';
@@ -12678,17 +12966,17 @@ global.TauPJS=api;
                             lon: Number(c[0])
                         };
                     })
-                    .filter(ev => Number.isFinite(ev.mag) && ev.mag >= 5 && ev.ts > now - 90 * 60 * 1000 && ev.ts <= now + 120000)
+                    .filter(ev => Number.isFinite(ev.mag) && ev.mag >= 5 && now - ev.ts >= 0 && now - ev.ts <= EARTHQUAKE_TICKER_MAX_AGE_MS)
                     .sort((a, b) => b.ts - a.ts);
                 const ev = candidates[0];
                 if (!ev) {
-                    setTickerItem('m5', 'Último sismo M5.0 o superior', 'No se ha encontrado un sismo M5.0 o superior reciente.');
+                    setTickerItem('m5', 'Último sismo M5.0 o superior', 'No se ha registrado un sismo M5.0 o superior en los últimos 2 minutos.');
                     return;
                 }
                 const changed = tickerM5LastId && tickerM5LastId !== ev.id;
                 tickerM5LastId = ev.id;
                 const time = new Date(ev.ts).toLocaleString('es-CO', { dateStyle:'short', timeStyle:'short', timeZone:'America/Bogota' });
-                setTickerItem('m5', 'Último sismo M5.0 o superior', `${magnitudeDisplay(ev.mag)} · ${ev.place} · ${time}`, changed);
+                setTickerItem('m5', 'Último sismo M5.0 o superior', `${magnitudeDisplay(ev.mag)} · ${ev.place} · ${time}`, changed, { event:ev });
             } catch (_) {
                 setTickerItem('m5', 'Último sismo M5.0 o superior', 'No se pudo consultar USGS en este momento.');
             }
@@ -13112,9 +13400,101 @@ global.TauPJS=api;
         let colombiaGoalEvent = null;
         let colombiaGoalResolveAt = 0;
         let colombiaGoalPollBusy = false;
+        let colombiaLastPregamePoll = 0;
         let colombiaGoalScoreState = { eventId:'', score:null, initialized:false };
+        let colombiaMatchSnapshot = null;
         let colombiaGoalLayerTimer = null;
         let colombiaGoalBannerTimer = null;
+        let colombiaMatchFinalAt = 0;
+        let colombiaMatchAlertState = { eventId:'', halftime:false, final:false };
+        window.__eqColombiaMatchAlertsEnabled = window.__eqColombiaMatchAlertsEnabled !== false;
+        function ensureColombiaFloatingWindows() {
+            if (document.getElementById('colombiaScoreWidget')) return;
+            const style = document.createElement('style');
+            style.id = 'colombiaFloatingWindowStyles';
+            style.textContent = `
+                #colombiaScoreWidget{position:fixed;display:none;z-index:9500;width:230px;padding:0;color:#fff;background:rgba(8,15,24,.96);border:1px solid rgba(255,255,255,.28);border-radius:10px;box-shadow:0 8px 25px rgba(0,0,0,.55);font-family:Arial,'Segoe UI',sans-serif;overflow:hidden;user-select:none}
+                .colombia-float-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 9px;background:rgba(255,255,255,.09);font-size:11px;font-weight:800;letter-spacing:.04em;cursor:move;touch-action:none}
+                #colombiaScoreTeams{padding:9px 10px 0;text-align:center;color:#cbd5e1;font-size:10px;font-weight:700;letter-spacing:.06em}
+                #colombiaScoreValue{padding:2px 8px 1px;text-align:center;font-size:30px;font-weight:900;line-height:1.15;font-variant-numeric:tabular-nums}
+                #colombiaScoreStatus{padding:0 8px 9px;text-align:center;color:#6ee7b7;font-size:10px;font-weight:800;letter-spacing:.08em}
+            `;
+            document.head.appendChild(style);
+            const score = document.createElement('div');
+            score.id = 'colombiaScoreWidget';
+            score.innerHTML = '<div class="colombia-float-head" id="colombiaScoreDrag">🇨🇴 COLOMBIA</div><div id="colombiaScoreTeams">COLOMBIA · RIVAL</div><div id="colombiaScoreValue">— : —</div><div id="colombiaScoreStatus">PRÓXIMO PARTIDO</div>';
+            document.body.appendChild(score);
+            const initPosition = (el, key, defaultLeft, defaultTop) => {
+                let saved = null;
+                try { saved = JSON.parse(localStorage.getItem(key) || 'null'); } catch (_) {}
+                const previousDisplay = el.style.display;
+                el.style.display = 'block';
+                const rect = el.getBoundingClientRect();
+                el.style.display = previousDisplay;
+                const left = Number.isFinite(saved?.left) ? saved.left : defaultLeft;
+                const top = Number.isFinite(saved?.top) ? saved.top : defaultTop;
+                el.style.left = `${Math.max(8, Math.min(window.innerWidth - rect.width - 8, left))}px`;
+                el.style.top = `${Math.max(48, Math.min(window.innerHeight - rect.height - 8, top))}px`;
+            };
+            const makeDraggable = (el, handle, key, defaultLeft, defaultTop) => {
+                initPosition(el, key, defaultLeft, defaultTop);
+                let drag = null;
+                handle.addEventListener('pointerdown', e => {
+                    if (e.target.closest('button')) return;
+                    const rect = el.getBoundingClientRect();
+                    drag = { id:e.pointerId, dx:e.clientX-rect.left, dy:e.clientY-rect.top };
+                    el.style.left = `${rect.left}px`; el.style.top = `${rect.top}px`;
+                    handle.setPointerCapture(e.pointerId);
+                    e.preventDefault();
+                });
+                handle.addEventListener('pointermove', e => {
+                    if (!drag || drag.id !== e.pointerId) return;
+                    const maxLeft = Math.max(8, window.innerWidth-el.offsetWidth-8), maxTop = Math.max(48, window.innerHeight-el.offsetHeight-8);
+                    el.style.left = `${Math.max(8,Math.min(maxLeft,e.clientX-drag.dx))}px`;
+                    el.style.top = `${Math.max(48,Math.min(maxTop,e.clientY-drag.dy))}px`;
+                });
+                const finish = e => {
+                    if (!drag || drag.id !== e.pointerId) return;
+                    drag = null;
+                    try { localStorage.setItem(key,JSON.stringify({left:parseFloat(el.style.left),top:parseFloat(el.style.top)})); } catch (_) {}
+                };
+                handle.addEventListener('pointerup',finish); handle.addEventListener('pointercancel',finish);
+            };
+            makeDraggable(score, document.getElementById('colombiaScoreDrag'), 'colombiaScoreWidgetPos_v1', Math.max(8,window.innerWidth-246), Math.max(48,window.innerHeight-165));
+        }
+        function updateColombiaMatchWindows(fixture = colombiaNextFixture, snap = colombiaMatchSnapshot) {
+            const score = document.getElementById('colombiaScoreWidget');
+            if (!fixture) { if (score) score.style.display = 'none'; return; }
+            ensureColombiaFloatingWindows();
+            const now = Date.now();
+            const current = snap && snap.identity === fixture.identity ? snap : null;
+            const preMatch = fixture.kickoff > 0 && now >= fixture.kickoff - 15 * 60 * 1000 && now < fixture.kickoff;
+            const live = !!current?.live;
+            if (current?.final && !colombiaMatchFinalAt) colombiaMatchFinalAt = now;
+            if (!current?.final) colombiaMatchFinalAt = 0;
+            const final = !!current?.final && now - colombiaMatchFinalAt < 15 * 60 * 1000;
+            const waiting = fixture.kickoff > 0 && now >= fixture.kickoff && now <= fixture.kickoff + 15 * 60 * 1000 && !live && !final;
+            if (score) {
+                score.style.display = preMatch || live || final || waiting ? 'block' : 'none';
+                document.getElementById('colombiaScoreTeams').textContent = `COLOMBIA  ·  ${fixture.opponent.toLocaleUpperCase('es-CO')}`;
+                if (live || final) {
+                    document.getElementById('colombiaScoreValue').textContent = `${current.colombiaGoals} : ${current.opponentGoals}`;
+                    document.getElementById('colombiaScoreStatus').textContent = final ? 'RESULTADO FINAL' : `EN VIVO${current.minute ? ` · ${current.minute}` : ''}`;
+                } else if (preMatch) {
+                    document.getElementById('colombiaScoreValue').textContent = '— : —';
+                    document.getElementById('colombiaScoreStatus').textContent = colombiaCountdownLabel(fixture.kickoff).replace(/^ · /,'').toLocaleUpperCase('es-CO');
+                } else if (waiting) {
+                    document.getElementById('colombiaScoreValue').textContent = '— : —';
+                    document.getElementById('colombiaScoreStatus').textContent = 'ESPERANDO MARCADOR';
+                }
+            }
+        }
+        function colombiaCountdownLabel(kickoff) {
+            const minutes = Math.max(1, Math.ceil((kickoff - Date.now()) / 60000));
+            if (minutes >= 1440) { const days = Math.floor(minutes / 1440), hours = Math.floor((minutes % 1440) / 60); return ` · Faltan ${days} d ${hours} h`; }
+            if (minutes >= 60) return ` · Faltan ${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+            return ` · Faltan ${minutes} min`;
+        }
         function publishColombiaMatch(opponent, home, date, competition = '', eventId = '', kickoff = 0) {
             const identity = `${date}|${home ? 'home' : 'away'}|${String(opponent).toLowerCase()}`;
             const nextEventId = String(eventId || '');
@@ -13122,16 +13502,52 @@ global.TauPJS=api;
             if (fixtureChanged) {
                 colombiaGoalEvent = null;
                 colombiaGoalScoreState = { eventId:'', score:null, initialized:false };
+                colombiaLastPregamePoll = 0;
+                colombiaMatchSnapshot = null;
+                colombiaMatchFinalAt = 0;
+                colombiaMatchAlertState = { eventId:'', halftime:false, final:false };
                 colombiaGoalResolveAt = 0;
             }
             colombiaNextFixture = { identity, opponent:String(opponent || ''), home:!!home, date, competition, eventId:nextEventId, kickoff:Number(kickoff) || 0 };
             if (colombiaGoalEvent?.identity === identity && Number(kickoff) > 0) colombiaGoalEvent.kickoff = Number(kickoff);
-            const matchup = home ? `Colombia vs ${opponent}` : `Colombia visita a ${opponent}`;
-            const comp = competition ? ` · ${competition}` : '';
-            setTickerItem('colombia-match', '🇨🇴 Próximo partido de Colombia', `${matchup} · ${formatColombiaFixtureDate(date)}${comp}`);
+            updateColombiaMatchTicker();
+        }
+        function updateColombiaMatchTicker(priority = false) {
+            const fixture = colombiaNextFixture;
+            if (!fixture) return;
+            const now = Date.now();
+            const match = fixture.home ? `Colombia vs ${fixture.opponent}` : `Colombia visita a ${fixture.opponent}`;
+            let title = '🇨🇴 Próximo partido de Colombia';
+            let text = `${match} · ${formatColombiaFixtureDate(fixture.date)}`;
+            const snap = colombiaMatchSnapshot;
+            if (snap && snap.identity === fixture.identity && snap.final) {
+                title = '🇨🇴 Resultado final';
+                text = `Colombia ${snap.colombiaGoals}–${snap.opponentGoals} ${fixture.opponent} · FINAL`;
+            } else if (snap && snap.identity === fixture.identity && snap.live) {
+                title = '🇨🇴 Colombia en vivo';
+                text = `Colombia ${snap.colombiaGoals}–${snap.opponentGoals} ${fixture.opponent} · EN VIVO${snap.minute ? ` · ${snap.minute}` : ''}`;
+            } else if (fixture.kickoff > now) {
+                text += colombiaCountdownLabel(fixture.kickoff);
+            } else if (fixture.kickoff && now <= fixture.kickoff + 4 * 60 * 60 * 1000) {
+                title = '🇨🇴 Marcador de Colombia';
+                text = `${match} · esperando actualización del marcador`;
+            }
+            setTickerItem('colombia-match', title, text, priority);
+            updateColombiaMatchWindows(fixture, colombiaMatchSnapshot);
         }
         async function updateTickerColombiaMatch() {
             const now = Date.now();
+            if (colombiaNextFixture && colombiaGoalEvent?.identity === colombiaNextFixture.identity && colombiaGoalEvent.kickoff && now >= colombiaGoalEvent.kickoff - 15 * 60 * 1000 && now <= colombiaGoalEvent.kickoff + 4 * 60 * 60 * 1000) {
+                updateColombiaMatchTicker();
+                return;
+            }
+            const todayParts = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bogota',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(now));
+            const today = `${todayParts.find(x=>x.type==='year')?.value}-${todayParts.find(x=>x.type==='month')?.value}-${todayParts.find(x=>x.type==='day')?.value}`;
+            const todayFixture = colombiaVerifiedFixtures.find(f => f.date === today);
+            if (todayFixture) {
+                publishColombiaMatch(todayFixture.opponent, todayFixture.home, todayFixture.date, 'Amistoso internacional', todayFixture.eventId || '');
+                return;
+            }
             try {
                 const id = await resolveColombiaTeamId();
                 const res = await fetch(`https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/eventsnext.php?id=${id}`, { cache:'no-store' });
@@ -13156,10 +13572,11 @@ global.TauPJS=api;
             }
             colombiaNextFixture = null;
             colombiaGoalEvent = null;
+            updateColombiaMatchWindows(null, null);
             setTickerItem('colombia-match', '🇨🇴 Próximo partido de Colombia', 'Aún no hay otro partido confirmado para Colombia.');
         }
         function colombiaNormalizeTeamName(value) {
-            return String(value || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').trim().toLowerCase();
+            return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
         }
         async function resolveColombiaGoalEvent(force = false) {
             const fixture = colombiaNextFixture;
@@ -13187,7 +13604,9 @@ global.TauPJS=api;
                 if (!event?.idEvent) return null;
                 const parsed = colombiaEventDate(event);
                 colombiaGoalEvent = { id:String(event.idEvent), identity:fixture.identity, kickoff:parsed?.instant || fixture.kickoff || 0, home:fixture.home };
+                if (colombiaNextFixture?.identity === fixture.identity && colombiaGoalEvent.kickoff) colombiaNextFixture.kickoff = colombiaGoalEvent.kickoff;
                 if (colombiaGoalScoreState.eventId !== colombiaGoalEvent.id) colombiaGoalScoreState = { eventId:colombiaGoalEvent.id, score:null, initialized:false };
+                updateColombiaMatchTicker();
                 return colombiaGoalEvent;
             } catch (_) { return null; }
         }
@@ -13204,43 +13623,52 @@ global.TauPJS=api;
             `;
             document.head.appendChild(style);
         }
-        function celebrateColombiaGoal(goalCount = 1, forceTest = false) {
-            if (!forceTest && window.__eqColombiaGoalRainEnabled === false) return;
+        function celebrateColombiaGoal(goalCount = 1, forceTest = false, goalInfo = null) {
+            const rainEnabled = forceTest || window.__eqColombiaGoalRainEnabled !== false;
+            const noticesEnabled = forceTest || window.__eqColombiaMatchAlertsEnabled !== false;
+            if (!rainEnabled && !noticesEnabled) return;
             ensureColombiaGoalRainStyles();
-            let layer = document.getElementById('colombiaGoalRainLayer');
-            if (!layer) {
-                layer = document.createElement('div');
-                layer.id = 'colombiaGoalRainLayer';
-                layer.setAttribute('aria-hidden','true');
-                document.body.appendChild(layer);
-            }
             const count = Math.max(1, Math.min(4, Number(goalCount) || 1));
-            const balls = Math.min(90, 28 + count * 20);
-            for (let i = 0; i < balls; i++) {
-                const ball = document.createElement('span');
-                ball.className = 'colombia-goal-ball';
-                ball.textContent = '⚽';
-                ball.style.left = `${Math.random() * 100}%`;
-                ball.style.fontSize = `${24 + Math.random() * 28}px`;
-                ball.style.setProperty('--fall-duration', `${2.4 + Math.random() * 1.8}s`);
-                ball.style.setProperty('--fall-delay', `${Math.random() * 0.9}s`);
-                ball.style.setProperty('--fall-drift', `${(Math.random() - 0.5) * 22}vw`);
-                ball.style.setProperty('--fall-spin', `${360 + Math.random() * 900}deg`);
-                ball.addEventListener('animationend', () => ball.remove(), { once:true });
-                layer.appendChild(ball);
+            let layer = document.getElementById('colombiaGoalRainLayer');
+            if (rainEnabled) {
+                if (!layer) {
+                    layer = document.createElement('div');
+                    layer.id = 'colombiaGoalRainLayer';
+                    layer.setAttribute('aria-hidden','true');
+                    document.body.appendChild(layer);
+                }
+                const balls = Math.min(90, 28 + count * 20);
+                for (let i = 0; i < balls; i++) {
+                    const ball = document.createElement('span');
+                    ball.className = 'colombia-goal-ball';
+                    ball.textContent = '⚽';
+                    ball.style.left = `${Math.random() * 100}%`;
+                    ball.style.fontSize = `${24 + Math.random() * 28}px`;
+                    ball.style.setProperty('--fall-duration', `${2.4 + Math.random() * 1.8}s`);
+                    ball.style.setProperty('--fall-delay', `${Math.random() * 0.9}s`);
+                    ball.style.setProperty('--fall-drift', `${(Math.random() - 0.5) * 22}vw`);
+                    ball.style.setProperty('--fall-spin', `${360 + Math.random() * 900}deg`);
+                    ball.addEventListener('animationend', () => ball.remove(), { once:true });
+                    layer.appendChild(ball);
+                }
+                if (colombiaGoalLayerTimer) clearTimeout(colombiaGoalLayerTimer);
+                colombiaGoalLayerTimer = setTimeout(() => { layer?.remove(); colombiaGoalLayerTimer = null; }, 5200);
             }
-            let banner = document.getElementById('colombiaGoalBanner');
-            if (!banner) {
-                banner = document.createElement('div');
-                banner.id = 'colombiaGoalBanner';
-                banner.setAttribute('role','status');
-                document.body.appendChild(banner);
+            if (noticesEnabled) {
+                let banner = document.getElementById('colombiaGoalBanner');
+                if (!banner) {
+                    banner = document.createElement('div');
+                    banner.id = 'colombiaGoalBanner';
+                    banner.setAttribute('role','status');
+                    document.body.appendChild(banner);
+                }
+                const headline = count > 1 ? `¡¡${count} GOLES DE COLOMBIA!!` : '¡GOOOOL DE COLOMBIA!';
+                const details = [goalInfo?.scoreline, goalInfo?.scorer ? `${count > 1 ? 'Último: ' : ''}${goalInfo.scorer}` : '', goalInfo?.minute].filter(Boolean);
+                banner.style.fontSize = details.length ? 'clamp(20px,5vw,46px)' : '';
+                banner.textContent = [headline, ...details].join(' · ');
+                if (colombiaGoalBannerTimer) clearTimeout(colombiaGoalBannerTimer);
+                colombiaGoalBannerTimer = setTimeout(() => { banner?.remove(); colombiaGoalBannerTimer = null; }, 4200);
             }
-            banner.textContent = count > 1 ? `¡¡${count} GOLES DE COLOMBIA!!` : '¡GOOOOL DE COLOMBIA!';
-            if (colombiaGoalBannerTimer) clearTimeout(colombiaGoalBannerTimer);
-            colombiaGoalBannerTimer = setTimeout(() => { banner?.remove(); colombiaGoalBannerTimer = null; }, 3200);
-            if (colombiaGoalLayerTimer) clearTimeout(colombiaGoalLayerTimer);
-            colombiaGoalLayerTimer = setTimeout(() => { layer?.remove(); colombiaGoalLayerTimer = null; }, 5200);
         }
         function stopColombiaGoalRain() {
             if (colombiaGoalLayerTimer) clearTimeout(colombiaGoalLayerTimer);
@@ -13249,14 +13677,87 @@ global.TauPJS=api;
             document.getElementById('colombiaGoalRainLayer')?.remove();
             document.getElementById('colombiaGoalBanner')?.remove();
         }
+        function showColombiaMatchNotice(title, details = '') {
+            if (window.__eqColombiaMatchAlertsEnabled === false) return;
+            ensureColombiaGoalRainStyles();
+            let banner = document.getElementById('colombiaGoalBanner');
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'colombiaGoalBanner';
+                banner.setAttribute('role','status');
+                document.body.appendChild(banner);
+            }
+            banner.style.fontSize = 'clamp(22px,5.2vw,52px)';
+            banner.textContent = [title, details].filter(Boolean).join(' · ');
+            if (colombiaGoalBannerTimer) clearTimeout(colombiaGoalBannerTimer);
+            colombiaGoalBannerTimer = setTimeout(() => { banner?.remove(); colombiaGoalBannerTimer = null; }, 5200);
+        }
+        window.__eqStopColombiaMatchAlert = () => {
+            if (colombiaGoalBannerTimer) clearTimeout(colombiaGoalBannerTimer);
+            colombiaGoalBannerTimer = null;
+            document.getElementById('colombiaGoalBanner')?.remove();
+        };
         window.__eqStopColombiaGoalRain = stopColombiaGoalRain;
         window.__eqTestColombiaGoalRain = () => celebrateColombiaGoal(1, true);
+        function extractColombiaGoalInfo(details, previousDetails = '') {
+            const full = String(details || '').trim();
+            const previous = String(previousDetails || '').trim();
+            if (!full || full === previous) return { scorer:'', minute:'' };
+            let added = full;
+            if (previous && full.startsWith(previous)) added = full.slice(previous.length).replace(/^[,;|\s]+/,'');
+            const entries = added.split(/\s*[;,|]\s*/).filter(Boolean);
+            const latest = entries.at(-1) || added;
+            const minuteMatch = latest.match(/(\d{1,3}(?:\+\d{1,2})?)\s*(?:['′]|mins?\.?|minutes?)/i);
+            const minute = minuteMatch ? `${minuteMatch[1]}'` : '';
+            const scorer = latest.replace(/\s*\([^)]*\)\s*$/,'').replace(/\s+\d{1,3}(?:\+\d{1,2})?\s*(?:['′]|mins?\.?|minutes?)?\s*$/i,'').trim();
+            return { scorer:scorer.length <= 60 ? scorer : '', minute };
+        }
+        function parseColombiaScore(value) {
+            if (value == null || value === '') return null;
+            const score = Number(value);
+            return Number.isFinite(score) && score >= 0 ? Math.trunc(score) : null;
+        }
+        function updateColombiaMatchSnapshot(ev, event, now, homeIsColombia, homeScore, awayScore) {
+            if (homeScore == null || awayScore == null) return null;
+            const colombiaGoals = homeIsColombia ? homeScore : awayScore;
+            const opponentGoals = homeIsColombia ? awayScore : homeScore;
+            const status = String(ev.strStatus || '').trim();
+            const final = /^(ft|aet|pen|final|finished|full.?time)/i.test(status);
+            const halftime = /^(ht|half[ -]?time|halftime)/i.test(status);
+            const inMatchWindow = now >= event.kickoff - 15 * 60 * 1000 && now <= event.kickoff + 4 * 60 * 60 * 1000;
+            const liveStatus = /^(1h|ht|2h|et|bt|live|in progress|playing|first half|second half|half time)/i.test(status);
+            const live = !final && inMatchWindow && (liveStatus || colombiaGoals + opponentGoals > 0);
+            const rawMinute = String(ev.strProgress || '').trim();
+            const minuteMatch = rawMinute.match(/(\d{1,3}(?:\+\d{1,2})?)\s*(?:['′]|mins?\.?|minutes?)/i);
+            const minute = minuteMatch ? `${minuteMatch[1]}'` : '';
+            const goalDetails = String(homeIsColombia ? (ev.strHomeGoalDetails || '') : (ev.strAwayGoalDetails || '')).trim();
+            const previous = colombiaMatchSnapshot?.identity === event.identity ? colombiaMatchSnapshot : null;
+            const changedScore = !previous || previous.colombiaGoals !== colombiaGoals || previous.opponentGoals !== opponentGoals;
+            colombiaMatchSnapshot = { identity:event.identity, eventId:event.id, colombiaGoals, opponentGoals, live, final, halftime, minute, goalDetails, status };
+            const priority = (!previous && (live || final)) || (!!previous && (changedScore || previous.live !== live || previous.final !== final || previous.halftime !== halftime));
+            if (colombiaMatchAlertState.eventId !== event.id) colombiaMatchAlertState = { eventId:event.id, halftime:false, final:false };
+            const scoreline = `Colombia ${colombiaGoals}–${opponentGoals} ${colombiaNextFixture?.opponent || 'rival'}`;
+            if (halftime && !colombiaMatchAlertState.halftime) {
+                colombiaMatchAlertState.halftime = true;
+                showColombiaMatchNotice('DESCANSO', scoreline);
+            }
+            if (final && !colombiaMatchAlertState.final) {
+                colombiaMatchAlertState.final = true;
+                showColombiaMatchNotice('FINAL DEL PARTIDO', scoreline);
+            }
+            updateColombiaMatchTicker(priority);
+            return previous;
+        }
         async function updateColombiaGoalMonitor() {
             if (document.hidden || colombiaGoalPollBusy || !colombiaNextFixture) return;
             const event = colombiaGoalEvent || await resolveColombiaGoalEvent();
             if (!event?.id || !event.kickoff) return;
             const now = Date.now();
             if (now < event.kickoff - 15 * 60 * 1000 || now > event.kickoff + 4 * 60 * 60 * 1000) return;
+            if (now < event.kickoff) {
+                if (now - colombiaLastPregamePoll < 15 * 1000) return;
+                colombiaLastPregamePoll = now;
+            }
             colombiaGoalPollBusy = true;
             try {
                 const res = await fetch(`https://www.thesportsdb.com/api/v1/json/${SPORTSDB_KEY}/lookupevent.php?id=${encodeURIComponent(event.id)}`, { cache:'no-store' });
@@ -13267,20 +13768,28 @@ global.TauPJS=api;
                 const homeIsColombia = colombiaNormalizeTeamName(ev.strHomeTeam) === 'colombia';
                 const awayIsColombia = colombiaNormalizeTeamName(ev.strAwayTeam) === 'colombia';
                 if (homeIsColombia === awayIsColombia) return;
-                const rawScore = homeIsColombia ? ev.intHomeScore : ev.intAwayScore;
-                if (!colombiaGoalScoreState.initialized && now < event.kickoff && (rawScore == null || rawScore === '')) {
-                    colombiaGoalScoreState = { eventId:event.id, score:0, initialized:true };
+                const homeScore = parseColombiaScore(ev.intHomeScore);
+                const awayScore = parseColombiaScore(ev.intAwayScore);
+                const previousSnapshot = updateColombiaMatchSnapshot(ev, event, now, homeIsColombia, homeScore, awayScore);
+                const score = homeIsColombia ? homeScore : awayScore;
+                if (score == null) {
+                    if (!colombiaGoalScoreState.initialized && now < event.kickoff) colombiaGoalScoreState = { eventId:event.id, score:0, initialized:true };
                     return;
                 }
-                if (rawScore == null || rawScore === '') return;
-                const score = Number(rawScore);
-                if (!Number.isFinite(score)) return;
                 if (!colombiaGoalScoreState.initialized || colombiaGoalScoreState.eventId !== event.id) {
                     colombiaGoalScoreState = { eventId:event.id, score, initialized:true };
                     return;
                 }
                 const increase = score - Number(colombiaGoalScoreState.score);
-                if (increase > 0) celebrateColombiaGoal(increase);
+                if (increase > 0) {
+                    const rawDetails = homeIsColombia ? ev.strHomeGoalDetails : ev.strAwayGoalDetails;
+                    const previousDetails = previousSnapshot?.goalDetails || '';
+                    const goalInfo = extractColombiaGoalInfo(rawDetails, previousDetails);
+                    const opponentScore = homeIsColombia ? awayScore : homeScore;
+                    const scoreline = opponentScore == null ? '' : `Colombia ${score}–${opponentScore} ${colombiaNextFixture?.opponent || 'rival'}`;
+                    const currentMinute = goalInfo.minute || colombiaMatchSnapshot?.minute || '';
+                    celebrateColombiaGoal(increase, false, { scoreline, scorer:goalInfo.scorer, minute:currentMinute });
+                }
                 colombiaGoalScoreState.score = score;
             } catch (_) { /* una consulta fallida no reinicia el marcador conocido */ }
             finally { colombiaGoalPollBusy = false; }
@@ -13680,8 +14189,9 @@ global.TauPJS=api;
         updateTickerRandom();
         updateTickerNews();
         updateTickerColombiaMatch();
-        setTimeout(() => { try { updateColombiaGoalMonitor(); } catch (_) {} }, 12000);
-        setInterval(updateColombiaGoalMonitor, 15 * 1000);
+        setInterval(updateColombiaMatchTicker, 60 * 1000);
+        setTimeout(() => { try { updateColombiaGoalMonitor(); } catch (_) {} }, 3000);
+        setInterval(updateColombiaGoalMonitor, 3 * 1000);
         setInterval(updateTickerM5, 60 * 1000);
         setInterval(updateTickerVolcanoes, 10 * 60 * 1000);
         setInterval(updateTickerColombiaMatch, 60 * 60 * 1000);
@@ -13770,6 +14280,9 @@ global.TauPJS=api;
             const aMangxu = isMangxuEvent(a);
             const bMangxu = isMangxuEvent(b);
             if (!aMangxu && !bMangxu) return false;
+            // Mantener separado el aviso EEW preliminar del boletín final de la agencia.
+            const aEew = isEewOnlyListEntry(a), bEew = isEewOnlyListEntry(b);
+            if (aEew !== bEew) return false;
             if (canonicalMangxuAgency(a.agency) !== canonicalMangxuAgency(b.agency)) return false;
             const at = parseTs(a.ts), bt = parseTs(b.ts);
             const alat = Number(a.lat), blat = Number(b.lat), alon = Number(a.lon), blon = Number(b.lon);
@@ -13817,7 +14330,7 @@ global.TauPJS=api;
             const previousLatestId = [...events]
                 .sort((a, b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0))[0]?.id || null;
             try {
-                const [usgs, jma, jmaXml, cenc, csn, igepn, isc, igp, emsc, funvisis, gfz, breq, afad, bmkg, geonet, ingv, ssn, fssn, sed, phivolcs, cwa, earlyEst, hko, noa, koeri, mangxuAll, shakeAlert] = await Promise.all([
+                const [usgs, jma, jmaXml, cenc, csn, igepn, isc, igp, emsc, funvisis, gfz, breq, afad, bmkg, geonet, ingv, ssn, fssn, sed, phivolcs, cwa, earlyEst, hko, noa, koeri, mangxuAll, shakeAlert, mangxuCeaEew, mangxuCeaPrEew, mangxuJmaEew, mangxuCwaEew] = await Promise.all([
                     timedApi('usgs', incrementalAgency('usgs', fetchUSGS)),
                     timedApi('jma', incrementalAgency('jma', fetchWolfxJMA)),
                     timedApi('jmaXml', incrementalAgency('jmaXml', fetchJmaOfficial)),
@@ -13844,16 +14357,21 @@ global.TauPJS=api;
                     timedApi('noa', incrementalAgency('noa', fetchNOA)),
                     timedApi('koeri', incrementalAgency('koeri', fetchKOERI)),
                     timedApi('mangxuAll', incrementalAgency('mangxuAll', fetchMangxuAll)),
-                    timedApi('shakeAlert', incrementalAgency('shakeAlert', fetchMangxuShakeAlert))
+                    timedApi('shakeAlert', incrementalAgency('shakeAlert', fetchMangxuShakeAlert)),
+                    timedApi('mangxuCeaEew', incrementalAgency('mangxuCeaEew', fetchMangxuCeaEew)),
+                    timedApi('mangxuCeaPrEew', incrementalAgency('mangxuCeaPrEew', fetchMangxuCeaPrEew)),
+                    timedApi('mangxuJmaEew', incrementalAgency('mangxuJmaEew', fetchMangxuJmaEew)),
+                    timedApi('mangxuCwaEew', incrementalAgency('mangxuCwaEew', fetchMangxuCwaEew))
                 ]);
 
                 const sourceCounts = { usgs: usgs.length, jma: jma.length, jmaXml: jmaXml.length, cenc: cenc.length,
                     csn: csn.length, igepn: igepn.length, isc: isc.length, igp: igp.length, emsc: emsc.length, funvisis: funvisis.length, gfz: gfz.length, breq: breq.length, afad: afad.length, bmkg: bmkg.length,
                     geonet: geonet.length, ingv: ingv.length, ssn: ssn.length, fssn: fssn.length, sed: sed.length,
                     phivolcs: phivolcs.length, cwa: cwa.length, earlyEst: earlyEst.length, hko: hko.length,
-                    noa: noa.length, koeri: koeri.length, mangxuAll: mangxuAll.length, shakeAlert: shakeAlert.length };
+                    noa: noa.length, koeri: koeri.length, mangxuAll: mangxuAll.length, shakeAlert: shakeAlert.length,
+                    mangxuCeaEew:mangxuCeaEew.length, mangxuCeaPrEew:mangxuCeaPrEew.length, mangxuJmaEew:mangxuJmaEew.length, mangxuCwaEew:mangxuCwaEew.length };
                 Object.entries(sourceCounts).forEach(([key, count]) => recordApiCount(key, count));
-                const sourceEvents = { usgs, jma, jmaXml, cenc, csn, igepn, isc, igp, emsc, funvisis, gfz, breq, afad, bmkg, geonet, ingv, ssn, fssn, sed, phivolcs, cwa, earlyEst, hko, noa, koeri, mangxuAll, shakeAlert };
+                const sourceEvents = { usgs, jma, jmaXml, cenc, csn, igepn, isc, igp, emsc, funvisis, gfz, breq, afad, bmkg, geonet, ingv, ssn, fssn, sed, phivolcs, cwa, earlyEst, hko, noa, koeri, mangxuAll, shakeAlert, mangxuCeaEew, mangxuCeaPrEew, mangxuJmaEew, mangxuCwaEew };
                 Object.keys(sourceEvents).forEach(key => {
                     sourceEvents[key] = keepLastGoodSourceEvents(key, sourceEvents[key]);
                 });
@@ -13864,7 +14382,7 @@ global.TauPJS=api;
                         apiMetrics[key].latestEventTs = latest;
                     }
                 });
-                let newEvents = [...usgs, ...jma, ...jmaXml, ...cenc, ...csn, ...igepn, ...isc, ...igp, ...emsc, ...funvisis, ...gfz, ...breq, ...afad, ...bmkg, ...geonet, ...ingv, ...ssn, ...fssn, ...sed, ...phivolcs, ...cwa, ...earlyEst, ...hko, ...noa, ...koeri, ...mangxuAll, ...shakeAlert].filter(ev => !/JMA[\s_-]*EEW/i.test(String(ev.agency || '')));
+                let newEvents = [...usgs, ...jma, ...jmaXml, ...cenc, ...csn, ...igepn, ...isc, ...igp, ...emsc, ...funvisis, ...gfz, ...breq, ...afad, ...bmkg, ...geonet, ...ingv, ...ssn, ...fssn, ...sed, ...phivolcs, ...cwa, ...earlyEst, ...hko, ...noa, ...koeri, ...mangxuAll, ...shakeAlert, ...mangxuCeaEew, ...mangxuCeaPrEew, ...mangxuJmaEew, ...mangxuCwaEew].filter(ev => !/JMA[\s_-]*EEW/i.test(String(ev.agency || '')));
                 const now = Date.now();
                 // IDs are authoritative within each feed.  JMA's official XML
                 // also republishes events already present in the JMA catalog.
@@ -15657,7 +16175,7 @@ global.TauPJS=api;
                 panel.classList.add('taiwan-focus-panel');
                 document.getElementById('twStatusDot').textContent = '● En Vivo';
                 document.getElementById('twStatusDot').style.color = '#4caf50';
-                info.innerHTML = '<strong>Sin Alertas Tempranas de Terremotos</strong>';
+                info.textContent = 'Sin Alertas Tempranas de Terremotos';
                 centerTaiwanView();
                 showRegionToast('🇹🇼 Taiwán centrado · solo alerta temprana');
             } else {
@@ -16984,6 +17502,7 @@ global.TauPJS=api;
     let lastRenderKey = null;
     let lastRenderId = null;
     let autoHideTimer = null;
+    let hardExpiryTimer = null;
     const LINE_MS = 5000; // Tiempo que se muestra cada línea del cartel.
     function box() { return document.getElementById('jmaJaBanner'); }
     function fmtTimes(ms) {
@@ -17033,6 +17552,7 @@ global.TauPJS=api;
     function stop() {
         if (timer) { clearInterval(timer); timer = null; }
         if (autoHideTimer) { clearTimeout(autoHideTimer); autoHideTimer = null; }
+        if (hardExpiryTimer) { clearTimeout(hardExpiryTimer); hardExpiryTimer = null; }
         idx = 0;
     }
     // Oculta el cartel sin olvidar qué reporte se mostró: el auto-ocultado usa
@@ -17121,10 +17641,11 @@ global.TauPJS=api;
             }
         }, LINE_MS);
     }
-    function renderTvPages(pages) {
+    function renderTvPages(pages, hardExpiresAt = 0) {
         const el = box();
         if (!el || !Array.isArray(pages) || !pages.length) return;
         stop();
+        if (Number(hardExpiresAt) > 0) hardExpiryTimer = setTimeout(hideVisual, Math.max(0, Number(hardExpiresAt) - Date.now()));
         el.classList.add('tv-nweq','visible');
         el.style.display = 'block';
         let pageIndex = 0;
@@ -17206,6 +17727,7 @@ global.TauPJS=api;
         const magRaw = String(ev.mag != null ? ev.mag : '').replace(/^M\s*/i, '').trim();
         const mag = magRaw && !/^(?:—|-|unknown|n\/?a)$/i.test(magRaw) ? magRaw : '不明';
         const timeCo = (fmtTimes(ev.ts).co.match(/\b(\d{2}:\d{2})/) || [,'—'])[1];
+        const jmaEventTimestamp = typeof parseTs === 'function' ? parseTs(ev.ts) : Number(ev.ts);
         const prelim = String(ev.reportConfidence || 'preliminar').toLowerCase();
         const isPrelim = /preliminar|preliminary|速報|推定|^$/.test(prelim);
         const statusJp = isPrelim ? '（速報）' : '（確定）';
@@ -17298,7 +17820,7 @@ global.TauPJS=api;
                 pages.push('<section class="tv-center"><div class="tv-headline">この地震による津波の心配はありません</div><div class="tv-sub">No hay preocupación de tsunami por este sismo</div></section>');
             }
             pages.push('<section class="tv-center"><div class="tv-title tv-end">地震情報　終</div><div class="tv-sub">Fin de la información sísmica · JMA</div></section>');
-            renderTvPages(pages);
+            renderTvPages(pages, jmaEventTimestamp > 0 ? jmaEventTimestamp + JMA_TV_EARTHQUAKE_WINDOW_MS : 0);
         }
         // Traducir todos los nombres japoneses del reporte (silencioso, sin widget)
         const toTranslate = [];
@@ -17403,16 +17925,19 @@ global.TauPJS=api;
         });
     };
     // Router principal
-    const FRESH_WINDOW_MS = 20 * 60 * 1000; // Navegar/zoom/abrir apartado: "reciente" si pasó hace ≤20 min.
-    const LIVE_FRESH_WINDOW_MS = 90 * 60 * 1000; // Actualización en vivo real: margen más amplio (sigue confirmándose), pero NO infinito.
+    const FRESH_WINDOW_MS = 20 * 60 * 1000;
+    const LIVE_FRESH_WINDOW_MS = 90 * 60 * 1000;
+    const JMA_TV_EARTHQUAKE_WINDOW_MS = 2 * 60 * 1000;
     function isFreshEnough(ev, maxAge) {
         const t = typeof parseTs === 'function' ? parseTs(ev.ts) : (Number.isFinite(ev.ts) ? ev.ts : 0);
-        // Sin hora utilizable no se puede CONFIRMAR que sea reciente, así que
-        // no se muestra — dejarlo pasar (como antes) hacía que un sismo viejo
-        // con ts=0 (falla al leer OriginTime/AnnouncedTime) quedara "fresco"
-        // para siempre y reapareciera en cada zoom o al abrir un apartado.
         if (!t) return false;
-        return (Date.now() - t) <= (maxAge || FRESH_WINDOW_MS);
+        const age = Date.now() - t;
+        return age >= -120000 && age <= (maxAge || FRESH_WINDOW_MS);
+    }
+    function isJmaTvQuakeRecent(ev) {
+        const t = typeof parseTs === 'function' ? parseTs(ev?.ts) : (Number.isFinite(ev?.ts) ? ev.ts : 0);
+        const age = Date.now() - t;
+        return t > 0 && age >= 0 && age <= JMA_TV_EARTHQUAKE_WINDOW_MS;
     }
     window.updateJmaJapaneseText = function (ev, opts) {
         if (!ev) { window.hideJmaTvText(); return; }
@@ -17428,15 +17953,19 @@ global.TauPJS=api;
             ev.place || '', String(!!ev.isFinal), String(isTsunamiEv(ev)),
             Array.isArray(ev.jmaIntensityAreas) ? ev.jmaIntensityAreas.map(function (a) { return [a.code,a.name,a.intensity].join(':'); }).join(',') : ''
         ].join('|');
-        const isQualifying = isTsunamiEv(ev) || isJmaListUpdate(ev) || isStrongEv(ev);
-        // Navegar la lista de sismos (botón Home, salir de un modo, cargar la
-        // página, etc.) reselecciona sismos VIEJOS — eso no debe reabrir el
-        // cartel: se exige ≤20 min. Una ACTUALIZACIÓN real en vivo (liveUpdate)
-        // usa un margen más amplio, 90 min, porque un reporte puede seguir
-        // confirmándose un buen rato — pero NUNCA se salta el chequeo del todo:
-        // eso era lo que dejaba pasar sismos de horas atrás cuando el catálogo
-        // JMA (Wolfx) traía por primera vez una entrada vieja de su historial.
-        if (!isQualifying || !isFreshEnough(ev, opts.liveUpdate ? LIVE_FRESH_WINDOW_MS : FRESH_WINDOW_MS)) {
+        const tsunamiEvent = isTsunamiEv(ev);
+        const jmaEvent = isJmaEv(ev);
+        const jmaQuake = isJmaListUpdate(ev);
+        const jmaQuakeRecent = jmaQuake && isJmaTvQuakeRecent(ev);
+        const nonJmaTsunami = tsunamiEvent && !jmaEvent;
+        const strongNonJma = !jmaEvent && isStrongEv(ev);
+        const isQualifying = jmaEvent ? jmaQuakeRecent : (nonJmaTsunami || strongNonJma);
+        const withinAgeLimit = jmaEvent
+            ? jmaQuakeRecent
+            : (nonJmaTsunami || strongNonJma) && isFreshEnough(ev, opts.liveUpdate ? LIVE_FRESH_WINDOW_MS : FRESH_WINDOW_MS);
+        // La información sísmica JMA solo entra al telop si el origen ocurrió
+        // en los últimos 2 minutos; el resto de fuentes conserva su ventana.
+        if (!isQualifying || !withinAgeLimit) {
             // OJO: esto NO debe apagar el cartel si lo que no califica es un
             // sismo DISTINTO al que ya se está mostrando — por ejemplo, abrir
             // un apartado o hacer zoom a otro sismo cualquiera dispara este
@@ -17507,9 +18036,10 @@ global.TauPJS=api;
 })();
 </script>
 
-<div id="eqSettingsModal" role="dialog" aria-modal="true" aria-labelledby="eqSettingsTitle"><div id="eqSettingsDialog"><div class="eqs-head"><span id="eqSettingsTitle">Ajustes</span><button class="eqs-close" id="eqSettingsClose" type="button">×</button></div><div class="eqs-section"><div class="eqs-title">Apartados</div><div class="eqs-muted">Abre las alertas meteorológicas oficiales de Japón. Pulsa de nuevo para volver a la vista normal.</div><button class="eqs-control" id="eqsJmaWeatherToggle" type="button" aria-pressed="false" style="width:100%;margin-top:8px;text-align:left;padding:9px">🇯🇵 Alertas meteorológicas de Japón</button></div><div class="eqs-section"><div class="eqs-title">General</div><div class="eqs-grid"><label class="eqs-row">Lluvia de balones por gol de Colombia <input class="eqs-switch" id="eqsColombiaGoalRain" type="checkbox"></label><label class="eqs-row">Voz TTS <input class="eqs-switch" id="eqsTts" type="checkbox"></label><label class="eqs-row">Sonidos y alertas <input class="eqs-switch" id="eqsAudio" type="checkbox"></label><label class="eqs-row">Modelo TauP <select id="eqsTaup"><option value="precise">Preciso</option><option value="fast">Rápido</option><option value="fallback">Respaldo</option></select></label><label class="eqs-row eqs-intensity-row">Forzar escala de intensidad <select id="eqsIntensityScale"><option value="source">Desactivado (usar escala de la agencia)</option><option value="shindo">Shindo (JMA)</option><option value="mmi">MMI</option><option value="csis">CSIS (China)</option><option value="cwa">CWA (Taiwán)</option><option value="geonet">GeoNet MMI (NZ)</option></select></label>
+<div id="eqSettingsModal" role="dialog" aria-modal="true" aria-labelledby="eqSettingsTitle"><div id="eqSettingsDialog"><div class="eqs-head"><span id="eqSettingsTitle">Ajustes</span><button class="eqs-close" id="eqSettingsClose" type="button">×</button></div><div class="eqs-section"><div class="eqs-title">Apartados</div><div class="eqs-muted">Abre las alertas meteorológicas oficiales de Japón. Pulsa de nuevo para volver a la vista normal.</div><button class="eqs-control" id="eqsJmaWeatherToggle" type="button" aria-pressed="false" style="width:100%;margin-top:8px;text-align:left;padding:9px">🇯🇵 Alertas meteorológicas de Japón</button></div><div class="eqs-section"><div class="eqs-title">General</div><div class="eqs-grid"><label class="eqs-row">Lluvia de balones por gol de Colombia <input class="eqs-switch" id="eqsColombiaGoalRain" type="checkbox"></label><label class="eqs-row">Avisos de goles, descanso y final <input class="eqs-switch" id="eqsColombiaMatchAlerts" type="checkbox"></label><label class="eqs-row">Voz TTS <input class="eqs-switch" id="eqsTts" type="checkbox"></label><label class="eqs-row">Sonidos y alertas <input class="eqs-switch" id="eqsAudio" type="checkbox"></label><label class="eqs-row">Modelo TauP <select id="eqsTaup"><option value="precise">Preciso</option><option value="fast">Rápido</option><option value="fallback">Respaldo</option></select></label><label class="eqs-row eqs-intensity-row">Forzar escala de intensidad <select id="eqsIntensityScale"><option value="source">Desactivado (usar escala de la agencia)</option><option value="shindo">Shindo (JMA)</option><option value="mmi">MMI</option><option value="csis">CSIS (China)</option><option value="cwa">CWA (Taiwán)</option><option value="geonet">GeoNet MMI (NZ)</option></select></label>
 <label class="eqs-row eqs-intensity-row">Color del mar (mapa) <select id="eqsMapSea"><option value="dark">Oscuro (predeterminado)</option><option value="ocean">Azul océano</option><option value="deep">Azul profundo</option><option value="black">Negro</option><option value="slate">Gris pizarra</option><option value="teal">Verde azulado</option><option value="indigo">Índigo</option></select></label>
 <button class="eqs-control" id="eqsTestColombiaGoalRain" type="button" style="margin-top:8px;width:100%">⚽ Probar lluvia de balones</button><div class="eqs-muted">Vista previa: no cambia si la celebración está activada o desactivada.</div>
-<div class="eqs-muted eqs-intensity-note">Solo cambia el color del agua. Países, límites administrativos, estaciones y sismos se mantienen.</div><div class="eqs-muted eqs-intensity-note">La selección ajusta lista, ficha, telop y mapa. Las equivalencias entre escalas se marcan con ≈ y son estimadas, no oficiales.</div><div class="eqs-section"><div class="eqs-title">Probar sonidos del monitor</div><div class="eqs-muted">Pulsa cada botón para escucharlo. Los sonidos SREV son los avisos incorporados.</div><div class="eqs-sound-group"><b>Interfaz</b><div class="eqs-sound-grid" id="eqsUiSounds"></div></div><div class="eqs-sound-group"><b>Alertas SREV</b><div class="eqs-sound-grid" id="eqsSrevSounds"></div></div><div class="eqs-sound-group"><b>Voz</b><button class="eqs-control" id="eqsTestTts" type="button">Probar TTS</button></div></div></div><div class="eqs-section"><div class="eqs-title">Voz de alertas en español</div><div class="eqs-muted">Elige y prueba la voz utilizada para los avisos hablados.</div><select id="ttsVoiceSelect"></select><div style="display:flex;gap:8px;margin-top:8px"><button class="eqs-control" id="btnTtsVoiceTest" type="button">Probar voz</button><button class="eqs-control" id="btnTtsVoiceReset" type="button">Usar automática</button></div></div><div class="eqs-muted">Las preferencias se guardan en este navegador.</div></div><div class="eqs-section"><div class="eqs-title">Agencias visibles en la lista</div><div class="eqs-agencies" id="eqsAgencies"></div><div class="eqs-muted">Desactivarlas las oculta de la lista, pero no elimina su conexión.</div></div><div class="eqs-actions"><button class="eqs-control" id="eqsReset" type="button">Restablecer</button><button class="eqs-save" id="eqsSave" type="button">Guardar</button></div></div></div><script id="eq-settings-module">(function(){'use strict';const modal=document.getElementById('eqSettingsModal'),open=document.getElementById('btnSettings');if(!modal||!open)return;const agencies=['USGS','JMA','CENC','CEA','CEIC','EMSC','GFZ','SSN','AFAD','BMKG','GEONET','INGV','FSSN','SED','PHIVOLCS','CSN','IG-EPN','EARLY-EST','HKO','NOA','KOERI','KMA','BCSF','NRCan','USP','MMD','CEA-PR','ShakeAlert (Mangxu)'],key='earthquake.settings.v1',defaults={tts:true,audio:true,taup:'precise',intensityScale:'source',mapSea:'dark',colombiaGoalRain:true,disabled:{}};const read=()=>{try{return Object.assign({},defaults,JSON.parse(localStorage.getItem(key)||'{}'));}catch(_){return Object.assign({},defaults)}};let state=read();const tts=document.getElementById('eqsTts'),audio=document.getElementById('eqsAudio'),taup=document.getElementById('eqsTaup'),intensityScale=document.getElementById('eqsIntensityScale'),mapSea=document.getElementById('eqsMapSea'),colombiaGoalRain=document.getElementById('eqsColombiaGoalRain'),goalRainTest=document.getElementById('eqsTestColombiaGoalRain'),list=document.getElementById('eqsAgencies');const uiSounds=document.getElementById('eqsUiSounds'),srevSounds=document.getElementById('eqsSrevSounds'),jmaToggle=document.getElementById('eqsJmaWeatherToggle');function syncJmaToggle(){const api=window.__eqJmaWeatherView;const active=!!(api&&typeof api.isActive==='function'&&api.isActive());if(jmaToggle){jmaToggle.textContent=active?'↩️ Volver a la vista normal':'🇯🇵 Alertas meteorológicas de Japón';jmaToggle.setAttribute('aria-pressed',String(active));jmaToggle.style.borderColor=active?'#ffb300':'';jmaToggle.style.color=active?'#ffd873':''}}const uiSoundNames=[['click','Clic'],['select','Selección'],['refresh','Actualizar'],['success','Correcto'],['home','Inicio'],['alert','Alerta'],['ynWave','Onda Yahoo/NIED'],['motion','Movimiento']];const srevSoundNames=[['eew0','EEW débil'],['eew3','EEW intensidad 3'],['eew5','EEW intensidad 5'],['eewC','EEW C'],['koushin','Actualización'],['koushinE','Actualización EEW'],['VTSE5','VTS E5'],['tsa01','Tsunami']];function render(){const a=window.__eqAudioSettings;tts.checked=a?a.ttsEnabled:state.tts;audio.checked=a?a.audioEnabled:state.audio;taup.value=(window.__eqTaupSettings&&window.__eqTaupSettings.mode)||state.taup;intensityScale.value=state.intensityScale||'source';if(mapSea)mapSea.value=state.mapSea||'dark';if(colombiaGoalRain)colombiaGoalRain.checked=state.colombiaGoalRain!==false;uiSounds.innerHTML=uiSoundNames.map(x=>'<button class="eqs-control" type="button" data-ui-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');srevSounds.innerHTML=srevSoundNames.map(x=>'<button class="eqs-control" type="button" data-srev-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');list.innerHTML=agencies.map(x=>'<label class="eqs-agency"><input type="checkbox" data-agency="'+x+'" '+(!(state.disabled&&state.disabled[x])?'checked':'')+'> '+x+'</label>').join('')}function apply(save){const previousIntensityScale=window.__eqForcedIntensityScale||'source';state.tts=tts.checked;state.audio=audio.checked;state.taup=taup.value;state.intensityScale=intensityScale.value||'source';state.mapSea=(mapSea&&mapSea.value)||'dark';state.colombiaGoalRain=colombiaGoalRain?colombiaGoalRain.checked:state.colombiaGoalRain!==false;window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain;if(!state.colombiaGoalRain)window.__eqStopColombiaGoalRain?.();state.disabled={};list.querySelectorAll('input[data-agency]').forEach(x=>{if(!x.checked)state.disabled[x.dataset.agency]=true});window.__eqDisabledAgencies=state.disabled;if(window.__eqAudioSettings){window.__eqAudioSettings.setAudio(state.audio);window.__eqAudioSettings.setTts(state.tts)}if(window.__eqTaupSettings)window.__eqTaupSettings.mode=state.taup;window.__eqForcedIntensityScale=state.intensityScale;try{if(typeof window.__eqApplyMapSeaTheme==='function')window.__eqApplyMapSeaTheme(state.mapSea||'dark');}catch(_){};try{localStorage.setItem(key,JSON.stringify(state))}catch(_){}document.getElementById('filterAgency')?.dispatchEvent(new Event('change'));if(previousIntensityScale!==state.intensityScale)window.__eqRefreshIntensityScale?.();if(save)modal.classList.remove('active')}function show(){state=read();render();window.__eqAudioSettings?.refreshVoiceSelect?.();syncJmaToggle();modal.classList.add('active')}open.addEventListener('click',show);jmaToggle?.addEventListener('click',()=>{const api=window.__eqJmaWeatherView;if(api&&typeof api.toggle==='function'){const pending=api.toggle();modal.classList.remove('active');syncJmaToggle();Promise.resolve(pending).then(syncJmaToggle).catch(syncJmaToggle)}else{document.getElementById('btnJmaWeatherAlerts')?.click();modal.classList.remove('active');setTimeout(syncJmaToggle,250)}});document.getElementById('eqSettingsClose').addEventListener('click',()=>modal.classList.remove('active'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('active')});document.getElementById('eqsSave').addEventListener('click',()=>apply(true));document.getElementById('eqsReset').addEventListener('click',()=>{state=Object.assign({},defaults,{disabled:{}});render();apply(false)});tts.addEventListener('change',()=>apply(false));audio.addEventListener('change',()=>apply(false));taup.addEventListener('change',()=>apply(false));intensityScale.addEventListener('change',()=>apply(false));mapSea?.addEventListener('change',()=>apply(false));colombiaGoalRain?.addEventListener('change',()=>apply(false));goalRainTest?.addEventListener('click',()=>window.__eqTestColombiaGoalRain?.());uiSounds.addEventListener('click',e=>{const b=e.target.closest('[data-ui-sound]');if(b)window.__eqAudioSettings?.testUi(b.dataset.uiSound)});srevSounds.addEventListener('click',e=>{const b=e.target.closest('[data-srev-sound]');if(b)window.__eqAudioSettings?.testSrev(b.dataset.srevSound)});document.getElementById('ttsVoiceSelect')?.addEventListener('change',e=>window.__eqAudioSettings?.setPreferredVoice(e.target.value));document.getElementById('btnTtsVoiceTest')?.addEventListener('click',()=>window.__eqAudioSettings?.testPreferredVoice());document.getElementById('btnTtsVoiceReset')?.addEventListener('click',()=>window.__eqAudioSettings?.resetPreferredVoice());document.getElementById('eqsTestTts').addEventListener('click',()=>window.__eqAudioSettings?.testTts());window.__eqDisabledAgencies=state.disabled||{};window.__eqForcedIntensityScale=state.intensityScale||'source';window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain!==false;setTimeout(()=>{render();syncJmaToggle();window.__eqRefreshIntensityScale?.()},0)})();</script>
+<div class="eqs-muted eqs-intensity-note">Solo cambia el color del agua. Países, límites administrativos, estaciones y sismos se mantienen.</div><div class="eqs-muted eqs-intensity-note">La selección ajusta lista, ficha, telop y mapa. Las equivalencias entre escalas se marcan con ≈ y son estimadas, no oficiales.</div><div class="eqs-section"><div class="eqs-title">Probar sonidos del monitor</div><div class="eqs-muted">Pulsa cada botón para escucharlo. Los sonidos SREV son los avisos incorporados.</div><div class="eqs-sound-group"><b>Interfaz</b><div class="eqs-sound-grid" id="eqsUiSounds"></div></div><div class="eqs-sound-group"><b>Alertas SREV</b><div class="eqs-sound-grid" id="eqsSrevSounds"></div></div><div class="eqs-sound-group"><b>Voz</b><button class="eqs-control" id="eqsTestTts" type="button">Probar TTS</button></div></div></div><div class="eqs-section"><div class="eqs-title">Voz de alertas en español</div><div class="eqs-muted">Elige y prueba la voz utilizada para los avisos hablados.</div><select id="ttsVoiceSelect"></select><div style="display:flex;gap:8px;margin-top:8px"><button class="eqs-control" id="btnTtsVoiceTest" type="button">Probar voz</button><button class="eqs-control" id="btnTtsVoiceReset" type="button">Usar automática</button></div></div><div class="eqs-muted">Las preferencias se guardan en este navegador.</div></div><div class="eqs-section"><div class="eqs-title">Agencias visibles en la lista</div><div class="eqs-agencies" id="eqsAgencies"></div><div class="eqs-muted">Desactivarlas las oculta de la lista, pero no elimina su conexión.</div></div><div class="eqs-actions"><button class="eqs-control" id="eqsReset" type="button">Restablecer</button><button class="eqs-save" id="eqsSave" type="button">Guardar</button></div></div></div><script id="eq-settings-module">(function(){'use strict';const modal=document.getElementById('eqSettingsModal'),open=document.getElementById('btnSettings');if(!modal||!open)return;const agencies=['USGS','JMA','CENC','CEA','CEIC','EMSC','GFZ','SSN','AFAD','BMKG','GEONET','INGV','FSSN','SED','PHIVOLCS','CSN','IG-EPN','EARLY-EST','HKO','NOA','KOERI','KMA','BCSF','NRCan','USP','MMD','CEA-PR','ShakeAlert (Mangxu)','ShakeAlert EEW (Mangxu)','CEA EEW (Mangxu)','CEA-PR EEW (Mangxu)','JMA EEW (Mangxu)','CWA EEW (Mangxu)'],key='earthquake.settings.v1',defaults={tts:true,audio:true,taup:'precise',intensityScale:'source',mapSea:'dark',colombiaGoalRain:true,colombiaMatchAlerts:true,disabled:{}};const read=()=>{try{return Object.assign({},defaults,JSON.parse(localStorage.getItem(key)||'{}'));}catch(_){return Object.assign({},defaults)}};let state=read();const tts=document.getElementById('eqsTts'),audio=document.getElementById('eqsAudio'),taup=document.getElementById('eqsTaup'),intensityScale=document.getElementById('eqsIntensityScale'),mapSea=document.getElementById('eqsMapSea'),colombiaGoalRain=document.getElementById('eqsColombiaGoalRain'),colombiaMatchAlerts=document.getElementById('eqsColombiaMatchAlerts'),goalRainTest=document.getElementById('eqsTestColombiaGoalRain'),list=document.getElementById('eqsAgencies');const uiSounds=document.getElementById('eqsUiSounds'),srevSounds=document.getElementById('eqsSrevSounds'),jmaToggle=document.getElementById('eqsJmaWeatherToggle');function syncJmaToggle(){const api=window.__eqJmaWeatherView;const active=!!(api&&typeof api.isActive==='function'&&api.isActive());if(jmaToggle){jmaToggle.textContent=active?'↩️ Volver a la vista normal':'🇯🇵 Alertas meteorológicas de Japón';jmaToggle.setAttribute('aria-pressed',String(active));jmaToggle.style.borderColor=active?'#ffb300':'';jmaToggle.style.color=active?'#ffd873':''}}const uiSoundNames=[['click','Clic'],['select','Selección'],['refresh','Actualizar'],['success','Correcto'],['home','Inicio'],['alert','Alerta'],['ynWave','Onda Yahoo/NIED'],['motion','Movimiento']];const srevSoundNames=[['eew0','EEW débil'],['eew3','EEW intensidad 3'],['eew5','EEW intensidad 5'],['eewC','EEW C'],['koushin','Actualización'],['koushinE','Actualización EEW'],['VTSE5','VTS E5'],['tsa01','Tsunami']];function render(){const a=window.__eqAudioSettings;tts.checked=a?a.ttsEnabled:state.tts;audio.checked=a?a.audioEnabled:state.audio;taup.value=(window.__eqTaupSettings&&window.__eqTaupSettings.mode)||state.taup;intensityScale.value=state.intensityScale||'source';if(mapSea)mapSea.value=state.mapSea||'dark';if(colombiaGoalRain)colombiaGoalRain.checked=state.colombiaGoalRain!==false;if(colombiaMatchAlerts)colombiaMatchAlerts.checked=state.colombiaMatchAlerts!==false;uiSounds.innerHTML=uiSoundNames.map(x=>'<button class="eqs-control" type="button" data-ui-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');srevSounds.innerHTML=srevSoundNames.map(x=>'<button class="eqs-control" type="button" data-srev-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');list.innerHTML=agencies.map(x=>'<label class="eqs-agency"><input type="checkbox" data-agency="'+x+'" '+(!(state.disabled&&state.disabled[x])?'checked':'')+'> '+x+'</label>').join('')}function apply(save){const previousIntensityScale=window.__eqForcedIntensityScale||'source';state.tts=tts.checked;state.audio=audio.checked;state.taup=taup.value;state.intensityScale=intensityScale.value||'source';state.mapSea=(mapSea&&mapSea.value)||'dark';state.colombiaGoalRain=colombiaGoalRain?colombiaGoalRain.checked:state.colombiaGoalRain!==false;window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain;if(!state.colombiaGoalRain)window.__eqStopColombiaGoalRain?.();state.colombiaMatchAlerts=colombiaMatchAlerts?colombiaMatchAlerts.checked:state.colombiaMatchAlerts!==false;window.__eqColombiaMatchAlertsEnabled=state.colombiaMatchAlerts;if(!state.colombiaMatchAlerts)window.__eqStopColombiaMatchAlert?.();state.disabled={};list.querySelectorAll('input[data-agency]').forEach(x=>{if(!x.checked)state.disabled[x.dataset.agency]=true});window.__eqDisabledAgencies=state.disabled;if(window.__eqAudioSettings){window.__eqAudioSettings.setAudio(state.audio);window.__eqAudioSettings.setTts(state.tts)}if(window.__eqTaupSettings)window.__eqTaupSettings.mode=state.taup;window.__eqForcedIntensityScale=state.intensityScale;try{if(typeof window.__eqApplyMapSeaTheme==='function')window.__eqApplyMapSeaTheme(state.mapSea||'dark');}catch(_){};try{localStorage.setItem(key,JSON.stringify(state))}catch(_){}document.getElementById('filterAgency')?.dispatchEvent(new Event('change'));if(previousIntensityScale!==state.intensityScale)window.__eqRefreshIntensityScale?.();if(save)modal.classList.remove('active')}function show(){state=read();render();window.__eqAudioSettings?.refreshVoiceSelect?.();syncJmaToggle();modal.classList.add('active')}open.addEventListener('click',show);jmaToggle?.addEventListener('click',()=>{const api=window.__eqJmaWeatherView;if(api&&typeof api.toggle==='function'){const pending=api.toggle();modal.classList.remove('active');syncJmaToggle();Promise.resolve(pending).then(syncJmaToggle).catch(syncJmaToggle)}else{document.getElementById('btnJmaWeatherAlerts')?.click();modal.classList.remove('active');setTimeout(syncJmaToggle,250)}});document.getElementById('eqSettingsClose').addEventListener('click',()=>modal.classList.remove('active'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('active')});document.getElementById('eqsSave').addEventListener('click',()=>apply(true));document.getElementById('eqsReset').addEventListener('click',()=>{state=Object.assign({},defaults,{disabled:{}});render();apply(false)});tts.addEventListener('change',()=>apply(false));audio.addEventListener('change',()=>apply(false));taup.addEventListener('change',()=>apply(false));intensityScale.addEventListener('change',()=>apply(false));mapSea?.addEventListener('change',()=>apply(false));colombiaGoalRain?.addEventListener('change',()=>apply(false));colombiaMatchAlerts?.addEventListener('change',()=>apply(false));goalRainTest?.addEventListener('click',()=>window.__eqTestColombiaGoalRain?.());uiSounds.addEventListener('click',e=>{const b=e.target.closest('[data-ui-sound]');if(b)window.__eqAudioSettings?.testUi(b.dataset.uiSound)});srevSounds.addEventListener('click',e=>{const b=e.target.closest('[data-srev-sound]');if(b)window.__eqAudioSettings?.testSrev(b.dataset.srevSound)});document.getElementById('ttsVoiceSelect')?.addEventListener('change',e=>window.__eqAudioSettings?.setPreferredVoice(e.target.value));document.getElementById('btnTtsVoiceTest')?.addEventListener('click',()=>window.__eqAudioSettings?.testPreferredVoice());document.getElementById('btnTtsVoiceReset')?.addEventListener('click',()=>window.__eqAudioSettings?.resetPreferredVoice());document.getElementById('eqsTestTts').addEventListener('click',()=>window.__eqAudioSettings?.testTts());window.__eqDisabledAgencies=state.disabled||{};window.__eqForcedIntensityScale=state.intensityScale||'source';window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain!==false;window.__eqColombiaMatchAlertsEnabled=state.colombiaMatchAlerts!==false;setTimeout(()=>{render();syncJmaToggle();window.__eqRefreshIntensityScale?.()},0)})();</script>
+
 </body>
 </html>
