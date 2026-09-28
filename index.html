@@ -1049,6 +1049,36 @@
         #mainLayout.us-alerts-focus #hurricanePanel { display:none !important; }
         #mainLayout.us-alerts-focus .map-container { position:absolute; inset:0; width:100%; height:100%; }
         #mainLayout.us-alerts-focus #btnUsAlerts { border-color:#ffcf4a !important; color:#ffe27a !important; }
+        /* GDACS · alertas globales de desastres */
+        #gdacsPanel { display:none; }
+        #gdacsPanel.gdacs-active {
+            display:block; position:absolute; z-index:1200; top:52px; left:12px; width:min(420px,92vw);
+            max-height:min(70vh,560px); overflow:auto; padding:10px 12px; font-size:12px;
+        }
+        #gdacsPanel .gdacs-title { display:flex; justify-content:space-between; gap:10px; color:#ffb4a8; font-weight:700; font-size:13px; margin-bottom:8px; }
+        #gdacsPanel .gdacs-item { border-top:1px solid rgba(255,255,255,.14); padding:8px 0 2px; font-size:11px; line-height:1.4; }
+        #gdacsPanel .gdacs-item strong { color:#ffd0c8; font-size:12px; }
+        #gdacsPanel a { color:#ffb4a8; }
+        #gdacsTopbar { display:none; }
+        #gdacsTopbar.gdacs-top-active {
+            display:flex; position:absolute; z-index:1300; top:8px; left:50%; transform:translateX(-50%);
+            gap:10px; align-items:center; padding:6px 12px; border-radius:8px;
+            background:rgba(40,12,12,.92); border:1px solid rgba(255,140,120,.45); color:#ffd8d0; font-size:12px; font-weight:700;
+        }
+        #gdacsTopbar button { background:transparent; border:1px solid rgba(255,180,160,.5); color:#ffe8e0; border-radius:5px; padding:3px 8px; cursor:pointer; font-size:11px; }
+        #mainLayout.gdacs-focus .left-panel,
+        #mainLayout.gdacs-focus .trem-side-panel,
+        #mainLayout.gdacs-focus #connectionPanel,
+        #mainLayout.gdacs-focus #intensityLegendPanel,
+        #mainLayout.gdacs-focus #jmaEewPanel,
+        #mainLayout.gdacs-focus #taiwanDetectorPanel,
+        #mainLayout.gdacs-focus #weatherPanel,
+        #mainLayout.gdacs-focus #hurricanePanel,
+        #mainLayout.gdacs-focus #usAlertsPanel { display:none !important; }
+        #mainLayout.gdacs-focus .map-container { position:absolute; inset:0; width:100%; height:100%; }
+        #mainLayout.gdacs-focus #btnGdacs { border-color:#ff8a75 !important; color:#ffb4a8 !important; }
+        #mainLayout.gdacs-focus #gdacsPanel.gdacs-active { display:block; }
+
         #usAlertsTopbar { display:none; }
         #usAlertsTopbar.us-alerts-top-active {
             display:flex; position:absolute; z-index:1200; left:12px; top:12px;
@@ -1386,18 +1416,22 @@
             #intensityLegendPanel { right: 8px; bottom: 108px; transform: scale(0.92); transform-origin: bottom right; }
         }
 
-        /* Alerta temprana JMA EEW: panel flotante oculto (sigue la lógica por detrás) */
+        /* Alerta temprana JMA EEW: visible solo con .active */
         #jmaEewPanel {
-            display: none !important;
-            visibility: hidden !important;
-            pointer-events: none !important;
-            position: absolute; top: 112px; left: 12px; z-index: 1001;
-            width: 225px; background: rgba(10,10,10,0.93);
-            border: 1px solid rgba(255,75,75,0.45); border-radius: 7px;
-            padding: 8px 10px; color: #ccc; backdrop-filter: blur(4px);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.45); font-size: 10px;
+            display: none;
+            position: absolute; top: 112px; left: 12px; z-index: 2200;
+            width: min(280px, 86vw); background: rgba(10,10,10,0.95);
+            border: 1px solid rgba(255,75,75,0.45); border-radius: 8px;
+            padding: 10px 12px; color: #ccc; backdrop-filter: blur(6px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.55); font-size: 11px;
+            pointer-events: auto;
         }
-        #jmaEewPanel.active { border-color: #ff4d4d; background: rgba(110,18,18,0.93); animation: pulseBg 1s infinite alternate; }
+        #jmaEewPanel.active {
+            display: block !important;
+            visibility: visible !important;
+            border-color: #ff4d4d; background: rgba(110,18,18,0.95);
+            animation: pulseBg 1s infinite alternate;
+        }
         #jmaEewPanel .eew-title { display:flex; justify-content:space-between; align-items:center; color:#eee; font-weight:700; font-size:11px; margin-bottom:5px; padding-bottom:5px; border-bottom:1px solid #333; }
         #jmaEewPanel .eew-status { color:#8be28f; font-size:9px; }
         #jmaEewPanel.active .eew-status { color:#ffb0b0; }
@@ -2514,7 +2548,7 @@ body {
                     <option value="0">Todas las mag.</option><option value="2.5">M2.5+</option><option value="4.0">M4.0+</option><option value="5.5">M5.5+</option><option value="7.0">M7.0+</option>
                 </select>
                 <select id="filterAgency" title="Filtrar por agencia">
-                    <option value="ALL">Todas las agencias</option><option value="USGS">USGS</option><option value="JMA">JMA</option><option value="CENC">CENC</option><option value="EMSC">EMSC</option><option value="IGN">IGN España</option><option value="INETER">INETER/CATAC</option><option value="GFZ">GFZ</option><option value="SSN">SSN</option><option value="AFAD">AFAD</option><option value="BMKG">BMKG</option><option value="GEONET">GeoNet</option><option value="INGV">INGV</option><option value="FSSN">FSSN</option><option value="SED">SED</option><option value="PHIVOLCS">PHIVOLCS</option><option value="CSN">CSN</option><option value="IG-EPN">IG-EPN</option><option value="EARLY-EST">Early-Est</option><option value="HKO">HKO</option><option value="NOA">NOA</option><option value="KOERI">KOERI</option><option value="KMA">KMA</option><option value="BCSF">BCSF</option><option value="NRCAN">NRCan</option><option value="USP">USP</option><option value="MMD">MMD</option><option value="CEA-PR">CEA-PR</option><option value="SHAKEALERT">ShakeAlert</option>
+                    <option value="ALL">Todas las agencias</option><option value="USGS">USGS</option><option value="JMA">JMA</option><option value="CENC">CENC</option><option value="EMSC">EMSC</option><option value="IGN">IGN</option><option value="INETER">INETER</option><option value="GFZ">GFZ</option><option value="SSN">SSN</option><option value="AFAD">AFAD</option><option value="BMKG">BMKG</option><option value="GEONET">GeoNet</option><option value="INGV">INGV</option><option value="FSSN">FSSN</option><option value="SED">SED</option><option value="PHIVOLCS">PHIVOLCS</option><option value="CSN">CSN</option><option value="IG-EPN">IG-EPN</option><option value="EARLY-EST">Early-Est</option><option value="HKO">HKO</option><option value="NOA">NOA</option><option value="KOERI">KOERI</option><option value="KMA">KMA</option><option value="BCSF">BCSF</option><option value="NRCAN">NRCan</option><option value="USP">USP</option><option value="MMD">MMD</option><option value="CEA-PR">CEA-PR</option><option value="SHAKEALERT">ShakeAlert</option><option value="GDACS">GDACS</option>
                 </select>
             </div>
 
@@ -2580,10 +2614,18 @@ body {
                 <span id="usAlertsTopTitle">Alertas meteorológicas de EE. UU.</span>
                 <button id="btnUsAlertsBack">← Volver</button>
             </div>
+            <div id="gdacsTopbar">
+                <span id="gdacsTopTitle">GDACS · Alertas globales</span>
+                <button id="btnGdacsBack">← Volver</button>
+            </div>
 
             <div id="usAlertsPanel">
                 <div class="us-alerts-title"><span>⚠️ Alertas oficiales NWS</span><span id="usAlertsStatus">● Consultando</span></div>
                 <div id="usAlertsInfo">Cargando alertas de Estados Unidos…</div>
+            </div>
+            <div id="gdacsPanel">
+                <div class="gdacs-title"><span>🌍 Alertas GDACS</span><span id="gdacsStatus">● Consultando</span></div>
+                <div id="gdacsInfo">Cargando alertas globales de desastres…</div>
             </div>
 
             <div id="tsunamiTopbar">
@@ -2800,8 +2842,7 @@ body {
                     box-shadow: 0 2px 8px rgba(0,0,0,0.5);
                     white-space: nowrap;
                 ">⚠️ Alertas EE. UU.</button>
-
-                <button id="btnTsunami" title="Mostrar boletines oficiales de tsunami" style="
+<button id="btnTsunami" title="Mostrar boletines oficiales de tsunami" style="
                     background: rgba(20,20,20,0.9);
                     border: 1px solid #555;
                     color: #eee;
@@ -4200,7 +4241,8 @@ global.TauPJS=api;
             'api.geonet.org.nz','webservices.ingv.it','geofon.gfz.de',
             'api.p2pquake.net','data.bmkg.go.id','data.weather.gov.hk',
             'earthquake.phivolcs.dost.gov.ph','api.fanstudio.tech',
-            'api.lb-tpe1.exptech.dev'
+            'api.lb-tpe1.exptech.dev',
+            'weather-kyoshin.west.edge.storage-yahoo.jp','weather-kyoshin.east.edge.storage-yahoo.jp'
         ]);
         const eqNativeFetch = window.fetch.bind(window);
         // Las fuentes con CORS se prueban directamente antes de usar el proxy.
@@ -5019,24 +5061,82 @@ global.TauPJS=api;
 
         function renderTyphoonMap(active) {
             typhoonLayer.clearLayers();
-            active.forEach(t => {
+            // Estilo cono (similar NHC/CONAGUA): trayectoria + círculos de incertidumbre + etiquetas
+            try { if (typeof renderJmaTyphoonMap === 'function') renderJmaTyphoonMap(); } catch (_) {}
+            (active || []).forEach(t => {
                 const actual = activeTyphoonPoints(t);
                 const forecast = forecastTyphoonPoints(t);
                 const name = typhoonDisplayName(t);
-                if (actual.length > 1) L.polyline(actual.map(p => [p.lat, p.lon]), { color:'#ff6b35', weight:3, opacity:.9 }).addTo(typhoonLayer);
-                if (forecast.length > 1) L.polyline(forecast.map(p => [p.lat, p.lon]), { color:'#ffd166', weight:2, dashArray:'7 7', opacity:.95 }).addTo(typhoonLayer);
+                if (actual.length > 1) {
+                    L.polyline(actual.map(p => [p.lat, p.lon]), { color:'#111', weight:3, opacity:.95 }).addTo(typhoonLayer);
+                }
+                if (forecast.length > 0) {
+                    const start = actual.length ? actual[actual.length - 1] : forecast[0];
+                    const line = [[start.lat, start.lon], ...forecast.map(p => [p.lat, p.lon])];
+                    L.polyline(line, { color:'#111', weight:2.5, opacity:.9 }).addTo(typhoonLayer);
+                    // Cono de incertidumbre aproximado (crece con el plazo de pronóstico)
+                    forecast.forEach((p, i) => {
+                        const hours = Math.max(12, (i + 1) * 12);
+                        const radiusKm = Math.min(380, 45 + hours * 2.4);
+                        L.circle([p.lat, p.lon], {
+                            radius: radiusKm * 1000,
+                            color: '#c9a227',
+                            weight: 1.2,
+                            fillColor: '#ffe066',
+                            fillOpacity: 0.14,
+                            opacity: 0.6,
+                            dashArray: '5 4',
+                            interactive: false
+                        }).addTo(typhoonLayer);
+                    });
+                }
+                const allPts = [
+                    ...actual.map((p, i) => ({ ...p, isLatest: i === actual.length - 1, isForecast: false })),
+                    ...forecast.map(p => ({ ...p, isLatest: false, isForecast: true }))
+                ];
+                allPts.forEach(p => {
+                    const cat = String(p.raw?.strong || p.raw?.class || t.category || t.enname || '').toUpperCase();
+                    let label = 'Sistema';
+                    if (/TY|TYPHOON|TIF|HURRICANE|HU/.test(cat)) label = 'Tifón / Huracán';
+                    else if (/STS|SEVERE/.test(cat)) label = 'Tormenta severa';
+                    else if (/TS|TROPICAL STORM|TORMENTA/.test(cat)) label = 'Tormenta tropical';
+                    else if (/TD|DEPRESI|DEPRESSION/.test(cat)) label = 'Depresión tropical';
+                    const fill = /TY|HU|TIF|HURRICANE/.test(cat) ? '#ff4d6d' : /STS|TS|TORMENTA/.test(cat) ? '#ffd166' : '#8bd8ff';
+                    L.circleMarker([p.lat, p.lon], {
+                        radius: p.isLatest ? 9 : 6,
+                        color: '#fff',
+                        weight: 2,
+                        fillColor: fill,
+                        fillOpacity: 0.95
+                    }).bindPopup(
+                        `<b>🌀 ${name}</b><br>${label}<br>` +
+                        (p.raw?.pressure ? `Presión: ${p.raw.pressure} hPa<br>` : '') +
+                        (p.raw?.speed ? `Viento: ${p.raw.speed} km/h<br>` : '') +
+                        (p.time ? new Date(p.time).toISOString().slice(0, 16).replace('T', ' ') : '')
+                    ).addTo(typhoonLayer);
+                    if (p.isForecast || p.isLatest) {
+                        try {
+                            L.marker([p.lat, p.lon], {
+                                interactive: false,
+                                icon: L.divIcon({
+                                    className: 'ty-fcst-label',
+                                    html: `<div style="background:rgba(0,0,0,.72);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:3px;padding:1px 4px;font:700 9px/12px sans-serif;white-space:nowrap">${label}</div>`,
+                                    iconSize: [100, 16],
+                                    iconAnchor: [-6, 8]
+                                })
+                            }).addTo(typhoonLayer);
+                        } catch (_) {}
+                    }
+                });
+                // Anillos de viento en posición actual
                 const latest = actual[actual.length - 1] || forecast[0];
                 if (latest) {
-                    // Anillos de viento (depresión/tormenta) — no confundir con avisos prefecturales.
                     const cat = String(latest.raw?.strong || latest.raw?.class || t.enname || '').toUpperCase();
                     let radii = [100, 180, 280];
-                    if (/TD|DEPRESI[OÓ]N|DEPRESSION/.test(cat)) radii = [80, 150, 220];
-                    else if (/TY|TYPHOON|TIF[OÓ]N/.test(cat)) radii = [150, 280, 420];
+                    if (/TD|DEPRESI|DEPRESSION/.test(cat)) radii = [80, 150, 220];
+                    else if (/TY|TYPHOON|TIF/.test(cat)) radii = [150, 280, 420];
                     else if (/STS|SEVERE/.test(cat)) radii = [120, 220, 340];
-                    drawTyphoonWindRings(latest.lat, latest.lon, radii, '#ffe8d6');
-                    L.circleMarker([latest.lat, latest.lon], { radius:9, color:'#fff', weight:2, fillColor:'#ff6b35', fillOpacity:.95 })
-                        .bindPopup(`<b>🌀 ${name}</b><br>${latest.raw.strong || 'Sistema activo'}<br>Presión: ${latest.raw.pressure || '—'} hPa<br>Viento: ${latest.raw.speed || '—'} km/h`)
-                        .addTo(typhoonLayer);
+                    try { drawTyphoonWindRings(latest.lat, latest.lon, radii, '#ffe8d6'); } catch (_) {}
                 }
             });
         }
@@ -5147,13 +5247,158 @@ global.TauPJS=api;
             }).join('');
         }
 
-        function renderHurricaneMap(active) {
+        // Caché de conos/trayectorias oficiales NHC (estilo CONAGUA / NHC)
+        let nhcConeCache = { at: 0, cone: null, track: null, points: null };
+
+        function nhcStormTypeLabel(stormtype, maxwind) {
+            const t = String(stormtype || '').toUpperCase();
+            const w = Number(maxwind);
+            if (t === 'MH' || (Number.isFinite(w) && w >= 96)) return 'Huracán mayor';
+            if (t === 'HU' || (Number.isFinite(w) && w >= 64)) {
+                if (w >= 113) return 'Huracán Cat. 4–5';
+                if (w >= 96) return 'Huracán Cat. 3';
+                if (w >= 83) return 'Huracán Cat. 2';
+                if (w >= 64) return 'Huracán Cat. 1';
+                return 'Huracán';
+            }
+            if (t === 'TS' || (Number.isFinite(w) && w >= 34)) return 'Tormenta tropical';
+            if (t === 'TD' || t === 'DB') return 'Depresión tropical';
+            if (t === 'PT' || t === 'EX') return 'Postropical';
+            return hurricaneClassLabel(t) || 'Sistema tropical';
+        }
+        function nhcPointFillColor(stormtype, maxwind) {
+            const t = String(stormtype || '').toUpperCase();
+            const w = Number(maxwind);
+            if (t === 'MH' || w >= 96) return '#c62828';
+            if (t === 'HU' || w >= 64) return '#ff4d6d';
+            if (t === 'TS' || w >= 34) return '#ffd166';
+            return '#8bd8ff';
+        }
+        async function fetchNhcGisLayer(layerId) {
+            const url = `https://mapservices.weather.noaa.gov/tropical/rest/services/tropical/NHC_tropical_weather_summary/MapServer/${layerId}/query?where=1%3D1&outFields=*&f=geojson&returnGeometry=true`;
+            const targets = [
+                url,
+                'https://corsproxy.io/?' + encodeURIComponent(url),
+                'https://api.allorigins.win/raw?url=' + encodeURIComponent(url)
+            ];
+            for (const u of targets) {
+                try {
+                    const res = await fetch(u, { cache: 'no-store' });
+                    if (!res.ok) continue;
+                    const data = await res.json();
+                    if (data && Array.isArray(data.features)) return data;
+                } catch (_) {}
+            }
+            return null;
+        }
+        async function loadNhcConeTrack() {
+            const now = Date.now();
+            if (nhcConeCache.at && (now - nhcConeCache.at) < 10 * 60 * 1000 && nhcConeCache.cone) {
+                return nhcConeCache;
+            }
+            // Layer 7 = Forecast Cone, 6 = Forecast Track, 5 = Forecast Points
+            const [cone, track, points] = await Promise.all([
+                fetchNhcGisLayer(7),
+                fetchNhcGisLayer(6),
+                fetchNhcGisLayer(5)
+            ]);
+            nhcConeCache = { at: now, cone, track, points };
+            return nhcConeCache;
+        }
+        function drawNhcConeStyle(gis) {
+            if (!gis) return;
+            // Cono de incertidumbre (amarillo rayado estilo NHC/CONAGUA)
+            if (gis.cone && Array.isArray(gis.cone.features)) {
+                gis.cone.features.forEach(f => {
+                    try {
+                        L.geoJSON(f, {
+                            style: {
+                                color: '#c9a227',
+                                weight: 2,
+                                fillColor: '#ffe066',
+                                fillOpacity: 0.28,
+                                opacity: 0.9,
+                                dashArray: '6 4'
+                            },
+                            onEachFeature: (feat, layer) => {
+                                const p = feat.properties || {};
+                                layer.bindPopup(
+                                    `<b>🌀 Cono de incertidumbre NHC</b><br>` +
+                                    `${p.stormname || 'Sistema'} · ${p.stormtype || ''}<br>` +
+                                    `Aviso #${p.advisnum || '—'} · ${p.advdate || ''}<br>` +
+                                    `<small>Área probable del centro (no de daños)</small>`
+                                );
+                            }
+                        }).addTo(hurricaneLayer);
+                    } catch (_) {}
+                });
+            }
+            // Trayectoria (línea negra)
+            if (gis.track && Array.isArray(gis.track.features)) {
+                gis.track.features.forEach(f => {
+                    try {
+                        L.geoJSON(f, {
+                            style: { color: '#111', weight: 3, opacity: 0.95 }
+                        }).addTo(hurricaneLayer);
+                    } catch (_) {}
+                });
+            }
+            // Puntos de pronóstico con etiqueta de categoría (como la imagen CONAGUA)
+            if (gis.points && Array.isArray(gis.points.features)) {
+                gis.points.features.forEach(f => {
+                    try {
+                        const p = f.properties || {};
+                        const coords = f.geometry && f.geometry.coordinates;
+                        if (!coords || coords.length < 2) return;
+                        const lat = coords[1], lon = coords[0];
+                        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+                        const label = nhcStormTypeLabel(p.stormtype || p.tcdvlp, p.maxwind);
+                        const fill = nhcPointFillColor(p.stormtype || p.tcdvlp, p.maxwind);
+                        const isCurrent = Number(p.fcstprd) === 0 || /current|ahora/i.test(String(p.datelbl || ''));
+                        const marker = L.circleMarker([lat, lon], {
+                            radius: isCurrent ? 9 : 7,
+                            color: '#fff',
+                            weight: 2,
+                            fillColor: fill,
+                            fillOpacity: 0.95
+                        });
+                        const when = p.datelbl || p.advdate || '—';
+                        const wind = Number.isFinite(Number(p.maxwind)) ? `${p.maxwind} kt` : '—';
+                        marker.bindPopup(
+                            `<b>${p.stormname || 'Sistema'}</b><br>${label}<br>` +
+                            `Viento: ${wind}<br>${when}`
+                        );
+                        marker.addTo(hurricaneLayer);
+                        // Etiqueta texto junto al punto
+                        try {
+                            L.marker([lat, lon], {
+                                interactive: false,
+                                icon: L.divIcon({
+                                    className: 'nhc-fcst-label',
+                                    html: `<div style="background:rgba(0,0,0,.72);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:3px;padding:1px 4px;font:700 9px/12px sans-serif;white-space:nowrap;text-shadow:0 1px 2px #000">${label}<br><span style="font-weight:600;opacity:.9">${when}</span></div>`,
+                                    iconSize: [110, 28],
+                                    iconAnchor: [-6, 10]
+                                })
+                            }).addTo(hurricaneLayer);
+                        } catch (_) {}
+                    } catch (_) {}
+                });
+            }
+        }
+
+        async function renderHurricaneMap(active) {
             hurricaneLayer.clearLayers();
+            // Cono + trayectoria + puntos oficiales NHC (estilo CONAGUA)
+            try {
+                const gis = await loadNhcConeTrack();
+                drawNhcConeStyle(gis);
+            } catch (_) {}
+            // Posición actual de cada tormenta (CurrentStorms.json)
             active.forEach(storm => {
                 const point = hurricanePoint(storm);
                 if (!point) return;
                 const color = String(storm.classification || '').toUpperCase().startsWith('H') ? '#ff4d6d' : '#ffd166';
-                const marker = L.circleMarker(point, { radius:10, color:'#fff', weight:2, fillColor:color, fillOpacity:.95 });
+                const marker = L.circleMarker(point, { radius:11, color:'#111', weight:2.5, fillColor:color, fillOpacity:.98 });
                 const windKt = Number(storm.intensity);
                 const advisory = storm.publicAdvisory?.url ? `<br><a href="${storm.publicAdvisory.url}" target="_blank" rel="noopener">Aviso oficial NHC</a>` : '';
                 marker.bindPopup(`<b>🌀 ${hurricaneName(storm)}</b><br>${hurricaneClassLabel(storm.classification)}<br>Viento: ${Number.isFinite(windKt) ? windKt + ' kt' : '—'}<br>Presión: ${storm.pressure || '—'} hPa${advisory}`).addTo(hurricaneLayer);
@@ -5161,6 +5406,17 @@ global.TauPJS=api;
         }
 
         function centerHurricaneView() {
+            try {
+                const layers = hurricaneLayer.getLayers();
+                if (layers.length) {
+                    const g = L.featureGroup(layers);
+                    const b = g.getBounds();
+                    if (b.isValid()) {
+                        map.fitBounds(b.pad(0.25), { animate: false, maxZoom: 6 });
+                        return;
+                    }
+                }
+            } catch (_) {}
             const points = hurricaneData.filter(s => hurricanePoint(s)).map(s => hurricanePoint(s));
             if (!points.length) return setProgrammaticMapView([25, -85], 4);
             map.fitBounds(L.latLngBounds(points).pad(1.2), { animate:false, maxZoom:6 });
@@ -5212,7 +5468,7 @@ global.TauPJS=api;
                     taiwanMode = false;
                     
                     map.invalidateSize({ pan:false });
-                    renderHurricaneMap(active);
+                    try { Promise.resolve(renderHurricaneMap(active)); } catch (_) {}
                     centerHurricaneView();
                     scheduleReturnToLastQuake();
                 }
@@ -5220,7 +5476,7 @@ global.TauPJS=api;
                 hurricaneInitialized = true;
                 renderHurricanePanel(active);
                 renderAlertCenter();
-                if (hurricaneMode && !updateDetected) renderHurricaneMap(active);
+                if (hurricaneMode && !updateDetected) try { Promise.resolve(renderHurricaneMap(active)); } catch (_) {}
                 scheduleStartupActiveAlert();
             } catch (_) {
                 setApiState('nhc', 'bad');
@@ -5442,31 +5698,60 @@ global.TauPJS=api;
             return node?.getElementsByTagNameNS('*', name)[0]?.textContent?.trim() || '';
         }
 
+        function parseTsunamiCapPolygon(polygonText) {
+            // CAP: "lat,lon lat,lon …" → Leaflet [lat,lon]
+            const pts = [];
+            String(polygonText || '').trim().split(/\s+/).forEach(pair => {
+                const m = pair.match(/^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
+                if (m) pts.push([Number(m[1]), Number(m[2])]);
+            });
+            return pts.length >= 3 ? pts : null;
+        }
+        function parseOneTsunamiCapAlert(alert, source) {
+            const infos = [...alert.getElementsByTagNameNS('*', 'info')];
+            if (!infos.length) return [];
+            const out = [];
+            infos.forEach((info, idx) => {
+                const areaNodes = [...info.getElementsByTagNameNS('*', 'area')];
+                const areaDescs = areaNodes.map(a => tsunamiTextField(a, 'areaDesc')).filter(Boolean);
+                const area = areaDescs.join(' · ') || tsunamiTextField(info, 'areaDesc');
+                let polygon = null;
+                let point = null;
+                areaNodes.forEach(a => {
+                    const poly = parseTsunamiCapPolygon(tsunamiTextField(a, 'polygon'));
+                    if (poly && !polygon) polygon = poly;
+                    const circle = tsunamiTextField(a, 'circle');
+                    const cm = circle.match(/(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)/);
+                    if (cm && !point) point = [Number(cm[1]), Number(cm[2])];
+                });
+                if (!point && polygon) point = polygon[0];
+                const eventName = tsunamiTextField(info, 'event') || 'Información de tsunami';
+                out.push({
+                    id: (tsunamiTextField(alert, 'identifier') || source) + (idx ? '-' + idx : ''),
+                    source,
+                    event: eventName,
+                    severity: tsunamiTextField(info, 'severity'),
+                    urgency: tsunamiTextField(info, 'urgency'),
+                    certainty: tsunamiTextField(info, 'certainty'),
+                    headline: tsunamiTextField(info, 'headline'),
+                    description: tsunamiTextField(info, 'description'),
+                    area,
+                    expires: tsunamiTextField(info, 'expires'),
+                    sent: tsunamiTextField(alert, 'sent'),
+                    point,
+                    polygon
+                });
+            });
+            return out;
+        }
         function parseTsunamiCapXml(text, source) {
             const xml = new DOMParser().parseFromString(text, 'application/xml');
-            const alert = xml.getElementsByTagNameNS('*', 'alert')[0];
-            const info = xml.getElementsByTagNameNS('*', 'info')[0];
-            if (!alert || !info) return null;
-            const area = tsunamiTextField(info, 'areaDesc');
-            const polygonText = tsunamiTextField(info, 'polygon');
-            const pointText = tsunamiTextField(info, 'circle');
-            let point = null;
-            const coordText = pointText || polygonText;
-            const coordMatch = coordText.match(/(-?\d+(?:\.\d+)?)[, ]+(-?\d+(?:\.\d+)?)/);
-            if (coordMatch) point = [Number(coordMatch[1]), Number(coordMatch[2])];
-            const polygon = polygonText.split(/\s+/).map(pair => {
-                const m = pair.match(/^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
-                return m ? [Number(m[1]), Number(m[2])] : null;
-            }).filter(Boolean);
-            return {
-                id: tsunamiTextField(alert, 'identifier') || source,
-                source, event: tsunamiTextField(info, 'event') || 'Información de tsunami',
-                severity: tsunamiTextField(info, 'severity'), urgency: tsunamiTextField(info, 'urgency'),
-                certainty: tsunamiTextField(info, 'certainty'), headline: tsunamiTextField(info, 'headline'),
-                description: tsunamiTextField(info, 'description'), area,
-                expires: tsunamiTextField(info, 'expires'), sent: tsunamiTextField(alert, 'sent'), point,
-                polygon: polygon.length >= 3 ? polygon : null
-            };
+            const alerts = [...xml.getElementsByTagNameNS('*', 'alert')];
+            if (!alerts.length) return null;
+            const items = [];
+            alerts.forEach(alert => items.push(...parseOneTsunamiCapAlert(alert, source)));
+            if (!items.length) return null;
+            return items.length === 1 ? items[0] : items;
         }
 
         function parseTsunamiReaderText(text, source) {
@@ -5486,6 +5771,55 @@ global.TauPJS=api;
             };
         }
 
+        function tsunamiEventEs(event) {
+            const e = String(event || '');
+            if (/Tsunami Warning/i.test(e)) return 'Advertencia de tsunami';
+            if (/Tsunami Advisory/i.test(e)) return 'Aviso de tsunami';
+            if (/Tsunami Watch/i.test(e)) return 'Vigilancia de tsunami';
+            if (/Tsunami Information Statement/i.test(e) || /Tsunami Information/i.test(e)) return 'Boletín informativo de tsunami';
+            if (/Warning/i.test(e)) return 'Advertencia de tsunami';
+            if (/Advisory/i.test(e)) return 'Aviso de tsunami';
+            if (/Watch/i.test(e)) return 'Vigilancia de tsunami';
+            return e || 'Información de tsunami';
+        }
+        function tsunamiSeverityEs(s) {
+            const v = String(s || '').toLowerCase();
+            return ({ extreme:'extrema', severe:'grave', moderate:'moderada', minor:'leve', unknown:'no especificada' })[v] || s || '—';
+        }
+        function tsunamiCertaintyEs(s) {
+            const v = String(s || '').toLowerCase();
+            return ({ observed:'observado', likely:'probable', possible:'posible', unlikely:'poco probable', unknown:'desconocido' })[v] || s || '—';
+        }
+        function tsunamiUrgencyEs(s) {
+            const v = String(s || '').toLowerCase();
+            return ({ immediate:'inmediata', expected:'esperada', future:'futura', past:'pasada', unknown:'desconocida' })[v] || s || '—';
+        }
+        function tsunamiTextEs(text) {
+            let t = String(text || '');
+            t = t.replace(/This is a Tsunami Information Statement\.?/gi, 'Este es un boletín informativo de tsunami.');
+            t = t.replace(/Tsunami Information Statement/gi, 'Boletín informativo de tsunami');
+            t = t.replace(/Tsunami Warning/gi, 'Advertencia de tsunami');
+            t = t.replace(/Tsunami Advisory/gi, 'Aviso de tsunami');
+            t = t.replace(/Tsunami Watch/gi, 'Vigilancia de tsunami');
+            t = t.replace(/Tsunami Information/gi, 'Información de tsunami');
+            t = t.replace(/\bmiles?\b/gi, 'millas');
+            t = t.replace(/\bW of\b/gi, 'al oeste de');
+            t = t.replace(/\bE of\b/gi, 'al este de');
+            t = t.replace(/\bN of\b/gi, 'al norte de');
+            t = t.replace(/\bS of\b/gi, 'al sur de');
+            t = t.replace(/British Columbia/gi, 'Columbia Británica');
+            t = t.replace(/\bSeverity:\s*/gi, 'Severidad: ');
+            t = t.replace(/\bCertainty:\s*/gi, 'Certeza: ');
+            return t.trim();
+        }
+        function tsunamiSpeechSpanish(x) {
+            const event = tsunamiEventEs(x.event || x.headline);
+            const area = tsunamiTextEs(x.area || 'zona costera');
+            const severity = tsunamiSeverityEs(x.severity);
+            const certainty = tsunamiCertaintyEs(x.certainty);
+            const centro = x.source || 'NOAA';
+            return `Boletín de tsunami de ${centro}. ${event}. Área: ${area}. Severidad ${severity}. Certeza ${certainty}.`;
+        }
         function renderTsunamiPanel(items) {
             const info = document.getElementById('tsunamiInfo');
             const status = document.getElementById('tsunamiStatus');
@@ -5500,7 +5834,25 @@ global.TauPJS=api;
             status.textContent = danger ? '● Aviso activo' : '● Información';
             status.style.color = danger ? '#ff6b6b' : '#8bd8ff';
             if (title) title.textContent = danger ? '⚠️ Aviso de tsunami' : '🌊 Boletines de tsunami';
-            info.innerHTML = items.map(x => `<div class="tsunami-item"><strong>${x.event}</strong><br>Centro: ${x.source}<br>Área: ${x.area || '—'}<br>Severidad: ${x.severity || '—'} · Certeza: ${x.certainty || '—'}<br>Válido hasta: ${x.expires ? formatTime(x.expires) : '—'}<br>${String(x.headline || x.description || '').slice(0, 320)}</div>`).join('');
+            // Primero plantilla rápida en español; luego traductor Google para el texto libre
+            info.innerHTML = items.map((x, i) => {
+                const eventEs = tsunamiEventEs(x.event);
+                const headlineEs = tsunamiTextEs(x.headline || x.description || '');
+                return `<div class="tsunami-item" data-tsunami-i="${i}"><strong>${eventEs}</strong><br>Centro: ${x.source}<br>Área: <span class="ts-area">${tsunamiTextEs(x.area) || '—'}</span><br>Severidad: ${tsunamiSeverityEs(x.severity)} · Certeza: ${tsunamiCertaintyEs(x.certainty)}<br>Válido hasta: ${x.expires ? formatTime(x.expires) : '—'}<br><span class="ts-head">${headlineEs.slice(0, 320)}</span></div>`;
+            }).join('');
+            items.forEach((x, i) => {
+                const free = String(x.headline || x.description || x.area || '').trim();
+                if (!free || free.length < 4) return;
+                translateToSpanish(free, 'auto').then(tr => {
+                    if (!tr) return;
+                    const node = info.querySelector(`[data-tsunami-i="${i}"] .ts-head`);
+                    if (node) node.textContent = tr.slice(0, 320);
+                    const areaNode = info.querySelector(`[data-tsunami-i="${i}"] .ts-area`);
+                    if (areaNode && x.area) {
+                        translateToSpanish(String(x.area), 'auto').then(a => { if (a) areaNode.textContent = a; }).catch(() => {});
+                    }
+                }).catch(() => {});
+            });
         }
 
         function renderTsunamiMap(items) {
@@ -5510,53 +5862,90 @@ global.TauPJS=api;
                 const color = warning ? '#ff2d1b' : '#ffd400';
                 if (Array.isArray(x.polygon) && x.polygon.length >= 3) {
                     L.polygon(x.polygon, { color, weight:4, fillColor:color, fillOpacity:.12, lineCap:'round', lineJoin:'round' })
-                        .bindPopup(`<b>🌊 ${x.event}</b><br>${x.area || 'Área no especificada'}<br>${x.source}`).addTo(tsunamiLayer);
+                        .bindPopup(`<b>🌊 ${typeof tsunamiEventEs==='function'?tsunamiEventEs(x.event):x.event}</b><br>${typeof tsunamiTextEs==='function'?tsunamiTextEs(x.area):x.area || 'Área no especificada'}<br>${x.source}`).addTo(tsunamiLayer);
                 }
                 if (x.point && Number.isFinite(x.point[0]) && Number.isFinite(x.point[1])) {
                     L.circleMarker(x.point, { radius:10, color:'#fff', weight:2, fillColor:warning ? '#ff2d1b' : '#ffd400', fillOpacity:.9 })
-                        .bindPopup(`<b>🌊 ${x.event}</b><br>${x.area || 'Área no especificada'}<br>${x.source}`).addTo(tsunamiLayer);
+                        .bindPopup(`<b>🌊 ${typeof tsunamiEventEs==='function'?tsunamiEventEs(x.event):x.event}</b><br>${typeof tsunamiTextEs==='function'?tsunamiTextEs(x.area):x.area || 'Área no especificada'}<br>${x.source}`).addTo(tsunamiLayer);
                 }
             });
         }
 
         function centerTsunamiView() {
-            const points = tsunamiData.filter(x => x.point).map(x => x.point);
-            if (points.length) map.fitBounds(L.latLngBounds(points).pad(.8), { animate:false, maxZoom:5 });
-            else setProgrammaticMapView([20, -150], 3);
+            try {
+                const layers = [];
+                tsunamiData.forEach(x => {
+                    if (Array.isArray(x.polygon) && x.polygon.length >= 3) {
+                        try { layers.push(L.polygon(x.polygon)); } catch (_) {}
+                    }
+                    if (x.point && Number.isFinite(x.point[0])) {
+                        try { layers.push(L.marker(x.point)); } catch (_) {}
+                    }
+                });
+                if (layers.length) {
+                    const g = L.featureGroup(layers);
+                    const b = g.getBounds();
+                    if (b.isValid()) { map.fitBounds(b.pad(0.6), { animate:false, maxZoom:5 }); return; }
+                }
+            } catch (_) {}
+            setProgrammaticMapView([20, -150], 3);
         }
 
         async function loadTsunami() {
             try {
                 const feeds = [
                     ['NTWC', 'https://www.tsunami.gov/events/xml/PAAQCAP.xml'],
-                    ['PTWC', 'https://www.tsunami.gov/events/xml/PHEBCAP.xml']
+                    ['PTWC', 'https://www.tsunami.gov/events/xml/PHEBCAP.xml'],
+                    ['NTWC', 'https://www.tsunami.gov/events/xml/PAAQAtom.xml'],
+                    ['PTWC', 'https://www.tsunami.gov/events/xml/PHEBAtom.xml']
                 ];
                 const items = [];
                 for (const [source, url] of feeds) {
-                    const targets = [url, 'https://r.jina.ai/http://' + url.replace(/^https?:\/\//, '')];
-                    let item = null;
+                    const targets = [
+                        url,
+                        'https://corsproxy.io/?' + encodeURIComponent(url),
+                        'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
+                        'https://r.jina.ai/http://' + url.replace(/^https?:\/\//, '')
+                    ];
+                    let parsed = null;
                     for (const target of targets) {
                         try {
                             const res = await fetch(target, { cache:'no-store' });
                             if (!res.ok) continue;
-                            const text = await res.text();
-                            item = text.includes('<alert') ? parseTsunamiCapXml(text, source) : parseTsunamiReaderText(text, source);
-                            if (item) break;
+                            const body = await res.text();
+                            if (body.includes('<alert')) parsed = parseTsunamiCapXml(body, source);
+                            else if (/Tsunami (?:Warning|Advisory|Watch|Information)/i.test(body)) parsed = parseTsunamiReaderText(body, source);
+                            if (parsed) break;
                         } catch (_) {}
                     }
-                    if (item) items.push(item);
+                    if (!parsed) continue;
+                    if (Array.isArray(parsed)) items.push(...parsed);
+                    else items.push(parsed);
                 }
-                tsunamiData = items.filter(x => !x.expires || Date.parse(x.expires) > Date.now());
+                // Deduplicar por id+evento
+                const seen = new Set();
+                const unique = [];
+                items.forEach(x => {
+                    const key = `${x.source}|${x.id}|${x.event}|${x.sent}`;
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    unique.push(x);
+                });
+                tsunamiData = unique.filter(x => !x.expires || Date.parse(x.expires) > Date.now());
                 setApiState('tsunami', 'ok', tsunamiData.length);
                 const signature = tsunamiData.map(x => `${x.id}:${x.sent}:${x.expires}:${x.event}`).sort().join('|');
                 const updateDetected = tsunamiInitialized && signature !== tsunamiSignature && tsunamiData.length;
                 updateTickerWithTsunami(tsunamiData, !!updateDetected);
                 if (updateDetected) {
-                    const x = tsunamiData[0];
+                    const x = tsunamiData.find(t => /warning/i.test(t.event)) || tsunamiData.find(t => /advisory|watch/i.test(t.event)) || tsunamiData[0];
                     playSrevSound('tsa01', `tsunami:${signature}`);
-                    speakAlert(`Actualización de tsunami. ${x.event}. ${x.area || ''}.`, 'tsunami', 'es-US');
+                    try {
+                        const raw = `Tsunami bulletin from ${x.source || 'NOAA'}. ${x.event || ''}. Area: ${x.area || ''}. Severity: ${x.severity || ''}. Certainty: ${x.certainty || ''}. ${x.headline || x.description || ''}`;
+                        speakAlert(raw, 'tsunami', 'es-US', `tsunami:${x.id || x.event}`);
+                    } catch (_) {
+                        speakAlert(typeof tsunamiSpeechSpanish === 'function' ? tsunamiSpeechSpanish(x) : (`Actualización de tsunami. ${x.event}. ${x.area || ''}.`), 'tsunami', 'es-US');
+                    }
                     showRegionToast(`🌊 ${x.event}`);
-                    // Telop NWEQ: cualquier aviso PTWC/NTWC (Warning / Watch / Advisory / Info)
                     try {
                         if (typeof window.showTsunamiTvFromBulletin === 'function') {
                             tsunamiData.forEach(function (item) {
@@ -5578,9 +5967,9 @@ global.TauPJS=api;
                     eewWaveCoordinatorInterrupt();
                     tsunamiMode = true;
                     hurricaneMode = false; usAlertsMode = false; taiwanMode = false;
-                    
+                    try { gdacsMode = false; document.getElementById('mainLayout')?.classList.remove('gdacs-focus'); document.getElementById('gdacsPanel')?.classList.remove('gdacs-active'); gdacsLayer.clearLayers(); } catch (_) {}
                     const layout = document.getElementById('mainLayout');
-                    layout.classList.remove('hurricane-focus','us-alerts-focus','taiwan-focus');
+                    layout.classList.remove('hurricane-focus','us-alerts-focus','taiwan-focus','gdacs-focus');
                     layout.classList.add('tsunami-focus');
                     document.getElementById('hurricanePanel').classList.remove('hurricane-active');
                     document.getElementById('hurricaneTopbar').classList.remove('hurricane-top-active');
@@ -6040,9 +6429,53 @@ global.TauPJS=api;
 
         function centerWaveMode() {
             const ev = getCurrentWaveEvent();
-            // Zoom sobre el frente de ondas, no el archipiélago entero.
-            if (ev) setProgrammaticMapView([ev.lat, ev.lon], 7.2);
-            else setProgrammaticMapView(YAHOO_NIED_JAPAN_CENTER, YAHOO_NIED_JAPAN_ZOOM);
+            try { map.invalidateSize({ pan: false }); } catch (_) {}
+            if (!ev || !Number.isFinite(Number(ev.lat)) || !Number.isFinite(Number(ev.lon))) {
+                try { setProgrammaticMapView(YAHOO_NIED_JAPAN_CENTER, YAHOO_NIED_JAPAN_ZOOM); } catch (_) {}
+                return;
+            }
+            const lat = Number(ev.lat), lon = Number(ev.lon);
+            // Radio del frente P (km) según tiempo desde el origen → zoom a las ondas
+            let radiusM = 80000; // mínimo ~80 km de margen
+            try {
+                const originTs = Number(ev.waveOriginTs) || (typeof parseTs === 'function' ? parseTs(ev.ts) : Number(ev.ts)) || Date.now();
+                const elapsed = Math.max(0, (Date.now() - originTs) / 1000);
+                const depthValue = parseFloat(String(ev.depth || '').replace(',', '.').replace(/[^\d.]/g, ''));
+                const depthKm = Number.isFinite(depthValue) && depthValue >= 0 ? depthValue : 10;
+                const taupEnabled = typeof taupTravelModel !== 'undefined' && taupTravelModel && typeof taupMode !== 'undefined' && taupMode !== 'fallback';
+                let pKm = null;
+                if (taupEnabled && typeof taupFrontRadiusKm === 'function') {
+                    pKm = taupFrontRadiusKm(depthKm, 'P', elapsed);
+                }
+                if (!Number.isFinite(pKm)) pKm = elapsed > 0 ? Math.min(1200, Math.max(40, elapsed * 6.0)) : 80;
+                // Encuadrar el círculo P con un poco de margen; no demasiado lejos
+                const viewKm = Math.max(60, Math.min(900, Number(pKm) * 1.35 + 40));
+                radiusM = viewKm * 1000;
+            } catch (_) {}
+            try {
+                programmaticMapMove = true;
+                mapUserHasControl = false;
+                const circle = L.circle([lat, lon], { radius: radiusM });
+                const b = circle.getBounds();
+                if (b && b.isValid()) {
+                    map.fitBounds(b.pad(0.15), { animate: true, maxZoom: 9, minZoom: 4 });
+                } else {
+                    setProgrammaticMapView([lat, lon], 7.2);
+                }
+                setTimeout(() => { programmaticMapMove = false; }, 120);
+            } catch (_) {
+                try { setProgrammaticMapView([lat, lon], 7.2); } catch (_) {}
+            }
+            // Re-centrar tras el cambio de layout (wave-focus)
+            setTimeout(() => {
+                if (!waveMode) return;
+                try {
+                    map.invalidateSize({ pan: false });
+                    const circle = L.circle([lat, lon], { radius: radiusM });
+                    const b = circle.getBounds();
+                    if (b && b.isValid()) map.fitBounds(b.pad(0.12), { animate: false, maxZoom: 9, minZoom: 4 });
+                } catch (_) {}
+            }, 280);
         }
 
         function hasWaveEventToShow() {
@@ -6089,7 +6522,10 @@ global.TauPJS=api;
             try { taiwanStationsLayer.addTo(map); } catch (_) {}
             clearMarkers();
             if (intensityZonesLayer) { map.removeLayer(intensityZonesLayer); intensityZonesLayer = null; }
-            map.invalidateSize({ pan:false }); startWaveAnimation(); centerWaveMode();
+            map.invalidateSize({ pan:false });
+            startWaveAnimation();
+            centerWaveMode();
+            setTimeout(() => { try { if (waveMode) centerWaveMode(); } catch (_) {} }, 400);
             if (showToast) { const waveSource = getCurrentWaveEvent(); showRegionToast('〰️ Ondas estimadas · ' + (waveSource?.agency || (waveSource?.estimated ? 'TREM' : 'EEW'))); }
         }
 
@@ -6122,6 +6558,7 @@ global.TauPJS=api;
             if (/MEXICO|MÉXICO/.test(place)) return 'MEX';
             if (/CHILE/.test(place)) return 'CHL';
             if (/ECUADOR/.test(place)) return 'ECU';
+            if (/CHINA|中国/.test(place)) return 'CHN';
             return null;
         }
         async function loadGeoBoundariesForEvent(ev) {
@@ -6298,7 +6735,8 @@ global.TauPJS=api;
         const boundariesPane = map.createPane('boundariesPane');
         boundariesPane.style.zIndex = 410;
         const regionalPane = map.createPane('regionalPane');
-        regionalPane.style.zIndex = 390;
+        // Subdivisiones oscuras debajo del relleno de intensidad (pane 380).
+        regionalPane.style.zIndex = 370;
         regionalPane.style.pointerEvents = 'none';
         // Basemap oscuro tipo monitor sísmico: países oscuros y fronteras visibles.
         const tileDark = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, opacity:.78, attribution: '© Esri, HERE, Garmin, USGS, NGA, EPA, NPS | Datos sísmicos: USGS + JMA + CENC + EMSC' });
@@ -6755,10 +7193,7 @@ global.TauPJS=api;
             return lang.startsWith('es') ? (spanishFallback || voices[0] || null) : (voices[0] || null);
         }
 
-        function ttsLanguageForAgency(agency = '') {
-            // A pedido: todo se lee en español, sin importar la fuente.
-            return 'es-US';
-        }
+        function ttsLanguageForAgency(_agency) { return 'es-US'; }
 
         const ttsPlaceReplacements = [
             [/\bUnited States Virgin Islands\b/gi, 'Islas Vírgenes de Estados Unidos'],
@@ -6898,10 +7333,15 @@ global.TauPJS=api;
         let ttsQueue = [];
         let ttsSpeaking = false;
         let ttsCurrentKey = '';
-        const ttsChannels = { quakes:true, trem:true, typhoons:true, hurricanes:true, nws:true, tsunami:true, general:true, 'jma-weather':true };
+        const ttsChannels = { quakes:true, trem:true, typhoons:true, hurricanes:true, nws:true, tsunami:true, gdacs:true, volcano:true, general:true, 'jma-weather':true };
 
         function processTtsQueue() {
             if (!audioEnabled || !ttsEnabled || !('speechSynthesis' in window) || ttsSpeaking || !ttsQueue.length) return;
+            // Esperar traducción en curso (traductor Google)
+            if (ttsQueue[0] && ttsQueue[0].pending) {
+                setTimeout(processTtsQueue, 120);
+                return;
+            }
             const item = ttsQueue.shift();
             if (item && Number(item.expiresAt) > 0 && Date.now() > Number(item.expiresAt)) {
                 setTimeout(processTtsQueue, 80);
@@ -6934,15 +7374,121 @@ global.TauPJS=api;
             }
         }
 
+        // Traductor automático (Google Translate, sin UI) · caché en memoria
+        const translateSpanishCache = new Map();
+        async function translateToSpanish(text, sourceLang = 'auto') {
+            const original = String(text || '').trim();
+            if (!original) return '';
+            // Si ya parece mayormente español (pocos caracteres latinos extranjeros / CJK / etc.), igual traducimos por seguridad corta
+            const cacheKey = sourceLang + '|' + original;
+            if (translateSpanishCache.has(cacheKey)) return translateSpanishCache.get(cacheKey);
+            const promise = (async () => {
+                try {
+                    // Fragmentar textos largos
+                    const chunks = [];
+                    let remaining = original;
+                    const max = 450;
+                    while (remaining.length > max) {
+                        let cut = Math.max(
+                            remaining.lastIndexOf('. ', max),
+                            remaining.lastIndexOf('。', max),
+                            remaining.lastIndexOf('\n', max),
+                            remaining.lastIndexOf(' ', max)
+                        );
+                        if (cut < 80) cut = max;
+                        chunks.push(remaining.slice(0, cut + 1));
+                        remaining = remaining.slice(cut + 1);
+                    }
+                    if (remaining) chunks.push(remaining);
+                    const out = [];
+                    for (const chunk of chunks) {
+                        const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' +
+                            encodeURIComponent(sourceLang || 'auto') + '&tl=es&dt=t&q=' + encodeURIComponent(chunk);
+                        const response = await fetch(url);
+                        if (!response.ok) return original;
+                        const data = await response.json();
+                        const part = (data?.[0] || []).map(x => x?.[0] || '').join('').trim();
+                        out.push(part || chunk);
+                    }
+                    const result = out.join(' ').replace(/\s{2,}/g, ' ').trim();
+                    return result || original;
+                } catch (_) {
+                    return original;
+                }
+            })();
+            translateSpanishCache.set(cacheKey, promise);
+            if (translateSpanishCache.size > 200) {
+                translateSpanishCache.delete(translateSpanishCache.keys().next().value);
+            }
+            return promise;
+        }
+        function forceSpanishAlertText(raw) {
+            let t = String(raw || '');
+            // Términos comunes de alertas (EEW, tsunami, meteo, GDACS)
+            const pairs = [
+                [/Tsunami Information Statement/gi, 'Boletín informativo de tsunami'],
+                [/Tsunami Warning/gi, 'Advertencia de tsunami'],
+                [/Tsunami Advisory/gi, 'Aviso de tsunami'],
+                [/Tsunami Watch/gi, 'Vigilancia de tsunami'],
+                [/Tsunami Information/gi, 'Información de tsunami'],
+                [/\bWarning\b/gi, 'advertencia'],
+                [/\bAdvisory\b/gi, 'aviso'],
+                [/\bWatch\b/gi, 'vigilancia'],
+                [/\bSevere\b/gi, 'grave'],
+                [/\bModerate\b/gi, 'moderada'],
+                [/\bMinor\b/gi, 'leve'],
+                [/\bExtreme\b/gi, 'extrema'],
+                [/\bUnlikely\b/gi, 'poco probable'],
+                [/\bLikely\b/gi, 'probable'],
+                [/\bPossible\b/gi, 'posible'],
+                [/\bObserved\b/gi, 'observado'],
+                [/\bExpected\b/gi, 'esperada'],
+                [/\bImmediate\b/gi, 'inmediata'],
+                [/Early Warning/gi, 'alerta temprana'],
+                [/Earthquake Early Warning/gi, 'alerta sísmica temprana'],
+                [/\bEarthquake\b/gi, 'terremoto'],
+                [/\bMagnitude\b/gi, 'magnitud'],
+                [/\bDepth\b/gi, 'profundidad'],
+                [/\bIntensity\b/gi, 'intensidad'],
+                [/\bEpicenter\b/gi, 'epicentro'],
+                [/British Columbia/gi, 'Columbia Británica'],
+                [/\bmiles?\b/gi, 'millas'],
+                [/\bW of\b/gi, 'al oeste de'],
+                [/\bE of\b/gi, 'al este de'],
+                [/\bN of\b/gi, 'al norte de'],
+                [/\bS of\b/gi, 'al sur de'],
+                [/Flood Watch/gi, 'vigilancia de inundación'],
+                [/Flood Warning/gi, 'advertencia de inundación'],
+                [/Tornado Warning/gi, 'advertencia de tornado'],
+                [/Severe Thunderstorm/gi, 'tormenta severa'],
+                [/Tropical Storm/gi, 'tormenta tropical'],
+                [/Hurricane/gi, 'huracán'],
+                [/Typhoon/gi, 'tifón'],
+                [/This is a /gi, 'Esto es un '],
+            ];
+            pairs.forEach(([re, rep]) => { t = t.replace(re, rep); });
+            return t;
+        }
         function speakAlert(text, channel = 'general', language = 'es-US', dedupeKey = '', expiresAt = 0) {
             if (!audioEnabled || !ttsEnabled || !('speechSynthesis' in window) || !text || ttsChannels[channel] === false) return;
-            const selectedLanguage = language || 'es-US';
-            const prepared = String(selectedLanguage).toLowerCase().startsWith('es')
-                ? normalizeTtsText(text) : String(text);
-            const key = `${selectedLanguage}|${channel}|${dedupeKey || prepared}`;
-            // Solo deduplicar el mismo evento/aviso pendiente, nunca descartar otros sismos.
+            // Todo el TTS se habla en español; el texto se pasa por traductor (Google) sin UI
+            const selectedLanguage = 'es-US';
+            const fallback = normalizeTtsText(forceSpanishAlertText(text));
+            const key = `${selectedLanguage}|${channel}|${dedupeKey || fallback}`;
             if (ttsCurrentKey === key || ttsQueue.some(item => item.key === key)) return;
-            ttsQueue.push({ text: prepared, lang: selectedLanguage, key, ...(Number(expiresAt) > 0 ? { expiresAt:Number(expiresAt) } : {}) });
+            // Reserva el turno en cola; el texto se completa al traducir
+            const slot = { text: fallback, lang: selectedLanguage, key, pending: true, ...(Number(expiresAt) > 0 ? { expiresAt: Number(expiresAt) } : {}) };
+            ttsQueue.push(slot);
+            (async () => {
+                try {
+                    const translated = await translateToSpanish(String(text), 'auto');
+                    if (translated) {
+                        slot.text = normalizeTtsText(forceSpanishAlertText(translated));
+                    }
+                } catch (_) {}
+                slot.pending = false;
+                processTtsQueue();
+            })();
             processTtsQueue();
         }
 
@@ -7877,6 +8423,35 @@ global.TauPJS=api;
             return '#' + [r, g, bl].map(x => Math.max(0, Math.min(255, x)).toString(16).padStart(2, '0')).join('');
         }
 
+        function taiwanStationPulseWhite(marker, active) {
+            if (!marker) return;
+            if (active) {
+                if (marker._twPulseTimer) clearTimeout(marker._twPulseTimer);
+                const base = marker.options.tremBaseRadius || marker.options.radius || 8;
+                marker.setRadius(base + 3);
+                marker.setStyle({ color: '#fff', weight: 3, opacity: 1, fillOpacity: 1 });
+                marker._twPulseTimer = setTimeout(() => {
+                    try {
+                        marker.setRadius(base);
+                        marker.setStyle({ color: '#111', weight: 1.2, opacity: 1, fillOpacity: 0.92 });
+                    } catch (_) {}
+                }, 900);
+            } else {
+                try { marker.setStyle({ color: '#111', weight: 1.2, opacity: 1, fillOpacity: 0.92 }); } catch (_) {}
+            }
+        }
+        function palertIntensityEstimate(pga, pgv) {
+            const a = Number(pga), v = Number(pgv);
+            let inten = -3;
+            if (Number.isFinite(a) && a > 0) {
+                const logp = Math.log10(Math.max(a, 0.01));
+                inten = Math.max(-3, Math.min(7, -1 + logp * 2.2));
+            } else if (Number.isFinite(v) && v > 0) {
+                const logv = Math.log10(Math.max(v, 0.001));
+                inten = Math.max(-3, Math.min(7, logv * 2.5));
+            }
+            return inten;
+        }
         function japanStationColorFromCode(code) {
             // Misma paleta que Yahoo/NIED Japón (código 0–20 → −3…7)
             if (typeof ynHexColor === 'function') return ynHexColor(code);
@@ -8031,18 +8606,30 @@ global.TauPJS=api;
                 const frameAgeLabel = Number.isFinite(frameAge) ? `${Math.max(0,Math.round(frameAge/1000))}s` : 'sin sello horario';
                 const liveValueCount = validPgaCount + validPgvCount;
 
-                // P-Alert: gradiente por PGA/PGV, nunca Shindo/MMI.
+                // P-Alert: color estilo Japón + resultado de intensidad estimada + borde blanco si ≥ 0
                 Object.keys(palertStationMeta).forEach(id => {
                     const meta = palertStationMeta[id], marker = palertMarkers[id];
                     if (!marker) return;
-                    const color = palertColorByMotion(meta.pga,meta.pgv,frameFresh);
-                    if (meta.markerColor !== color) {
-                        marker.setStyle({ fillColor:color, color:'#111', radius:9, weight:1, opacity:1, fillOpacity:0.92 });
+                    const inten = frameFresh ? palertIntensityEstimate(meta.pga, meta.pgv) : -3;
+                    const showResult = frameFresh && inten >= 0;
+                    const color = palertColorByMotion(meta.pga, meta.pgv, frameFresh);
+                    const border = showResult ? '#fff' : '#111';
+                    const weight = showResult ? 2.5 : 1;
+                    if (meta.markerColor !== color || meta._paWasActive !== showResult) {
+                        marker.setStyle({ fillColor:color, color:border, radius:9, weight, opacity:1, fillOpacity:0.92 });
                         meta.markerColor = color;
+                        if (showResult && !meta._paWasActive) taiwanStationPulseWhite(marker, true);
+                        meta._paWasActive = showResult;
+                    } else if (showResult) {
+                        marker.setStyle({ color:'#fff', weight:2.5 });
                     }
                     const pgaTxt = Number.isFinite(meta.pga) ? meta.pga.toFixed(3) + ' gal' : '—';
                     const pgvTxt = Number.isFinite(meta.pgv) ? meta.pgv.toFixed(3) + ' cm/s' : '—';
-                    const popupHtml = `<b>🟣 P-Alert · ${id}</b><br>${meta.name || 'Estación de Taiwán'}<br>${meta.area || ''}<br>PGA: <b>${pgaTxt}</b><br>PGV: <b>${pgvTxt}</b><br><small>${frameFresh ? `Trama de ${frameAgeLabel}` : `Trama atrasada · ${frameAgeLabel}`} · color PGA/PGV; no Shindo</small>`;
+                    const intenTxt = showResult ? inten.toFixed(1).replace(/\.0$/,'') : '—';
+                    const resultLine = showResult
+                        ? `<span style="color:#fff">Resultado: intensidad est. <b>${intenTxt}</b></span>`
+                        : 'Resultado: en reposo';
+                    const popupHtml = `<b>🟣 P-Alert · ${id}</b><br>${meta.name || 'Estación de Taiwán'}<br>${meta.area || ''}<br>${resultLine}<br>PGA: <b>${pgaTxt}</b><br>PGV: <b>${pgvTxt}</b><br><small>${frameFresh ? `Trama de ${frameAgeLabel}` : `Trama atrasada · ${frameAgeLabel}`} · paleta Japón · borde blanco si intensidad ≥ 0</small>`;
                     if (meta.popupSignature !== popupHtml) {
                         marker.setPopupContent(popupHtml);
                         meta.popupSignature = popupHtml;
@@ -8107,6 +8694,143 @@ global.TauPJS=api;
             if (palertLoaded) updatePAlertRealtime();
             else if (!palertStationsLoading && Date.now() - palertLastLoadAttempt >= 15000) loadPAlertStations();
         }, 1000);
+
+        // —— Raspberry Shake · solo Colombia ——
+        const rshakeLayer = L.layerGroup().addTo(map);
+        const rshakeMarkers = {};
+        let rshakeLoaded = false, rshakeBusy = false, rshakeLastOk = 0;
+        const RSHAKE_CACHE_KEY = 'eq-rshake-co-v1';
+        try {
+            const cached = JSON.parse(localStorage.getItem(RSHAKE_CACHE_KEY) || 'null');
+            if (Array.isArray(cached?.stations) && cached.stations.length) {
+                // pintar caché al instante mientras llega la red
+                setTimeout(() => {
+                    try { rshakeApplyStations(cached.stations, true); } catch (_) {}
+                }, 800);
+            }
+        } catch (_) {}
+        function isStationInColombia(st) {
+            const country = String(st.country || st.Country || '').toLowerCase().trim();
+            if (country) return country.includes('colombia');
+            const lat = Number(st.latitude ?? st.lat);
+            const lon = Number(st.longitude ?? st.lon);
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
+            return lat >= -4.3 && lat <= 13.5 && lon >= -79.1 && lon <= -66.8;
+        }
+        function rshakeApplyStations(stations, fromCache) {
+            const byCode = new Map();
+            (stations || []).forEach(st => {
+                const code = String(st.code || st.station || '').trim();
+                if (code) byCode.set(code, st);
+            });
+            let onlineN = 0;
+            byCode.forEach((st, code) => {
+                const lat = Number(st.latitude ?? st.lat);
+                const lon = Number(st.longitude ?? st.lon);
+                if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+                const online = st.online === true || st.online === 'true' || st.online === 1;
+                if (online) onlineN++;
+                const elev = st.elevation != null ? st.elevation + ' m' : '—';
+                const device = st.deviceName || st.geophoneType || 'Raspberry Shake';
+                const color = online ? '#2ee6a6' : '#6b7c8f';
+                const prev = rshakeMarkers[code];
+                if (prev) {
+                    try {
+                        prev.setLatLng([lat, lon]);
+                        prev.setStyle({ fillColor: color, fillOpacity: online ? 0.92 : 0.55, radius: online ? 7 : 5 });
+                        prev.setRadius(online ? 7 : 5);
+                        prev.setPopupContent(
+                            `<b>🍓 Raspberry Shake · ${code}</b><br>${device}<br>Colombia<br>` +
+                            `Estado: <b>${online ? 'En línea' : 'Fuera de línea'}</b><br>Elevación: ${elev}<br>` +
+                            `<small>Red ciudadana AM · solo Colombia</small>`
+                        );
+                    } catch (_) {}
+                    return;
+                }
+                const m = L.circleMarker([lat, lon], {
+                    radius: online ? 7 : 5,
+                    pane: 'stationsPane',
+                    color: '#0a1620',
+                    weight: 1,
+                    fillColor: color,
+                    fillOpacity: online ? 0.92 : 0.55
+                }).bindPopup(
+                    `<b>🍓 Raspberry Shake · ${code}</b><br>${device}<br>Colombia<br>` +
+                    `Estado: <b>${online ? 'En línea' : 'Fuera de línea'}</b><br>Elevación: ${elev}<br>` +
+                    `<small>Red ciudadana AM · solo Colombia</small>`
+                );
+                m.addTo(rshakeLayer);
+                rshakeMarkers[code] = m;
+            });
+            rshakeLoaded = byCode.size > 0;
+            setApiState('rshake', byCode.size ? (fromCache ? 'cached' : 'ok') : 'stale', byCode.size);
+            return byCode.size;
+        }
+        async function rshakeFetchJson(url, timeoutMs) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs || 12000);
+            try {
+                const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return await res.json();
+            } finally { clearTimeout(timer); }
+        }
+        async function loadRaspberryShakeColombia() {
+            if (rshakeBusy) return;
+            rshakeBusy = true;
+            try {
+                const base = 'https://api.raspberryshake.org/v1/stations';
+                const urls = [
+                    base,
+                    'https://corsproxy.io/?' + encodeURIComponent(base),
+                    'https://api.allorigins.win/raw?url=' + encodeURIComponent(base),
+                    'https://earthquakeproxy.terremotis123.workers.dev/?url=' + encodeURIComponent(base)
+                ];
+                let data = null, lastErr = null;
+                for (const url of urls) {
+                    try {
+                        data = await rshakeFetchJson(url, 14000);
+                        if (Array.isArray(data)) break;
+                        if (data && Array.isArray(data.contents)) {
+                            // allorigins envelope sometimes
+                            try { data = JSON.parse(data.contents); } catch (_) {}
+                        }
+                        if (data && Array.isArray(data.stations)) { data = data.stations; break; }
+                        if (Array.isArray(data)) break;
+                        data = null;
+                    } catch (e) { lastErr = e; data = null; }
+                }
+                if (!Array.isArray(data)) throw lastErr || new Error('rshake sin datos');
+                const list = data.filter(isStationInColombia).map(st => ({
+                    code: st.code || st.station,
+                    latitude: st.latitude ?? st.lat,
+                    longitude: st.longitude ?? st.lon,
+                    elevation: st.elevation,
+                    online: st.online,
+                    country: st.country,
+                    deviceName: st.deviceName,
+                    geophoneType: st.geophoneType
+                }));
+                try { localStorage.setItem(RSHAKE_CACHE_KEY, JSON.stringify({ stations: list, savedAt: Date.now() })); } catch (_) {}
+                rshakeApplyStations(list, false);
+                rshakeLastOk = Date.now();
+            } catch (_) {
+                // Mantener caché visible; no bajar a bad si hay datos recientes
+                if (rshakeLoaded && Date.now() - rshakeLastOk < 15 * 60 * 1000) {
+                    setApiState('rshake', 'stale', Object.keys(rshakeMarkers).length);
+                } else {
+                    setApiState('rshake', rshakeLoaded ? 'stale' : 'bad');
+                }
+            } finally {
+                rshakeBusy = false;
+            }
+        }
+        setTimeout(() => { try { loadRaspberryShakeColombia(); } catch (_) {} }, 1500);
+        // Cada 3 s: estado online (si la red falla, conserva caché)
+        setInterval(() => {
+            if (document.hidden) return;
+            try { loadRaspberryShakeColombia(); } catch (_) {}
+        }, 3000);
 
         function colorByTaiwanI(I) {
             // Misma barra NIED (−3→7) que Japón / kmoni
@@ -8366,31 +9090,46 @@ global.TauPJS=api;
                     if (Number.isFinite(pga) && pga > maxPga) maxPga = pga;
                     if (Number.isFinite(pgv) && pgv > maxPgv) maxPgv = pgv;
 
-                    // Puntos grandes fijos: solo cambia el color (como estaciones Japón)
+                    // Color por intensidad (paleta Japón) + borde blanco si intensidad ≥ 0
                     const color = colorByTaiwanI(I);
                     const radius = 8;
-
-                    const intensityText = Number.isFinite(numI) && numI >= 1 ? numI.toFixed(1) : '—';
+                    const showResult = Number.isFinite(recentI) && recentI >= 0;
+                    const intensityText = showResult ? recentI.toFixed(1).replace(/\.0$/,'') : '—';
                     const pgaText = Number.isFinite(pga) ? `${pga.toFixed(2)} gal` : '—';
                     const pgvText = Number.isFinite(pgv) ? `${pgv.toFixed(2)} cm/s` : '—';
                     const pgdText = Number.isFinite(pgd) ? `${pgd.toFixed(2)} cm` : 'no disponible';
-                    const popup = `<b>🇹🇼 Estación TREM · ${id}</b><br>Intensidad: <b>${intensityText}</b><br>PGA: <b>${pgaText}</b><br>PGV: <b>${pgvText}</b><br>PGD: <b>${pgdText}</b><br><small>Actualización en vivo</small>`;
+                    const resultLine = showResult
+                        ? `<span style="color:#fff">Resultado: intensidad <b>${intensityText}</b></span>`
+                        : 'Resultado: en reposo';
+                    const popup = `<b>🇹🇼 Estación TREM · ${id}</b><br>${resultLine}<br>PGA: <b>${pgaText}</b><br>PGV: <b>${pgvText}</b><br>PGD: <b>${pgdText}</b><br><small>Paleta Japón · borde blanco si intensidad ≥ 0</small>`;
+                    const prevActive = meta._twWasActive === true;
+                    meta._twWasActive = showResult;
                     if (taiwanMarkers[id]) {
                         taiwanMarkers[id].options.tremBaseRadius = radius;
-                        taiwanMarkers[id].setStyle({ fillColor: color, color: '#1a1a1a', radius: radius, weight: 1.2, opacity: 1, fillOpacity: 0.92 });
+                        taiwanMarkers[id].setStyle({
+                            fillColor: color,
+                            color: showResult ? '#fff' : '#111',
+                            radius: radius,
+                            weight: showResult ? 2.5 : 1.2,
+                            opacity: 1,
+                            fillOpacity: 0.92
+                        });
                         taiwanMarkers[id].setPopupContent(popup);
+                        // Pulso blanco al pasar a intensidad ≥ 0 (como Yahoo Japón)
+                        if (showResult && !prevActive) taiwanStationPulseWhite(taiwanMarkers[id], true);
                     } else {
                         const m = L.circleMarker([meta.lat, meta.lon], {
                             radius: radius,
                             tremBaseRadius: radius,
                             fillColor: color,
-                            color: '#1a1a1a',
-                            weight: 1.2,
+                            color: showResult ? '#fff' : '#111',
+                            weight: showResult ? 2.5 : 1.2,
                             opacity: 1,
                             fillOpacity: 0.92,
                             pane: 'markerPane'
                         }).bindPopup(popup).addTo(taiwanStationsLayer);
                         taiwanMarkers[id] = m;
+                        if (showResult) taiwanStationPulseWhite(m, true);
                     }
                 });
 
@@ -8665,6 +9404,144 @@ global.TauPJS=api;
                 return { type:'FeatureCollection', features:[chosen] };
             } catch (_) { return null; }
         }
+        const chinaAdminDataPending = new Map();
+        const chinaAdminBoundaryPane = map.createPane('chinaAdminBoundaryPane');
+        chinaAdminBoundaryPane.style.zIndex = 412;
+        chinaAdminBoundaryPane.style.pointerEvents = 'none';
+        const chinaAdminBoundaryLayer = L.layerGroup().addTo(map);
+        let chinaAdminContextKey = '';
+        let chinaAdminContextGeneration = 0;
+
+        function chinaAdminClear() {
+            chinaAdminContextGeneration++;
+            chinaAdminContextKey = '';
+            try { chinaAdminBoundaryLayer.clearLayers(); } catch (_) {}
+        }
+        function chinaFeatureVisible(feature, bounds) {
+            const b = feature?.__bounds || geometryBounds(feature?.geometry);
+            if (!b || !bounds) return true;
+            return b.maxLat >= bounds.getSouth() && b.minLat <= bounds.getNorth() &&
+                b.maxLon >= bounds.getWest() && b.minLon <= bounds.getEast();
+        }
+        async function chinaAdminDataForCode(code) {
+            const key = String(code || '');
+            if (!key) return null;
+            if (chinaDataVCache[key]) return chinaDataVCache[key];
+            if (chinaAdminDataPending.has(key)) return chinaAdminDataPending.get(key);
+            const pending = (async () => {
+                const res = await fetch(`https://geo.datav.aliyun.com/areas_v3/bound/${key}_full.json`, { cache:'force-cache' });
+                if (!res.ok) throw new Error('DataV HTTP ' + res.status);
+                const data = await res.json();
+                if (!Array.isArray(data?.features)) throw new Error('DataV GeoJSON inválido');
+                prepareAdmin1Data(data);
+                chinaDataVCache[key] = data;
+                return data;
+            })();
+            chinaAdminDataPending.set(key, pending);
+            try { return await pending; } finally { chinaAdminDataPending.delete(key); }
+        }
+        async function chinaAdminFeaturesForEvent(ev, scope) {
+            let country = chinaDataVCache.country;
+            if (!country) {
+                const res = await fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json', { cache:'force-cache' });
+                if (!res.ok) throw new Error('DataV China HTTP ' + res.status);
+                country = prepareAdmin1Data(await res.json());
+                if (!Array.isArray(country?.features)) throw new Error('GeoJSON China inválido');
+                chinaDataVCache.country = country;
+            }
+            if (scope === 'province') return country.features || [];
+            const lat = Number(ev.lat), lon = Number(ev.lon);
+            if (ev._chinaAdminBrowse) {
+                const bounds = map.getBounds();
+                const center = map.getCenter();
+                const visibleProvinces = (country.features || []).filter(f => chinaFeatureVisible(f, bounds));
+                visibleProvinces.sort((a,b) => {
+                    const da = a.__bounds ? Math.hypot((a.__bounds.minLat+a.__bounds.maxLat)/2-center.lat, (a.__bounds.minLon+a.__bounds.maxLon)/2-center.lng) : 999;
+                    const db = b.__bounds ? Math.hypot((b.__bounds.minLat+b.__bounds.maxLat)/2-center.lat, (b.__bounds.minLon+b.__bounds.maxLon)/2-center.lng) : 999;
+                    return da-db;
+                });
+                const cityCollections = await Promise.all(visibleProvinces.slice(0,35).map(async f => {
+                    try { return await chinaAdminDataForCode(f.properties?.adcode); } catch (_) { return null; }
+                }));
+                const cities = cityCollections.flatMap(d => d?.features || []);
+                if (scope === 'city' || !cities.length) return cities;
+                const visibleCities = cities.filter(f => chinaFeatureVisible(f, bounds) && Number(f.properties?.childrenNum || 0) > 0);
+                visibleCities.sort((a,b) => {
+                    const da = a.__bounds ? Math.hypot((a.__bounds.minLat+a.__bounds.maxLat)/2-center.lat, (a.__bounds.minLon+a.__bounds.maxLon)/2-center.lng) : 999;
+                    const db = b.__bounds ? Math.hypot((b.__bounds.minLat+b.__bounds.maxLat)/2-center.lat, (b.__bounds.minLon+b.__bounds.maxLon)/2-center.lng) : 999;
+                    return da-db;
+                });
+                const countyCollections = await Promise.all(visibleCities.slice(0,8).map(async f => {
+                    try { return await chinaAdminDataForCode(f.properties?.adcode); } catch (_) { return null; }
+                }));
+                const counties = countyCollections.flatMap(d => d?.features || []);
+                return counties.length ? counties : cities;
+            }
+            const province = (country.features || []).find(f => f.geometry && geometryContainsPoint(lat, lon, f.geometry));
+            const provinceCode = province?.properties?.adcode;
+            if (!provinceCode) return [];
+            const cityData = await chinaAdminDataForCode(provinceCode);
+            const cities = cityData?.features || [];
+            if (scope === 'city') return cities;
+            const city = cities.find(f => f.geometry && geometryContainsPoint(lat, lon, f.geometry));
+            const cityCode = city?.properties?.adcode;
+            if (!cityCode || Number(city?.properties?.childrenNum || 0) === 0) return cities;
+            const countyData = await chinaAdminDataForCode(cityCode);
+            const counties = countyData?.features || [];
+            return counties.length ? counties : cities;
+        }
+        async function renderChinaAdminContext(ev) {
+            let contextEvent = ev;
+            const eventIso = contextEvent ? (geoBoundaryIsoForEvent(contextEvent) || countryISOForEvent(contextEvent)) : null;
+            let eventOnScreen = false;
+            if (contextEvent && eventIso === 'CHN') {
+                try { eventOnScreen = map.getBounds().contains([Number(contextEvent.lat), Number(contextEvent.lon)]); } catch (_) {}
+            }
+            const browseCenter = map.getCenter();
+            const browseChinaView = selectedRegion === 'CN' || (browseCenter.lat >= 17 && browseCenter.lat <= 54 && browseCenter.lng >= 72 && browseCenter.lng <= 135);
+            if (browseChinaView && (selectedRegion === 'CN' || !contextEvent || eventIso !== 'CHN' || !eventOnScreen)) {
+                contextEvent = { id:'__china_admin_browse__', agency:'CENC', lat:browseCenter.lat, lon:browseCenter.lng, _chinaAdminBrowse:true };
+            }
+            const iso = contextEvent ? (geoBoundaryIsoForEvent(contextEvent) || countryISOForEvent(contextEvent)) : null;
+            if (!contextEvent || iso !== 'CHN' || !Number.isFinite(Number(contextEvent.lat)) || !Number.isFinite(Number(contextEvent.lon))) {
+                if (chinaAdminContextKey) chinaAdminClear();
+                return;
+            }
+            const zoom = Number(map.getZoom()) || 3;
+            const cityDetailThreshold = 4.0;
+            const scope = zoom >= 7.2 ? 'county' : zoom >= cityDetailThreshold ? 'city' : 'province';
+            let viewKey = '';
+            try {
+                const b = map.getBounds();
+                viewKey = [b.getSouth(),b.getWest(),b.getNorth(),b.getEast()].map(n => Number(n).toFixed(2)).join(',');
+            } catch (_) {}
+            const key = `${contextEvent.id || contextEvent.ts}|${scope}|${viewKey}`;
+            if (key === chinaAdminContextKey) return;
+            chinaAdminContextKey = key;
+            const generation = ++chinaAdminContextGeneration;
+            try {
+                const features = await chinaAdminFeaturesForEvent(contextEvent, scope);
+                if (generation !== chinaAdminContextGeneration) return;
+                const bounds = map.getBounds();
+                const visible = features.filter(f => f?.geometry && chinaFeatureVisible(f, bounds));
+                chinaAdminBoundaryLayer.clearLayers();
+                if (!visible.length) return;
+                L.geoJSON({ type:'FeatureCollection', features:visible }, {
+                    pane:'chinaAdminBoundaryPane', interactive:false,
+                    style:{ color:scope === 'province' ? '#82909e' : '#c3ced8', weight:scope === 'county' ? 0.55 : 0.7, opacity:scope === 'province' ? 0.62 : 0.72, fillOpacity:0, fillColor:'transparent' }
+                }).addTo(chinaAdminBoundaryLayer);
+            } catch (_) {
+                if (generation === chinaAdminContextGeneration) {
+                    chinaAdminContextKey = '';
+                    chinaAdminBoundaryLayer.clearLayers();
+                }
+            }
+        }
+        map.on('moveend zoomend', () => {
+            const selected = events.find(e => String(e.id) === String(selectedEventId));
+            renderChinaAdminContext(selected);
+        });
+
         async function loadSmallestAdminBoundary(iso) {
             if (!iso) return null;
             // GeoBoundaries vuelve a ser la fuente general; ADM2 es el nivel principal.
@@ -8825,12 +9702,19 @@ global.TauPJS=api;
                 showRegionToast('No se pudieron asociar las áreas oficiales JMA; no se dibuja una estimación.');
                 return;
             }
-            // Un valor desconocido no justifica colorear la región por magnitud.
-            if (intensityText === '不明' || !Number.isFinite(Number(intensityView.numeric))) return;
+            // Si no hay intensidad numérica, aún se puede estimar por magnitud
+            // (Early-Est y otras agencias sin Shindo/MMI publicado).
+            const canEstimateFromMag = Number.isFinite(mag) && mag > 0;
+            if (intensityText === '不明' && !canEstimateFromMag) return;
+            if (!Number.isFinite(Number(intensityView.numeric)) && !canEstimateFromMag) return;
             const intensityIsRoman = /^(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII)([+−\-]?)$/.test(intensityText);
             const forcedOption = effectiveIntensityOptionForEvent(ev);
-            const regionColorScale = forcedOption === 'source' && intensityIsRoman ? 'MMI' : intensityScale;
-            const reportedIntensity = (ev.intensityEstimated || intensityView.estimated) ? NaN : Number(intensityView.numeric);
+            const regionColorScale = forcedOption === 'source' && intensityIsRoman ? 'MMI' : (intensityScale || 'MMI');
+            // Early-Est: la intensidad viene de magnitud → siempre estimar mapa
+            const isEarlyEst = /early-?est/i.test(String(ev.agency || ''));
+            const reportedIntensity = (ev.intensityEstimated || intensityView.estimated || isEarlyEst)
+                ? NaN
+                : Number(intensityView.numeric);
             const mapMax = /Shindo|CWA/i.test(regionColorScale) ? 7 : 12;
             const estimatedMmi = mmiEstimate?.numeric ?? (mag < 2.0 ? 1 : Math.min(12, Math.max(1, 0.8 + mag * 0.95 - depthKm * 0.008)));
             const estimatedDisplay = forcedOption === 'source' ? estimatedMmi : intensityTargetValueFromMmi(estimatedMmi, forcedOption);
@@ -9640,7 +10524,7 @@ global.TauPJS=api;
                     const areaIntensity = info.AreaIntensity ?? item.AreaIntensity;
                     const intensity = areaIntensity === undefined || areaIntensity === null || String(areaIntensity).trim() === '' ? magToMMI(mag) : String(areaIntensity).trim();
                     const place = String(ep.Location ?? item.ReportContent ?? item.Web ?? 'Taiwán').trim() || 'Taiwán';
-                    return { id: 'cwa-' + id, intensity, place, time: formatTime(ts), mag: magnitudeDisplay(mag), depth: Number.isFinite(depth) ? Math.abs(depth).toFixed(1) + ' km' : '—', agency: 'CWA Taiwán', lat, lon, ts, colorClass: intensityClass(intensity), reportConfidence: 'oficial', magnitudeType: magInfo.MagnitudeType ?? info.MagnitudeType ?? '', reportContent: item.ReportContent ?? item.Web ?? '' };
+                    return { id: 'cwa-' + id, intensity, place, time: formatTime(ts), mag: magnitudeDisplay(mag), depth: Number.isFinite(depth) ? Math.abs(depth).toFixed(1) + ' km' : '—', agency: 'CWA', lat, lon, ts, colorClass: intensityClass(intensity), reportConfidence: 'oficial', magnitudeType: magInfo.MagnitudeType ?? info.MagnitudeType ?? '', reportContent: item.ReportContent ?? item.Web ?? '' };
                 }).filter(validNormalizedEvent);
                 const deduped = [...new Map(events.map(ev => [ev.id, ev])).values()];
                 if (!deduped.length) throw new Error('CWA sin eventos válidos');
@@ -10091,7 +10975,7 @@ global.TauPJS=api;
                             place: String(p.loc || 'España'), time: formatTime(ts), mag: magnitudeDisplay(mag),
                             magnitudeType: String(p.magtype || '').trim(),
                             depth: Number.isFinite(rawDepth) ? Math.abs(rawDepth).toFixed(1) + ' km' : '—',
-                            agency: 'IGN España', ts, lat, lon,
+                            agency: 'IGN', ts, lat, lon,
                             colorClass: rawIntensity && rawIntensity !== 'S' ? intensityClass(rawIntensity) : 'int-1',
                             reportConfidence: 'oficial'
                         });
@@ -10157,7 +11041,7 @@ global.TauPJS=api;
                             time: formatTime(ts), mag: magnitudeDisplay(mag),
                             magnitudeType: String(f[9] || '').trim(),
                             depth: Number.isFinite(depth) ? Math.abs(depth).toFixed(1) + ' km' : '—',
-                            agency: 'INETER/CATAC', source: 'CATAC', ts, lat, lon,
+                            agency: 'INETER', source: 'CATAC', ts, lat, lon,
                             colorClass: 'int-1', reportConfidence: 'preliminar',
                             contributor: String(f[7] || 'CATAC').trim(), originAuthor: String(f[5] || '').trim()
                         };
@@ -10986,11 +11870,12 @@ global.TauPJS=api;
                     time: formatTime(ts),
                     mag: magnitudeDisplay(mag),
                     depth: Number.isFinite(depth) && depth >= 0 ? depth.toFixed(0) + ' km' : '—',
-                    agency: 'Early-Est / INGV',
+                    agency: 'Early-Est',
                     lat, lon,
                     colorClass: intensityClass(magToMMI(mag)),
                     ts,
-                    reportConfidence: 'preliminar'
+                    reportConfidence: 'preliminar',
+                    intensityEstimated: true
                 });
             }
             return list;
@@ -11060,11 +11945,12 @@ global.TauPJS=api;
                     time: formatTime(ts),
                     mag: magnitudeDisplay(mag),
                     depth: Number.isFinite(depthM) ? (Math.abs(depthM) / 1000).toFixed(0) + ' km' : '—',
-                    agency: 'Early-Est / INGV',
+                    agency: 'Early-Est',
                     lat, lon,
                     colorClass: intensityClass(magToMMI(mag)),
                     ts,
-                    reportConfidence: 'preliminar'
+                    reportConfidence: 'preliminar',
+                    intensityEstimated: true
                 });
             });
             return list;
@@ -11416,6 +12302,23 @@ global.TauPJS=api;
             showRegionToast(`⚠️ JMA: alerta temprana en ${place}`);
             try { if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 500]); } catch (_) {}
             speakAlert(`Alerta sísmica temprana de JMA. Magnitud ${mag}. Profundidad ${depth}. Epicentro ${place}.`, 'quakes', 'es-US');
+            // Telop estilo TV + panel EEW
+            try {
+                const eewEv = {
+                    id: 'jma-eew-' + key,
+                    agency: 'JMA EEW',
+                    place: place,
+                    mag: mag,
+                    depth: depth,
+                    intensity: data.MaxIntensity || '',
+                    ts: jmaEewReportTime(data) || Date.now(),
+                    reportConfidence: 'preliminar',
+                    isFinal: false
+                };
+                if (typeof window.showJmaTvText === 'function') window.showJmaTvText(eewEv);
+                else if (typeof window.updateJmaJapaneseText === 'function') window.updateJmaJapaneseText(eewEv, { liveUpdate:true, force:true });
+            } catch (_) {}
+            try { renderJmaEew(); } catch (_) {}
             if (typeof notificationsEnabled !== 'undefined' && notificationsEnabled && 'Notification' in window) {
                 try { new Notification('⚠️ JMA · Alerta temprana', { body: `Sismo en ${place}. Magnitud ${mag}`, tag: 'jma-eew-' + key }); } catch (_) {}
             }
@@ -12396,14 +13299,15 @@ global.TauPJS=api;
         const apiMetrics = {};
         const apiNames = [
             ['USGS','usgs'], ['JMA','jma'], ['CENC','cenc'],
-            ['CSN','csn'], ['IG-EPN','igepn'], ['ISC','isc'], ['IGP Perú','igp'],
-            ['EMSC','emsc'], ['IGN España','ign'], ['INETER/CATAC','ineterCatac'], ['FUNVISIS','funvisis'], ['GFZ','gfz'], ['BREQ','breq'], ['TREM','trem'], ['P-Alert','palert'],
+            ['CSN','csn'], ['IG-EPN','igepn'], ['ISC','isc'], ['IGP','igp'],
+            ['EMSC','emsc'], ['IGN','ign'], ['INETER','ineterCatac'], ['FUNVISIS','funvisis'], ['GFZ','gfz'], ['BREQ','breq'], ['TREM','trem'], ['P-Alert','palert'], ['Yahoo/NIED','yahooNied'],
             ['SSN','ssn'], ['AFAD','afad'],
             ['BMKG','bmkg'], ['GeoNet','geonet'], ['INGV','ingv'],
-            ['JMA EEW','jmaEew'], ['Mangxu','mangxuAll'], ['Mangxu · ShakeAlert EEW','shakeAlert'], ['Mangxu · CEA EEW','mangxuCeaEew'], ['Mangxu · CEA-PR EEW','mangxuCeaPrEew'], ['Mangxu · JMA EEW','mangxuJmaEew'], ['Mangxu · CWA EEW','mangxuCwaEew'], ['Volcanes','volcanoes'], ['Clima CO','weatherCo'], ['FSSN','fssn'], ['SED','sed'],
-            ['PHIVOLCS','phivolcs'], ['CWA Taiwán','cwa'],
-            ['Early-Est','earlyEst'], ['NOAA / NHC','nhc'], ['NWS','nws'], ['NOAA Tsunami','tsunami'], ['FAN Studio','typhoon'], ['HKO','hko'],
-            ['NOA','noa'], ['KOERI','koeri']
+            ['JMA EEW','jmaEew'], ['Mangxu','mangxuAll'], ['ShakeAlert EEW','shakeAlert'], ['CEA EEW','mangxuCeaEew'], ['CEA-PR EEW','mangxuCeaPrEew'], ['JMA EEW (Mx)','mangxuJmaEew'], ['CWA EEW','mangxuCwaEew'], ['Volcanes','volcanoes'], ['FSSN','fssn'], ['SED','sed'],
+            ['PHIVOLCS','phivolcs'], ['CWA','cwa'],
+            ['Early-Est','earlyEst'], ['GDACS','gdacs'], ['NHC','nhc'], ['NWS','nws'], ['NOAA','tsunami'], ['FAN Studio','typhoon'], ['HKO','hko'],
+            ['NOA','noa'], ['KOERI','koeri'],
+            ['RShake','rshake'], ['IDEAM','ideam'], ['UNGRD','ungrd']
         ];
 
         function ageLabel(timestamp) {
@@ -12428,6 +13332,11 @@ global.TauPJS=api;
             box.innerHTML = apiNames.map(([name,key]) => {
                 const s = apiState[key] || 'wait';
                 const m = apiMetrics[key] || {};
+                if (key === 'yahooNied') {
+                    const connected = !!m.lastSeen && (now - m.lastSeen < 15000);
+                    const label = connected ? 'Conectada' : 'Desconectada';
+                    return `<div class="conn-row"><span>${name}</span><span class="conn-right"><b class="${connected ? 'ok' : 'bad'}">${label}</b></span></div>`;
+                }
                 const httpConnected = key === 'jmaEew' && m.httpOk && (now - (m.httpLastSeen || 0) < 45000);
                 const wsAlive = m.wsState === 'activo' && (now - (m.lastSeen || 0) < 120000);
                 // Si ya hubo OK reciente, "updating"/"wait" no cuentan como caída
@@ -12787,6 +13696,7 @@ global.TauPJS=api;
             const preset = centers[selectedRegion] || centers.ALL;
             if (!taiwanMode && !hurricaneMode && !usAlertsMode && !tsunamiMode && !waveMode) setProgrammaticMapView(preset[0], preset[1]);
             renderEvents();
+            setTimeout(() => renderChinaAdminContext(events.find(ev => String(ev.id) === String(selectedEventId))), 120);
         });
         const alertCenterButton = document.getElementById('btnAlertCenter');
         if (alertCenterButton) alertCenterButton.addEventListener('click', () => {
@@ -12850,6 +13760,7 @@ global.TauPJS=api;
             if (!ev) return;
 
             selectedEventId = id;
+            try { renderChinaAdminContext(ev); } catch (_) {}
             try { renderIntensityLegend(ev); } catch (_) {}
             // Cargar solo el detalle administrativo del país del evento.
             ensureEventCountryDetail(ev);
@@ -14312,6 +15223,259 @@ global.TauPJS=api;
         setTimeout(updateIdigerTv, 25000);
         setInterval(updateIdigerTv, 120000);
 
+        // Limpia basura de lectores (Title:, Published Time, markdown)
+        function cleanCoGovLine(value) {
+            let t = String(value || '');
+            try { t = new DOMParser().parseFromString(t, 'text/html').body?.textContent || t; } catch (_) {}
+            t = t
+                .replace(/^\s*(?:Title|Título|Published Time|URL Source|Markdown Content|Warning)\s*:\s*/i, '')
+                .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+                .replace(/\[[^\]]*\]\([^)]*\)/g, '')
+                .replace(/(?:https?:\/\/|blob:)[^\s)]+/gi, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+            if (/^(title|título|published time|url source|markdown content)$/i.test(t)) return '';
+            if (t.length < 25) return '';
+            return t.slice(0, 220);
+        }
+        function extractCoHeadlines(body, pattern, maxN) {
+            const raw = String(body || '');
+            const chunks = raw.split(/\n|\r|•|·|\|/).map(cleanCoGovLine).filter(Boolean);
+            const hit = chunks.filter(x => pattern.test(x) && !/^menu|cookie|javascript|iniciar sesión/i.test(x));
+            return [...new Set(hit)].slice(0, maxN || 4);
+        }
+
+        // —— IDEAM · noticias / alertas (páginas que sí responden) ——
+        async function updateIdeamAlerts() {
+            try {
+                const urls = [
+                    'https://www.ideam.gov.co/sala-de-prensa/noticias',
+                    'https://www.ideam.gov.co/nuestra-entidad/servicio-de-pronosticos-y-alertas',
+                    'https://www.ideam.gov.co/'
+                ];
+                let body = '', found = [];
+                for (const u of urls) {
+                    try {
+                        body = await readerText(u);
+                        if (!body || body.length < 120) continue;
+                        found = extractCoHeadlines(body,
+                            /alerta|aviso|lluvia|precipit|inundaci|deslizamiento|tormenta|vendaval|sequ[ií]a|incendio|hidrometeor|pron[oó]stico|IDEAM/i, 5);
+                        if (found.length) break;
+                    } catch (_) {}
+                }
+                // Respaldo: Open-Meteo no es IDEAM, pero confirma que hay red y da contexto CO
+                if (!found.length) {
+                    try {
+                        const wx = await fetch('https://api.open-meteo.com/v1/forecast?latitude=4.65&longitude=-74.05&current=temperature_2m,precipitation,weather_code&timezone=America%2FBogota', { cache:'no-store' });
+                        if (wx.ok) {
+                            const j = await wx.json();
+                            const c = j.current || {};
+                            found = [`Bogotá · ${c.temperature_2m ?? '—'}°C · precipitación ${c.precipitation ?? 0} mm (contexto Open-Meteo; IDEAM web no devolvió titulares)`];
+                            setApiState('ideam', 'stale', 1);
+                            setTickerItem('ideam', 'IDEAM · Alertas', found[0], false);
+                            return;
+                        }
+                    } catch (_) {}
+                }
+                if (!body && !found.length) throw new Error('ideam');
+                const text = found.length
+                    ? found.join('  |  ')
+                    : 'Sin titular de alerta hidrometeorológica en la consulta IDEAM.';
+                setTickerItem('ideam', 'IDEAM · Alertas', text, found.length > 0 && !/Open-Meteo/i.test(text));
+                setApiState('ideam', 'ok', found.length);
+            } catch (_) {
+                setTickerItem('ideam', 'IDEAM · Alertas', 'No se pudo consultar IDEAM en este momento.');
+                setApiState('ideam', 'bad');
+            }
+        }
+        setTimeout(() => { try { updateIdeamAlerts(); } catch (_) {} }, 12000);
+        setInterval(() => { try { updateIdeamAlerts(); } catch (_) {} }, 6 * 60 * 1000);
+
+        // —— UNGRD · Datos Abiertos + polígonos por departamento (estilo NWS) ——
+        let ungrdLayer = null;
+        let ungrdDeptGeo = null; // FeatureCollection ADM1 Colombia
+        let ungrdData = [];
+        async function ensureUngrdDeptGeo() {
+            if (ungrdDeptGeo?.features?.length) return ungrdDeptGeo;
+            const urls = [
+                'https://www.geoboundaries.org/api/current/gbOpen/COL/ADM1/',
+                null
+            ];
+            // 1) geoBoundaries metadata → geojson
+            try {
+                const meta = await fetch(urls[0], { cache: 'force-cache' }).then(r => r.ok ? r.json() : null);
+                const gj = meta?.simplifiedGeometryGeoJSON || meta?.gjDownloadURL;
+                if (gj) {
+                    const data = await fetch(gj, { cache: 'force-cache', mode: 'cors' }).then(r => r.ok ? r.json() : null);
+                    if (data?.features?.length) {
+                        ungrdDeptGeo = data;
+                        return ungrdDeptGeo;
+                    }
+                }
+            } catch (_) {}
+            // 2) Natural Earth admin-1 filtrado a Colombia
+            try {
+                const res = await fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson', { cache: 'force-cache', mode: 'cors' });
+                if (res.ok) {
+                    const world = await res.json();
+                    const feats = (world.features || []).filter(f => {
+                        const p = f.properties || {};
+                        const a3 = String(p.adm0_a3 || p.ADM0_A3 || p.iso_a3 || '').toUpperCase();
+                        const name = String(p.admin || p.ADMIN || p.name || '');
+                        return a3 === 'COL' || /colombia/i.test(name);
+                    });
+                    if (feats.length) {
+                        ungrdDeptGeo = { type: 'FeatureCollection', features: feats };
+                        return ungrdDeptGeo;
+                    }
+                }
+            } catch (_) {}
+            return null;
+        }
+        function normDeptName(s) {
+            return String(s || '')
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .toUpperCase()
+                .replace(/\b(DEPARTAMENTO|DEPT|DPT|DEL|DE LA|DE LOS|DE LAS|DE)\b/g, ' ')
+                .replace(/[^A-Z0-9]+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+        function ungrdEventColor(evento) {
+            const e = String(evento || '').toUpperCase();
+            if (/INUND|AVENIDA|CRECIENTE|LLUVIA|HIDRO/.test(e)) return '#1e90ff';
+            if (/MOVIMIENTO EN MASA|DESLIZ|REMOCI[OÓ]N|DERRUMBE/.test(e)) return '#ff8c00';
+            if (/INCENDIO|FUEGO|FORESTAL/.test(e)) return '#ff3b30';
+            if (/SISMO|TEMBLOR|S[EÉ]ISM/.test(e)) return '#bf5af2';
+            if (/VENDOR|VIENTO|TORMENTA|GRANIZ/.test(e)) return '#ffd60a';
+            if (/VOLC/.test(e)) return '#ff2d55';
+            if (/ACCIDENTE|TRANSPORTE/.test(e)) return '#8e8e93';
+            return '#ffcc00';
+        }
+        function featureDeptName(f) {
+            const p = f.properties || {};
+            return p.shapeName || p.name || p.NAME_1 || p.name_1 || p.NAME || p.admin || p.ADM1_ES || p.departamento || '';
+        }
+        function renderUngrdMap(rows) {
+            try {
+                if (!ungrdLayer) ungrdLayer = L.layerGroup().addTo(map);
+                ungrdLayer.clearLayers();
+            } catch (_) { return; }
+            if (!ungrdDeptGeo?.features?.length || !rows?.length) return;
+            // Agrupar por departamento (último evento gana el color)
+            const byDept = new Map();
+            rows.forEach(r => {
+                const key = normDeptName(r.departamento);
+                if (!key) return;
+                byDept.set(key, r);
+            });
+            ungrdDeptGeo.features.forEach(f => {
+                const fname = normDeptName(featureDeptName(f));
+                if (!fname) return;
+                let match = null;
+                for (const [k, row] of byDept) {
+                    if (fname === k || fname.includes(k) || k.includes(fname)) { match = row; break; }
+                }
+                if (!match) return;
+                const color = ungrdEventColor(match.evento);
+                try {
+                    L.geoJSON(f, {
+                        interactive: true,
+                        style: {
+                            color: '#fff',
+                            weight: 1.5,
+                            opacity: 0.9,
+                            fillColor: color,
+                            fillOpacity: 0.28
+                        },
+                        onEachFeature: function (_feat, layer) {
+                            const fecha = String(match.fecha || '').slice(0, 10);
+                            layer.bindPopup(
+                                `<b>🇨🇴 UNGRD</b><br>` +
+                                `<b>${match.evento || 'Evento'}</b><br>` +
+                                `${match.municipio || '—'}, ${match.departamento || '—'}<br>` +
+                                `Fecha: ${fecha || '—'}<br>` +
+                                `<small>Polígono = departamento (no hay geometría oficial del aviso)</small>`
+                            );
+                        }
+                    }).addTo(ungrdLayer);
+                } catch (_) {}
+            });
+        }
+        function ungrdFechaMs(fecha) {
+            const t = Date.parse(String(fecha || '').slice(0, 10) + 'T12:00:00Z');
+            return Number.isFinite(t) ? t : 0;
+        }
+        async function updateUngrdAlerts() {
+            try {
+                const found = [];
+                const rows = [];
+                // Solo emergencias recientes (últimos 45 días). El dataset
+                // datos.gov.co "2023-2024" es histórico y NO se actualiza en vivo.
+                const maxAgeMs = 45 * 24 * 60 * 60 * 1000;
+                const now = Date.now();
+                try {
+                    const apiUrl = 'https://www.datos.gov.co/resource/rgre-6ak4.json?$limit=80&$order=fecha DESC';
+                    const res = await fetch(apiUrl, { cache: 'no-store' });
+                    if (res.ok) {
+                        const data = await res.json();
+                        (Array.isArray(data) ? data : []).forEach(r => {
+                            const dep = String(r.departamento || '').trim();
+                            const mun = String(r.municipio || '').trim();
+                            const ev = String(r.evento || '').trim();
+                            const fecha = String(r.fecha || '').slice(0, 10);
+                            if (!ev) return;
+                            const ts = ungrdFechaMs(fecha);
+                            if (!ts || (now - ts) > maxAgeMs) return; // descarta 2024 y más viejo
+                            rows.push({ departamento: dep, municipio: mun, evento: ev, fecha, raw: r });
+                            const line = cleanCoGovLine([fecha, dep, mun, ev].filter(Boolean).join(' · '));
+                            if (line) found.push(line);
+                        });
+                    }
+                } catch (_) {}
+                // Noticias del portal (más actuales que el dataset histórico)
+                try {
+                    const urls = [
+                        'https://portal.gestiondelriesgo.gov.co/Paginas/Noticias.aspx',
+                        'https://portal.gestiondelriesgo.gov.co/'
+                    ];
+                    for (const u of urls) {
+                        try {
+                            const body = await readerText(u);
+                            const extra = extractCoHeadlines(body,
+                                /emergencia|alerta|evacuaci|desastre|inundaci|deslizamiento|sismo|volc|incendio|UNGRD|riesgo/i, 5);
+                            extra.forEach(x => { if (!found.includes(x)) found.push(x); });
+                            if (found.length >= 4) break;
+                        } catch (_) {}
+                    }
+                } catch (_) {}
+                ungrdData = rows;
+                // Polígonos solo con filas recientes (no pintar 2024)
+                try {
+                    if (rows.length) {
+                        await ensureUngrdDeptGeo();
+                        renderUngrdMap(rows.slice(0, 25));
+                    } else if (typeof ungrdLayer !== 'undefined' && ungrdLayer) {
+                        ungrdLayer.clearLayers();
+                    }
+                } catch (_) {}
+                if (!found.length && !rows.length) {
+                    setTickerItem('ungrd', 'UNGRD · Emergencias',
+                        'Sin emergencias recientes (≤45 días). El archivo datos.gov.co es histórico 2023–2024.');
+                    setApiState('ungrd', 'stale', 0);
+                    return;
+                }
+                const text = (found.length ? found : rows.map(r => `${r.fecha} · ${r.departamento} · ${r.evento}`)).slice(0, 5).join('  |  ');
+                setTickerItem('ungrd', 'UNGRD · Emergencias', text, rows.length > 0);
+                setApiState('ungrd', 'ok', rows.length || found.length);
+            } catch (_) {
+                setTickerItem('ungrd', 'UNGRD · Emergencias', 'No se pudo consultar UNGRD / datos.gov.co en este momento.');
+                setApiState('ungrd', 'bad');
+            }
+        }
+        setTimeout(() => { try { updateUngrdAlerts(); } catch (_) {} }, 8000);
+        setInterval(() => { try { updateUngrdAlerts(); } catch (_) {} }, 8 * 60 * 1000);
+
         async function updateTickerPower() {
             try {
                 const text = (await readerText('https://www.enel.com.co/es/personas/mantenimientos-programados.html')).replace(/\s+/g, ' ');
@@ -14679,7 +15843,7 @@ global.TauPJS=api;
             const previousLatestId = [...events]
                 .sort((a, b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0))[0]?.id || null;
             try {
-                const [usgs, jma, jmaXml, cenc, csn, igepn, isc, igp, emsc, ign, ineterCatac, funvisis, gfz, breq, afad, bmkg, geonet, ingv, ssn, fssn, sed, phivolcs, cwa, earlyEst, hko, noa, koeri, mangxuAll, shakeAlert, mangxuCeaEew, mangxuCeaPrEew, mangxuJmaEew, mangxuCwaEew] = await Promise.all([
+                const [usgs, jma, jmaXml, cenc, csn, igepn, isc, igp, emsc, ign, ineterCatac, funvisis, gfz, breq, afad, bmkg, geonet, ingv, ssn, fssn, sed, phivolcs, cwa, earlyEst, hko, noa, koeri, mangxuAll, shakeAlert, mangxuCeaEew, mangxuCeaPrEew, mangxuJmaEew, mangxuCwaEew, gdacsEq] = await Promise.all([
                     timedApi('usgs', incrementalAgency('usgs', fetchUSGS)),
                     timedApi('jma', incrementalAgency('jma', fetchWolfxJMA)),
                     timedApi('jmaXml', incrementalAgency('jmaXml', fetchJmaOfficial)),
@@ -14712,7 +15876,8 @@ global.TauPJS=api;
                     timedApi('mangxuCeaEew', incrementalAgency('mangxuCeaEew', fetchMangxuCeaEew)),
                     timedApi('mangxuCeaPrEew', incrementalAgency('mangxuCeaPrEew', fetchMangxuCeaPrEew)),
                     timedApi('mangxuJmaEew', incrementalAgency('mangxuJmaEew', fetchMangxuJmaEew)),
-                    timedApi('mangxuCwaEew', incrementalAgency('mangxuCwaEew', fetchMangxuCwaEew))
+                    timedApi('mangxuCwaEew', incrementalAgency('mangxuCwaEew', fetchMangxuCwaEew)),
+                    timedApi('gdacs', incrementalAgency('gdacs', fetchGdacsEarthquakes))
                 ]);
 
                 const sourceCounts = { usgs: usgs.length, jma: jma.length, jmaXml: jmaXml.length, cenc: cenc.length,
@@ -14733,7 +15898,7 @@ global.TauPJS=api;
                         apiMetrics[key].latestEventTs = latest;
                     }
                 });
-                let newEvents = [...usgs, ...jma, ...jmaXml, ...cenc, ...csn, ...igepn, ...isc, ...igp, ...emsc, ...ign, ...ineterCatac, ...funvisis, ...gfz, ...breq, ...afad, ...bmkg, ...geonet, ...ingv, ...ssn, ...fssn, ...sed, ...phivolcs, ...cwa, ...earlyEst, ...hko, ...noa, ...koeri, ...mangxuAll, ...shakeAlert, ...mangxuCeaEew, ...mangxuCeaPrEew, ...mangxuJmaEew, ...mangxuCwaEew].filter(ev => !/JMA[\s_-]*EEW/i.test(String(ev.agency || '')));
+                let newEvents = [...usgs, ...jma, ...jmaXml, ...cenc, ...csn, ...igepn, ...isc, ...igp, ...emsc, ...ign, ...ineterCatac, ...funvisis, ...gfz, ...breq, ...afad, ...bmkg, ...geonet, ...ingv, ...ssn, ...fssn, ...sed, ...phivolcs, ...cwa, ...earlyEst, ...hko, ...noa, ...koeri, ...mangxuAll, ...shakeAlert, ...mangxuCeaEew, ...mangxuCeaPrEew, ...mangxuJmaEew, ...mangxuCwaEew, ...(typeof gdacsEq !== 'undefined' ? gdacsEq : [])].filter(ev => !/JMA[\s_-]*EEW/i.test(String(ev.agency || '')));
                 const now = Date.now();
                 // IDs are authoritative within each feed.  JMA's official XML
                 // also republishes events already present in the JMA catalog.
@@ -14833,7 +15998,10 @@ global.TauPJS=api;
                             const ag = String(ev.agency || ev.source || '');
                             const isJma = /jma|wolfx/i.test(ag);
                             const isEewLive = /eew/i.test(ag) && !ev.isFinal;
-                            const telopChanged = !previous ||
+                            const prevMag = parseFloat(String(previous?.mag ?? '').replace(/[^\d.]/g, ''));
+                            const curMag = parseFloat(String(ev.mag ?? '').replace(/[^\d.]/g, ''));
+                            const crossedM5 = Number.isFinite(curMag) && curMag >= 5 && (!Number.isFinite(prevMag) || prevMag < 5);
+                            const telopChanged = !previous || crossedM5 ||
                                 String(previous.mag) !== String(ev.mag) ||
                                 String(previous.intensity) !== String(ev.intensity) ||
                                 String(previous.depth) !== String(ev.depth) ||
@@ -14841,8 +16009,24 @@ global.TauPJS=api;
                                 String(previous.reportConfidence || previous.confidence || '') !== String(ev.reportConfidence || ev.confidence || '') ||
                                 String(!!previous.tsunami) !== String(!!ev.tsunami) ||
                                 String(!!previous.isFinal) !== String(!!ev.isFinal);
-                            if (telopChanged && !(isJma && isEewLive) && typeof window.updateJmaJapaneseText === 'function') {
-                                window.updateJmaJapaneseText(ev, { liveUpdate: true });
+                            const isEewAgency = /eew|shakealert/i.test(ag);
+                            if (telopChanged && typeof window.updateJmaJapaneseText === 'function') {
+                                // EEW en vivo también muestra telop; M5+ con force
+                                if (!(isJma && isEewLive) || isEewAgency) {
+                                    const forceStrong = (Number.isFinite(curMag) && curMag >= 5.0) || isEewAgency;
+                                    window.updateJmaJapaneseText(ev, { liveUpdate: true, force: forceStrong });
+                                }
+                            }
+                            // Respaldo: M5+ o EEW no-JMA
+                            if ((Number.isFinite(curMag) && curMag >= 5.0 && !isJma || isEewAgency && !isJma) && (isNew || telopChanged)) {
+                                try {
+                                    if (typeof window.showStrongTvText === 'function') {
+                                        const age = Date.now() - (Number(ev.ts) || 0);
+                                        if (age >= -120000 && age <= 2 * 60 * 60 * 1000) {
+                                            window.showStrongTvText(ev);
+                                        }
+                                    }
+                                } catch (_) {}
                             }
                         } catch (_) {}
                     });
@@ -14916,6 +16100,21 @@ global.TauPJS=api;
                         renderEvents();
                 renderHeatmap();
                 renderAlertCenter();
+                // Al iniciar o recargar, no perder un sismo JMA vigente por haber
+                // llegado dentro de la primera carga del feed (sin reciclar antiguos).
+                setTimeout(() => {
+                    try {
+                        const freshJma = [...events].filter(ev => {
+                            const agency = String(ev?.agency || ev?.source || '');
+                            if (!/jma|wolfx/i.test(agency)) return false;
+                            if (/eew/i.test(agency) && ev.isFinal !== true && !/final|confirmado/i.test(String(ev.reportConfidence || ev.confidence || ''))) return false;
+                            const origin = parseTs(ev.ts) || parseTs(ev.originTime) || parseTs(ev.time);
+                            const age = Date.now() - origin;
+                            return origin > 0 && age >= 0 && age <= 2 * 60 * 1000;
+                        }).sort((a,b) => (parseTs(b.ts)||parseTs(b.originTime)||parseTs(b.time)||0) - (parseTs(a.ts)||parseTs(a.originTime)||parseTs(a.time)||0))[0];
+                        if (freshJma && typeof window.updateJmaJapaneseText === 'function') window.updateJmaJapaneseText(freshJma, { liveUpdate:true });
+                    } catch (_) {}
+                }, 150);
 
                 const latestNow = [...events]
                     .sort((a, b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0))[0];
@@ -14961,7 +16160,6 @@ global.TauPJS=api;
             if (!layout) return;
             const btn = document.getElementById('btnFaults');
             try { playUiSound('success'); } catch (_) {}
-            try { requestQuakeNotificationPermission(); } catch (_) {}
 
             // Solo el mismo botón puede soltar el modo fijado; alertas y sismos no.
             if (japanLiveStationsPinned) {
@@ -15107,6 +16305,368 @@ global.TauPJS=api;
         setInterval(loadHurricanes, 5 * 60 * 1000);
         loadUsAlerts();
         setInterval(loadUsAlerts, 2 * 60 * 1000);
+
+        // ========== GDACS · alertas globales ==========
+        let gdacsMode = false;
+        let gdacsLayer = L.layerGroup().addTo(map);
+        let gdacsData = [];
+        let gdacsEqCache = [];
+        let gdacsGeomCache = new Map();
+
+        function gdacsColor(level) {
+            const L = String(level || '').toLowerCase();
+            if (L === 'red') return '#ff1744';
+            if (L === 'orange') return '#ff9100';
+            return '#66bb6a';
+        }
+        function gdacsTypeLabel(t) {
+            return ({ EQ:'Terremoto', TC:'Ciclón tropical', FL:'Inundación', VO:'Volcán', DR:'Sequía', WF:'Incendio' })[String(t||'').toUpperCase()] || String(t||'Evento');
+        }
+        function gdacsAlertLevelEs(level) {
+            const L = String(level || '').toLowerCase();
+            if (L === 'red') return 'roja';
+            if (L === 'orange') return 'naranja';
+            if (L === 'green') return 'verde';
+            return level || 'desconocido';
+        }
+        function gdacsSpeechSpanish(feature) {
+            const p = (feature && feature.properties) || feature || {};
+            const type = gdacsTypeLabel(p.eventtype);
+            const level = gdacsAlertLevelEs(p.alertlevel || p.episodealertlevel);
+            const name = String(p.name || p.description || p.htmldescription || 'evento global')
+                .replace(/Green |Orange |Red /gi, '')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 120);
+            const country = String(p.country || p.iso3 || '').trim();
+            let mag = '';
+            try {
+                const sev = p.severitydata;
+                if (sev && Number.isFinite(Number(sev.severity)) && /M/i.test(String(sev.severityunit || 'M'))) {
+                    mag = ` Magnitud ${sev.severity}.`;
+                } else {
+                    const m = String(p.htmldescription || name).match(/\bM\s*([0-9]+(?:\.[0-9]+)?)/i);
+                    if (m) mag = ` Magnitud ${m[1]}.`;
+                }
+            } catch (_) {}
+            const where = country ? ` en ${country}` : '';
+            // Todo en español para TTS
+            return `Alerta GDACS. ${type}${where}. Nivel ${level}.${mag} ${name}. Consulta el informe oficial de GDACS.`;
+        }
+        function gdacsParseMag(p) {
+            const sev = p?.severitydata;
+            if (sev && Number.isFinite(Number(sev.severity)) && /M/i.test(String(sev.severityunit||'M')))
+                return Number(sev.severity);
+            const m = String(p?.htmldescription || p?.description || p?.name || '').match(/\bM\s*([0-9]+(?:\.[0-9]+)?)/i);
+            return m ? Number(m[1]) : NaN;
+        }
+        function gdacsParseDepth(p) {
+            const sev = p?.severitydata;
+            if (sev && /depth/i.test(String(sev.severitytext||''))) {
+                const m = String(sev.severitytext).match(/Depth\s*:?\s*([0-9]+(?:\.[0-9]+)?)\s*km/i);
+                if (m) return Number(m[1]);
+            }
+            const m = String(p?.htmldescription || '').match(/Depth\s*:?\s*([0-9]+(?:\.[0-9]+)?)/i);
+            return m ? Number(m[1]) : NaN;
+        }
+        function gdacsParseTs(p) {
+            const raw = p?.fromdate || p?.datemodified || '';
+            const t = Date.parse(raw);
+            return Number.isFinite(t) ? t : Date.now();
+        }
+        function gdacsFeatureToQuake(feature) {
+            const p = feature.properties || {};
+            if (String(p.eventtype || '').toUpperCase() !== 'EQ') return null;
+            const coords = feature.geometry?.coordinates;
+            const lon = Number(Array.isArray(coords) ? coords[0] : NaN);
+            const lat = Number(Array.isArray(coords) ? coords[1] : NaN);
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+            const mag = gdacsParseMag(p);
+            if (!Number.isFinite(mag) || mag < 4.5) return null; // solo sismos relevantes GDACS
+            const depth = gdacsParseDepth(p);
+            const ts = gdacsParseTs(p);
+            const id = `gdacs-eq-${p.eventid}-${p.episodeid || 0}`;
+            const place = String(p.name || p.description || 'GDACS').replace(/^Earthquake in\s*/i, '') || 'GDACS';
+            const level = p.alertlevel || p.episodealertlevel || 'Green';
+            return {
+                id,
+                intensity: typeof magToMMI === 'function' ? magToMMI(mag) : Math.min(12, Math.round(mag)),
+                place: place + (p.country ? ` · ${p.country}` : ''),
+                time: typeof formatTime === 'function' ? formatTime(ts) : new Date(ts).toISOString(),
+                mag: typeof magnitudeDisplay === 'function' ? magnitudeDisplay(mag) : ('M' + mag),
+                magnitudeDisplay: typeof magnitudeDisplay === 'function' ? magnitudeDisplay(mag) : ('M' + mag),
+                depth: Number.isFinite(depth) ? depth.toFixed(0) + ' km' : '—',
+                agency: 'GDACS',
+                source: 'GDACS',
+                lat, lon, ts,
+                colorClass: typeof intensityClass === 'function' ? intensityClass(typeof magToMMI === 'function' ? magToMMI(mag) : mag) : '',
+                reportConfidence: 'GDACS ' + level,
+                gdacsAlertLevel: level,
+                gdacsUrl: (p.url && p.url.report) || `https://www.gdacs.org/report.aspx?eventid=${p.eventid}&eventtype=EQ`,
+                tsunami: false
+            };
+        }
+        async function fetchGdacsJson(url) {
+            const proxies = [
+                url,
+                'https://corsproxy.io/?' + encodeURIComponent(url),
+                'https://api.allorigins.win/raw?url=' + encodeURIComponent(url)
+            ];
+            for (const u of proxies) {
+                try {
+                    const res = await fetch(u, { cache: 'no-store' });
+                    if (!res.ok) continue;
+                    const data = await res.json();
+                    if (data) return data;
+                } catch (_) {}
+            }
+            return null;
+        }
+        async function fetchGdacsGeometry(feature) {
+            const p = feature.properties || {};
+            const key = `${p.eventtype}-${p.eventid}-${p.episodeid}`;
+            if (gdacsGeomCache.has(key)) return gdacsGeomCache.get(key);
+            const geomUrl = p.url && p.url.geometry;
+            if (!geomUrl) {
+                gdacsGeomCache.set(key, feature);
+                return feature;
+            }
+            try {
+                const data = await fetchGdacsJson(geomUrl);
+                if (data && Array.isArray(data.features) && data.features.length) {
+                    gdacsGeomCache.set(key, data);
+                    return data;
+                }
+            } catch (_) {}
+            gdacsGeomCache.set(key, feature);
+            return feature;
+        }
+        function renderGdacsPanel(list) {
+            const info = document.getElementById('gdacsInfo');
+            const status = document.getElementById('gdacsStatus');
+            const title = document.getElementById('gdacsTopTitle');
+            if (!info || !status) return;
+            if (!list.length) {
+                status.textContent = '● Sin alertas';
+                status.style.color = '#8bd8ff';
+                info.innerHTML = 'GDACS no reporta alertas activas en este momento.';
+                if (title) title.textContent = 'GDACS · Alertas globales';
+                return;
+            }
+            status.textContent = `● ${list.length} alerta${list.length > 1 ? 's' : ''}`;
+            status.style.color = '#ffb4a8';
+            if (title) title.textContent = `GDACS · ${list.length} alerta${list.length > 1 ? 's' : ''}`;
+            const rank = { Red:3, Orange:2, Green:1 };
+            const ordered = [...list].sort((a,b) => (rank[b.properties?.alertlevel]||0) - (rank[a.properties?.alertlevel]||0));
+            info.innerHTML = ordered.slice(0, 40).map(f => {
+                const p = f.properties || {};
+                const color = gdacsColor(p.alertlevel);
+                const type = gdacsTypeLabel(p.eventtype);
+                const report = (p.url && p.url.report) || '';
+                const when = p.fromdate ? String(p.fromdate).replace('T',' ').slice(0,16) : '—';
+                return `<div class="gdacs-item"><strong style="color:${color}">${type} · ${p.alertlevel || '—'}</strong><br>${p.name || p.description || 'Evento GDACS'}<br>País: ${p.country || p.iso3 || '—'} · Desde: ${when}${p.htmldescription ? `<br>${String(p.htmldescription).slice(0,160)}` : ''}${report ? `<br><a href="${report}" target="_blank" rel="noopener">Informe GDACS</a>` : ''}</div>`;
+            }).join('');
+        }
+        async function renderGdacsMap(list) {
+            try { gdacsLayer.clearLayers(); } catch (_) {}
+            const rank = { Red:3, Orange:2, Green:1 };
+            const prioritized = [...list].filter(f => f && f.properties).sort((a,b) => (rank[b.properties.alertlevel]||0) - (rank[a.properties.alertlevel]||0)).slice(0, 25);
+            // Cargar geometrías (prioriza Rojo/Naranja)
+            for (const feature of prioritized) {
+                const p = feature.properties || {};
+                const color = gdacsColor(p.alertlevel || p.episodealertlevel);
+                let geomData = feature;
+                try {
+                    if (p.alertlevel === 'Red' || p.alertlevel === 'Orange' || prioritized.indexOf(feature) < 12) {
+                        geomData = await fetchGdacsGeometry(feature);
+                    }
+                } catch (_) {}
+                try {
+                    const collection = geomData.features ? geomData : { type:'FeatureCollection', features:[feature] };
+                    L.geoJSON(collection, {
+                        style: function (feat) {
+                            const t = feat.geometry && feat.geometry.type;
+                            if (t === 'LineString' || t === 'MultiLineString') {
+                                return { color, weight: 2.5, opacity: 0.85 };
+                            }
+                            return { color: '#fff', weight: 1.2, fillColor: color, fillOpacity: 0.22, opacity: 0.9 };
+                        },
+                        pointToLayer: function (feat, latlng) {
+                            return L.circleMarker(latlng, {
+                                radius: 7, color: '#111', weight: 1, fillColor: color, fillOpacity: 0.9
+                            });
+                        },
+                        onEachFeature: function (feat, layer) {
+                            const pp = feat.properties || p;
+                            const report = (pp.url && pp.url.report) || (p.url && p.url.report) || '';
+                            layer.bindPopup(
+                                `<b>🌍 GDACS · ${gdacsTypeLabel(pp.eventtype || p.eventtype)}</b><br>` +
+                                `<span style="color:${color}"><b>${pp.alertlevel || p.alertlevel || '—'}</b></span><br>` +
+                                `${pp.name || p.name || 'Evento'}<br>` +
+                                `País: ${pp.country || p.country || '—'}<br>` +
+                                (report ? `<a href="${report}" target="_blank" rel="noopener">Informe oficial</a>` : '')
+                            );
+                        }
+                    }).addTo(gdacsLayer);
+                } catch (_) {}
+            }
+        }
+        let gdacsInitialized = false;
+        let gdacsSignature = '';
+        let gdacsSeenKeys = new Set();
+        let gdacsAutoCloseTimer = null;
+
+        function openGdacsApartado(focusFeature) {
+            try {
+                gdacsMode = true;
+                const layout = document.getElementById('mainLayout');
+                const panel = document.getElementById('gdacsPanel');
+                const topbar = document.getElementById('gdacsTopbar');
+                try { deactivateWaveMode?.(); } catch (_) {}
+                hurricaneMode = false; usAlertsMode = false; taiwanMode = false; tsunamiMode = false;
+                layout?.classList.remove('hurricane-focus', 'taiwan-focus', 'tsunami-focus', 'us-alerts-focus', 'typhoon-focus');
+                document.getElementById('usAlertsPanel')?.classList.remove('us-alerts-active');
+                document.getElementById('usAlertsTopbar')?.classList.remove('us-alerts-top-active');
+                try { usAlertsLayer.clearLayers(); } catch (_) {}
+                document.getElementById('hurricanePanel')?.classList.remove('hurricane-active');
+                document.getElementById('hurricaneTopbar')?.classList.remove('hurricane-top-active');
+                try { hurricaneLayer.clearLayers(); typhoonLayer.clearLayers(); tsunamiLayer.clearLayers(); } catch (_) {}
+                layout?.classList.add('gdacs-focus');
+                panel?.classList.add('gdacs-active');
+                topbar?.classList.add('gdacs-top-active');
+                try { clearMarkers(); } catch (_) {}
+                if (intensityZonesLayer) { try { map.removeLayer(intensityZonesLayer); } catch(_) {} intensityZonesLayer = null; }
+                map.invalidateSize({ pan:false });
+                renderGdacsPanel(gdacsData);
+                renderGdacsMap(gdacsData);
+                if (focusFeature) {
+                    try {
+                        const b = L.geoJSON(focusFeature).getBounds();
+                        if (b.isValid()) map.fitBounds(b.pad(0.5), { maxZoom: 6 });
+                        else {
+                            const c = focusFeature.geometry?.coordinates;
+                            if (Array.isArray(c) && Number.isFinite(c[0])) map.setView([c[1], c[0]], 4);
+                        }
+                    } catch (_) { try { map.setView([20, 0], 2); } catch (_) {} }
+                }
+                showRegionToast('🌍 GDACS · nueva alerta global');
+                if (gdacsAutoCloseTimer) clearTimeout(gdacsAutoCloseTimer);
+                // Cierra a los 10 s y vuelve a la vista normal
+                gdacsAutoCloseTimer = setTimeout(() => { try { closeGdacsApartado(); } catch (_) {} }, 10000);
+            } catch (_) {}
+        }
+        function closeGdacsApartado() {
+            if (!gdacsMode) return;
+            gdacsMode = false;
+            const layout = document.getElementById('mainLayout');
+            layout?.classList.remove('gdacs-focus');
+            document.getElementById('gdacsPanel')?.classList.remove('gdacs-active');
+            document.getElementById('gdacsTopbar')?.classList.remove('gdacs-top-active');
+            try { gdacsLayer.clearLayers(); } catch (_) {}
+            if (gdacsAutoCloseTimer) { clearTimeout(gdacsAutoCloseTimer); gdacsAutoCloseTimer = null; }
+            try {
+                if (events.length) selectEvent(events[0].id);
+                else setProgrammaticMapView([20, 140], 3);
+            } catch (_) {}
+        }
+
+        async function loadGdacs() {
+            try {
+                const feeds = [
+                    'https://www.gdacs.org/xml/gdacsEQ.geojson',
+                    'https://www.gdacs.org/xml/gdacsTC.geojson',
+                    'https://www.gdacs.org/xml/gdacsFL.geojson',
+                    'https://www.gdacs.org/xml/gdacsVO.geojson'
+                ];
+                const all = [];
+                for (const url of feeds) {
+                    try {
+                        const data = await fetchGdacsJson(url);
+                        const fs = Array.isArray(data?.features) ? data.features : [];
+                        const type = (url.match(/gdacs([A-Z]{2})/i) || [])[1];
+                        const slice = type === 'TC' ? fs.slice(0, 40) : fs.slice(0, 30);
+                        all.push(...slice);
+                    } catch (_) {}
+                }
+                // Si el fetch falló o vino vacío, NO borrar datos previos ni abrir panel vacío
+                if (!all.length) {
+                    if (!gdacsInitialized) gdacsInitialized = true;
+                    setApiState('gdacs', gdacsData.length ? 'stale' : 'bad', gdacsData.length);
+                    return;
+                }
+                const eventKey = (f) => {
+                    const p = f.properties || {};
+                    return `${p.eventtype}|${p.eventid}|${p.episodeid}`;
+                };
+                const levelRank = { Red:3, Orange:2, Green:1 };
+                const isActionable = (f) => {
+                    const p = f.properties || {};
+                    const lvl = String(p.alertlevel || p.episodealertlevel || '');
+                    // Solo Roja/Naranja (las verdes saturan el feed de TC y abrían el panel en falso)
+                    return levelRank[lvl] >= 2;
+                };
+                // Primera carga: registrar todo sin abrir (evita el flash de 1 s)
+                if (!gdacsInitialized) {
+                    all.forEach(f => gdacsSeenKeys.add(eventKey(f)));
+                    gdacsData = all;
+                    gdacsEqCache = all.map(gdacsFeatureToQuake).filter(Boolean);
+                    gdacsSignature = all.map(eventKey).sort().join('|');
+                    gdacsInitialized = true;
+                    setApiState('gdacs', 'ok', all.length);
+                    renderGdacsPanel(all);
+                    return;
+                }
+                // Alertas realmente nuevas (id no visto) y accionables
+                const brandNew = all.filter(f => {
+                    const k = eventKey(f);
+                    return k && k !== '||' && !gdacsSeenKeys.has(k) && isActionable(f);
+                });
+                all.forEach(f => gdacsSeenKeys.add(eventKey(f)));
+                // Limitar tamaño del set
+                if (gdacsSeenKeys.size > 400) {
+                    gdacsSeenKeys = new Set([...gdacsSeenKeys].slice(-200));
+                }
+                gdacsData = all;
+                gdacsEqCache = all.map(gdacsFeatureToQuake).filter(Boolean);
+                gdacsSignature = all.map(eventKey).sort().join('|');
+                setApiState('gdacs', 'ok', all.length);
+                renderGdacsPanel(all);
+                if (gdacsMode) await renderGdacsMap(all);
+                if (brandNew.length) {
+                    const newest = brandNew.sort((a,b) =>
+                        (levelRank[b.properties?.alertlevel]||0) - (levelRank[a.properties?.alertlevel]||0)
+                    )[0];
+                    openGdacsApartado(newest);
+                    try { playSrevSound?.('VTSE5', 'gdacs:' + eventKey(newest)); } catch (_) {}
+                    try {
+                        const speech = gdacsSpeechSpanish(newest);
+                        const p = newest.properties || {};
+                        const key = `gdacs:${p.eventtype}-${p.eventid}-${p.episodeid}-${p.alertlevel}`;
+                        if (typeof speakAlert === 'function') speakAlert(speech, 'gdacs', 'es-US', key);
+                    } catch (_) {}
+                }
+                try {
+                    const reds = all.filter(f => /red/i.test(String(f.properties?.alertlevel||'')));
+                    if (reds.length) {
+                        setTickerItem('gdacs', 'GDACS · Alertas', reds.slice(0,3).map(f => f.properties?.name || 'Alerta').join('  |  '), true);
+                    } else {
+                        setTickerItem('gdacs', 'GDACS · Alertas', all.length ? `${all.length} alertas activas (EQ/TC/FL/VO)` : 'Sin alertas GDACS');
+                    }
+                } catch (_) {}
+            } catch (_) {
+                setApiState('gdacs', 'bad');
+            }
+        }
+        async function fetchGdacsEarthquakes() {
+            if (gdacsEqCache.length) return gdacsEqCache.map(e => ({ ...e }));
+            try { await loadGdacs(); } catch (_) {}
+            return gdacsEqCache.map(e => ({ ...e }));
+        }
+
+
+        loadGdacs();
+        setInterval(loadGdacs, 3 * 60 * 1000);
+
         loadTsunami();
         setInterval(loadTsunami, 2 * 60 * 1000);
 
@@ -16396,6 +17956,8 @@ global.TauPJS=api;
             if (!suppressNextModeSound) playUiSound('success');
             suppressNextModeSound = false;
             usAlertsMode = !usAlertsMode;
+            gdacsMode = false;
+            try { document.getElementById('mainLayout')?.classList.remove('gdacs-focus'); document.getElementById('gdacsPanel')?.classList.remove('gdacs-active'); document.getElementById('gdacsTopbar')?.classList.remove('gdacs-top-active'); gdacsLayer.clearLayers(); } catch (_) {}
             const layout = document.getElementById('mainLayout');
             const panel = document.getElementById('usAlertsPanel');
             const topbar = document.getElementById('usAlertsTopbar');
@@ -16436,6 +17998,10 @@ global.TauPJS=api;
         document.getElementById('btnUsAlertsBack').addEventListener('click', () => {
             if (usAlertsMode) document.getElementById('btnUsAlerts').click();
         });
+        document.getElementById('btnGdacsBack')?.addEventListener('click', () => { try { closeGdacsApartado(); } catch (_) {} });
+
+
+
 
         document.getElementById('btnTsunami').addEventListener('click', () => {
             if (!suppressNextModeSound) playUiSound('success');
@@ -16560,6 +18126,11 @@ global.TauPJS=api;
         let ynStationTimes = new Map();
         let ynLastObservedMs = 0;
         let ynSites = [];
+        // Capa Leaflet en un panel propio para que los límites administrativos
+        // y los fondos regionales no tapen los puntos de las estaciones.
+        const ynStationsPane = map.createPane('yahooNiedStationsPane');
+        ynStationsPane.style.zIndex = 510;
+        ynStationsPane.style.pointerEvents = 'none';
         // Capa Leaflet (canvas) — más fiable que el overlay HTML en content://
         let ynLeafletRenderer = null;
         let ynLeafletLayer = null;
@@ -16649,6 +18220,8 @@ global.TauPJS=api;
             const d = document.getElementById('ynDiag');
             if (!d) return;
             d.textContent = `Yahoo/NIED ${ynFeedState} · catálogo ${ynCatalogCount || '—'} · muestras ${ynSamples} · C0–20 ${ynValidCodes} · desconocidos ${ynUnknownCodes} · dataTime ${ynLastDataTime || '—'} · host ${ynHostUsed || '—'}`;
+            const visibleStatus = document.getElementById('ynLegendStatus');
+            if (visibleStatus) visibleStatus.textContent = `Feed: ${ynFeedState} · ${ynLastDataTime || '—'} · ${ynSites.length || 0} estaciones`;
             d.title = ynLastError || 'Estado del catálogo y del feed; estaciones silenciosas C0 siguen dibujadas.';
         }
 
@@ -16825,9 +18398,9 @@ global.TauPJS=api;
 
         function ynVisible() {
             const layout = document.getElementById('mainLayout');
-            // Ocultar solo en el apartado de alertas meteorológicas de Japón
-            if (layout && layout.classList.contains('jma-weather-focus')) return false;
-            // En cualquier otro momento: visibles (como TREM de Taiwán)
+            // En JMA meteorología se ocultan en reposo, pero reaparecen si un
+            // sismo abre también la vista Japón/ondas.
+            if (layout && layout.classList.contains('jma-weather-focus') && !layout.classList.contains('japan-focus')) return false;
             return true;
         }
 
@@ -17024,8 +18597,10 @@ global.TauPJS=api;
                 return;
             }
 
+            // Umbral: ≥3 estaciones con borde blanco (intensidad ≥ 0, código ≥ 6),
+            // coherentes entre sí (cerca), y 2 lecturas consecutivas.
             const current = ynCoherentActiveStations(ynActiveStations());
-            const confirmed = ynAutoActivationReady && ynActiveFrameStreak >= 2 && current.length >= 2;
+            const confirmed = ynAutoActivationReady && ynActiveFrameStreak >= 2 && current.length >= 3;
             if (!confirmed || ynStartupLocked() || ynPriorityAlertActive()) {
                 if (ynEarlyEpisode && !confirmed) {
                     const closeAutoView = ynAutoOpened;
@@ -17036,6 +18611,12 @@ global.TauPJS=api;
                     ynInitialViewDone = false;
                     ynStopWaveAnimation();
                     ynAutoActivationAttempted = false;
+                    try {
+                        if (tremEstimatedWave && tremEstimatedWave.agency === 'Yahoo/NIED' && tremEstimatedWave.estimated) {
+                            tremEstimatedWave = null;
+                            if (waveMode) deactivateWaveMode();
+                        }
+                    } catch (_) {}
                     if (closeAutoView) ynCloseAutomatically();
                 }
                 if (ynMode && !ynEarlyEpisode) ynShowIdlePanel(alert);
@@ -17043,10 +18624,12 @@ global.TauPJS=api;
                 return;
             }
 
-            // Las ondas se dibujan desde cada estación que participa en el quorum.
             const waveStations = [...current].sort((a,b) => b.code - a.code);
             const groups = ynClusterActiveStations(waveStations);
             if (!groups.length) return;
+            // Grupo principal: el de más estaciones (mín. 3)
+            const mainGroup = [...groups].sort((a,b) => (b.stations?.length||0) - (a.stations?.length||0))[0];
+            if (!mainGroup || (mainGroup.stations?.length || 0) < 3) return;
             const signature = waveStations.map(st => st.index).sort((a,b)=>a-b).join(',');
             const isNewEpisode = !ynEarlyEpisode;
             if (isNewEpisode) {
@@ -17055,22 +18638,68 @@ global.TauPJS=api;
                 ynWaveStartedAt = Date.now();
                 ynInitialViewDone = false;
                 ynActiveSignature = signature;
+                // Epicentro local estimado = centroide ponderado por intensidad
+                const sts = mainGroup.stations || waveStations;
+                const weights = sts.map(s => 1 + Math.max(0, (s.code || 0) - 5));
+                const wsum = weights.reduce((a,b)=>a+b,0) || sts.length;
+                const eLat = sts.reduce((a,s,i)=>a + s.lat * weights[i], 0) / wsum;
+                const eLon = sts.reduce((a,s,i)=>a + s.lon * weights[i], 0) / wsum;
+                try {
+                    tremEstimatedWave = {
+                        id: 'yahoo-nied-est-' + signature.slice(0, 40),
+                        lat: eLat,
+                        lon: eLon,
+                        place: 'Japón · estimación local Yahoo/NIED',
+                        displayPlace: 'Estimación local Yahoo/NIED',
+                        mag: '—',
+                        depth: '—',
+                        agency: 'Yahoo/NIED',
+                        status: 'Detección local',
+                        report: sts.length + ' estaciones',
+                        ts: Date.now(),
+                        waveOriginTs: Date.now(),
+                        estimated: true,
+                        isTaupEew: true
+                    };
+                } catch (_) {}
                 if (ynActivateAutomatically(groups)) {
                     const count = current.length;
-                    try { showRegionToast(`🇯🇵 Yahoo/NIED: movimiento detectado en ${count} estaciones`); } catch (_) {}
+                    try { showRegionToast(`🇯🇵 Yahoo/NIED: ${count} estaciones · ondas estimadas`); } catch (_) {}
                     try { playMotionAlertSound(`yahoo-motion:${signature}`); } catch (_) {}
-                    try { speakAlert(`Movimiento detectado por Yahoo/NIED en al menos dos estaciones cercanas. Frentes P y S estimados desde las estaciones activas; no es un epicentro ni un reporte oficial.`, 'quakes', 'es-US'); } catch (_) {}
+                    try { speakAlert(`Yahoo NIED: movimiento en ${count} estaciones con intensidad cero o superior. Epicentro local estimado y ondas P y S activadas.`, 'quakes', 'es-US'); } catch (_) {}
+                    try {
+                        if (typeof activateWaveMode === 'function') activateWaveMode(false);
+                        if (typeof centerWaveMode === 'function') setTimeout(() => { try { centerWaveMode(); } catch (_) {} }, 200);
+                    } catch (_) {}
                 }
             }
             ynGroups = groups;
             ynActiveSignature = signature;
             if (!ynWaveStartedAt) ynWaveStartedAt = Date.now();
+            // Mantener epicentro estimado actualizado mientras dure el episodio
+            try {
+                const sts = mainGroup.stations || waveStations;
+                const weights = sts.map(s => 1 + Math.max(0, (s.code || 0) - 5));
+                const wsum = weights.reduce((a,b)=>a+b,0) || sts.length;
+                const eLat = sts.reduce((a,s,i)=>a + s.lat * weights[i], 0) / wsum;
+                const eLon = sts.reduce((a,s,i)=>a + s.lon * weights[i], 0) / wsum;
+                if (tremEstimatedWave && tremEstimatedWave.estimated && tremEstimatedWave.agency === 'Yahoo/NIED') {
+                    tremEstimatedWave.lat = eLat;
+                    tremEstimatedWave.lon = eLon;
+                    tremEstimatedWave.report = sts.length + ' estaciones';
+                }
+            } catch (_) {}
             try { if (!ynInitialViewDone) ynFocusEpisodeOnce(groups); } catch (_) {}
-            alert.innerHTML = '<div class="yn-alert-head"><span>🇯🇵 Yahoo/NIED · MOVIMIENTO DETECTADO</span><span class="yn-alert-badge">≥2 ESTACIONES</span></div>'
-                + `<div class="yn-alert-sub">${current.length} estaciones cercanas · intensidad Yahoo/NIED ≥ 0.0 · 2 lecturas consecutivas</div>`
-                + '<div class="yn-alert-foot">Frentes P/S estimados desde cada estación activa · sin epicentro calculado ni reporte oficial.</div>';
+            alert.innerHTML = '<div class="yn-alert-head"><span>🇯🇵 Yahoo/NIED · MOVIMIENTO DETECTADO</span><span class="yn-alert-badge">≥3 ESTACIONES</span></div>'
+                + `<div class="yn-alert-sub">${current.length} estaciones con borde blanco (intensidad ≥ 0) · epicentro local estimado</div>`
+                + '<div class="yn-alert-foot">Ondas P/S estimadas desde el centro del grupo · no es un reporte oficial JMA.</div>';
             alert.classList.add('active');
             ynStartWaveAnimation();
+            try {
+                if (waveMode && tremEstimatedWave) {
+                    if (typeof renderWaveMode === 'function') renderWaveMode();
+                }
+            } catch (_) {}
         }
         function ynStopWaveAnimation() {
             if (ynAnimFrame) clearTimeout(ynAnimFrame);
@@ -17184,7 +18813,7 @@ global.TauPJS=api;
         function ynEnsureLeafletLayer() {
             if (typeof map === 'undefined' || !map) return false;
             if (!ynLeafletRenderer) {
-                try { ynLeafletRenderer = L.canvas({ padding: 0.5 }); } catch (_) { ynLeafletRenderer = undefined; }
+                try { ynLeafletRenderer = L.canvas({ pane:'yahooNiedStationsPane', padding:0.5 }); } catch (_) { ynLeafletRenderer = undefined; }
             }
             if (!ynLeafletLayer) {
                 ynLeafletLayer = L.layerGroup();
@@ -17213,6 +18842,8 @@ global.TauPJS=api;
                     if (Number.isInteger(c) && c >= 0 && c <= 20) code = c;
                 }
                 const opts = {
+                    pane:'yahooNiedStationsPane',
+                    interactive:false,
                     radius: 5,
                     fillColor: ynHexColor(code),
                     color: '#111',
@@ -17222,6 +18853,7 @@ global.TauPJS=api;
                 };
                 if (ynLeafletRenderer) opts.renderer = ynLeafletRenderer;
                 const m = L.circleMarker([lat, lon], opts);
+                m._ynCode = i < intensity.length ? code : null;
                 m.addTo(ynLeafletLayer);
                 ynLeafletMarkers.push(m);
             }
@@ -17245,8 +18877,25 @@ global.TauPJS=api;
                     else unknown++;
                 }
                 const fillColor = ynHexColor(code);
-                // Evita repintar miles de círculos Leaflet si su intensidad no cambió.
+                const codeChanged = m._ynCode !== null && m._ynCode !== undefined && m._ynCode !== code;
+                m._ynCode = code;
+                // Repinta solo el color que cambió.
                 if (m.options?.fillColor !== fillColor) m.setStyle({ fillColor });
+                // Aro blanco solo si intensidad ≥ 0 (código Yahoo ≥ 6: −3 + code×0.5)
+                // Códigos 0–5 = −3 … −0.5 → ruido/reposo, no se resaltan.
+                const intensityVal = -3 + Math.max(0, Math.min(20, code)) * 0.5;
+                if (codeChanged && intensityVal >= 0) {
+                    if (m._ynPulseTimer) clearTimeout(m._ynPulseTimer);
+                    m.setRadius(8);
+                    m.setStyle({ color:'#fff', weight:3, fillOpacity:1, opacity:1 });
+                    m._ynPulseTimer = setTimeout(() => {
+                        try {
+                            m.setRadius(5);
+                            m.setStyle({ color:'#111', weight:0.8, fillOpacity:0.9, opacity:1 });
+                        } catch (_) {}
+                        m._ynPulseTimer = null;
+                    }, 700);
+                }
             }
             ynValidCodes = valid;
             ynUnknownCodes = unknown;
@@ -17281,7 +18930,7 @@ global.TauPJS=api;
                 }
                 ynDiagText();
                 if (status) status.textContent = `Feed: ${ynLastDataTime || ynFeedState} · ${ynSites.length} estaciones · ${ynValidCodes} activos`;
-                if (note) note.textContent = `${ynSites.length} estaciones Yahoo/NIED · solo cambia el color`;
+                if (note) note.textContent = `${ynSites.length} estaciones Yahoo/NIED · aro blanco grande = lectura nueva`;
             }
             // Canvas legacy opcional (ondas)
             try { ynEnsureCanvas(); if (ynCanvas) ynCanvas.style.display = 'none'; } catch (_) {}
@@ -17372,31 +19021,51 @@ global.TauPJS=api;
         }
         function ynStamp() { return ynStampJst(0); }
 
-        async function ynFetchRealtimeFast(path) {
-            // Un solo camino rápido: proxy propio → directo. Sin cadena larga.
+        async function ynFetchRealtimeDirect(url, timeout = 1200) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeout);
+            try {
+                // eqNativeFetch evita que un CORS fallido en WebView entre en
+                // la cola global del proxy en cada segundo buscado.
+                const response = await eqNativeFetch(url, { cache:'no-store', signal:controller.signal, mode:'cors' });
+                if (!response.ok) throw new Error('Yahoo HTTP ' + response.status);
+                return await response.json();
+            } finally { clearTimeout(timer); }
+        }
+        async function ynFetchRealtimeFast(path, proxyFallback = false) {
             let last = null;
+            // 1) Directo (Yahoo tiene CORS *)
+            for (const host of YN_HOSTS) {
+                try {
+                    const value = await ynFetchRealtimeDirect(host + path, 1500);
+                    if (!value?.realTimeData?.intensity) throw new Error('Trama Yahoo vacía');
+                    ynHostUsed = host.replace(/^https?:\/\//, '');
+                    return value;
+                } catch (e) { last = e; }
+            }
+            // 2) Proxy propio + proxies públicos (file:// / content:// / CORS raro)
+            const urlCandidates = [];
             for (const host of YN_HOSTS) {
                 const url = host + path;
+                urlCandidates.push(url);
+            }
+            for (const url of urlCandidates) {
                 try {
-                    if (typeof eqProxyFetch === 'function') {
-                        const response = await eqProxyFetch(url, { cache: 'no-store' }, new URL(url).hostname);
-                        if (response && response.ok) {
-                            const value = await response.json();
-                            ynHostUsed = host.replace(/^https?:\/\//, '') + '+EarthQuakeProxy';
-                            return value;
-                        }
-                    }
-                } catch (e) { last = e; }
-                try {
-                    const value = await ynFetchJsonProxied(url, 7000);
-                    if (value) {
-                        ynHostUsed = host.replace(/^https?:\/\//, '') + '+proxy';
+                    const controller = new AbortController();
+                    const timer = setTimeout(() => controller.abort(), 2200);
+                    try {
+                        const response = await eqProxyFetch(url, { cache:'no-store', signal:controller.signal }, new URL(url).hostname);
+                        if (!response?.ok) throw new Error('Yahoo proxy HTTP ' + (response?.status || '?'));
+                        const value = await response.json();
+                        if (!value?.realTimeData?.intensity) throw new Error('Trama proxy vacía');
+                        ynHostUsed = new URL(url).hostname + '+proxy';
                         return value;
-                    }
+                    } finally { clearTimeout(timer); }
                 } catch (e) { last = e; }
                 try {
-                    const value = await ynFetch(url, 4000);
-                    ynHostUsed = host.replace(/^https?:\/\//, '');
+                    const value = await ynFetchJsonProxied(url, 4000);
+                    if (!value?.realTimeData?.intensity) throw new Error('Trama proxy JSON vacía');
+                    ynHostUsed = new URL(url).hostname + '+proxy2';
                     return value;
                 } catch (e) { last = e; }
             }
@@ -17404,18 +19073,29 @@ global.TauPJS=api;
         }
 
         async function ynUpdate() {
-            if (ynBusy || !ynSites.length) return;
+            if (!ynSites.length) return;
+            // Evitar bloqueo eterno si un fetch se cuelga
+            if (ynBusy) {
+                if (!ynUpdate._busySince) ynUpdate._busySince = Date.now();
+                if (Date.now() - ynUpdate._busySince < 8000) return;
+                ynBusy = false;
+            }
             ynBusy = true;
+            ynUpdate._busySince = Date.now();
             try {
-                // Probar segundos recientes (el feed va ~1–3 s atrasado)
+                // Yahoo publica casi al segundo; probar 0–40 s atrás (reloj desfasado / red lenta)
                 let data = null;
                 let usedStamp = '';
-                for (let back = 1; back <= 12 && !data; back++) {
+                const tryBacks = [];
+                for (let back = 0; back <= 40; back++) tryBacks.push(back);
+                // Priorizar 1–8 s (lo más frecuente), luego 0, luego el resto
+                const order = [1,2,3,4,5,6,7,8,0,9,10,12,15,18,20,25,30,35,40];
+                for (const back of order) {
+                    if (data) break;
                     const st = ynStampJst(back);
                     usedStamp = st.full;
                     try {
                         data = await ynFetchRealtimeFast('/RealTimeData/' + st.date + '/' + st.full + '.json');
-                        if (!(data && data.realTimeData && data.realTimeData.intensity)) data = null;
                     } catch (_) { data = null; }
                 }
                 const rt = data && data.realTimeData;
@@ -17425,37 +19105,52 @@ global.TauPJS=api;
                     ynLastError = 'sin trama ' + usedStamp;
                     ynDiagText();
                     ynBreakConsecutiveReadings();
+                    setApiState('yahooNied', ynIntensity ? 'stale' : 'bad');
                     return;
                 }
-                // Longitud: tolera pequeño desfase
-                const lenOk = Math.abs(intensity.length - ynSites.length) <= 5;
-                if (!lenOk) {
-                    ynFeedState = 'longitud incompatible';
-                    ynLastError = 'intensity ' + intensity.length + ' vs sites ' + ynSites.length;
-                    ynDiagText();
-                    ynBreakConsecutiveReadings();
-                    return;
-                }
-                // siteConfigId: si cambia, aún pintar (colores por índice)
-                if (rt.siteConfigId != null && ynSites.siteConfigId != null && String(rt.siteConfigId) !== String(ynSites.siteConfigId)) {
-                    ynLastError = 'cfg ' + ynSites.siteConfigId + '→' + rt.siteConfigId;
-                    // no bloquear
+                // Longitud: si el catálogo está viejo, seguir pintando con el mínimo
+                // y refrescar sitelist en segundo plano (antes bloqueaba TODO el feed).
+                if (Math.abs(intensity.length - ynSites.length) > 30) {
+                    ynLastError = 'cfg desfasada · int ' + intensity.length + ' vs sites ' + ynSites.length;
+                    // Refresco no bloqueante del catálogo
+                    try {
+                        if (!ynUpdate._refreshingSites) {
+                            ynUpdate._refreshingSites = true;
+                            ynFetchHosts('/SiteList/sitelist.json', 8000).then(fresh => {
+                                if (Array.isArray(fresh?.items) && fresh.items.length) {
+                                    ynSites = fresh.items.filter(site => Array.isArray(site) && site.length >= 2 && Number.isFinite(Number(site[0])) && Number.isFinite(Number(site[1])));
+                                    ynSites.siteConfigId = String(fresh.siteConfigId || '');
+                                    ynCatalogCount = ynSites.length;
+                                    ynLeafletBuilt = false;
+                                    ynLeafletMarkers = [];
+                                    try { localStorage.setItem('yn-sitelist-v1', JSON.stringify({ items: fresh.items, siteConfigId: fresh.siteConfigId, savedAt: Date.now() })); } catch (_) {}
+                                }
+                            }).finally(() => { ynUpdate._refreshingSites = false; });
+                        }
+                    } catch (_) {}
                 }
                 ynIntensity = intensity;
                 ynSamples++;
                 ynFeedState = 'conectado';
+                setApiState('yahooNied', 'ok', intensity.length);
                 ynLastDataTime = rt.dataTime || usedStamp;
                 try { ynObserve(intensity, ynLastDataTime); } catch (_) {}
-                // Una sola pasada de render; solo repinta estaciones cuyo color cambió.
-                try { ynDraw({ stations: true, waves: false }); } catch (_) {}
+                // Siempre actualizar colores Leaflet (aunque el modo Japón no esté abierto)
+                try {
+                    if (!ynLeafletBuilt) ynBuildLeafletMarkers();
+                    else ynUpdateLeafletColors();
+                } catch (_) {}
+                try { ynDraw({ stations: true, waves: false, force: true }); } catch (_) {}
                 ynDiagText();
             } catch (e) {
                 ynFeedState = ynIntensity ? 'caché · reintentando' : 'sin conexión';
                 ynLastError = String(e && e.message || e);
                 ynDiagText();
                 ynBreakConsecutiveReadings();
+                setApiState('yahooNied', ynIntensity ? 'stale' : 'bad');
             } finally {
                 ynBusy = false;
+                ynUpdate._busySince = 0;
             }
         }
 
@@ -17505,13 +19200,14 @@ global.TauPJS=api;
                 try { ynBuildLeafletMarkers(); } catch (e) { ynLastError = String(e && e.message || e); }
                 try { ynDraw({ stations: true, waves: false, force: true }); } catch (_) {}
                 try { showRegionToast('🇯🇵 Yahoo/NIED: ' + ynCatalogCount + ' estaciones'); } catch (_) {}
-                await ynUpdate();
-                try { ynDraw({ stations: true, waves: false, force: true }); } catch (_) {}
+                // El sondeo queda armado antes de la primera petición; un proxy
+                // lento no puede impedir que arranquen las actualizaciones siguientes.
                 if (!ynTimer) ynTimer = setInterval(() => {
                     if (document.hidden) return;
-                    // Siempre actualizar el feed; el dibujo respeta ynVisible()
-                    ynUpdate();
+                    try { ynUpdate(); } catch (_) {}
                 }, 1000);
+                try { await ynUpdate(); } catch (_) {}
+                try { ynDraw({ stations: true, waves: false, force: true }); } catch (_) {}
             } catch (e) {
                 ynFeedState = 'sin conexión';
                 ynLastError = String(e?.message || e);
@@ -17528,7 +19224,13 @@ global.TauPJS=api;
         setInterval(() => {
             try {
                 if (!ynSites.length && !ynStarting) ynStart();
-                else if (ynSites.length) ynDraw({ stations: true, waves: false });
+                else if (ynSites.length) {
+                    if (!ynTimer) {
+                        ynTimer = setInterval(() => { if (!document.hidden) try { ynUpdate(); } catch (_) {} }, 1000);
+                    }
+                    try { ynUpdate(); } catch (_) {}
+                    ynDraw({ stations: true, waves: false });
+                }
             } catch (_) {}
         }, 12000);
         try {
@@ -17698,9 +19400,11 @@ global.TauPJS=api;
                 if (Number.isFinite(lat) && Number.isFinite(lon)) {
                     programmaticMapMove = true;
                     mapUserHasControl = false;
-                    // Zoom a la zona de ondas (estilo EQuake en alerta), no overview.
-                    map.setView([lat, lon], 7.2, { animate: true });
-                    setTimeout(() => { programmaticMapMove = false; }, 80);
+                    // Zoom al frente de ondas P/S (no overview de Japón)
+                    try { centerWaveMode(); } catch (_) {
+                        map.setView([lat, lon], 7.2, { animate: true });
+                    }
+                    setTimeout(() => { try { if (waveMode) centerWaveMode(); } catch (_) {} programmaticMapMove = false; }, 350);
                 }
             } catch (_) {}
             try { ynDraw({ stations: true, waves: false, force: true }); } catch (_) {}
@@ -17776,12 +19480,11 @@ global.TauPJS=api;
             };
         })();
 
-        ynButton?.addEventListener('click', () => {
-            if (ynMode || yahooNiedModeActive || ynLiveJmaEvent) {
-                closeJapanAfterJmaQuake('Vista principal');
-                return;
-            }
-            showRegionToast('Japón/NIED se abre solo con sismo real de la JMA');
+        ynButton?.addEventListener('click', event => {
+            try { event.preventDefault(); } catch (_) {}
+            // Permite fijar manualmente Japón para inspeccionar las estaciones;
+            // no genera alertas ni inventa lecturas.
+            try { toggleLiveJapanStations(); } catch (_) {}
         });
         // Suspender por completo el overlay animado cuando la pestaña no está
         // visible; al volver, solo se reanuda si el episodio sigue vigente.
@@ -17880,7 +19583,11 @@ global.TauPJS=api;
         };
     }
     function eventMag(ev) {
-        const n = parseFloat(String(ev && ev.mag != null ? ev.mag : '').replace(/[^\d.]/g, ''));
+        if (!ev) return 0;
+        const raw = ev.mag != null ? ev.mag
+            : (ev.magnitudeDisplay != null ? ev.magnitudeDisplay
+            : (ev.magnitude != null ? ev.magnitude : ''));
+        const n = parseFloat(String(raw).replace(/[^\d.]/g, ''));
         return Number.isFinite(n) ? n : 0;
     }
     const PLACE_ES = {
@@ -17949,21 +19656,18 @@ global.TauPJS=api;
     function isJmaEv(ev) {
         if (!ev) return false;
         const ag = String(ev.agency || ev.source || '');
-        return /jma|wolfx/i.test(ag) ||
-            (typeof isJmaRealEarthquakeEvent === 'function' && isJmaRealEarthquakeEvent(ev));
+        // Solo agencia JMA/Wolfx (no depender de funciones del otro script)
+        return /\bjma\b|wolfx/i.test(ag);
     }
     function isJmaListUpdate(ev) {
-        // Cualquier informe de sismo de la JMA que llega a la lista
-        // (catálogo, XML, eqlist, o agencia "JMA").
-        // El EEW preliminar en curso NO dispara el cartel hasta final/confirmado.
+        // Informe JMA en lista o EEW en curso (alerta sísmica temprana).
         if (!isJmaEv(ev)) return false;
         const ag = String(ev.agency || ev.source || '').toLowerCase();
-        const conf = String(ev.reportConfidence || ev.confidence || '').toLowerCase();
         const isEew = /\beew\b/.test(ag);
         if (isEew) {
-            return ev.isFinal === true || conf === 'confirmado' || conf === 'final';
+            if (ev.isCancel) return false;
+            return true; // EEW en vivo o final
         }
-        // Lista / catálogo JMA (cualquier sismo publicado)
         return /\bjma\b|wolfx|eqlist|xml/.test(ag);
     }
     function isTsunamiEv(ev) {
@@ -18225,9 +19929,14 @@ global.TauPJS=api;
             });
         }
     };
-    // Sismos M5.0+ (cualquier agencia), solo si el origen ocurrió hace ≤5 min — español
+    // Sismos M5.0+ (cualquier agencia) — español; la ventana de edad la aplica el router
     window.showStrongTvText = function (ev) {
         ev = ev || {};
+        try {
+            window.__eqM5TvShown = window.__eqM5TvShown || new Set();
+            const sig = [ev.id, ev.mag, ev.place, ev.depth].join('|');
+            // Permitir re-mostrar si cambió mag/lugar/profundidad
+        } catch (_) {}
         const place = String(ev.place || '—');
         const depth = String(ev.depth || '—');
         const mag = eventMag(ev);
@@ -18293,18 +20002,37 @@ global.TauPJS=api;
     // Router principal
     const FRESH_WINDOW_MS = 20 * 60 * 1000;
     const LIVE_FRESH_WINDOW_MS = 90 * 60 * 1000;
-    const STRONG_QUAKE_TV_WINDOW_MS = 5 * 60 * 1000;
+    // M5.0+: ventana amplia (islas remotas / revisiones de magnitud)
+    const STRONG_QUAKE_TV_WINDOW_MS = 60 * 60 * 1000;
+    const STRONG_QUAKE_TV_LIVE_WINDOW_MS = 90 * 60 * 1000;
     const JMA_TV_EARTHQUAKE_WINDOW_MS = 2 * 60 * 1000;
+    const JMA_TV_EEW_WINDOW_MS = 10 * 60 * 1000; // EEW en curso
+    function telopParseTime(v) {
+        if (v == null || v === '') return 0;
+        if (typeof v === 'number' && Number.isFinite(v)) return v < 1e12 ? v * 1000 : v;
+        const text = String(v).trim();
+        if (!text) return 0;
+        if (/^\d{10,13}$/.test(text)) {
+            const n = Number(text);
+            return n < 1e12 ? n * 1000 : n;
+        }
+        const iso = /Z$|[+-]\d{2}:?\d{2}$/i.test(text) ? text : text.replace(/\//g, '-').replace(' ', 'T') + (/T\d{2}:\d{2}/.test(text) ? 'Z' : '');
+        const ms = Date.parse(iso);
+        return Number.isFinite(ms) ? ms : 0;
+    }
     function isFreshEnough(ev, maxAge) {
-        const t = typeof parseTs === 'function' ? parseTs(ev.ts) : (Number.isFinite(ev.ts) ? ev.ts : 0);
+        const t = telopParseTime(ev && ev.ts) || telopParseTime(ev && ev.originTime) || telopParseTime(ev && ev.time);
         if (!t) return false;
         const age = Date.now() - t;
         return age >= -120000 && age <= (maxAge || FRESH_WINDOW_MS);
     }
     function isJmaTvQuakeRecent(ev) {
-        const t = typeof parseTs === 'function' ? parseTs(ev?.ts) : (Number.isFinite(ev?.ts) ? ev.ts : 0);
+        const t = telopParseTime(ev?.ts) || telopParseTime(ev?.originTime) || telopParseTime(ev?.time);
         const age = Date.now() - t;
-        return t > 0 && age >= 0 && age <= JMA_TV_EARTHQUAKE_WINDOW_MS;
+        const ag = String(ev?.agency || ev?.source || '').toLowerCase();
+        const isEew = /\beew\b/.test(ag);
+        const maxAge = isEew ? JMA_TV_EEW_WINDOW_MS : JMA_TV_EARTHQUAKE_WINDOW_MS;
+        return t > 0 && age >= -60000 && age <= maxAge;
     }
     window.updateJmaJapaneseText = function (ev, opts) {
         if (!ev) { window.hideJmaTvText(); return; }
@@ -18327,14 +20055,16 @@ global.TauPJS=api;
         const nonJmaTsunami = tsunamiEvent && !jmaEvent;
         const strongNonJma = !jmaEvent && isStrongEv(ev);
         const isQualifying = jmaEvent ? jmaQuakeRecent : (nonJmaTsunami || strongNonJma);
+        const strongWindow = (opts.force || opts.liveUpdate)
+            ? Math.max(STRONG_QUAKE_TV_LIVE_WINDOW_MS, 2 * 60 * 60 * 1000)
+            : STRONG_QUAKE_TV_WINDOW_MS;
         const withinAgeLimit = jmaEvent
             ? jmaQuakeRecent
             : nonJmaTsunami
                 ? isFreshEnough(ev, opts.liveUpdate ? LIVE_FRESH_WINDOW_MS : FRESH_WINDOW_MS)
-                : strongNonJma && isFreshEnough(ev, STRONG_QUAKE_TV_WINDOW_MS);
-        // JMA solo entra si el origen ocurrió en los últimos 2 minutos;
-        // los sismos M5.0+ de otras agencias, en los últimos 5 minutos.
-        // Los boletines de tsunami conservan su ventana propia.
+                : strongNonJma && isFreshEnough(ev, strongWindow);
+        // JMA: origen ≤2 min. M5.0+ otras agencias: ≤20 min (≤45 min en actualización en vivo).
+        // Islas remotas (p. ej. Sandwich) a menudo llegan con retraso al feed.
         if (!isQualifying || !withinAgeLimit) {
             // OJO: esto NO debe apagar el cartel si lo que no califica es un
             // sismo DISTINTO al que ya se está mostrando — por ejemplo, abrir
@@ -18350,7 +20080,7 @@ global.TauPJS=api;
         // si el reporte es idéntico al último mostrado, no se vuelve a mostrar.
         // Solo un cambio real de contenido (nueva magnitud, intensidad,
         // confirmación final, etc.) dispara un nuevo cartel.
-        if (key === lastRenderKey) return;
+        if (!opts.force && key === lastRenderKey) return;
         lastRenderKey = key;
         lastRenderId = ev.id != null ? ev.id : null;
         // Prioridad: tsunami en el evento > JMA > M5.0+
@@ -18409,7 +20139,7 @@ global.TauPJS=api;
 <div id="eqSettingsModal" role="dialog" aria-modal="true" aria-labelledby="eqSettingsTitle"><div id="eqSettingsDialog"><div class="eqs-head"><span id="eqSettingsTitle">Ajustes</span><button class="eqs-close" id="eqSettingsClose" type="button">×</button></div><div class="eqs-section"><div class="eqs-title">Apartados</div><div class="eqs-muted">Abre las alertas meteorológicas oficiales de Japón. Pulsa de nuevo para volver a la vista normal.</div><button class="eqs-control" id="eqsJmaWeatherToggle" type="button" aria-pressed="false" style="width:100%;margin-top:8px;text-align:left;padding:9px">🇯🇵 Alertas meteorológicas de Japón</button></div><div class="eqs-section"><div class="eqs-title">General</div><div class="eqs-grid"><label class="eqs-row">Lluvia de balones por gol de Colombia <input class="eqs-switch" id="eqsColombiaGoalRain" type="checkbox"></label><label class="eqs-row">Avisos de goles, descanso y final <input class="eqs-switch" id="eqsColombiaMatchAlerts" type="checkbox"></label><label class="eqs-row">Voz TTS <input class="eqs-switch" id="eqsTts" type="checkbox"></label><label class="eqs-row">Sonidos y alertas <input class="eqs-switch" id="eqsAudio" type="checkbox"></label><label class="eqs-row">Modelo TauP <select id="eqsTaup"><option value="precise">Preciso</option><option value="fast">Rápido</option><option value="fallback">Respaldo</option></select></label><label class="eqs-row eqs-intensity-row">Forzar escala de intensidad <select id="eqsIntensityScale"><option value="source">Desactivado (usar escala de la agencia)</option><option value="shindo">Shindo (JMA)</option><option value="mmi">MMI</option><option value="csis">CSIS (China)</option><option value="cwa">CWA (Taiwán)</option><option value="geonet">GeoNet MMI (NZ)</option></select></label>
 <label class="eqs-row eqs-intensity-row">Color del mar (mapa) <select id="eqsMapSea"><option value="dark">Oscuro (predeterminado)</option><option value="ocean">Azul océano</option><option value="deep">Azul profundo</option><option value="black">Negro</option><option value="slate">Gris pizarra</option><option value="teal">Verde azulado</option><option value="indigo">Índigo</option></select></label>
 <button class="eqs-control" id="eqsTestColombiaGoalRain" type="button" style="margin-top:8px;width:100%">⚽ Probar lluvia de balones</button><div class="eqs-muted">Vista previa: no cambia si la celebración está activada o desactivada.</div>
-<div class="eqs-muted eqs-intensity-note">Solo cambia el color del agua. Países, límites administrativos, estaciones y sismos se mantienen.</div><div class="eqs-muted eqs-intensity-note">La selección ajusta lista, ficha, telop y mapa. Las equivalencias entre escalas se marcan con ≈ y son estimadas, no oficiales.</div><div class="eqs-section"><div class="eqs-title">Probar sonidos del monitor</div><div class="eqs-muted">Pulsa cada botón para escucharlo. Los sonidos SREV son los avisos incorporados.</div><div class="eqs-sound-group"><b>Interfaz</b><div class="eqs-sound-grid" id="eqsUiSounds"></div></div><div class="eqs-sound-group"><b>Alertas SREV</b><div class="eqs-sound-grid" id="eqsSrevSounds"></div></div><div class="eqs-sound-group"><b>Voz</b><button class="eqs-control" id="eqsTestTts" type="button">Probar TTS</button></div></div></div><div class="eqs-section"><div class="eqs-title">Voz de alertas en español</div><div class="eqs-muted">Elige y prueba la voz utilizada para los avisos hablados.</div><select id="ttsVoiceSelect"></select><div style="display:flex;gap:8px;margin-top:8px"><button class="eqs-control" id="btnTtsVoiceTest" type="button">Probar voz</button><button class="eqs-control" id="btnTtsVoiceReset" type="button">Usar automática</button></div></div><div class="eqs-muted">Las preferencias se guardan en este navegador.</div></div><div class="eqs-section"><div class="eqs-title">Agencias visibles en la lista</div><div class="eqs-agencies" id="eqsAgencies"></div><div class="eqs-muted">Desactivarlas las oculta de la lista, pero no elimina su conexión.</div></div><div class="eqs-actions"><button class="eqs-control" id="eqsReset" type="button">Restablecer</button><button class="eqs-save" id="eqsSave" type="button">Guardar</button></div></div></div><script id="eq-settings-module">(function(){'use strict';const modal=document.getElementById('eqSettingsModal'),open=document.getElementById('btnSettings');if(!modal||!open)return;const agencies=['USGS','JMA','CENC','CEA','CEIC','EMSC','IGN España','INETER/CATAC','GFZ','SSN','AFAD','BMKG','GEONET','INGV','FSSN','SED','PHIVOLCS','CSN','IG-EPN','EARLY-EST','HKO','NOA','KOERI','KMA','BCSF','NRCan','USP','MMD','CEA-PR','ShakeAlert (Mangxu)','ShakeAlert EEW (Mangxu)','CEA EEW (Mangxu)','CEA-PR EEW (Mangxu)','JMA EEW (Mangxu)','CWA EEW (Mangxu)'],key='earthquake.settings.v1',defaults={tts:true,audio:true,taup:'precise',intensityScale:'source',mapSea:'dark',colombiaGoalRain:true,colombiaMatchAlerts:true,disabled:{}};const read=()=>{try{return Object.assign({},defaults,JSON.parse(localStorage.getItem(key)||'{}'));}catch(_){return Object.assign({},defaults)}};let state=read();const tts=document.getElementById('eqsTts'),audio=document.getElementById('eqsAudio'),taup=document.getElementById('eqsTaup'),intensityScale=document.getElementById('eqsIntensityScale'),mapSea=document.getElementById('eqsMapSea'),colombiaGoalRain=document.getElementById('eqsColombiaGoalRain'),colombiaMatchAlerts=document.getElementById('eqsColombiaMatchAlerts'),goalRainTest=document.getElementById('eqsTestColombiaGoalRain'),list=document.getElementById('eqsAgencies');const uiSounds=document.getElementById('eqsUiSounds'),srevSounds=document.getElementById('eqsSrevSounds'),jmaToggle=document.getElementById('eqsJmaWeatherToggle');function syncJmaToggle(){const api=window.__eqJmaWeatherView;const active=!!(api&&typeof api.isActive==='function'&&api.isActive());if(jmaToggle){jmaToggle.textContent=active?'↩️ Volver a la vista normal':'🇯🇵 Alertas meteorológicas de Japón';jmaToggle.setAttribute('aria-pressed',String(active));jmaToggle.style.borderColor=active?'#ffb300':'';jmaToggle.style.color=active?'#ffd873':''}}const uiSoundNames=[['click','Clic'],['select','Selección'],['refresh','Actualizar'],['success','Correcto'],['home','Inicio'],['alert','Alerta'],['ynWave','Onda Yahoo/NIED'],['motion','Movimiento']];const srevSoundNames=[['eew0','EEW débil'],['eew3','EEW intensidad 3'],['eew5','EEW intensidad 5'],['eewC','EEW C'],['koushin','Actualización'],['koushinE','Actualización EEW'],['VTSE5','VTS E5'],['tsa01','Tsunami']];function render(){const a=window.__eqAudioSettings;tts.checked=a?a.ttsEnabled:state.tts;audio.checked=a?a.audioEnabled:state.audio;taup.value=(window.__eqTaupSettings&&window.__eqTaupSettings.mode)||state.taup;intensityScale.value=state.intensityScale||'source';if(mapSea)mapSea.value=state.mapSea||'dark';if(colombiaGoalRain)colombiaGoalRain.checked=state.colombiaGoalRain!==false;if(colombiaMatchAlerts)colombiaMatchAlerts.checked=state.colombiaMatchAlerts!==false;uiSounds.innerHTML=uiSoundNames.map(x=>'<button class="eqs-control" type="button" data-ui-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');srevSounds.innerHTML=srevSoundNames.map(x=>'<button class="eqs-control" type="button" data-srev-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');list.innerHTML=agencies.map(x=>'<label class="eqs-agency"><input type="checkbox" data-agency="'+x+'" '+(!(state.disabled&&state.disabled[x])?'checked':'')+'> '+x+'</label>').join('')}function apply(save){const previousIntensityScale=window.__eqForcedIntensityScale||'source';state.tts=tts.checked;state.audio=audio.checked;state.taup=taup.value;state.intensityScale=intensityScale.value||'source';state.mapSea=(mapSea&&mapSea.value)||'dark';state.colombiaGoalRain=colombiaGoalRain?colombiaGoalRain.checked:state.colombiaGoalRain!==false;window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain;if(!state.colombiaGoalRain)window.__eqStopColombiaGoalRain?.();state.colombiaMatchAlerts=colombiaMatchAlerts?colombiaMatchAlerts.checked:state.colombiaMatchAlerts!==false;window.__eqColombiaMatchAlertsEnabled=state.colombiaMatchAlerts;if(!state.colombiaMatchAlerts)window.__eqStopColombiaMatchAlert?.();state.disabled={};list.querySelectorAll('input[data-agency]').forEach(x=>{if(!x.checked)state.disabled[x.dataset.agency]=true});window.__eqDisabledAgencies=state.disabled;if(window.__eqAudioSettings){window.__eqAudioSettings.setAudio(state.audio);window.__eqAudioSettings.setTts(state.tts)}if(window.__eqTaupSettings)window.__eqTaupSettings.mode=state.taup;window.__eqForcedIntensityScale=state.intensityScale;try{if(typeof window.__eqApplyMapSeaTheme==='function')window.__eqApplyMapSeaTheme(state.mapSea||'dark');}catch(_){};try{localStorage.setItem(key,JSON.stringify(state))}catch(_){}document.getElementById('filterAgency')?.dispatchEvent(new Event('change'));if(previousIntensityScale!==state.intensityScale)window.__eqRefreshIntensityScale?.();if(save)modal.classList.remove('active')}function show(){state=read();render();window.__eqAudioSettings?.refreshVoiceSelect?.();syncJmaToggle();modal.classList.add('active')}open.addEventListener('click',show);jmaToggle?.addEventListener('click',()=>{const api=window.__eqJmaWeatherView;if(api&&typeof api.toggle==='function'){const pending=api.toggle();modal.classList.remove('active');syncJmaToggle();Promise.resolve(pending).then(syncJmaToggle).catch(syncJmaToggle)}else{document.getElementById('btnJmaWeatherAlerts')?.click();modal.classList.remove('active');setTimeout(syncJmaToggle,250)}});document.getElementById('eqSettingsClose').addEventListener('click',()=>modal.classList.remove('active'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('active')});document.getElementById('eqsSave').addEventListener('click',()=>apply(true));document.getElementById('eqsReset').addEventListener('click',()=>{state=Object.assign({},defaults,{disabled:{}});render();apply(false)});tts.addEventListener('change',()=>apply(false));audio.addEventListener('change',()=>apply(false));taup.addEventListener('change',()=>apply(false));intensityScale.addEventListener('change',()=>apply(false));mapSea?.addEventListener('change',()=>apply(false));colombiaGoalRain?.addEventListener('change',()=>apply(false));colombiaMatchAlerts?.addEventListener('change',()=>apply(false));goalRainTest?.addEventListener('click',()=>window.__eqTestColombiaGoalRain?.());uiSounds.addEventListener('click',e=>{const b=e.target.closest('[data-ui-sound]');if(b)window.__eqAudioSettings?.testUi(b.dataset.uiSound)});srevSounds.addEventListener('click',e=>{const b=e.target.closest('[data-srev-sound]');if(b)window.__eqAudioSettings?.testSrev(b.dataset.srevSound)});document.getElementById('ttsVoiceSelect')?.addEventListener('change',e=>window.__eqAudioSettings?.setPreferredVoice(e.target.value));document.getElementById('btnTtsVoiceTest')?.addEventListener('click',()=>window.__eqAudioSettings?.testPreferredVoice());document.getElementById('btnTtsVoiceReset')?.addEventListener('click',()=>window.__eqAudioSettings?.resetPreferredVoice());document.getElementById('eqsTestTts').addEventListener('click',()=>window.__eqAudioSettings?.testTts());window.__eqDisabledAgencies=state.disabled||{};window.__eqForcedIntensityScale=state.intensityScale||'source';window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain!==false;window.__eqColombiaMatchAlertsEnabled=state.colombiaMatchAlerts!==false;setTimeout(()=>{render();syncJmaToggle();window.__eqRefreshIntensityScale?.()},0)})();</script>
+<div class="eqs-muted eqs-intensity-note">Solo cambia el color del agua. Países, límites administrativos, estaciones y sismos se mantienen.</div><div class="eqs-muted eqs-intensity-note">La selección ajusta lista, ficha, telop y mapa. Las equivalencias entre escalas se marcan con ≈ y son estimadas, no oficiales.</div><div class="eqs-section"><div class="eqs-title">Probar sonidos del monitor</div><div class="eqs-muted">Pulsa cada botón para escucharlo. Los sonidos SREV son los avisos incorporados.</div><div class="eqs-sound-group"><b>Interfaz</b><div class="eqs-sound-grid" id="eqsUiSounds"></div></div><div class="eqs-sound-group"><b>Alertas SREV</b><div class="eqs-sound-grid" id="eqsSrevSounds"></div></div><div class="eqs-sound-group"><b>Voz</b><button class="eqs-control" id="eqsTestTts" type="button">Probar TTS</button></div></div></div><div class="eqs-section"><div class="eqs-title">Voz de alertas en español</div><div class="eqs-muted">Elige y prueba la voz utilizada para los avisos hablados.</div><select id="ttsVoiceSelect"></select><div style="display:flex;gap:8px;margin-top:8px"><button class="eqs-control" id="btnTtsVoiceTest" type="button">Probar voz</button><button class="eqs-control" id="btnTtsVoiceReset" type="button">Usar automática</button></div></div><div class="eqs-muted">Las preferencias se guardan en este navegador.</div></div><div class="eqs-section"><div class="eqs-title">Agencias visibles en la lista</div><div class="eqs-agencies" id="eqsAgencies"></div><div class="eqs-muted">Desactivarlas las oculta de la lista, pero no elimina su conexión.</div></div><div class="eqs-actions"><button class="eqs-control" id="eqsReset" type="button">Restablecer</button><button class="eqs-save" id="eqsSave" type="button">Guardar</button></div></div></div><script id="eq-settings-module">(function(){'use strict';const modal=document.getElementById('eqSettingsModal'),open=document.getElementById('btnSettings');if(!modal||!open)return;const agencies=['USGS','JMA','CENC','CEA','CEIC','EMSC','IGN','INETER','GFZ','SSN','AFAD','BMKG','GEONET','INGV','FSSN','SED','PHIVOLCS','CSN','IG-EPN','EARLY-EST','HKO','NOA','KOERI','KMA','BCSF','NRCan','USP','MMD','CEA-PR','ShakeAlert (Mangxu)','ShakeAlert EEW (Mangxu)','CEA EEW (Mangxu)','CEA-PR EEW (Mangxu)','JMA EEW (Mangxu)','CWA EEW (Mangxu)'],key='earthquake.settings.v1',defaults={tts:true,audio:true,taup:'precise',intensityScale:'source',mapSea:'dark',colombiaGoalRain:true,colombiaMatchAlerts:true,disabled:{}};const read=()=>{try{return Object.assign({},defaults,JSON.parse(localStorage.getItem(key)||'{}'));}catch(_){return Object.assign({},defaults)}};let state=read();const tts=document.getElementById('eqsTts'),audio=document.getElementById('eqsAudio'),taup=document.getElementById('eqsTaup'),intensityScale=document.getElementById('eqsIntensityScale'),mapSea=document.getElementById('eqsMapSea'),colombiaGoalRain=document.getElementById('eqsColombiaGoalRain'),colombiaMatchAlerts=document.getElementById('eqsColombiaMatchAlerts'),goalRainTest=document.getElementById('eqsTestColombiaGoalRain'),list=document.getElementById('eqsAgencies');const uiSounds=document.getElementById('eqsUiSounds'),srevSounds=document.getElementById('eqsSrevSounds'),jmaToggle=document.getElementById('eqsJmaWeatherToggle');function syncJmaToggle(){const api=window.__eqJmaWeatherView;const active=!!(api&&typeof api.isActive==='function'&&api.isActive());if(jmaToggle){jmaToggle.textContent=active?'↩️ Volver a la vista normal':'🇯🇵 Alertas meteorológicas de Japón';jmaToggle.setAttribute('aria-pressed',String(active));jmaToggle.style.borderColor=active?'#ffb300':'';jmaToggle.style.color=active?'#ffd873':''}}const uiSoundNames=[['click','Clic'],['select','Selección'],['refresh','Actualizar'],['success','Correcto'],['home','Inicio'],['alert','Alerta'],['ynWave','Onda Yahoo/NIED'],['motion','Movimiento']];const srevSoundNames=[['eew0','EEW débil'],['eew3','EEW intensidad 3'],['eew5','EEW intensidad 5'],['eewC','EEW C'],['koushin','Actualización'],['koushinE','Actualización EEW'],['VTSE5','VTS E5'],['tsa01','Tsunami']];function render(){const a=window.__eqAudioSettings;tts.checked=a?a.ttsEnabled:state.tts;audio.checked=a?a.audioEnabled:state.audio;taup.value=(window.__eqTaupSettings&&window.__eqTaupSettings.mode)||state.taup;intensityScale.value=state.intensityScale||'source';if(mapSea)mapSea.value=state.mapSea||'dark';if(colombiaGoalRain)colombiaGoalRain.checked=state.colombiaGoalRain!==false;if(colombiaMatchAlerts)colombiaMatchAlerts.checked=state.colombiaMatchAlerts!==false;uiSounds.innerHTML=uiSoundNames.map(x=>'<button class="eqs-control" type="button" data-ui-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');srevSounds.innerHTML=srevSoundNames.map(x=>'<button class="eqs-control" type="button" data-srev-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');list.innerHTML=agencies.map(x=>'<label class="eqs-agency"><input type="checkbox" data-agency="'+x+'" '+(!(state.disabled&&state.disabled[x])?'checked':'')+'> '+x+'</label>').join('')}function apply(save){const previousIntensityScale=window.__eqForcedIntensityScale||'source';state.tts=tts.checked;state.audio=audio.checked;state.taup=taup.value;state.intensityScale=intensityScale.value||'source';state.mapSea=(mapSea&&mapSea.value)||'dark';state.colombiaGoalRain=colombiaGoalRain?colombiaGoalRain.checked:state.colombiaGoalRain!==false;window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain;if(!state.colombiaGoalRain)window.__eqStopColombiaGoalRain?.();state.colombiaMatchAlerts=colombiaMatchAlerts?colombiaMatchAlerts.checked:state.colombiaMatchAlerts!==false;window.__eqColombiaMatchAlertsEnabled=state.colombiaMatchAlerts;if(!state.colombiaMatchAlerts)window.__eqStopColombiaMatchAlert?.();state.disabled={};list.querySelectorAll('input[data-agency]').forEach(x=>{if(!x.checked)state.disabled[x.dataset.agency]=true});window.__eqDisabledAgencies=state.disabled;if(window.__eqAudioSettings){window.__eqAudioSettings.setAudio(state.audio);window.__eqAudioSettings.setTts(state.tts)}if(window.__eqTaupSettings)window.__eqTaupSettings.mode=state.taup;window.__eqForcedIntensityScale=state.intensityScale;try{if(typeof window.__eqApplyMapSeaTheme==='function')window.__eqApplyMapSeaTheme(state.mapSea||'dark');}catch(_){};try{localStorage.setItem(key,JSON.stringify(state))}catch(_){}document.getElementById('filterAgency')?.dispatchEvent(new Event('change'));if(previousIntensityScale!==state.intensityScale)window.__eqRefreshIntensityScale?.();if(save)modal.classList.remove('active')}function show(){state=read();render();window.__eqAudioSettings?.refreshVoiceSelect?.();syncJmaToggle();modal.classList.add('active')}open.addEventListener('click',show);jmaToggle?.addEventListener('click',()=>{const api=window.__eqJmaWeatherView;if(api&&typeof api.toggle==='function'){const pending=api.toggle();modal.classList.remove('active');syncJmaToggle();Promise.resolve(pending).then(syncJmaToggle).catch(syncJmaToggle)}else{document.getElementById('btnJmaWeatherAlerts')?.click();modal.classList.remove('active');setTimeout(syncJmaToggle,250)}});document.getElementById('eqSettingsClose').addEventListener('click',()=>modal.classList.remove('active'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('active')});document.getElementById('eqsSave').addEventListener('click',()=>apply(true));document.getElementById('eqsReset').addEventListener('click',()=>{state=Object.assign({},defaults,{disabled:{}});render();apply(false)});tts.addEventListener('change',()=>apply(false));audio.addEventListener('change',()=>apply(false));taup.addEventListener('change',()=>apply(false));intensityScale.addEventListener('change',()=>apply(false));mapSea?.addEventListener('change',()=>apply(false));colombiaGoalRain?.addEventListener('change',()=>apply(false));colombiaMatchAlerts?.addEventListener('change',()=>apply(false));goalRainTest?.addEventListener('click',()=>window.__eqTestColombiaGoalRain?.());uiSounds.addEventListener('click',e=>{const b=e.target.closest('[data-ui-sound]');if(b)window.__eqAudioSettings?.testUi(b.dataset.uiSound)});srevSounds.addEventListener('click',e=>{const b=e.target.closest('[data-srev-sound]');if(b)window.__eqAudioSettings?.testSrev(b.dataset.srevSound)});document.getElementById('ttsVoiceSelect')?.addEventListener('change',e=>window.__eqAudioSettings?.setPreferredVoice(e.target.value));document.getElementById('btnTtsVoiceTest')?.addEventListener('click',()=>window.__eqAudioSettings?.testPreferredVoice());document.getElementById('btnTtsVoiceReset')?.addEventListener('click',()=>window.__eqAudioSettings?.resetPreferredVoice());document.getElementById('eqsTestTts').addEventListener('click',()=>window.__eqAudioSettings?.testTts());window.__eqDisabledAgencies=state.disabled||{};window.__eqForcedIntensityScale=state.intensityScale||'source';window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain!==false;window.__eqColombiaMatchAlertsEnabled=state.colombiaMatchAlerts!==false;setTimeout(()=>{render();syncJmaToggle();window.__eqRefreshIntensityScale?.()},0)})();</script>
 
 </body>
 </html>
