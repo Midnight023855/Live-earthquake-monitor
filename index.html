@@ -5389,13 +5389,26 @@ global.TauPJS=api;
                 // pan/zoom anterior para que no impida enfocar el último sismo.
                 try { if (typeof clearMapManualOverride === 'function') clearMapManualOverride(); } catch (_) {}
                 try {
-                    const valid = events.filter(ev => Number.isFinite(Number(ev.lat)) && Number.isFinite(Number(ev.lon)));
+                    const valid = events.filter(ev => {
+                        if (!ev || !Number.isFinite(Number(ev.lat)) || !Number.isFinite(Number(ev.lon))) return false;
+                        // Solo sismos que salen en la lista (no EEW/WRS solo-ondas)
+                        try {
+                            if (typeof isEewOnlyListEntry === 'function' && isEewOnlyListEntry(ev)) return false;
+                        } catch (_) {}
+                        if (ev.isBmkgWrs === true) return false;
+                        if (ev.nowQuakeReference) return false;
+                        return true;
+                    });
                     const ordered = valid.sort((a,b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0));
-                    const latest = ordered.find(ev => !ev.nowQuakeReference) || ordered[0];
+                    const latest = ordered[0];
                     if (latest) {
-                        selectEvent(latest.id, latest.nowQuakeReference
-                            ? { noMap:true }
-                            : { autoFocus:true, forceMap:true, overrideManual:true, overrideKmoniMap:true });
+                        selectEvent(latest.id, {
+                            autoFocus: true,
+                            forceMap: true,
+                            overrideManual: true,
+                            overrideKmoniMap: true,
+                            alertInterrupt: true
+                        });
                         return;
                     }
                 } catch (_) {}
@@ -8121,24 +8134,8 @@ global.TauPJS=api;
 
         function focusLatestListEarthquakeAfterBmkg() {
             try {
-                if (waveMode) return;
-                if (typeof isSpecialMapSectionOpen === 'function' && isSpecialMapSectionOpen()) return;
-                const list = Array.isArray(events) ? events : [];
-                const parse = (t) => {
-                    try { return (typeof parseTs === 'function' ? parseTs(t) : Number(t)) || 0; } catch (_) { return Number(t) || 0; }
-                };
-                const candidates = list
-                    .filter(e => e && Number.isFinite(Number(e.lat)) && Number.isFinite(Number(e.lon)))
-                    .filter(e => !(typeof isEewOnlyListEntry === 'function' && isEewOnlyListEntry(e)))
-                    .sort((a, b) => parse(b.ts) - parse(a.ts));
-                if (!candidates.length) return;
-                const top = candidates[0];
-                if (typeof selectEvent === 'function') {
-                    selectEvent(top.id, { forceMap: true, autoFocus: true, overrideManual: true, alertInterrupt: true });
-                } else if (Number.isFinite(Number(top.lat)) && Number.isFinite(Number(top.lon))) {
-                    try { map.setView([Number(top.lat), Number(top.lon)], Math.max(5, map.getZoom() || 5)); } catch (_) {}
-                }
-            } catch (e) { console.warn('[BMKG return zoom]', e); }
+                if (typeof focusLastQuakeAfterSectionClose === 'function') return focusLastQuakeAfterSectionClose();
+            } catch (_) {}
         }
 
         function deactivateWaveMode() {
@@ -8162,11 +8159,14 @@ global.TauPJS=api;
                 bmkgWaveMapCircles = null;
             }
             taiwanStationsLayer.addTo(map);
-            // Al cerrar el apartado BMKG WRS, volver a la vista normal con zoom
-            // inmediato al último sismo de la lista.
-            if (wasBmkgWrs) {
-                setTimeout(() => { try { focusLatestListEarthquakeAfterBmkg(); } catch (_) {} }, 80);
-            }
+            // Al cerrar cualquier modo de ondas (BMKG, EEW, TREM…), zoom al
+            // último sismo de la lista en la vista normal.
+            setTimeout(() => {
+                try {
+                    if (typeof focusLastQuakeAfterSectionClose === 'function') focusLastQuakeAfterSectionClose();
+                    else if (typeof focusLatestListEarthquakeAfterBmkg === 'function') focusLatestListEarthquakeAfterBmkg();
+                } catch (_) {}
+            }, 100);
         }
 
         let heatmapEnabled = false;
@@ -25174,6 +25174,7 @@ wrapMotion(); setTimeout(wrapMotion,1000);setTimeout(wrapMotion,3000);
       const focus=['tsunami-focus','gdacs-focus','us-alerts-focus','hurricane-focus','typhoon-focus','jma-volcano-focus','taiwan-focus','taiwan-motion-focus','jma-weather-focus','wave-focus'];
       focus.forEach(c=>layout.classList.remove(c));
     }
+    try { if (typeof focusLastQuakeAfterSectionClose === 'function') setTimeout(() => focusLastQuakeAfterSectionClose(), 120); } catch(_){}
   }
 
   function exclusiveFor(newId){
