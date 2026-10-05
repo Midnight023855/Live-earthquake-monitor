@@ -85,7 +85,6 @@
             visibility: visible !important;
             margin: 0 !important;
         }
-        /* Inicio permanece accesible también en los apartados automáticos. */
         /* Las estaciones/ondas Japón se abren automáticamente con JMA EEW;
            no se muestra el botón manual En vivo. */
         #btnLiveJapan { display: none !important; }
@@ -908,7 +907,6 @@
             font-size:15px; font-weight:800; line-height:1.3;
         }
         #mainLayout.taiwan-focus #btnTaiwan { border-color:#4bafd8 !important; color:#8bd8ff !important; }
-        /* Apartado automático de movimiento en Taiwán (P-Alert / TREM). */
         #mainLayout.taiwan-motion-focus .left-panel { display:none !important; }
         #mainLayout.taiwan-motion-focus .map-container {
             position:absolute; inset:0; width:100%; height:100%;
@@ -1383,15 +1381,13 @@
         /* El letrero amarillo se conserva solo para la lógica interna. */
         #mainLayout.japan-focus #ynEarlyAlert.active { display:block; z-index:2200 !important; }
         /* El cuadro Yahoo/NIED de Japón usa el mismo diseño flotante que TREM Taiwán. */
+        /* La detección NIED se representa sobre el MAPA mediante los frentes P/S.
+           No mostrar la tarjeta como sustituto de las ondas. La lógica interna
+           sigue activa para alimentar el render de mapa, sonido y métricas. */
         #mainLayout.japan-focus #ynEarlyAlert,
-        #mainLayout.japan-focus #ynEarlyAlert.active {
-            display:block !important; left:12px !important; right:auto !important;
-            top:12px !important; width:min(82vw,330px) !important;
-            min-height:90px; box-sizing:border-box; padding:14px 16px;
-            border:2px solid #4bafd8 !important; border-left:2px solid #4bafd8 !important;
-            border-radius:14px; background:rgba(8,19,25,.95) !important;
-            color:#eaf8ff; box-shadow:0 0 28px rgba(45,164,210,.38);
-            font-size:11px; line-height:15px;
+        #mainLayout.japan-focus #ynEarlyAlert.active,
+        #ynEarlyAlert.yn-motion-active {
+            display:none !important;
         }
         #ynEarlyAlert.yn-weak { border-color:#39d353 !important; box-shadow:0 0 28px rgba(57,211,83,.32); }
         #ynEarlyAlert.yn-weak .yn-alert-head { color:#8cff9a !important; }
@@ -3191,23 +3187,7 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
 
             <div id="waveTopbar">
                 <span id="waveTopTitle">Frentes P/S estimados · TauP</span>
-                <button id="btnWaveBack">← Volver</button>
-            </div>
-
-            <div id="waveModePanel">
-                <div class="wave-title"><span>〰️ Ondas sísmicas</span><span id="waveStatus">● En espera</span></div>
-                <div class="wave-info" id="waveInfo">Esperando una alerta temprana con origen sísmico válido…</div>
-            </div>
-            <div id="globalVolcanoAutoPanel" aria-live="polite">
-                <div id="gvaHead"><span>🌋 ALERTA VOLCÁNICA · MODO AUTOMÁTICO</span><span id="gvaLive">EN VIVO</span></div>
-                <div id="gvaName">Volcán</div>
-                <div id="gvaMeta">Esperando información volcánica mundial…</div>
-                <div id="gvaInfo">Consultando fuentes volcánicas oficiales y de observación.</div>
-                <div id="gvaSource">USGS · NASA EONET · catálogo de volcanes</div>
-            </div>
-
-            <div id="alertCenterPanel">
-                <div class="alert-center-title"><span>🚨 Centro de alertas</span><button id="btnAlertCenterClose">×</button></div>
+                </div>
                 <div id="alertCenterInfo">Sin alertas activas.</div>
             </div>
             <div id="heatLegend">🔥 Mapa de calor sísmico · últimas 24 h</div>
@@ -5104,7 +5084,6 @@ global.TauPJS=api;
         ['pointerdown','touchstart','wheel','dblclick'].forEach(type => {
             try { manualMapContainer.addEventListener(type, noteManualMapInput, { capture:true, passive:type !== 'dblclick' }); } catch (_) {}
         });
-        // Bloquea recentrados automáticos mientras el usuario explora el mapa;
         // los gestos directos siguen habilitados.
         ['setView','fitBounds','flyTo','flyToBounds','panTo'].forEach(method => {
             const original = map[method];
@@ -5172,7 +5151,6 @@ global.TauPJS=api;
                 String(!!ev?.isFinal), String(ev?.reportConfidence || ev?.confidence || '')
             ].join('|');
         }
-        // Zoom oficial para el enfoque automático de sismos nuevos. No usa el
         // zoom manual del usuario; las vistas especiales conservan sus propias
         // excepciones (por ejemplo Japón/NIED y alertas prioritarias).
         const NEW_EARTHQUAKE_FOCUS_ZOOM = 8;
@@ -5356,7 +5334,6 @@ global.TauPJS=api;
         }
 
         let autoSectionReturnTimer = null;
-        // Yahoo/NIED mantiene Japón como vista base. Un enfoque automático externo
         // puede mostrarse temporalmente, pero nunca sustituye esa vista de forma permanente.
         let yahooNiedModeActive = false;
         let japanLiveStationsPinned = false;
@@ -7437,7 +7414,6 @@ global.TauPJS=api;
                 const layout = document.getElementById('mainLayout');
                 const panel = document.getElementById('tsunamiPanel');
                 const topbar = document.getElementById('tsunamiTopbar');
-                // No dependemos del botón manual: este acceso es automático.
                 tsunamiMode = true;
                 hurricaneMode = false;
                 usAlertsMode = false;
@@ -7466,7 +7442,6 @@ global.TauPJS=api;
             tsunamiPriorityTimer = setTimeout(() => {
                 tsunamiPriorityActive = false;
                 tsunamiPriorityUntil = 0;
-                // El apartado automático termina después de 10 s, pero la
                 // capa JMA permanece en el mapa para que no desaparezca.
                 try {
                     document.getElementById('mainLayout')?.classList.remove('tsunami-focus');
@@ -9291,7 +9266,6 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             speakNextChunk();
         }
 
-        // Traductor automático (Google Translate, sin UI) · caché en memoria
         const translateSpanishCache = new Map();
         async function translateToSpanish(text, sourceLang = 'auto') {
             const original = String(text || '').trim();
@@ -17138,10 +17112,102 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             } catch (_) {}
         });
 
+        // ═══════════════════════════════════════════════════════════════════
+        // WOLFX · paquete sísmico completo (HTTP + WebSocket)
+        // Usa los endpoints públicos documentados por Wolfx para JMA/CENC y
+        // los EEW de JMA/CENC/Sichuan/Fujian/Chongqing. El WebSocket all_eew
+        // existente sigue siendo la ruta primaria; HTTP funciona como respaldo.
+        // ═══════════════════════════════════════════════════════════════════
+        const WOLFX_FULL_CHANNELS = [
+            { id:'jma_eew',   label:'JMA EEW',   url:'https://api.wolfx.jp/jma_eew.json',   source:'Wolfx · JMA EEW' },
+            { id:'cenc_eew',  label:'CENC EEW',  url:'https://api.wolfx.jp/cenc_eew.json',  source:'Wolfx · CENC EEW' },
+            { id:'sc_eew',    label:'Sichuan EEW',url:'https://api.wolfx.jp/sc_eew.json',    source:'Wolfx · Sichuan EEW' },
+            { id:'fj_eew',    label:'Fujian EEW', url:'https://api.wolfx.jp/fj_eew.json',    source:'Wolfx · Fujian EEW' },
+            { id:'cq_eew',    label:'Chongqing EEW',url:'https://api.wolfx.jp/cq_eew.json', source:'Wolfx · Chongqing EEW' }
+        ];
+        const wolfxHttpSeen = new Map();
+        const wolfxHttpInitialized = new Set();
+
+        function wolfxEewPayload(raw) {
+            if (!raw || typeof raw !== 'object') return null;
+            if (raw.data && typeof raw.data === 'object' && !Array.isArray(raw.data)) return raw.data;
+            if (raw.eew_raw && typeof raw.eew_raw === 'object') return raw.eew_raw;
+            return raw;
+        }
+
+        function wolfxEewToEvent(raw, channel) {
+            const d = wolfxEewPayload(raw);
+            if (!d) return null;
+            const lat = Number(d.Latitude ?? d.latitude);
+            const lon = Number(d.Longitude ?? d.longitude);
+            const mag = d.Magnitude ?? d.Magunitude ?? d.magnitude;
+            const depth = d.Depth ?? d.depth;
+            const ts = parseJmaEewTime(d.OriginTime || d.ReportTime || d.AnnouncedTime || d.time || d.timestamp);
+            const id = String(d.EventID || d.ID || d.id || `${channel.id}-${ts || Date.now()}`);
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+            return {
+                id:`wolfx-${channel.id}-${id}`,
+                lat, lon,
+                place:d.HypoCenter || d.Hypocenter || d.location || channel.label,
+                time:ts ? formatTime(ts) : '', ts,
+                waveOriginTs:ts,
+                mag:magnitudeDisplay(mag),
+                depth:depth != null && String(depth).trim() !== '' ? `${depth} km` : '—',
+                intensity:d.MaxIntensity ?? d.maxIntensity ?? d.intensity ?? '—',
+                agency:channel.source,
+                source:'Wolfx Open API',
+                reportConfidence:(d.isFinal || d.isCancel) ? 'final' : 'preliminar',
+                isFinal:!!d.isFinal,
+                isCancel:!!d.isCancel,
+                isTaupEew:true,
+                colorClass:intensityClass(d.MaxIntensity ?? d.maxIntensity ?? 0)
+            };
+        }
+
+        async function pollWolfxFullChannel(channel) {
+            const key = 'wolfxFull_' + channel.id;
+            const metrics = apiMetrics[key] = apiMetrics[key] || {};
+            try {
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 9000);
+                const res = await fetch(channel.url + '?_=' + Date.now(), {
+                    cache:'no-store', headers:{Accept:'application/json'}, signal:controller.signal
+                });
+                clearTimeout(timer);
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const raw = await res.json();
+                const d = wolfxEewPayload(raw);
+                const signature = JSON.stringify({id:d?.EventID||d?.ID||d?.id||'',serial:d?.Serial||d?.ReportNum||'',time:d?.ReportTime||d?.AnnouncedTime||d?.OriginTime||d?.timestamp||''});
+                metrics.lastSeen = Date.now(); metrics.httpOk = true; metrics.transport = 'Wolfx HTTP';
+                setApiState(key,'ok');
+                const previous = wolfxHttpSeen.get(channel.id);
+                wolfxHttpSeen.set(channel.id, signature);
+                const ev = wolfxEewToEvent(raw, channel);
+                // La primera respuesta solo establece línea base. Las siguientes
+                // actualizaciones nuevas pasan por la misma ruta de prioridad/telop.
+                if (ev && previous && previous !== signature) {
+                    notifyRealEarthquakePriority(ev);
+                    showEarthquakeTicker(ev, channel.source, {liveUpdate:true});
+                }
+                wolfxHttpInitialized.add(channel.id);
+            } catch (_) {
+                metrics.httpOk = false;
+                setApiState(key,'bad');
+            }
+        }
+
+        function startWolfxFullHttpFallbacks() {
+            WOLFX_FULL_CHANNELS.forEach((channel, index) => {
+                setTimeout(() => pollWolfxFullChannel(channel), index * 700);
+            });
+            setInterval(() => WOLFX_FULL_CHANNELS.forEach(pollWolfxFullChannel), 5000);
+        }
+        setTimeout(startWolfxFullHttpFallbacks, 12000);
+
         const apiState = {};
         const apiMetrics = {};
         const apiNames = [
-            ['USGS','usgs'], ['JMA','jma'], ['CENC · NowQuake','cenc'], ['CENC · Wolfx','cencWolfx'],
+            ['USGS','usgs'], ['JMA','jma'], ['CENC · NowQuake','cenc'], ['CENC · Wolfx','cencWolfx'], ['Wolfx · JMA EEW','wolfxFull_jma_eew'], ['Wolfx · CENC EEW','wolfxFull_cenc_eew'], ['Wolfx · Sichuan EEW','wolfxFull_sc_eew'], ['Wolfx · Fujian EEW','wolfxFull_fj_eew'], ['Wolfx · Chongqing EEW','wolfxFull_cq_eew'],
             ['CSN','csn'], ['IG-EPN','igepn'], ['ISC','isc'], ['IGP','igp'],
             ['EMSC','emsc'], ['IGN','ign'], ['INETER','ineterCatac'], ['FUNVISIS','funvisis'], ['GFZ','gfz'], ['BREQ','breq'], ['TREM','trem'], ['P-Alert','palert'], ['NIED K-NET/KiK-net','yahooNied'],
             ['SSN','ssn'], ['AFAD','afad'],
@@ -20487,8 +20553,11 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 // La vista de ondas permanece anclada durante el polling y se
                 // cierra únicamente si arriba a la lista la intensidad JMA del mismo evento.
                 try {
-                    const loc = document.getElementById('bigLoc')?.textContent || '';
-                    if ((!selectedEventId || /cargando/i.test(loc)) && events.length) {
+                    // Solo seleccionar automáticamente al arrancar cuando todavía
+                    // no existe una selección. Durante el polling no volver a
+                    // seleccionar el último sismo, aunque el panel esté cargando
+                    // o una agencia haya actualizado sus datos.
+                    if (selectedEventId == null && events.length) {
                         const orderedEvents = [...events].sort((a, b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0));
                         const latest = orderedEvents.find(ev => !ev.nowQuakeReference) || orderedEvents[0];
                         if (latest) {
@@ -22704,7 +22773,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         let niedSeafloorLayer = null, niedSeafloorRenderer = null;
         function syncNiedSeafloorVisibility() {
             const layout = document.getElementById('mainLayout');
-            const japanView = !!(layout && (layout.classList.contains('japan-focus') || layout.classList.contains('wave-focus')) && (ynMode || yahooNiedModeActive || japanLiveStationsPinned));
+            const japanView = !!(layout && (ynMode || yahooNiedModeActive || japanLiveStationsPinned || kmoniStationsVisible || (typeof japanSeaStationsMode !== 'undefined' && japanSeaStationsMode)));
             if (!japanView) { try { if (niedSeafloorLayer && map.hasLayer(niedSeafloorLayer)) map.removeLayer(niedSeafloorLayer); } catch (_) {} return; }
             if (!niedSeafloorLayer) {
                 try { niedSeafloorRenderer = L.canvas({ pane:'niedSeafloorPane', padding:0.5 }); } catch (_) { niedSeafloorRenderer = undefined; }
@@ -22747,6 +22816,8 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             try { syncNiedSeafloorVisibility(); } catch (_) {}
             syncJmaVolcanoCatalogLayer();
             const stationLayers = [taiwanStationsLayer, palertStationsLayer, ynLeafletLayer, niedSeafloorLayer];
+            // MOWLAS también debe permanecer visible al cambiar de apartado.
+            try { if (!hideStations && typeof window.__sismosMowlasRefresh === 'function') window.__sismosMowlasRefresh(); } catch (_) {}
             if (hideStations) {
                 stationLayers.forEach(layer => { try { if (layer && map.hasLayer(layer)) map.removeLayer(layer); } catch (_) {} });
                 try { if (kmoniLiveOverlay && map.hasLayer(kmoniLiveOverlay)) map.removeLayer(kmoniLiveOverlay); } catch (_) {}
@@ -22783,7 +22854,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
 
         map.on('layeradd', event => {
             if (!specialViewHidesStations()) return;
-            [taiwanStationsLayer, palertStationsLayer, ynLeafletLayer].forEach(layer => {
+            [taiwanStationsLayer, palertStationsLayer, ynLeafletLayer, (typeof mowlasLayer !== 'undefined' ? mowlasLayer : null)].forEach(layer => {
                 try {
                     if (layer && (event.layer === layer || (typeof layer.hasLayer === 'function' && layer.hasLayer(event.layer))) && map.hasLayer(layer)) map.removeLayer(layer);
                 } catch (_) {}
@@ -22907,18 +22978,20 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         function ynDiagText() {
             const d = document.getElementById('ynDiag');
             if (!d) return;
-            d.textContent = `NIED ${ynFeedState} · catálogo ${ynCatalogCount || '—'} · muestras ${ynSamples} · C0–20 ${ynValidCodes} · desconocidos ${ynUnknownCodes} · dataTime ${ynLastDataTime || '—'} · host ${ynHostUsed || '—'}`;
+            d.textContent = `NIED ${ynFeedState} · catálogo ${ynCatalogCount || '—'} · muestras ${ynSamples} · C0–20 ${ynValidCodes} · desconocidos ${ynUnknownCodes} · detector Kanameishi · dataTime ${ynLastDataTime || '—'} · host ${ynHostUsed || '—'}`;
             const visibleStatus = document.getElementById('ynLegendStatus');
             if (visibleStatus) visibleStatus.textContent = `Feed: ${ynFeedState} · ${ynLastDataTime || '—'} · ${ynSites.length || 0} estaciones`;
             d.title = ynLastError || 'Estado del catálogo y del feed; estaciones silenciosas C0 siguen dibujadas.';
         }
 
-        // Detector estilo SREV: intensidad instrumental >= 0 (code 6) en estaciones cercanas.
-        // code: I = -3 + code*0.5 → code 6 = 0.0, code 8 = 1.0
-        const YN_ACTIVE_CODE_MIN = 6; // >= intensidad 0
-        const YN_MOTION_DELTA_MIN = 2; // subida rápida también cuenta si code >= 6
-        const YN_MOTION_QUORUM = 1; // al menos 3 estaciones
-        const YN_MOTION_RADIUS_KM = 80; // cerca entre sí
+        // Kanameishi-style NIED detection:
+        // each station keeps its recent 60 readings and derives activity from
+        // the rise above its recent minimum. Coherent stations are still
+        // confirmed by SISMOS LIVE's existing multi-station episode logic.
+        const YN_ACTIVE_CODE_MIN = 6;
+        const YN_MOTION_DELTA_MIN = 0; // retained for compatibility with existing diagnostics
+        const YN_MOTION_QUORUM = 1;
+        const YN_MOTION_RADIUS_KM = 80;
         function ynBreakConsecutiveReadings() {
             ynActiveFrameStreak = 0;
             ynAutoActivationReady = false;
@@ -22930,6 +23003,119 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         let ynMotionHighlightLayer = null;
         let ynLastMotionIntLevel = -1;
         let ynMotionBoxesTimer = null;
+
+        // Kanameishi-style NIED station activity state.
+        // Keeps a 60-s history per station, derives the rise (ascend) from the
+        // recent minimum, and suppresses stations showing repeated abnormal peaks.
+        const ynKanameishiStations = new Map();
+        const ynKanameishiAbnormal = new Map();
+        const YN_KM_RECENT_MAX = 60;
+        const YN_KM_DEFAULT_EXPIRE = 12;
+        const YN_KM_ACTIVE_MS = 10500;
+
+        function ynKanameishiState(index) {
+            let s = ynKanameishiStations.get(index);
+            if (!s) {
+                s = {
+                    recentLevel: [],
+                    expireSeconds: YN_KM_DEFAULT_EXPIRE,
+                    level: -1,
+                    ascend: 0,
+                    activity: 0,
+                    isActive: false,
+                    activeUntil: 0
+                };
+                ynKanameishiStations.set(index, s);
+            }
+            return s;
+        }
+
+        function ynKanameishiAbnormalStation(state) {
+            const a = state.recentLevel.filter(v => Number.isInteger(v) && v >= 0);
+            if (a.length < 3) return false;
+            let peaks = 0, i = 1, n = a.length;
+            while (i < n) {
+                while (i < n && a[i] <= a[i - 1]) i++;
+                if (i >= n) break;
+                let leftBottom = a[i - 1], top = a[i];
+                while (i < n && a[i] >= a[i - 1]) { top = a[i]; i++; }
+                if (i >= n) break;
+                let rightBottom = a[i];
+                while (i < n && a[i] <= a[i - 1]) { rightBottom = a[i]; i++; }
+                if ((top - leftBottom) >= 4 && (top - rightBottom) >= 4) peaks++;
+            }
+            return peaks >= 3;
+        }
+
+        function ynKanameishiActivity(level, ascend, isActive) {
+            let levelActivity = 0, ascendActivity = 0;
+            if (ascend > 0 || isActive) {
+                if (level <= 5) levelActivity = 0;
+                else if (level <= 7) levelActivity = isActive ? 0.5 * (level - 5) : 0.25 * (level - 5);
+                else if (level <= 11) levelActivity = 2 * (level - 7);
+                else levelActivity = 6 * (level - 10);
+            }
+            if (ascend <= 0) ascendActivity = 0;
+            else if (ascend <= 1) ascendActivity = isActive ? 0.5 : 0.25;
+            else if (ascend <= 6) ascendActivity = 2 * (ascend - 2) + 1;
+            else ascendActivity = 6 * (ascend - 5);
+            return levelActivity + ascendActivity;
+        }
+
+        function ynKanameishiUpdateStation(index, rawLevel, nowMs) {
+            const s = ynKanameishiState(index);
+            const originLevel = Number.isInteger(rawLevel) && rawLevel >= 0 && rawLevel <= 20 ? rawLevel : -1;
+            const recentFilter = s.recentLevel.slice(0, s.expireSeconds).filter(v => v !== -1);
+
+            // Missing data is carried only for history. It never counts as movement.
+            const level = originLevel === -1
+                ? (s.recentLevel.slice(0, 4).find(v => v !== -1) ?? -1)
+                : originLevel;
+
+            if (level > s.level && s.level !== -1) {
+                s.expireSeconds = Math.min(s.expireSeconds + 1, YN_KM_RECENT_MAX);
+            } else if (level < s.level || level === -1) {
+                s.expireSeconds = YN_KM_DEFAULT_EXPIRE;
+            }
+
+            s.recentLevel.unshift(originLevel);
+            s.recentLevel.splice(YN_KM_RECENT_MAX);
+
+            let ascend = 0;
+            const abnormal = ynKanameishiAbnormalStation(s);
+            if (abnormal) {
+                ynKanameishiAbnormal.set(index, 0);
+            } else {
+                if (ynKanameishiAbnormal.has(index)) {
+                    const v = (ynKanameishiAbnormal.get(index) || 0) + 1;
+                    if (v >= 600) ynKanameishiAbnormal.delete(index);
+                    else ynKanameishiAbnormal.set(index, v);
+                } else if (recentFilter.length) {
+                    const minRecent = Math.min(...recentFilter);
+                    ascend = level - minRecent;
+                }
+            }
+
+            // A rising station signal is active for the same short window used by
+            // kanameishi's NIED station object, without inventing any measurements.
+            if (ascend > 0 && level >= 6) {
+                s.isActive = true;
+                s.activeUntil = nowMs + YN_KM_ACTIVE_MS;
+            } else if (nowMs >= s.activeUntil) {
+                s.isActive = false;
+            }
+
+            s.level = level;
+            s.ascend = ascend;
+            s.activity = ynKanameishiActivity(level, ascend, s.isActive);
+
+            // If the recent window has stabilized, return to the default window.
+            if (s.expireSeconds > YN_KM_DEFAULT_EXPIRE && s.recentLevel.length >= s.expireSeconds) {
+                const f = s.recentLevel.slice(0, s.expireSeconds).filter(v => v !== -1);
+                if (f.length && f.every(v => v === f[0])) s.expireSeconds = YN_KM_DEFAULT_EXPIRE;
+            }
+            return s;
+        }
 
         function ynShindoFromCode(code) {
             const c = Number(code);
@@ -23085,28 +23271,40 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 const motionDelta = prevCode === null ? 0 : code - prevCode;
                 const codeValid = Number.isInteger(code) && code >= 0 && code <= 20;
                 const site = ynSites[i];
-                const lat = Number(Array.isArray(site) ? site[0] : NaN);
-                const lon = Number(Array.isArray(site) ? site[1] : NaN);
-                // Los códigos sin lectura son estaciones desconocidas, no una trama
-                // completa inválida: jamás se pintan como activas ni cuentan al quorum.
+                const lat = Number(Array.isArray(site) ? site[0] : site?.lat);
+                const lon = Number(Array.isArray(site) ? site[1] : site?.lon);
+
+                const km = ynKanameishiUpdateStation(i, code, t);
+                const abnormal = ynKanameishiAbnormal.has(i);
                 if (!codeValid) {
-                    rec.first6=0; rec.last6=0; rec.lastCode=null; rec.lastSeen=t; ynStationTimes.set(i, rec);
+                    rec.first6=0; rec.last6=0; rec.lastCode=null; rec.lastSeen=t;
+                    ynStationTimes.set(i, rec);
                     continue;
                 }
+
                 validStationCodes++;
-                // SREV-style: se exige una señal que ya corresponda a movimiento (>= 1.0).
-                // Un salto rápido también puede confirmar una estación si la lectura
-                // ya está al menos en 0.0, evitando que C0 genere falsos episodios.
-                const motionDetected = code >= YN_ACTIVE_CODE_MIN || (motionDelta >= YN_MOTION_DELTA_MIN && code >= 6);
-                if (motionDetected) {
-                    if (Number.isFinite(lat) && Number.isFinite(lon)) frameStations.push({ index:i, code, lat, lon, motionDelta });
+                const activityDetected = !abnormal && km.activity > 0 && code >= 6;
+                if (activityDetected && Number.isFinite(lat) && Number.isFinite(lon)) {
+                    frameStations.push({
+                        index:i,
+                        code,
+                        lat,
+                        lon,
+                        motionDelta,
+                        ascend:km.ascend,
+                        activity:km.activity,
+                        kanameishi:true
+                    });
                     if (!rec.first6) rec.first6=t;
                     rec.last6=t;
                 } else {
                     rec.first6=0; rec.last6=0;
                 }
+
                 rec.prevCode = prevCode;
-                rec.lastCode = code; rec.lastSeen = t; ynStationTimes.set(i, rec);
+                rec.lastCode = code;
+                rec.lastSeen = t;
+                ynStationTimes.set(i, rec);
                 ynPreviousStationCodes.set(i, code);
             }
             // Se aceptan lecturas parciales si al menos 80% de códigos son válidos.
@@ -23608,6 +23806,8 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 const eLat = sts.reduce((a,s,i)=>a + s.lat * weights[i], 0) / wsum;
                 const eLon = sts.reduce((a,s,i)=>a + s.lon * weights[i], 0) / wsum;
                 try {
+                    // Fijar inmediatamente el origen visual de las ondas en el mapa.
+                    ynWaveCenter = { lat:eLat, lon:eLon };
                     tremEstimatedWave = {
                         id: 'yahoo-nied-est-' + signature.slice(0, 40),
                         lat: eLat,
@@ -23625,7 +23825,8 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                         isTaupEew: true
                     };
                 } catch (_) {}
-                // Activar anillos P/S del modo ondas (antes solo sonaba NewInt)
+                // Activar anillos P/S del modo ondas. Las ondas se dibujan
+                // directamente sobre el mapa y no en una tarjeta lateral.
                 try {
                     if (typeof activateWaveMode === 'function') activateWaveMode(true);
                     else if (typeof startLocalEstimatedWaves === 'function') {
@@ -23691,6 +23892,9 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                     tremEstimatedWave.lat = eLat;
                     tremEstimatedWave.lon = eLon;
                     tremEstimatedWave.report = sts.length + ' estaciones';
+                    // El frente P/S debe nacer del centroide de las estaciones
+                    // que realmente reportaron movimiento, no de un panel lateral.
+                    ynWaveCenter = { lat:eLat, lon:eLon };
                 }
             } catch (_) {}
             try { if (!ynInitialViewDone) ynFocusEpisodeOnce(groups); } catch (_) {}
@@ -23733,8 +23937,8 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         }
 
         /*
-         * NIED P/S wave estimator adapted from the open-source kanameishi implementation.
-         * Source: Lipomoea/kanameishi, AGPL-3.0.
+         * NIED P/S wave estimator based on the open-source kanameishi implementation.
+         * Source/reference: Lipomoea/kanameishi, AGPL-3.0.
          * We use its travel-time interpolation model (JMA2001 for local distances) rather
          * than the old visual constant-speed circles. The full TravelTimes table is loaded
          * from the project's public source at runtime so the table itself is not duplicated
@@ -24330,7 +24534,9 @@ function ynBuildLeafletMarkers() {
                 }
                 const rawInstr = -3 + Math.max(0, Math.min(20, Number(code) || 0)) * 0.5;
                 // Móvil: en zoom bajo solo dibujar activas + muestra de reposo
-                if (ynIsMobilePerf() && typeof map !== 'undefined' && map && map.getZoom() < 6) {
+                // Mantener TODAS las estaciones NIED visibles en Japón, también en móvil.
+                // La optimización anterior ocultaba 4 de cada 5 estaciones quietas a zoom bajo.
+                if (false && ynIsMobilePerf() && typeof map !== 'undefined' && map && map.getZoom() < 6) {
                     if (rawInstr < 0 && (i % 5) !== 0) continue;
                 }
                 let m;
@@ -24571,7 +24777,7 @@ function ynBuildLeafletMarkers() {
             const timer = setTimeout(() => controller.abort(), timeout);
             try {
                 const response = await fetch(url, { cache:'no-store', signal:controller.signal, mode:'cors' });
-                if (!response.ok) throw new Error('Yahoo/NIED HTTP ' + response.status);
+                if (!response.ok) throw new Error('Kyoshin/NIED HTTP ' + response.status);
                 return await response.json();
             } finally { clearTimeout(timer); }
         }
@@ -24636,7 +24842,7 @@ function ynBuildLeafletMarkers() {
                     return value;
                 } catch (e) { last = e; }
             }
-            throw last || new Error('Yahoo/NIED sin host disponible');
+            throw last || new Error('Kyoshin/NIED sin host disponible');
         }
 
         function ynStampJst(backSec) {
@@ -24663,42 +24869,63 @@ function ynBuildLeafletMarkers() {
         }
         async function ynFetchRealtimeFast(path, proxyFallback = false) {
             let last = null;
-            // 1) Directo (Yahoo tiene CORS *)
-            for (const host of YN_HOSTS) {
-                try {
-                    const value = await ynFetchRealtimeDirect(host + path, 1500);
-                    if (!value?.realTimeData?.intensity) throw new Error('Trama Yahoo vacía');
-                    ynHostUsed = host.replace(/^https?:\/\//, '');
-                    return value;
-                } catch (e) { last = e; }
+            // Yahoo distribuye el Kyoshin Monitor en JSON. El reloj puede ir unos
+            // segundos por delante/atrás, así que probamos una ventana corta en
+            // paralelo en lugar de encadenar hasta 40 peticiones de forma serial.
+            const m = path.match(/^\/RealTimeData\/(\d{8})\/(\d{14})\.json$/);
+            const candidates = [];
+            if (m) {
+                const base = m[2];
+                const d = new Date(Date.UTC(+base.slice(0,4), +base.slice(4,6)-1, +base.slice(6,8), +base.slice(8,10), +base.slice(10,12), +base.slice(12,14)));
+                for (let delta = -6; delta <= 2; delta++) {
+                    const q = new Date(d.getTime() + delta * 1000);
+                    const pad = n => String(n).padStart(2,'0');
+                    const stamp = q.getUTCFullYear()+pad(q.getUTCMonth()+1)+pad(q.getUTCDate())+pad(q.getUTCHours())+pad(q.getUTCMinutes())+pad(q.getUTCSeconds());
+                    const date = stamp.slice(0,8);
+                    for (const host of YN_HOSTS) candidates.push({host,url:host+'/RealTimeData/'+date+'/'+stamp+'.json'});
+                }
+            } else {
+                for (const host of YN_HOSTS) candidates.push({host,url:host+path});
             }
-            // 2) Proxy propio + proxies públicos (file:// / content:// / CORS raro)
-            const urlCandidates = [];
-            for (const host of YN_HOSTS) {
-                const url = host + path;
-                urlCandidates.push(url);
-            }
-            for (const url of urlCandidates) {
+            // 1) Proxy propio primero. Esto es especialmente importante para
+            // content:// y WebView, donde el CORS directo puede fallar.
+            const probe = async ({host,url}) => {
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 2800);
                 try {
-                    const controller = new AbortController();
-                    const timer = setTimeout(() => controller.abort(), 2200);
-                    try {
-                        const response = await eqProxyFetch(url, { cache:'no-store', signal:controller.signal }, new URL(url).hostname);
-                        if (!response?.ok) throw new Error('Yahoo proxy HTTP ' + (response?.status || '?'));
-                        const value = await response.json();
-                        if (!value?.realTimeData?.intensity) throw new Error('Trama proxy vacía');
-                        ynHostUsed = new URL(url).hostname + '+proxy';
-                        return value;
-                    } finally { clearTimeout(timer); }
-                } catch (e) { last = e; }
+                    const response = await eqProxyFetch(url, {cache:'no-store', signal:controller.signal}, new URL(url).hostname);
+                    if (!response?.ok) throw new Error('Yahoo proxy HTTP '+(response?.status||'?'));
+                    const value = await response.json();
+                    if (!value?.realTimeData?.intensity) throw new Error('Trama Kyoshin vacía');
+                    return {host,value};
+                } finally { clearTimeout(timer); }
+            };
+            const directProbe = async ({host,url}) => {
+                const value = await ynFetchRealtimeDirect(url, 2200);
+                if (!value?.realTimeData?.intensity) throw new Error('Trama Kyoshin vacía');
+                return {host,value};
+            };
+            try {
+                const winner = await Promise.any(candidates.map(probe));
+                ynHostUsed = winner.host.replace(/^https?:\/\//,'') + '+EarthQuakeProxy';
+                return winner.value;
+            } catch (e) { last = e; }
+            // 2) Si el proxy propio no responde, probar directamente.
+            try {
+                const winner = await Promise.any(candidates.map(directProbe));
+                ynHostUsed = winner.host.replace(/^https?:\/\//,'');
+                return winner.value;
+            } catch (e) { last = e; }
+            // 3) Último recurso: proxies públicos, uno por uno para no saturarlos.
+            for (const {host,url} of candidates.slice(0,6)) {
                 try {
                     const value = await ynFetchJsonProxied(url, 4000);
                     if (!value?.realTimeData?.intensity) throw new Error('Trama proxy JSON vacía');
-                    ynHostUsed = new URL(url).hostname + '+proxy2';
+                    ynHostUsed = host.replace(/^https?:\/\//,'') + '+proxy2';
                     return value;
                 } catch (e) { last = e; }
             }
-            throw last || new Error('Realtime Yahoo fail');
+            throw last || new Error('Realtime Kyoshin/NIED fail');
         }
 
         async function ynUpdate() {
@@ -24819,7 +25046,44 @@ function ynBuildLeafletMarkers() {
                     }
                 } catch (e) {
                     ynLastError = String(e?.message || e);
-                    if (!catalog) throw e;
+                    // No perder la visualización de K-NET/KiK-net si el catálogo Yahoo
+                    // falla: el HTML ya contiene el catálogo NIED de estaciones.
+                    try {
+                        const embedded = (typeof kmoniStations !== 'undefined' && Array.isArray(kmoniStations)) ? kmoniStations : [];
+                        if (embedded.length) {
+                            // El catálogo embebido no solo debe dibujarse: debe convertirse
+                            // en el catálogo activo para que ynUpdate() pueda consumir las
+                            // tramas de intensidad y el detector Kanameishi siga funcionando.
+                            ynSites = embedded.map(row => {
+                                if (!Array.isArray(row) || row.length < 6) return null;
+                                // kmoniStations: [code, network, name, pref, lat, lon, ...]
+                                return [Number(row[4]), Number(row[5]), row[0], row[1], row[2], row[3]];
+                            }).filter(row => row && Number.isFinite(row[0]) && Number.isFinite(row[1]));
+                            ynSites.siteConfigId = 'embedded-kmoni';
+                            ynCatalogCount = ynSites.length;
+                            ynFeedState = 'NIED catálogo embebido · ' + ynSites.length + ' sitios';
+                            ynLeafletBuilt = false;
+                            ynLeafletMarkers = [];
+                            ynEnsureLeafletLayer();
+                            ynBuildLeafletMarkers();
+                            ynDraw({ stations: true, waves: false, force: true });
+                            try { showRegionToast('🇯🇵 NIED: ' + ynSites.length + ' estaciones · catálogo local'); } catch (_) {}
+                            // Arrancar el mismo polling de 1 s usado cuando el catálogo
+                            // Yahoo sí responde. Antes esta ruta quedaba visualmente pintada
+                            // pero sin feed activo.
+                            if (!ynTimer) ynTimer = setInterval(() => {
+                                if (!document.hidden) { try { ynUpdate(); } catch (_) {} }
+                            }, 1000);
+                            try { await ynUpdate(); } catch (_) {}
+                        }
+                    } catch (_) {}
+                    if (!catalog) {
+                        // The live intensity feed can still retry independently.
+                        if (!ynSites.length) {
+                            try { setTimeout(() => { try { ynStart(); } catch (_) {} }, 5000); } catch (_) {}
+                        }
+                        return;
+                    }
                 }
                 if (!Array.isArray(catalog?.items) || !catalog.items.length) {
                     ynFeedState = 'catálogo inválido';
@@ -24857,8 +25121,8 @@ function ynBuildLeafletMarkers() {
                 ynStarting = false;
             }
         }
-        // Arranque automático + reintentos del feed Yahoo/NIED
         setTimeout(() => { try { ynStart(); } catch (_) {} }, 1500);
+        setTimeout(() => { try { syncNiedSeafloorVisibility(); } catch (_) {} }, 1800);
         setInterval(() => {
             try {
                 if (!ynSites.length && !ynStarting) ynStart();
@@ -26037,7 +26301,7 @@ function ynBuildLeafletMarkers() {
 <div id="eqSettingsModal" role="dialog" aria-modal="true" aria-labelledby="eqSettingsTitle"><div id="eqSettingsDialog"><div class="eqs-head"><span id="eqSettingsTitle">Ajustes</span><button class="eqs-close" id="eqSettingsClose" type="button">×</button></div><div class="eqs-section"><div class="eqs-title">Apartados</div><div class="eqs-muted">Abre las alertas meteorológicas oficiales de Japón. Pulsa de nuevo para volver a la vista normal.</div><button class="eqs-control" id="eqsJmaWeatherToggle" type="button" aria-pressed="false" style="width:100%;margin-top:8px;text-align:left;padding:9px">🇯🇵 Alertas meteorológicas de Japón</button><button class="eqs-control" id="eqsJapanSeaStationsToggle" type="button" aria-pressed="false" style="width:100%;margin-top:8px;text-align:left;padding:9px">🌊 Mar de Japón · estaciones en vivo</button>
 <div class="sismos-auto-box">
 <button class="eqs-control" id="eqsMeteoCenterToggle" type="button" aria-pressed="false" style="width:100%;text-align:left;padding:9px">🌦️ Abrir Centro Meteorológico LIVE</button>
-<button class="eqs-control" id="eqsAutoExploreToggle" type="button" aria-pressed="false" style="width:100%;margin-top:8px;text-align:left;padding:9px">🔄 Modo automático: desactivado</button>
+
 <div class="sismos-auto-status">Sin tocar la pantalla durante 30 s, SISMOS LIVE puede rotar apartados. Una alerta prioritaria interrumpe la rotación y después continúa.</div>
 </div></div><div class="eqs-section"><div class="eqs-title">Lista de sismos</div><div class="eqs-grid">
 <label class="eqs-row">Magnitud mínima en lista
@@ -26085,7 +26349,16 @@ function ynBuildLeafletMarkers() {
 <div class="eqs-title">General</div><div class="eqs-grid"><label class="eqs-row">Lluvia de balones por gol de Colombia <input class="eqs-switch" id="eqsColombiaGoalRain" type="checkbox"></label><label class="eqs-row">Avisos de goles, descanso y final <input class="eqs-switch" id="eqsColombiaMatchAlerts" type="checkbox"></label><label class="eqs-row">Voz TTS <input class="eqs-switch" id="eqsTts" type="checkbox"></label><label class="eqs-row">Sonidos y alertas <input class="eqs-switch" id="eqsAudio" type="checkbox"></label><label class="eqs-row">Modelo TauP <select id="eqsTaup"><option value="precise">Preciso</option><option value="fast">Rápido</option><option value="fallback">Respaldo</option></select></label><label class="eqs-row eqs-intensity-row">Forzar escala de intensidad <select id="eqsIntensityScale"><option value="source">Desactivado (usar escala de la agencia)</option><option value="shindo">Shindo (JMA)</option><option value="mmi">MMI</option><option value="csis">CSIS (China)</option><option value="cwa">CWA (Taiwán)</option><option value="geonet">GeoNet MMI (NZ)</option></select></label>
 <label class="eqs-row eqs-intensity-row">Color del mar (mapa) <select id="eqsMapSea"><option value="dark">Oscuro (predeterminado)</option><option value="ocean">Azul océano</option><option value="deep">Azul profundo</option><option value="black">Negro</option><option value="slate">Gris pizarra</option><option value="teal">Verde azulado</option><option value="indigo">Índigo</option></select></label>
 <label class="eqs-row eqs-intensity-row">Estaciones Japón <select id="eqsJapanStations"><option value="yahoo">Yahoo (Kyoshin CDN)</option><option value="nied">NIED oficial (K-NET + KiK-net)</option><option value="knet">Solo K-NET</option><option value="kiknet">Solo KiK-net</option><option value="both">Yahoo + NIED</option></select></label>
-<div class="eqs-muted eqs-intensity-note">Yahoo: catálogo del feed en vivo. NIED: coordenadas y nombres oficiales K-NET/KiK-net (intensidad sigue del Kyoshin Monitor).</div>
+<div class="eqs-muted eqs-intensity-note">Yahoo: catálogo del feed en vivo. NIED: coordenadas y nombres oficiales. Kyoshin/K-NET/KiK-net conserva su telemetría en vivo.</div>
+<div class="eqs-section" style="margin-top:8px"><div class="eqs-title">🇯🇵 Redes NIED / MOWLAS</div>
+<div class="eqs-muted">Las ubicaciones se cargan una vez y quedan en caché. El movimiento en 1 s solo se pinta con una fuente pública que realmente lo entregue.</div>
+<label class="eqs-row">Hi-net <input class="eqs-switch" id="eqsMowlasHiNet" type="checkbox" checked></label>
+<label class="eqs-row">F-net <input class="eqs-switch" id="eqsMowlasFNet" type="checkbox" checked></label>
+<label class="eqs-row">V-net <input class="eqs-switch" id="eqsMowlasVNet" type="checkbox" checked></label>
+<label class="eqs-row">S-net <input class="eqs-switch" id="eqsMowlasSNet" type="checkbox" checked></label>
+<label class="eqs-row">DONET <input class="eqs-switch" id="eqsMowlasDONET" type="checkbox" checked></label>
+<label class="eqs-row">N-net <input class="eqs-switch" id="eqsMowlasNNet" type="checkbox" checked></label>
+<div id="mowlasLiveStatus" class="eqs-muted eqs-intensity-note">MOWLAS: preparando catálogo…</div></div>
 <div class="eqs-section" style="margin-top:8px"><div class="eqs-title">Cuadros Máx. Int. / PGA / PGV</div>
 <div class="eqs-muted">Elige qué paneles laterales se muestran.</div>
 <label class="eqs-row">TREM (Taiwán) <input class="eqs-switch" id="eqsShowTremMetrics" type="checkbox"></label>
@@ -26204,7 +26477,6 @@ wrapMotion(); setTimeout(wrapMotion,1000);setTimeout(wrapMotion,3000);
 </script>
 
 <script>
-/* SISMOS LIVE · exclusividad de apartados automáticos
    Si llega una alerta nueva mientras otro apartado automático está abierto,
    se cierra inmediatamente el anterior para evitar superposiciones. */
 (function(){
@@ -26365,6 +26637,8 @@ wrapMotion(); setTimeout(wrapMotion,1000);setTimeout(wrapMotion,3000);
   {key:'rain',label:'🌧️ Lluvia'},
   {key:'temp',label:'🌡️ Temperatura'},
   {key:'wind',label:'💨 Viento'},
+  {key:'lightning',label:'⚡ Rayos'},
+  {key:'fire',label:'🔥 Incendios'},
   {key:'clouds',label:'☁️ Nubes'},
   {key:'radar',label:'📡 Radar'},
   {key:'satellite',label:'🛰️ Satélite'},
@@ -26381,7 +26655,9 @@ wrapMotion(); setTimeout(wrapMotion,1000);setTimeout(wrapMotion,3000);
     clouds:'clouds',
     radar:'radar',
     satellite:'satellite',
-    waves:'waves'
+    waves:'waves',
+    lightning:'lightning',
+    fire:'fires'
   };
   const overlay=overlayMap[layer]||'wind';
   const product=overlay==='radar'?'radar':'ecmwf';
@@ -26510,17 +26786,20 @@ wrapMotion(); setTimeout(wrapMotion,1000);setTimeout(wrapMotion,3000);
  }
  function updateControls(){
   const b=document.getElementById('eqsAutoExploreToggle'),m=document.getElementById('eqsMeteoCenterToggle');
-  if(b){b.textContent=cfg.auto?'⏸️ Modo automático: activado':'🔄 Modo automático: desactivado';b.setAttribute('aria-pressed',String(cfg.auto));b.style.borderColor=cfg.auto?'#35d5dd':'';b.style.color=cfg.auto?'#8ff7ff':'';}
+  if(b){b.textContent=cfg.auto?'⏸️ : activado':'🔄 : desactivado';b.setAttribute('aria-pressed',String(cfg.auto));b.style.borderColor=cfg.auto?'#35d5dd':'';b.style.color=cfg.auto?'#8ff7ff':'';}
   if(m){const active=!!root()?.classList.contains('active');m.textContent=active?'↩️ Cerrar Centro Meteorológico LIVE':'🌦️ Abrir Centro Meteorológico LIVE';m.setAttribute('aria-pressed',String(active));}
  }
  function armAutoTimer(runId){
   clearTimeout(rotateTimer);
+  rotateTimer=0;
   if(!cfg.auto||runId!==autoRunId)return;
   rotateTimer=setTimeout(()=>{
+   rotateTimer=0;
    if(!cfg.auto||runId!==autoRunId)return;
    if(Date.now()<priorityUntil){armAutoTimer(runId);return;}
    current=(current+1)%sections.length;
    showSection(sections[current]);
+   // Re-arm immediately after every automatic section. The cycle never ends at Home.
    armAutoTimer(runId);
   },AUTO_INTERVAL);
  }
@@ -26563,9 +26842,165 @@ wrapMotion(); setTimeout(wrapMotion,1000);setTimeout(wrapMotion,3000);
  setInterval(()=>{if(!cfg.auto||!bmkgAutoActive||autoTransition)return;const panel=document.getElementById('waveModePanel');if(!panel?.classList.contains('active')){clearTimeout(priorityTimer);priorityUntil=0;bmkgAutoActive=false;armAutoTimer(autoRunId);}},500);
  let lastJapanSig='';setInterval(()=>{if(!cfg.auto||Date.now()<priorityUntil||autoTransition||Date.now()<autoSectionUntil)return;try{const arr=Array.isArray(window.events)?window.events:[];const jp=arr.filter(e=>{const lat=+e.lat,lon=+e.lon;return Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=30&&lat<=46&&lon>=129&&lon<=146}).sort((a,b)=>(parseTs?.(b.ts)||0)-(parseTs?.(a.ts)||0))[0];if(!jp)return;const sig=String(jp.id||jp.ts||'');if(sig&&sig!==lastJapanSig){if(lastJapanSig)priority('japan-wave',12000);lastJapanSig=sig;}}catch(_){ }},5000);
  setMeteoLayer(0,false);updateControls();
+ // Watchdog: if another view accidentally clears the rotation timer while
+ // automatic mode remains enabled, restart the cycle without requiring a
+ // second tap. Only the user's Auto button can stop it.
+ setInterval(()=>{
+  if(!cfg.auto||autoTransition)return;
+  if(Date.now()<priorityUntil)return;
+  if(!rotateTimer)armAutoTimer(autoRunId);
+ },1000);
  if(cfg.auto){cfg.auto=false;startAuto();}
 })();
 </script>
 
+<script>
+/* SISMOS LIVE · MOWLAS extra network layer
+ * Station catalog: NIED public station-information CSV for Hi-net/F-net/V-net,
+ * plus the NIED seafloor catalog already embedded in this document for S-net/DONET/N-net.
+ * Important: no synthetic movement values are generated. 1 s live motion remains the
+ * existing Kyoshin K-NET/KiK-net stream; the other networks are location-only unless
+ * a public browser-safe telemetry source is available.
+ */
+(function(){
+  'use strict';
+  const MOWLAS_CFG = {
+    'Hi-net': { id:'eqsMowlasHiNet', color:'#45A3FF', prefix:'0101' },
+    'F-net':  { id:'eqsMowlasFNet',  color:'#C66BFF', prefix:'0103' },
+    'V-net':  { id:'eqsMowlasVNet',  color:'#FF8A3D', prefix:'0105' },
+    'S-net':  { id:'eqsMowlasSNet',  color:'#36D7C7' },
+    'DONET':  { id:'eqsMowlasDONET', color:'#FFD34D' },
+    'N-net':  { id:'eqsMowlasNNet',  color:'#FF5C8A' }
+  };
+  let mowlasStations = [];
+  let mowlasLayer = null;
+  let mowlasRenderer = null;
+  let mowlasLoaded = false;
+  let mowlasLoading = false;
+  let mowlasVisible = true;
+  const MOWLAS_CACHE_KEY = 'sismos-live-mowlas-stations-v1';
+  const HINET_STATION_CSV = 'https://www.hinet.bosai.go.jp/st_info/detail/dlDialogue.php?f=CSV';
+
+  function mowlasStatus(t){
+    const el=document.getElementById('mowlasLiveStatus');
+    if(el) el.textContent=t;
+  }
+  function mowlasEnabled(net){
+    const c=MOWLAS_CFG[net];
+    const el=c&&document.getElementById(c.id);
+    return el ? !!el.checked : true;
+  }
+  function mowlasSpecialHidden(){
+    try { return typeof specialViewHidesStations==='function' && specialViewHidesStations(); } catch(_){ return false; }
+  }
+  function mowlasEnsureLayer(){
+    if(typeof map==='undefined'||!map||typeof L==='undefined') return false;
+    if(!mowlasRenderer){ try{ mowlasRenderer=L.canvas({padding:0.5}); }catch(_){} }
+    if(!mowlasLayer) mowlasLayer=L.layerGroup();
+    if(mowlasSpecialHidden()) { try{ if(map.hasLayer(mowlasLayer)) map.removeLayer(mowlasLayer); }catch(_){}; return true; }
+    try{ if(!map.hasLayer(mowlasLayer)) mowlasLayer.addTo(map); }catch(_){}
+    return true;
+  }
+  function csvLineParse(line){
+    const out=[]; let cur='', q=false;
+    for(let i=0;i<line.length;i++){
+      const ch=line[i];
+      if(ch==='"'){
+        if(q && line[i+1]==='"'){cur+='"';i++;}
+        else q=!q;
+      } else if(ch===','&&!q){out.push(cur);cur='';}
+      else cur+=ch;
+    }
+    out.push(cur); return out;
+  }
+  function parseNiedCsv(text){
+    const lines=String(text||'').split(/\r?\n/).filter(Boolean);
+    if(lines.length<2) return [];
+    const header=csvLineParse(lines[0]).map(x=>x.trim().replace(/^'+|'+$/g,''));
+    const idx={}; header.forEach((h,i)=>idx[h]=i);
+    const get=(r,names)=>{for(const n of names){if(idx[n]!=null)return String(r[idx[n]]??'').trim().replace(/^'+|'+$/g,'');}return '';};
+    const out=[];
+    for(let i=1;i<lines.length;i++){
+      const r=csvLineParse(lines[i]);
+      const org=get(r,['organization_id']), net=get(r,['network_id']);
+      const key=org+net;
+      let network=null;
+      if(key.startsWith('0101')) network='Hi-net';
+      else if(key.startsWith('0103')) network='F-net';
+      else if(key.startsWith('0105')) network='V-net';
+      if(!network) continue;
+      const code=get(r,['station_cd','station_code']);
+      const lat=Number(get(r,['latitude'])), lon=Number(get(r,['longitude'])), elev=Number(get(r,['height(m)','height']));
+      if(!code||!Number.isFinite(lat)||!Number.isFinite(lon)) continue;
+      out.push({network,code,lat,lon,elev:Number.isFinite(elev)?elev:null});
+    }
+    return out;
+  }
+  async function mowlasFetchText(url){
+    const proxy='https://earthquakeproxy.terremotis123.workers.dev/?url='+encodeURIComponent(url);
+    const urls=[proxy,url]; let last=null;
+    for(const u of urls){
+      try{const r=await fetch(u,{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status); const t=await r.text(); if(t&&t.length>1000)return t;}catch(e){last=e;}
+    }
+    throw last||new Error('No se pudo cargar el catálogo NIED');
+  }
+  async function mowlasLoadCatalog(){
+    if(mowlasLoaded||mowlasLoading) return;
+    mowlasLoading=true;
+    try{
+      let dynamic=[];
+      try{
+        const c=JSON.parse(localStorage.getItem(MOWLAS_CACHE_KEY)||'null');
+        if(c&&Array.isArray(c.items)&&c.items.length) dynamic=c.items;
+      }catch(_){}
+      if(!dynamic.length){
+        try{
+          const csv=await mowlasFetchText(HINET_STATION_CSV);
+          dynamic=parseNiedCsv(csv);
+          if(dynamic.length) try{localStorage.setItem(MOWLAS_CACHE_KEY,JSON.stringify({items:dynamic,savedAt:Date.now()}));}catch(_){}
+        }catch(e){ console.warn('MOWLAS station CSV',e); }
+      }
+      const sea=(typeof NIED_SEAFLOOR_STATIONS!=='undefined'&&Array.isArray(NIED_SEAFLOOR_STATIONS))?NIED_SEAFLOOR_STATIONS:[];
+      const seafloor=sea.map(x=>({network:x[0]==='DONET1'?'DONET':(x[0]==='DONET2'?'DONET':x[0]),code:x[1],lat:Number(x[2]),lon:Number(x[3]),elev:Number(x[4])})).filter(x=>MOWLAS_CFG[x.network]&&Number.isFinite(x.lat)&&Number.isFinite(x.lon));
+      mowlasStations=dynamic.concat(seafloor);
+      // De-duplicate by network/code.
+      const seen=new Set(); mowlasStations=mowlasStations.filter(x=>{const k=x.network+'|'+x.code;if(seen.has(k))return false;seen.add(k);return true;});
+      mowlasLoaded=true;
+      const counts={}; mowlasStations.forEach(x=>counts[x.network]=(counts[x.network]||0)+1);
+      mowlasStatus('MOWLAS: '+mowlasStations.length+' estaciones · '+Object.entries(counts).map(([k,v])=>k+' '+v).join(' · ')+' · catálogo en caché');
+      mowlasRender();
+    }catch(e){mowlasStatus('MOWLAS: catálogo parcial · '+String(e?.message||e));}
+    finally{mowlasLoading=false;}
+  }
+  function mowlasRender(){
+    if(!mowlasEnsureLayer()) return;
+    try{mowlasLayer.clearLayers();}catch(_){}
+    if(!mowlasVisible||mowlasSpecialHidden()) return;
+    const frag=[];
+    for(const st of mowlasStations){
+      if(!mowlasEnabled(st.network)) continue;
+      const cfg=MOWLAS_CFG[st.network]; if(!cfg) continue;
+      const m=L.circleMarker([st.lat,st.lon],{
+        renderer:mowlasRenderer||undefined,
+        radius:2.7, weight:1, color:cfg.color, fillColor:cfg.color, fillOpacity:0.82,
+        opacity:0.95, interactive:true, pane:'yahooNiedStationsPane'
+      });
+      m.bindTooltip(st.network+' · '+st.code,{direction:'top',sticky:true,opacity:0.9});
+      m.bindPopup('<b>NIED '+st.network+'</b><br>'+st.code+'<br>'+st.lat.toFixed(4)+', '+st.lon.toFixed(4)+'<br><small>Catálogo de estación. Sin telemetría pública de 1 s en este visor.</small>');
+      frag.push(m);
+    }
+    frag.forEach(m=>m.addTo(mowlasLayer));
+  }
+  function mowlasWire(){
+    Object.values(MOWLAS_CFG).forEach(c=>{
+      const el=document.getElementById(c.id); if(el) el.addEventListener('change',mowlasRender);
+    });
+    try{ if(typeof map!=='undefined'&&map) map.on('moveend zoomend',()=>mowlasRender()); }catch(_){}
+    mowlasLoadCatalog();
+  }
+  window.__sismosMowlasRefresh=function(){mowlasRender();mowlasLoadCatalog();};
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',mowlasWire,{once:true}); else mowlasWire();
+})();
+</script>
 </body>
 </html>
