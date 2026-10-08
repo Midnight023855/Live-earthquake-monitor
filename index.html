@@ -1387,6 +1387,19 @@
         #ynEarlyAlert .yn-alert-grid { display:grid; grid-template-columns:1fr 1fr; gap:2px 10px; margin-top:6px; color:#f7dfaa; font-size:9px; line-height:13px; }
         #ynEarlyAlert .yn-alert-grid b { color:#fff8e7; font-weight:800; }
         #ynEarlyAlert .yn-alert-foot { margin-top:5px; color:#cdbb94; font-size:8px; line-height:10px; }
+        /* Segunda área NIED, solo cuando existe un segundo grupo cercano coherente. */
+        #ynEarlyAlertSecondary { display:none; position:absolute; z-index:2200 !important; left:12px; top:122px; width:min(82vw,330px); max-height:28dvh; overflow-y:auto; box-sizing:border-box; padding:8px 10px; border:1px solid #5d6268; border-left:4px solid #ffad42; border-radius:2px; background:rgba(35,38,42,.96); color:#eee; box-shadow:0 1px 4px rgba(0,0,0,.35); font-size:10px; line-height:13px; pointer-events:none; }
+        #mainLayout.japan-focus #ynEarlyAlertSecondary.active { display:block !important; }
+        #ynEarlyAlertSecondary .yn-alert-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; color:#e5e7eb; font-size:12px; line-height:17px; font-weight:900; }
+        #ynEarlyAlertSecondary .yn-alert-badge { flex:0 0 auto; padding:2px 5px; border:1px solid #747a80; border-radius:2px; color:#d8dde2; font-size:8px; line-height:10px; font-weight:800; }
+        #ynEarlyAlertSecondary .yn-motion-title { font-size:12px; font-weight:800; color:#e5e7eb; margin:2px 0 3px; }
+        #ynEarlyAlertSecondary .yn-motion-place { font-size:11px; font-weight:700; color:#fff; margin-bottom:3px; }
+        #ynEarlyAlertSecondary .yn-motion-metrics { display:flex; gap:12px; margin-top:4px; font-size:10px; color:#aeb5bc; }
+        #ynEarlyAlertSecondary .yn-motion-metrics b { color:#fff; font-size:14px; display:block; }
+        #ynEarlyAlertSecondary .yn-alert-foot { margin-top:5px; color:#cdbb94; font-size:8px; line-height:10px; }
+        /* Los números de intensidad de Japón son blancos para contrastar mejor. */
+        .leaflet-yahooNiedStationsPane-pane .srev-int-dot:not(.srev-quiet) { color:#fff !important; text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 4px rgba(0,0,0,.8) !important; }
+        @media (max-width:700px) { #ynEarlyAlertSecondary { left:8px; width:calc(100vw - 16px); max-height:24dvh; } }
         /* Área calculada solo con estaciones Yahoo/NIED activas. Es visual,
            aproximada y no representa un epicentro ni una zona oficial. */
         @keyframes ynMovementBoxPulse {
@@ -2985,6 +2998,68 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
 #sismosMeteoLayerBadge{margin-left:auto;margin-right:8px;font-size:12px;color:#9fe8ff;white-space:nowrap}
 @media(max-width:700px){#sismosMeteoLayerBadge{display:none}}
 </style>
+
+<style id="typhoon-kanameishi-inspired">
+/* Inspiración visual únicamente: capa/datos y comportamiento permanecen intactos. */
+#typhoonPanel.typhoon-active {
+  border:1px solid rgba(82,198,244,.42) !important;
+  background:linear-gradient(155deg,rgba(7,27,45,.96),rgba(6,17,31,.96) 62%,rgba(4,14,26,.97)) !important;
+  color:#e7f8ff !important;
+  box-shadow:0 14px 38px rgba(0,0,0,.52),0 0 22px rgba(42,184,226,.10),inset 0 1px rgba(220,248,255,.07) !important;
+}
+#typhoonPanel .typhoon-title {
+  color:#b7efff !important;
+  background:linear-gradient(90deg,rgba(40,164,207,.22),rgba(20,83,123,.10)) !important;
+  border-bottom:1px solid rgba(93,201,239,.24) !important;
+}
+#typhoonPanel #typhoonStatus {
+  color:#a8eeff !important;
+  background:rgba(37,154,195,.15) !important;
+  border-color:rgba(90,199,235,.34) !important;
+}
+#typhoonPanel .typhoon-card {
+  background:linear-gradient(145deg,rgba(14,40,62,.92),rgba(7,23,39,.94)) !important;
+  border:1px solid rgba(86,188,226,.23) !important;
+  box-shadow:0 5px 15px rgba(0,0,0,.24),inset 0 1px rgba(220,248,255,.035) !important;
+}
+#typhoonPanel .typhoon-name { color:#e1f7ff !important; }
+#typhoonPanel .typhoon-meta { color:#c2dbe8 !important; }
+#typhoonPanel .typhoon-meta .label { color:#81a9bd !important; }
+#typhoonPanel .typhoon-source { border-top-color:rgba(120,205,235,.15) !important; }
+#typhoonPanel .typhoon-item {
+  background:linear-gradient(145deg,rgba(10,45,59,.9),rgba(9,25,41,.93)) !important;
+  border-color:rgba(71,193,221,.28) !important;
+}
+#mainLayout.typhoon-focus #typhoonPanel.typhoon-active {
+  border-color:rgba(77,211,241,.52) !important;
+  background:linear-gradient(155deg,rgba(5,28,44,.96),rgba(5,17,31,.96)) !important;
+  box-shadow:0 0 24px rgba(41,192,225,.16),0 12px 35px rgba(0,0,0,.46) !important;
+}
+#mainLayout.typhoon-focus #typhoonPanel .typhoon-title { color:#b7efff !important; }
+#mainLayout.typhoon-focus #typhoonTopbar.typhoon-top-active {
+  padding:7px 10px; border:1px solid rgba(91,194,231,.28); border-radius:11px;
+  background:rgba(4,19,34,.82); backdrop-filter:blur(10px);
+}
+#mainLayout.typhoon-focus path.typhoon-track-jma,
+#mainLayout.typhoon-focus path.typhoon-track-observed,
+#mainLayout.typhoon-focus path.typhoon-track-forecast {
+  stroke-linecap:round; filter:drop-shadow(0 0 3px rgba(69,203,245,.40));
+}
+#mainLayout.typhoon-focus path.typhoon-wind-ring,
+#mainLayout.typhoon-focus path.typhoon-forecast-range {
+  filter:drop-shadow(0 0 2px rgba(63,193,231,.24));
+}
+#mainLayout.typhoon-focus path.typhoon-center-halo {
+  animation:typhoonHaloPulse 2.2s ease-in-out infinite; transform-box:fill-box; transform-origin:center;
+}
+#mainLayout.typhoon-focus path.typhoon-point-current { filter:drop-shadow(0 0 6px rgba(106,225,255,.85)); }
+#mainLayout.typhoon-focus path.typhoon-point-forecast { filter:drop-shadow(0 0 3px rgba(105,210,246,.52)); }
+@keyframes typhoonHaloPulse { 0%,100%{opacity:.48} 50%{opacity:.94} }
+@media(max-width:600px){
+  #mainLayout.typhoon-focus #typhoonPanel.typhoon-active { width:min(88vw,330px); max-height:38vh; }
+  #mainLayout.typhoon-focus #typhoonTopbar.typhoon-top-active { gap:9px; font-size:13px; }
+}
+</style>
 </head>
 <body>
     <div id="jmaJaBanner" aria-live="polite"></div>
@@ -3217,6 +3292,7 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
             </div>
             <div id="jmaWeatherAlertPanel" role="status" aria-live="polite" style="display:none;position:absolute;z-index:2250;"></div>
             <div id="ynEarlyAlert" role="status" aria-live="polite">Sin Alertas Tempranas de Terremotos</div>
+            <div id="ynEarlyAlertSecondary" role="status" aria-live="polite"></div>
             <div id="ynDiag" aria-live="polite">NIED K-NET/KiK-net: esperando catálogo…</div>
 
             <div id="kmoniPanel" class="kmoni-hidden" aria-live="polite">
@@ -5898,7 +5974,7 @@ global.TauPJS=api;
             if (c === 'TY') return [150, 280, 420];
             return [90, 160, 240]; // ciclón genérico / depresión activa
         }
-        function drawTyphoonWindRings(lat, lon, radiiKm, color = '#ffffff') {
+        function drawTyphoonWindRings(lat, lon, radiiKm, color = '#59d8ff') {
             if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
             (radiiKm || []).forEach((km, i) => {
                 if (!Number.isFinite(km) || km <= 0) return;
@@ -5906,22 +5982,24 @@ global.TauPJS=api;
                     radius: km * 1000,
                     color,
                     weight: 1.35,
-                    opacity: Math.max(0.22, 0.55 - i * 0.12),
+                    opacity: Math.max(0.18, 0.46 - i * 0.09),
                     fillColor: color,
-                    fillOpacity: 0.03,
-                    dashArray: i === 0 ? null : '4 6',
+                    fillOpacity: 0.025,
+                    dashArray: i === 0 ? '2 6' : '2 8',
+                    className: 'typhoon-wind-ring',
                     interactive: false
                 }).addTo(typhoonLayer);
             });
         }
         function renderJmaTyphoonMap() {
             jmaTyphoonData.forEach(t => {
-                if (t.points.length > 1) L.polyline(t.points.map(p => [p.lat,p.lon]), { color:'#62d9ff', weight:3, dashArray:'5 5', opacity:.95 }).addTo(typhoonLayer);
+                if (t.points.length > 1) L.polyline(t.points.map(p => [p.lat,p.lon]), { color:'#59d8ff', weight:2.5, dashArray:'1 8', lineCap:'round', opacity:.88, className:'typhoon-track-jma' }).addTo(typhoonLayer);
                 const last = t.points[t.points.length - 1];
                 if (last) {
                     const radii = typhoonWindRadiiKm(t.category, t.latestSpec);
-                    drawTyphoonWindRings(last.lat, last.lon, radii, '#e8f4ff');
-                    L.circleMarker([last.lat,last.lon], { radius:8, color:'#fff', weight:2, fillColor:'#2bc9ff', fillOpacity:.95 })
+                    drawTyphoonWindRings(last.lat, last.lon, radii, '#59d8ff');
+                    L.circleMarker([last.lat,last.lon], { radius:18, color:'#64ddff', weight:1.5, opacity:.72, fillColor:'#39cfff', fillOpacity:.10, className:'typhoon-center-halo', interactive:false }).addTo(typhoonLayer);
+                    L.circleMarker([last.lat,last.lon], { radius:8, color:'#e9fbff', weight:2, fillColor:'#49d6ff', fillOpacity:.98, className:'typhoon-point-current' })
                         .bindPopup(`<b>🇯🇵 ${t.name}</b><br>${jmaCategoryLabel(t.category)}<br>Presión: ${jmaTyphoonDetails(t).pressure}<br>Viento: ${jmaTyphoonDetails(t).wind}`).addTo(typhoonLayer);
                 }
             });
@@ -6010,24 +6088,25 @@ global.TauPJS=api;
                 const forecast = forecastTyphoonPoints(t);
                 const name = typhoonDisplayName(t);
                 if (actual.length > 1) {
-                    L.polyline(actual.map(p => [p.lat, p.lon]), { color:'#111', weight:3, opacity:.95 }).addTo(typhoonLayer);
+                    L.polyline(actual.map(p => [p.lat, p.lon]), { color:'#52d5ff', weight:2.5, opacity:.84, dashArray:'1 8', lineCap:'round', className:'typhoon-track-observed' }).addTo(typhoonLayer);
                 }
                 if (forecast.length > 0) {
                     const start = actual.length ? actual[actual.length - 1] : forecast[0];
                     const line = [[start.lat, start.lon], ...forecast.map(p => [p.lat, p.lon])];
-                    L.polyline(line, { color:'#111', weight:2.5, opacity:.9 }).addTo(typhoonLayer);
+                    L.polyline(line, { color:'#a2eaff', weight:2.2, opacity:.9, dashArray:'2 7', lineCap:'round', className:'typhoon-track-forecast' }).addTo(typhoonLayer);
                     // Cono de incertidumbre aproximado (crece con el plazo de pronóstico)
                     forecast.forEach((p, i) => {
                         const hours = Math.max(12, (i + 1) * 12);
                         const radiusKm = Math.min(380, 45 + hours * 2.4);
                         L.circle([p.lat, p.lon], {
                             radius: radiusKm * 1000,
-                            color: '#c9a227',
-                            weight: 1.2,
-                            fillColor: '#ffe066',
-                            fillOpacity: 0.14,
-                            opacity: 0.6,
-                            dashArray: '5 4',
+                            color: '#54cbed',
+                            weight: 1.1,
+                            fillColor: '#37c9f2',
+                            fillOpacity: 0.055,
+                            opacity: 0.42,
+                            dashArray: '2 7',
+                            className: 'typhoon-forecast-range',
                             interactive: false
                         }).addTo(typhoonLayer);
                     });
@@ -6036,6 +6115,8 @@ global.TauPJS=api;
                     ...actual.map((p, i) => ({ ...p, isLatest: i === actual.length - 1, isForecast: false })),
                     ...forecast.map(p => ({ ...p, isLatest: false, isForecast: true }))
                 ];
+                const currentPoint = actual[actual.length - 1] || forecast[0];
+                if (currentPoint) L.circleMarker([currentPoint.lat, currentPoint.lon], { radius:19, color:'#64ddff', weight:1.5, opacity:.72, fillColor:'#39cfff', fillOpacity:.10, className:'typhoon-center-halo', interactive:false }).addTo(typhoonLayer);
                 allPts.forEach(p => {
                     const cat = String(p.raw?.strong || p.raw?.class || t.category || t.enname || '').toUpperCase();
                     let label = 'Sistema';
@@ -6045,11 +6126,12 @@ global.TauPJS=api;
                     else if (/TD|DEPRESI|DEPRESSION/.test(cat)) label = 'Depresión tropical';
                     const fill = /TY|HU|TIF|HURRICANE/.test(cat) ? '#ff4d6d' : /STS|TS|TORMENTA/.test(cat) ? '#ffd166' : '#8bd8ff';
                     L.circleMarker([p.lat, p.lon], {
-                        radius: p.isLatest ? 9 : 6,
-                        color: '#fff',
-                        weight: 2,
+                        radius: p.isLatest ? 9.5 : (p.isForecast ? 6.5 : 5),
+                        color: p.isLatest ? '#effcff' : fill,
+                        weight: p.isLatest ? 2 : 1.5,
                         fillColor: fill,
-                        fillOpacity: 0.95
+                        fillOpacity: p.isForecast ? 0.82 : 0.96,
+                        className: p.isLatest ? 'typhoon-point-current' : (p.isForecast ? 'typhoon-point-forecast' : 'typhoon-point-observed')
                     }).bindPopup(
                         `<b>🌀 ${name}</b><br>${label}<br>` +
                         (p.raw?.source ? `Fuente: ${p.raw.source}<br>` : '') +
@@ -6063,7 +6145,7 @@ global.TauPJS=api;
                                 interactive: false,
                                 icon: L.divIcon({
                                     className: 'ty-fcst-label',
-                                    html: `<div style="background:rgba(0,0,0,.72);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:3px;padding:1px 4px;font:700 9px/12px sans-serif;white-space:nowrap">${label}</div>`,
+                                    html: `<div style="background:rgba(3,20,37,.88);color:#e7f8ff;border:1px solid rgba(92,203,245,.40);border-radius:999px;padding:1px 6px;font:700 8px/12px sans-serif;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.35)">${label}</div>`,
                                     iconSize: [100, 16],
                                     iconAnchor: [-6, 8]
                                 })
@@ -6079,7 +6161,7 @@ global.TauPJS=api;
                     if (/TD|DEPRESI|DEPRESSION/.test(cat)) radii = [80, 150, 220];
                     else if (/TY|TYPHOON|TIF/.test(cat)) radii = [150, 280, 420];
                     else if (/STS|SEVERE/.test(cat)) radii = [120, 220, 340];
-                    try { drawTyphoonWindRings(latest.lat, latest.lon, radii, '#ffe8d6'); } catch (_) {}
+                    try { drawTyphoonWindRings(latest.lat, latest.lon, radii, '#59d8ff'); } catch (_) {}
                 }
             });
         }
@@ -15403,6 +15485,9 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             try { stopWaveAutoFollow(); } catch (_) {}
             try { deactivateWaveMode(true); } catch (_) {}
             try { focusLastQuakeAfterSectionClose(); } catch (_) {}
+            // Si NIED dejó de detectar mientras BMKG ocupaba la vista, volver
+            // al encuadre general de Japón después de cerrar el WRS normal.
+            setTimeout(() => { try { window.__ynRestoreIdleJapanView?.(); } catch (_) {} }, 700);
             return true;
         }
         function scheduleBmkgWaveClose(eventId) {
@@ -22863,6 +22948,12 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         // Solo se marca cuando este episodio abrió Japón/NIED por sí mismo.
         // Una apertura manual deja el modo bajo control del usuario.
         let ynAutoOpened = false;
+        let ynMotionAutoClosePending = false;
+        let ynMotionIdleCloseTimer = null;
+        let ynJapanIdleReturnPending = false;
+        let ynMotionGroupLastFrameMs = 0;
+        let ynPreviousMotionGroupStates = [];
+        let ynConfirmedMotionGroups = [];
         // Protección de arranque: durante este intervalo el feed solo construye
         // baseline. No se permite autoapertura, sonido ni alerta visual;
         // el polling continúa normalmente y la apertura manual no se bloquea.
@@ -22888,6 +22979,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             // No se bloquea por NHK/JMA/otros apartados: al confirmarse una estación,
             // Japón debe abrirse y centrar el recuadro de detección activo.
             const wasAlreadyOpen = !!(ynMode || yahooNiedModeActive || layout.classList.contains('japan-focus'));
+            if(!wasAlreadyOpen)ynMotionAutoClosePending=true;
             ynAutoOpened = !wasAlreadyOpen;
             ynMode = true;
             yahooNiedModeActive = true;
@@ -22958,6 +23050,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             ynPreviousFrameActive = false;
             ynPreviousActiveStationIndices = new Set();
             ynPreviousStationCodes.clear();
+            ynMotionGroupLastFrameMs=0;ynPreviousMotionGroupStates=[];ynConfirmedMotionGroups=[];
         }
         
         let ynMotionHighlightLayer = null;
@@ -22997,40 +23090,53 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             const pad=valid.length===1?0.08:0.15;
             return [[Math.min(...lats)-pad,Math.min(...lons)-pad],[Math.max(...lats)+pad,Math.max(...lons)+pad]];
         }
-        function ynUpdateMotionBoxes(stations) {
+        function ynUpdateMotionBoxes(groupsOrStations) {
             try {
                 if (typeof map === 'undefined' || !map || typeof L === 'undefined') return;
                 if (!ynMotionHighlightLayer) ynMotionHighlightLayer = L.layerGroup().addTo(map);
                 ynMotionHighlightLayer.clearLayers();
-                const bounds=ynMotionBoxBounds(stations);
-                if(!bounds){ynLastMotionBoxFitKey='';return;}
-                // Un marco único al estilo JQuake: contorno, sin cuadrícula ni relleno.
-                L.rectangle(bounds, {
-                    className: 'yn-motion-box', color:'#ff3030', weight:3, opacity:.98,
+                const grouped=Array.isArray(groupsOrStations) && groupsOrStations.length && Array.isArray(groupsOrStations[0]);
+                const clusters=(grouped ? groupsOrStations : [groupsOrStations || []]).slice(0,2);
+                const boxes=clusters.map(ynMotionBoxBounds).filter(Boolean);
+                if(!boxes.length){ynLastMotionBoxFitKey='';return;}
+                // Un marco independiente por cada grupo cercano; nunca se unen áreas lejanas.
+                boxes.forEach((bounds,index)=>L.rectangle(bounds, {
+                    className: 'yn-motion-box', color:index===0?'#ff3030':'#ffad42', weight:3, opacity:.98,
                     fill:false, fillOpacity:0, interactive:false, pane:'overlayPane'
-                }).addTo(ynMotionHighlightLayer);
+                }).addTo(ynMotionHighlightLayer));
                 const layout=document.getElementById('mainLayout');
                 if(ynUserMapControl||mapUserHasControl)ynLastMotionBoxFitKey='';
                 if(!layout?.classList.contains('japan-focus')||ynUserMapControl||mapUserHasControl)return;
-                const key=bounds.flat().map(v=>Number(v).toFixed(3)).join(',');
+                const allCorners=boxes.flat(1);
+                const combined=[[Math.min(...allCorners.map(b=>b[0])),Math.min(...allCorners.map(b=>b[1]))],
+                    [Math.max(...allCorners.map(b=>b[0])),Math.max(...allCorners.map(b=>b[1]))]];
+                const key=boxes.flat(2).map(v=>Number(v).toFixed(3)).join(',');
                 if(key===ynLastMotionBoxFitKey)return;
                 ynLastMotionBoxFitKey=key;
                 programmaticMapMove=true;
-                map.fitBounds(bounds,{padding:[48,48],maxZoom:8,animate:true,duration:.55});
+                map.fitBounds(combined,{padding:[48,48],maxZoom:boxes.length>1?7:8,animate:true,duration:.55});
                 setTimeout(()=>{programmaticMapMove=false;},700);
             } catch (_) { programmaticMapMove=false; }
         }
         function ynClearMotionBoxes() {
             try { if (ynMotionHighlightLayer) ynMotionHighlightLayer.clearLayers(); } catch (_) {}
             ynLastMotionBoxFitKey='';
+            const secondary=document.getElementById('ynEarlyAlertSecondary');
+            if(secondary){secondary.classList.remove('active','yn-motion-active','yn-weak','yn-shaking','yn-strong');secondary.innerHTML='';}
         }
-        function ynShowMotionPanel(alert, stations, maxInstr) {
+        function ynPositionSecondaryMotionPanel() {
+            const primary=document.getElementById('ynEarlyAlert');
+            const secondary=document.getElementById('ynEarlyAlertSecondary');
+            if(!primary||!secondary)return;
+            const top=Math.max(12,(primary.offsetTop||12)+(primary.offsetHeight||0)+8);
+            secondary.style.top=top+'px';
+        }
+        function ynShowMotionPanel(alert, stations, maxInstr, updateBoxes=true, areaNumber=1) {
             if (!alert) return;
             const place = ynMotionPlaceLabel(stations);
             const shindo = Math.max(0, Math.min(7, Number(maxInstr) || 0));
             let label = '0';
             if (typeof ynIntensityLabel === 'function') {
-                // from instrumental via fake code
                 const code = Math.round((shindo + 3) * 2);
                 label = ynIntensityLabel(code);
             } else if (shindo < 0.5) label = '0';
@@ -23040,7 +23146,6 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             else if (shindo < 6) label = '6−';
             else if (shindo < 6.5) label = '6+';
             else label = '7';
-            // PGA estimado aproximado (solo visual)
             let pgaTxt = '—';
             try {
                 if (typeof ynCodeToApproxPgaPgv === 'function') {
@@ -23053,7 +23158,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             const shakingTier = ynShakingLevel(shindo);
             const title = shakingTier.title;
             alert.innerHTML =
-                '<div class="yn-alert-head"><span>🇯🇵 NIED · detección</span><span class="yn-alert-badge">EN VIVO</span></div>' +
+                '<div class="yn-alert-head"><span>🇯🇵 NIED · detección' + (areaNumber>1?' · Área '+areaNumber:'') + '</span><span class="yn-alert-badge">EN VIVO</span></div>' +
                 '<div class="yn-motion-title">' + title + '</div>' +
                 '<div class="yn-motion-place">' + place + '</div>' +
                 '<div class="yn-motion-metrics">' +
@@ -23061,11 +23166,27 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 '<div>Máx. PGA ≈<b style="font-size:14px">' + pgaTxt + '</b></div>' +
                 '<div>Estaciones<b style="font-size:14px">' + n + '</b></div>' +
                 '</div>' +
-                '<div class="yn-alert-foot">≥2 estaciones coherentes · confirmación en dos lecturas consecutivas · cuadro local de detección</div>';
+                '<div class="yn-alert-foot">≥2 estaciones coherentes · confirmación en dos lecturas · detección local</div>';
             alert.classList.remove('yn-weak','yn-shaking','yn-strong');
             alert.classList.add('active', 'yn-motion-active', 'yn-' + shakingTier.level);
-            ynUpdateMotionBoxes(stations);
+            if(updateBoxes)ynUpdateMotionBoxes(stations);
         }
+        function ynRenderMotionGroups(groups, primaryAlert=document.getElementById('ynEarlyAlert')) {
+            const valid=(Array.isArray(groups)?groups:[]).filter(g=>Array.isArray(g?.stations)&&g.stations.length>=YN_MOTION_QUORUM).slice(0,2);
+            if(!valid.length||!primaryAlert)return;
+            const secondary=document.getElementById('ynEarlyAlertSecondary');
+            ynShowMotionPanel(primaryAlert,valid[0].stations,valid[0].maxIntensity,false,1);
+            const primaryPlace=primaryAlert.querySelector('.yn-motion-place');
+            if(primaryPlace&&valid[0].prefectures?.length)primaryPlace.textContent=valid[0].prefectures.join(' · ');
+            if(valid[1]&&secondary){
+                ynShowMotionPanel(secondary,valid[1].stations,valid[1].maxIntensity,false,2);
+                const secondaryPlace=secondary.querySelector('.yn-motion-place');
+                if(secondaryPlace&&valid[1].prefectures?.length)secondaryPlace.textContent=valid[1].prefectures.join(' · ');
+                ynPositionSecondaryMotionPanel();
+            }else if(secondary){secondary.classList.remove('active','yn-motion-active','yn-weak','yn-shaking','yn-strong');secondary.innerHTML='';}
+            ynUpdateMotionBoxes(valid.map(g=>g.stations));
+        }
+
         function ynPlayMotionIntensitySound(maxInstr, signature) {
             try {
                 const shindo = Math.max(0, Math.min(7, Number(maxInstr) || 0));
@@ -23259,23 +23380,13 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         // para detección, ondas, cuadro o autoapertura. La coherencia exige que cada
         // estación activa tenga al menos otra dentro de ~300 km.
         function ynCoherentActiveStations(stations = ynActiveStations()) {
-            // SREV-like: cluster de estaciones cercanas (no todo Japón a 300 km)
             if (!Array.isArray(stations) || !stations.length) return [];
-            const thresholdKm = (typeof YN_MOTION_RADIUS_KM === 'number') ? YN_MOTION_RADIUS_KM : 300;
             const quorum = (typeof YN_MOTION_QUORUM === 'number') ? YN_MOTION_QUORUM : 2;
-            // Buscar el mayor grupo donde cada estación tiene al menos 1 vecina a <= thresholdKm
-            if (quorum <= 1 && stations.length === 1) return stations.slice();
-            const near = stations.filter((st, i) => stations.some((other, j) =>
-                i !== j && ynDistanceKm(st, other) <= thresholdKm
-            ));
-            if (near.length < quorum) return near.length >= quorum ? near : [];
-            // Preferir el cluster más denso alrededor de la estación con más vecinos
-            let best = [];
-            near.forEach(center => {
-                const cluster = near.filter(st => ynDistanceKm(center, st) <= thresholdKm);
-                if (cluster.length > best.length) best = cluster;
-            });
-            return best.length >= quorum ? best : (near.length >= quorum ? near : []);
+            // Devuelve solo estaciones pertenecientes a grupos completos con quorum;
+            // no suma dos regiones separadas para simular una detección.
+            return ynClusterActiveStations(stations)
+                .filter(group=>group.stations.length>=quorum)
+                .flatMap(group=>group.stations);
         }
 
         function ynActiveStationBounds(active = ynActiveStations()) {
@@ -23342,11 +23453,14 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         }
 
         function ynCloseAutomatically() {
-            if (!ynAutoOpened) return;
+            if (!ynAutoOpened && !ynMotionAutoClosePending) return;
+            if(japanLiveStationsPinned){ynAutoOpened=false;ynMotionAutoClosePending=false;ynClearMotionIdleCloseTimer();return;}
             const wasJmaPriority = !!(typeof jmaWeatherAlertMode !== 'undefined' && jmaWeatherAlertMode);
             // Desarmar antes de redibujar evita una llamada recursiva desde
             // ynUpdateEarlyAlert cuando el feed ya está en reposo.
             ynAutoOpened = false;
+            ynMotionAutoClosePending = false;
+            ynClearMotionIdleCloseTimer();
             ynEarlyEpisode = false;
             ynAutoActivationAttempted = false;
             if (wasJmaPriority) {
@@ -23366,36 +23480,55 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         }
 
         function ynClusterActiveStations(stations) {
-            // Agrupación ligera: vecinos dentro de ~3.0 grados quedan en la
-            // misma zona. Se limita a dos episodios para no saturar móviles.
-            const groups = [];
-            const thresholdKm = 300;
-            stations.forEach(st => {
-                let best = -1, bestD = Infinity;
-                groups.forEach((g, gi) => { const d = ynDistanceKm(st, g); if (d < bestD) { bestD=d; best=gi; } });
-                if (best >= 0 && bestD <= thresholdKm) groups[best].stations.push(st);
-                else groups.push({stations:[st], lat:st.lat, lon:st.lon});
-                groups.forEach(g => { const a=g.stations; g.lat=a.reduce((n,x)=>n+x.lat,0)/a.length; g.lon=a.reduce((n,x)=>n+x.lon,0)/a.length; });
+            // Agrupación de diámetro limitado: todas las estaciones de un grupo
+            // deben quedar a ≤300 km entre sí; grupos remotos nunca se fusionan.
+            const thresholdKm = (typeof YN_MOTION_RADIUS_KM === 'number') ? YN_MOTION_RADIUS_KM : 300;
+            const quorum = (typeof YN_MOTION_QUORUM === 'number') ? YN_MOTION_QUORUM : 2;
+            const groups=[];
+            const ordered=(Array.isArray(stations)?stations:[]).filter(st=>Number.isFinite(Number(st?.lat))&&Number.isFinite(Number(st?.lon)))
+                .slice().sort((a,b)=>(Number(b.code)||0)-(Number(a.code)||0));
+            ordered.forEach(st=>{
+                let best=-1,bestDiameter=Infinity;
+                groups.forEach((group,index)=>{
+                    const maxDistance=Math.max(...group.stations.map(other=>ynDistanceKm(st,other)));
+                    if(maxDistance<=thresholdKm&&maxDistance<bestDiameter){best=index;bestDiameter=maxDistance;}
+                });
+                if(best>=0)groups[best].stations.push(st);
+                else groups.push({stations:[st]});
             });
-            // Absorbe pequeños grupos próximos; si siguen separados, conserva
-            // solo los dos episodios espaciales dominantes.
-            while (groups.length > 2) {
-                let bi=0,bj=1,bd=Infinity;
-                for(let i=0;i<groups.length;i++) for(let j=i+1;j<groups.length;j++) { const d=Math.hypot(groups[i].lat-groups[j].lat,(groups[i].lon-groups[j].lon)*Math.cos(groups[i].lat*Math.PI/180)); if(d<bd){bd=d;bi=i;bj=j;} }
-                groups[bi].stations.push(...groups[bj].stations); groups.splice(bj,1);
-                const a=groups[bi].stations; groups[bi].lat=a.reduce((n,x)=>n+x.lat,0)/a.length; groups[bi].lon=a.reduce((n,x)=>n+x.lon,0)/a.length;
-            }
-            return groups.map(g => {
-                const timed = g.stations.map(s => ({s, t: ynStationTimes.get(s.index)?.first6 || ynLastObservedMs || Date.now()}));
-                const t0 = Math.min(...timed.map(x=>x.t));
-                // El centro solo se ajusta suavemente con coordenadas reales y
-                // el orden observado de activación; no es un epicentro.
-                const weights = timed.map(x => 1 + Math.min(2, Math.max(0, (x.t - t0) / 1000)) * .12);
-                const ws = weights.reduce((a,b)=>a+b,0);
-                const lat = timed.reduce((a,x,i)=>a+x.s.lat*weights[i],0)/ws;
-                const lon = timed.reduce((a,x,i)=>a+x.s.lon*weights[i],0)/ws;
-                return {...g, lat, lon, firstObserved:t0, maxCode:Math.max(...g.stations.map(s=>s.code)), maxIntensity:(-3+Math.max(...g.stations.map(s=>s.code))*.5).toFixed(1), signature:g.stations.map(s=>s.index).sort((a,b)=>a-b).join(',')};
+            // Mantener como máximo dos áreas dominantes para no saturar móviles;
+            // se descartan, no se mezclan, otros grupos alejados.
+            const eligible=groups.filter(g=>g.stations.length>=quorum)
+                .sort((a,b)=>b.stations.length-a.stations.length || Math.max(...b.stations.map(s=>Number(s.code)||0))-Math.max(...a.stations.map(s=>Number(s.code)||0)))
+                .slice(0,2);
+            return eligible.map(g=>{
+                const timed=g.stations.map(st=>({s:st,t:ynStationTimes.get(st.index)?.first6||ynLastObservedMs||Date.now()}));
+                const t0=Math.min(...timed.map(x=>x.t));
+                const weights=timed.map(x=>1+Math.min(2,Math.max(0,(x.t-t0)/1000))*.12);
+                const ws=weights.reduce((a,b)=>a+b,0);
+                const lat=timed.reduce((a,x,i)=>a+x.s.lat*weights[i],0)/ws;
+                const lon=timed.reduce((a,x,i)=>a+x.s.lon*weights[i],0)/ws;
+                const maxCode=Math.max(...g.stations.map(st=>Number(st.code)||0));
+                return {...g,lat,lon,firstObserved:t0,maxCode,maxIntensity:(-3+maxCode*.5).toFixed(1),signature:g.stations.map(st=>st.index).sort((a,b)=>a-b).join(',')};
             });
+        }
+        function ynUpdateMotionGroupConfirmation(groups) {
+            const stamp=Number(ynLastObservedMs)||0;
+            const candidates=Array.isArray(groups)?groups:[];
+            if(!stamp||stamp===ynMotionGroupLastFrameMs)return ynConfirmedMotionGroups;
+            ynMotionGroupLastFrameMs=stamp;
+            const quorum=(typeof YN_MOTION_QUORUM==='number')?YN_MOTION_QUORUM:2;
+            const next=candidates.map(group=>{
+                const indices=new Set((group.stations||[]).map(st=>st.index));
+                const previous=ynPreviousMotionGroupStates.find(state=>{
+                    let overlap=0;indices.forEach(index=>{if(state.indices.has(index))overlap++;});
+                    return overlap>=quorum;
+                });
+                return {group,indices,streak:previous?previous.streak+1:1};
+            });
+            ynPreviousMotionGroupStates=next;
+            ynConfirmedMotionGroups=next.filter(state=>state.streak>=2).map(state=>state.group);
+            return ynConfirmedMotionGroups;
         }
         function ynGroupsBounds(groups) {
             const a=groups.flatMap(g=>g.stations); return ynActiveStationBounds(a);
@@ -23452,6 +23585,83 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             alert.classList.remove('yn-motion-active','yn-weak','yn-shaking','yn-strong');
             alert.classList.add('active');
         }
+
+        function ynMotionIsConfirmedNow() {
+            try {
+                const fresh=typeof ynFeedIsFresh==='function' && ynFeedIsFresh();
+                const current=ynCoherentActiveStations(ynActiveStations());
+                const candidates=ynClusterActiveStations(current);
+                const groups=ynUpdateMotionGroupConfirmation(candidates);
+                return fresh && !ynStartupLocked() && ynAutoActivationReady && ynActiveFrameStreak>=2 && current.length>=YN_MOTION_QUORUM && groups.length>0;
+            } catch (_) { return false; }
+        }
+        function ynClearMotionIdleCloseTimer() {
+            if(ynMotionIdleCloseTimer){clearTimeout(ynMotionIdleCloseTimer);ynMotionIdleCloseTimer=null;}
+        }
+        function ynCenterJapanAfterMotionIdle() {
+            if(ynMotionIsConfirmedNow())return false;
+            const layout=document.getElementById('mainLayout');
+            if(!layout||typeof map==='undefined'||!map)return false;
+            if(typeof waveMode!=='undefined'&&waveMode)return false;
+            ynMode=true;yahooNiedModeActive=true;ynJapanIdleReturnPending=false;
+            layout.classList.remove('wave-focus','taiwan-focus','taiwan-motion-focus');
+            layout.classList.add('japan-focus','yahoo-nied-active');
+            ynUserMapControl=false;mapUserHasControl=false;
+            if(typeof yahooNiedInternalView!=='undefined')yahooNiedInternalView=true;
+            if(typeof japanPinnedInternalMove!=='undefined')japanPinnedInternalMove=true;
+            programmaticMapMove=true;
+            try {
+                map.invalidateSize({pan:false});
+                map.setView(YAHOO_NIED_JAPAN_CENTER,YAHOO_NIED_JAPAN_ZOOM,{animate:true,duration:.65});
+                if(typeof ynEnsureLeafletLayer==='function')ynEnsureLeafletLayer();
+                if(typeof ynDraw==='function')ynDraw({stations:true,waves:false,force:true});
+            } catch (_) {}
+            setTimeout(()=>{programmaticMapMove=false;if(typeof yahooNiedInternalView!=='undefined')yahooNiedInternalView=false;if(typeof japanPinnedInternalMove!=='undefined')japanPinnedInternalMove=false;},800);
+            const alert=document.getElementById('ynEarlyAlert');
+            if(!ynLiveJmaEvent&&!ynRealEventOverride)ynShowIdlePanel(alert);
+            return true;
+        }
+        function ynStartJapanIdleGracePeriod() {
+            if(ynMotionIsConfirmedNow())return false;
+            if(!ynCenterJapanAfterMotionIdle())return false;
+            if(ynMotionAutoClosePending){
+                ynClearMotionIdleCloseTimer();
+                ynMotionIdleCloseTimer=setTimeout(()=>{
+                    ynMotionIdleCloseTimer=null;
+                    if(ynMotionIsConfirmedNow())return;
+                    const bmkgActive=!!(typeof waveMode!=='undefined'&&waveMode&&tremEstimatedWave?.isBmkgWrs&&Date.now()<bmkgWaveFocusUntil);
+                    if(bmkgActive){ynJapanIdleReturnPending=true;return;}
+                    const layout=document.getElementById('mainLayout');
+                    if(japanLiveStationsPinned||!layout?.classList.contains('japan-focus')){ynMotionAutoClosePending=false;return;}
+                    ynCloseAutomatically();
+                },5000);
+            }
+            return true;
+        }
+        function ynFinishMotionEpisodeAfterIdle() {
+            if(ynMotionIsConfirmedNow())return false;
+            ynClearMotionIdleCloseTimer();
+            ynEarlyEpisode=false;ynAutoActivationAttempted=false;
+            ynLastMotionIntLevel=-1;ynGroups=[];ynWaveStartedAt=0;ynActiveSignature='';ynInitialViewDone=false;
+            try{ynClearMotionBoxes();}catch(_){}
+            try{ynStopWaveAnimation();}catch(_){}
+            const alert=document.getElementById('ynEarlyAlert');
+            if(alert)alert.classList.remove('yn-motion-active','yn-weak','yn-shaking','yn-strong');
+            const bmkgActive=!!(typeof waveMode!=='undefined'&&waveMode&&tremEstimatedWave?.isBmkgWrs&&Date.now()<bmkgWaveFocusUntil);
+            if(bmkgActive){ynJapanIdleReturnPending=true;if(alert)alert.classList.remove('active');return true;}
+            return ynStartJapanIdleGracePeriod();
+        }
+        function ynScheduleMotionIdleClose() {
+            if(!ynEarlyEpisode||ynMotionIsConfirmedNow())return;
+            // Al cesar el movimiento, mostrar Japón completo inmediatamente.
+            // El cierre de la vista automática se agenda cinco segundos después.
+            ynFinishMotionEpisodeAfterIdle();
+        }
+        window.__ynRestoreIdleJapanView=()=>{
+            if(!ynJapanIdleReturnPending)return false;
+            if(ynMotionIsConfirmedNow()){ynJapanIdleReturnPending=false;return false;}
+            return ynStartJapanIdleGracePeriod();
+        };
         const ynPrefectureSpanish = {
             '北海道':'Hokkaido','青森県':'Aomori','岩手県':'Iwate','宮城県':'Miyagi','秋田県':'Akita','山形県':'Yamagata','福島県':'Fukushima',
             '茨城県':'Ibaraki','栃木県':'Tochigi','群馬県':'Gunma','埼玉県':'Saitama','千葉県':'Chiba','東京都':'Tokio','神奈川県':'Kanagawa',
@@ -23532,11 +23742,14 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             if (!alert) return;
 
             if (ynRealEventOverride) {
+                ynClearMotionIdleCloseTimer();
+                ynJapanIdleReturnPending=false;
                 ynEarlyEpisode = false;
                 ynGroups = [];
                 ynWaveStartedAt = 0;
                 ynActiveSignature = '';
                 ynStopWaveAnimation();
+                try{ynClearMotionBoxes();}catch(_){}
                 if (ynLiveJmaEvent) {
                     const ev = ynLiveJmaEvent;
                     let mag = 'M—';
@@ -23559,16 +23772,22 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             // solo informa intensidad y muestra el recuadro local de estaciones.
             if (ynLiveJmaEvent) {
                 const localStations = ynCoherentActiveStations(ynActiveStations());
-                const localConfirmed = ynAutoActivationReady && ynActiveFrameStreak >= 2 && localStations.length >= YN_MOTION_QUORUM;
+                const localGroups = ynUpdateMotionGroupConfirmation(ynClusterActiveStations(localStations));
+                const localConfirmed = ynFeedIsFresh() && ynAutoActivationReady && ynActiveFrameStreak >= 2 && localGroups.length>0;
                 if (localConfirmed && !ynStartupLocked()) {
+                    ynClearMotionIdleCloseTimer();ynJapanIdleReturnPending=false;ynEarlyEpisode=true;
+                    ynGroups=localGroups;
                     const maxCode = Math.max(...localStations.map(st => st.code));
                     const maxInstr = ynShindoFromCode(maxCode);
                     const signature = localStations.map(st => st.index).sort((a,b) => a-b).join(',');
-                    ynShowMotionPanel(alert, localStations, maxInstr);
+                    ynActiveSignature=signature;
+                    if(!ynWaveStartedAt)ynWaveStartedAt=Date.now();
+                    window.__ynLastMotionGroups=localGroups;
+                    ynRenderMotionGroups(localGroups,alert);
                     ynPlayMotionIntensitySound(maxInstr, signature);
                     return;
                 }
-                ynEarlyEpisode = false;
+                if(ynEarlyEpisode){ynScheduleMotionIdleClose();return;}
                 ynGroups = [];
                 ynWaveStartedAt = 0;
                 ynActiveSignature = '';
@@ -23589,45 +23808,29 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             // SREV-style: el episodio requiere dos estaciones coherentes en dos lecturas
             // consecutivas, evitando que C0 o una estación aislada abran la detección.
             const current = ynCoherentActiveStations(ynActiveStations());
-            const confirmed = ynAutoActivationReady && ynActiveFrameStreak >= 2 && current.length >= YN_MOTION_QUORUM;
+            const groups = ynUpdateMotionGroupConfirmation(ynClusterActiveStations(current));
+            const confirmed = ynFeedIsFresh() && ynAutoActivationReady && ynActiveFrameStreak >= 2 && current.length >= YN_MOTION_QUORUM && groups.length>0;
             if (!confirmed || ynStartupLocked()) {
                 if (ynEarlyEpisode && !confirmed) {
-                    const closeAutoView = ynAutoOpened;
-                    ynEarlyEpisode = false;
-                    ynLastMotionIntLevel = -1;
-                    try { ynClearMotionBoxes(); } catch (_) {}
-                    try { alert.classList.remove('yn-motion-active'); } catch (_) {}
-                    ynGroups = [];
-                    ynWaveStartedAt = 0;
-                    ynActiveSignature = '';
-                    ynInitialViewDone = false;
-                    ynStopWaveAnimation();
-                    ynAutoActivationAttempted = false;
-                    try {
-                        if (tremEstimatedWave && tremEstimatedWave.agency === 'NIED' && tremEstimatedWave.estimated) {
-                            clearTremEstimatedWaveUnlessBmkgActive();
-                            if (waveMode) deactivateWaveMode();
-                        }
-                    } catch (_) {}
-                    if (closeAutoView) ynCloseAutomatically();
+                    ynScheduleMotionIdleClose();
+                    return;
                 }
                 if (ynMode && !ynEarlyEpisode) ynShowIdlePanel(alert);
                 else if (!ynEarlyEpisode) { alert.classList.remove('active'); alert.textContent = ''; }
                 return;
             }
+            ynClearMotionIdleCloseTimer();ynJapanIdleReturnPending=false;
 
             const waveStations = [...current].sort((a,b) => b.code - a.code);
-            const groups = ynClusterActiveStations(waveStations);
             if (!groups.length) return;
-            // Grupo principal: mínimo dos estaciones coherentes dentro de 300 km.
-            const mainGroup = [...groups].sort((a,b) => (b.stations?.length||0) - (a.stations?.length||0))[0];
+            const mainGroup = groups[0];
             if (!mainGroup || !(mainGroup.stations?.length)) return;
-            const signature = waveStations.map(st => st.index).sort((a,b)=>a-b).join(',');
-            // Panel + sonido SREV en cada trama confirmada
+            const signature = groups.flatMap(g=>g.stations).map(st=>st.index).sort((a,b)=>a-b).join(',');
+            ynGroups=groups;
+            window.__ynLastMotionGroups=groups;
+            // Un panel y un marco por cada área coherente, máximo dos áreas.
             try {
-                ynShowMotionPanel(alert, mainGroup.stations || waveStations, mainGroup.maxIntensity);
-                // Reproducir el NewInt correspondiente cada vez que cambia la
-                // intensidad detectada durante el episodio, como en SREV.
+                ynRenderMotionGroups(groups,alert);
                 ynPlayMotionIntensitySound(mainGroup.maxIntensity, signature);
             } catch (_) {}
             // Con 2+ estaciones coherentes se abre/centra Japón automáticamente.
@@ -23655,17 +23858,13 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 } catch (_) {}
                 // Abrir Japón y encuadrar únicamente el recuadro del grupo activo.
                 const opened = (sts.length >= 1) ? ynActivateAutomatically(groups) : false;
-                try {
-                    // Guardar el grupo activo para que los apartados temporales
-                    // vuelvan a encuadrar el mismo recuadro de detección.
-                    window.__ynLastMotionGroups = groups;
-                } catch (_) {}
+                try { window.__ynLastMotionGroups = groups; } catch (_) {}
                 {
                     const count = current.length;
                     try { showRegionToast(`🇯🇵 Movimiento detectado · ${count} estaciones`); } catch (_) {}
                     ynLastMotionIntLevel = -1;
                     try { ynPlayMotionIntensitySound(mainGroup.maxIntensity, signature); } catch (_) {}
-                    try { ynShowMotionPanel(alert, mainGroup.stations || waveStations, mainGroup.maxIntensity); } catch (_) {}
+                    try { ynRenderMotionGroups(groups,alert); } catch (_) {}
                     // Si ya estaba abierto Japón, forzar zoom a la nueva zona
                     if (!opened) {
                         try {
@@ -23686,16 +23885,17 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             ynActiveSignature = signature;
             if (!ynWaveStartedAt) ynWaveStartedAt = Date.now();
             try { if (!ynInitialViewDone) ynFocusEpisodeOnce(groups); } catch (_) {}
-            ynRenderMovementAlert(current, mainGroup, alert);
-            // Geocodificación inversa con caché: solo se consulta al iniciar
-            // un episodio y el cuadro se actualiza cuando llegan los nombres.
-            if (!mainGroup.prefectures) {
-                mainGroup.prefectures = [];
-                ynResolvePrefectures(mainGroup.stations || []).then(names => {
-                    mainGroup.prefectures = names;
-                    if (ynEarlyEpisode && ynActiveSignature === signature) ynRenderMovementAlert(current, mainGroup, alert);
-                });
-            }
+            ynRenderMotionGroups(groups,alert);
+            // Topónimos en español por grupo, sin fusionar áreas distantes.
+            groups.forEach(group=>{
+                if(!group.prefectures){
+                    group.prefectures=[];
+                    ynResolvePrefectures(group.stations||[]).then(names=>{
+                        group.prefectures=names;
+                        if(ynEarlyEpisode&&ynActiveSignature===signature)ynRenderMotionGroups(ynGroups,alert);
+                    });
+                }
+            });
         }
         function ynStopWaveAnimation() {
             if (ynAnimFrame) clearTimeout(ynAnimFrame);
@@ -26298,25 +26498,49 @@ setTimeout(()=>{try{window.__eqApplyFaults?.(!!window.__eqShowFaults);}catch(_){
   function exclusiveFor(newId){
     if(busy) return;
 
-    // Si el apartado de movimiento de Japón está activo y llega otra alerta,
-    // la alerta nueva toma el frente durante 5 s. Después se cierra y el visor
-    // vuelve a enfocar exactamente la zona del movimiento detectado.
     const motionEl=document.getElementById('ynEarlyAlert');
-    const motionWasOpen = newId !== 'ynEarlyAlert' && isOpen(motionEl,'ynEarlyAlert');
+    const bmkgWrsArrival = newId === 'waveModePanel' && !japanLiveStationsPinned &&
+      !!(typeof waveMode !== 'undefined' && waveMode && tremEstimatedWave?.isBmkgWrs === true);
+    // Durante BMKG WRS, las actualizaciones de NIED pueden renovar el panel
+    // de movimiento; se oculta solo la presentación, sin apagar su feed ni cerrar BMKG.
+    if(newId === 'ynEarlyAlert' && !japanLiveStationsPinned &&
+       typeof waveMode !== 'undefined' && waveMode && tremEstimatedWave?.isBmkgWrs === true &&
+       Date.now() < bmkgWaveFocusUntil){
+      busy=true; closeOne('ynEarlyAlert');
+      document.getElementById('mainLayout')?.classList.add('wave-focus');
+      busy=false; return;
+    }
+    const motionActuallyActive = !!motionEl?.classList.contains('yn-motion-active');
+    const motionWasOpen = newId !== 'ynEarlyAlert' && isOpen(motionEl,'ynEarlyAlert') &&
+      (!bmkgWrsArrival || motionActuallyActive);
     const savedGroups = window.__ynLastMotionGroups || null;
 
     if(motionWasOpen){
       try { if(motionResumeTimer) clearTimeout(motionResumeTimer); } catch(_) {}
       busy=true;
       closeOne('ynEarlyAlert');
+      if(bmkgWrsArrival){
+        // Quitar el foco visual de Japón para que BMKG encuadre Indonesia;
+        // yahooNiedMode/ynMode siguen activos y el feed continúa en segundo plano.
+        document.getElementById('mainLayout')?.classList.remove('japan-focus','yahoo-nied-active');
+      }
       PANEL_IDS.forEach(id=>{
         if(id!==newId && id!=='ynEarlyAlert' && isOpen(document.getElementById(id),id)) closeOne(id);
       });
+      if(bmkgWrsArrival && typeof waveMode !== 'undefined' && waveMode && tremEstimatedWave?.isBmkgWrs === true){
+        document.getElementById('mainLayout')?.classList.add('wave-focus');
+      }
       busy=false;
       lastActive=newId;
 
       motionResumeTimer=setTimeout(()=>{
         try {
+          // Si Japón ya dejó de detectar movimiento, BMKG conserva su duración
+          // normal de 15 s. Solo interrumpimos BMKG a los 5 s si el movimiento sigue.
+          if(bmkgWrsArrival && !motionEl?.classList.contains('yn-motion-active')){
+            motionResumeTimer=null;
+            return;
+          }
           busy=true;
           if(newId && newId!=='ynEarlyAlert' && isOpen(document.getElementById(newId),newId)) closeOne(newId);
           busy=false;
