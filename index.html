@@ -6860,6 +6860,16 @@ global.TauPJS=api;
         // Capa separada para las zonas oficiales de pronóstico de tsunami de JMA.
         // Las geometrías corresponden a las 66 津波予報区 publicadas por JMA/NII.
         let jmaTsunamiLayer = L.layerGroup().addTo(map);
+        // Capa de líneas de costa del PTWC (rojo/amarillo/morado), independiente de la JMA.
+        let ptwcCoastLayer = L.layerGroup().addTo(map);
+        let ptwcZones = [];   // [{iso, name, level}] zonas PTWC activas
+        try {
+            if (!map.getPane('ptwcCoastPane')) {
+                map.createPane('ptwcCoastPane');
+                map.getPane('ptwcCoastPane').style.zIndex = 649;
+                map.getPane('ptwcCoastPane').style.pointerEvents = 'none';
+            }
+        } catch (_) {}
         // La capa JMA de tsunami debe permanecer visible en CUALQUIER apartado.
         try {
             if (!map.getPane('jmaTsunamiPane')) {
@@ -7141,6 +7151,14 @@ global.TauPJS=api;
         }
 
 
+        // Un boletín JMA sigue vigente 36 h después de emitido (antes esta función
+        // no existía y el ReferenceError se tragaba todo el dibujo de las costas).
+        function jmaTsunamiReportIsCurrent(report) {
+            const t = Date.parse(report && report.sent || '');
+            if (!Number.isFinite(t)) return true;
+            return Date.now() - t < 36 * 3600 * 1000;
+        }
+
         function jmaTsunamiKindEs(name) {
             const n = String(name || '');
             if (/大津波警報/.test(n)) return {type:'major', es:'Gran alerta de tsunami'};
@@ -7300,6 +7318,9 @@ global.TauPJS=api;
                     const items = parseJmaTsunamiJson(body);
                     if (items.length) parsed.push(...items);
                     if (parsed.length) break;
+                    // Si el boletín MÁS RECIENTE es una cancelación/解除, no resucitar
+                    // un Forecast viejo: se queda sin avisos y se limpia el mapa.
+                    if (/解除|取消|cancel/i.test(body)) break;
                 }
                 if (!parsed.length) {
                     jmaTsunamiRenderGeneration++;
@@ -7494,21 +7515,27 @@ global.TauPJS=api;
             }
         }
 
+        // true = las líneas de tsunami (JMA azul + PTWC rojo/amarillo) se quedan
+        // dibujadas en el mapa mientras haya un aviso activo. Ponlo en false para
+        // volver al comportamiento anterior (solo dentro del apartado Tsunami).
+        const TSUNAMI_LINES_PERSIST = true;
         function ensureJmaTsunamiLayerVisible() {
             try {
-                // Las zonas JMA de Tsunami Forecast/Warning solo deben dibujarse
-                // dentro del apartado propio de tsunami. En la pantalla principal
-                // y en cualquier otro apartado (JMA, NIED, Taiwán, clima, ondas,
-                // alertas, etc.) la capa se retira del mapa, pero sus datos se
-                // conservan para poder recuperarlos al volver a Tsunami.
                 const tsunamiViewActive = (typeof tsunamiMode !== 'undefined' && tsunamiMode) ||
                     (typeof tsunamiPriorityActive !== 'undefined' && tsunamiPriorityActive);
-                if (!tsunamiViewActive) {
-                    if (jmaTsunamiLayer && map.hasLayer(jmaTsunamiLayer)) map.removeLayer(jmaTsunamiLayer);
-                    return;
-                }
-                if (jmaTsunamiLayer && !map.hasLayer(jmaTsunamiLayer)) jmaTsunamiLayer.addTo(map);
-                if (jmaTsunamiLayer) jmaTsunamiLayer.bringToFront?.();
+                const lay = document.getElementById('mainLayout');
+                // En estas vistas dedicadas (clima, volcanes, NIED fijado…) se ocultan.
+                const otherView = !!(lay && ['jma-weather-focus','jma-volcano-focus','typhoon-focus','hurricane-focus','us-alerts-focus']
+                    .some(c => lay.classList.contains(c))) || document.body.classList.contains('japan-live-pinned');
+                const hasJma = Array.isArray(jmaTsunamiReports) && jmaTsunamiReports.length > 0;
+                const hasPtwc = Array.isArray(ptwcZones) && ptwcZones.length > 0;
+                const showJma = tsunamiViewActive || (TSUNAMI_LINES_PERSIST && hasJma && !otherView);
+                const showPtwc = tsunamiViewActive || (TSUNAMI_LINES_PERSIST && hasPtwc && !otherView);
+                [[jmaTsunamiLayer, showJma], [ptwcCoastLayer, showPtwc]].forEach(([layer, show]) => {
+                    if (!layer) return;
+                    if (show && !map.hasLayer(layer)) layer.addTo(map);
+                    else if (!show && map.hasLayer(layer)) map.removeLayer(layer);
+                });
             } catch (_) {}
         }
 
@@ -7629,6 +7656,455 @@ global.TauPJS=api;
             }, 10000);
         }
 
+        // =====================================================================
+        // PTWC · líneas de costa por nivel de amenaza (estilo CysTerra)
+        // ---------------------------------------------------------------------
+        // El boletín "Tsunami Threat Message" del PTWC no trae geometría: solo
+        // dice qué países/costas tienen olas de 0.3-1 m, 1-3 m o >3 m. Aquí se
+        // lee ese texto, se buscan los países nombrados y se dibuja SOLO su línea
+        // de costa (Natural Earth 50m) en el color del nivel:
+        //   >3 m  = morado · 1-3 m = rojo · 0.3-1 m = amarillo
+        // Las líneas azules de JMA (Tsunami Forecast) se dibujan aparte en
+        // renderJmaTsunamiZones().
+        // =====================================================================
+        const PTWC_ATOM_URL = 'https://www.tsunami.gov/events/xml/PHEBAtom.xml';
+        const NE_BASE = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/';
+        const NE_CDN = 'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/';
+        const PTWC_COASTLINE_URL = [NE_BASE + 'ne_50m_coastline.geojson', NE_CDN + 'ne_50m_coastline.geojson'];
+        const PTWC_COUNTRIES_URL = [NE_BASE + 'ne_50m_admin_0_countries.geojson', NE_CDN + 'ne_50m_admin_0_countries.geojson'];
+        const PTWC_MAX_AGE_MS = 18 * 3600 * 1000;
+        const PTWC_LEVELS = {
+            major:  { rank: 3, color: '#b100ff', label: '> 3 m' },
+            high:   { rank: 2, color: '#ff2a00', label: '1-3 m' },
+            medium: { rank: 1, color: '#ffe600', label: '0.3-1 m' }
+        };
+        // Países cuya costa "otro océano" no debe pintarse (el PTWC avisa por costa).
+        // Panamá: solo vertiente Pacífico. Lista [lon, latMáxima] de la divisoria.
+        const PTWC_PACIFIC_ONLY = {
+            PAN: [[-83.5, 8.95], [-82.5, 8.8], [-82.0, 8.7], [-81.0, 8.6], [-80.4, 8.95],
+                  [-79.9, 9.0], [-79.6, 9.25], [-79.0, 9.28], [-78.5, 8.9], [-78.0, 8.75],
+                  [-77.5, 8.2], [-76.8, 8.0]]
+        };
+        const PTWC_ALIASES = {
+            'GALAPAGOS': 'ECU', 'GALAPAGOS ISLANDS': 'ECU', 'COCOS ISLAND': 'CRI',
+            'EASTER ISLAND': 'CHL', 'JUAN FERNANDEZ': 'CHL', 'UNITED STATES': 'USA', 'RUSSIA': 'RUS', 'SOUTH KOREA': 'KOR',
+            'NORTH KOREA': 'PRK', 'PAPUA NEW GUINEA': 'PNG', 'NEW ZEALAND': 'NZL',
+            'SOLOMON ISLANDS': 'SLB', 'COSTA RICA': 'CRI', 'EL SALVADOR': 'SLV'
+        };
+
+        let ptwcCoastData = null, ptwcCoastPromise = null;
+        let ptwcCountries = null, ptwcCountriesPromise = null;
+        let ptwcZonesSignature = '';
+        let ptwcManualBulletin = null;   // modo prueba
+        let ptwcRenderGeneration = 0;
+
+        function ptwcNorm(s) {
+            return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+        }
+        async function ptwcLoadJson(urls) {
+            const list = [];
+            [].concat(urls).forEach(u => { list.push(u); list.push('https://corsproxy.io/?' + encodeURIComponent(u)); });
+            for (const t of list) {
+                try {
+                    const r = await fetch(t, { cache: 'force-cache' });
+                    if (r.ok) return await r.json();
+                } catch (_) {}
+            }
+            return null;
+        }
+        function ptwcDiag(msg) {
+            try { apiMetrics.tsunami = apiMetrics.tsunami || {}; apiMetrics.tsunami.ptwc = msg; } catch (_) {}
+        }
+        function ptwcLoadCoast() {
+            if (ptwcCoastData) return Promise.resolve(ptwcCoastData);
+            return ptwcCoastPromise || (ptwcCoastPromise = (async () => {
+                const g = await ptwcLoadJson(PTWC_COASTLINE_URL);
+                if (!g?.features) { ptwcCoastPromise = null; return null; }
+                const lines = [];
+                g.features.forEach(f => {
+                    const geom = f.geometry; if (!geom) return;
+                    if (geom.type === 'LineString') lines.push(geom.coordinates);
+                    else if (geom.type === 'MultiLineString') geom.coordinates.forEach(l => lines.push(l));
+                });
+                return (ptwcCoastData = lines);
+            })());
+        }
+        function ptwcLoadCountries() {
+            if (ptwcCountries) return Promise.resolve(ptwcCountries);
+            return ptwcCountriesPromise || (ptwcCountriesPromise = (async () => {
+                const g = await ptwcLoadJson(PTWC_COUNTRIES_URL);
+                if (!g?.features) { ptwcCountriesPromise = null; return null; }
+                const list = [];
+                g.features.forEach(f => {
+                    const p = f.properties || {};
+                    const iso = (p.ADM0_A3 && p.ADM0_A3 !== '-99') ? p.ADM0_A3 : (p.ISO_A3 && p.ISO_A3 !== '-99' ? p.ISO_A3 : p.ADMIN);
+                    const names = new Set([p.NAME, p.NAME_LONG, p.NAME_EN, p.ADMIN, p.NAME_ES, p.FORMAL_EN]
+                        .filter(Boolean).map(ptwcNorm));
+                    list.push({ iso, name: p.NAME_ES || p.NAME || p.ADMIN, names: [...names], feature: f });
+                });
+                return (ptwcCountries = list);
+            })());
+        }
+
+        // ---- Lectura del boletín --------------------------------------------
+        function ptwcRangeToLevel(low, high) {
+            if (high === Infinity || low >= 3) return 'major';
+            if (low >= 1) return 'high';
+            if (low >= 0.3) return 'medium';
+            return null;           // < 0.3 m: sin amenaza, no se dibuja
+        }
+        // Devuelve [{level, text}] con el trozo de texto que nombra los lugares.
+        function ptwcExtractThreatChunks(raw) {
+            const text = ptwcNorm(raw).replace(/\.{2,}/g, ' ').replace(/\s+/g, ' ');
+            // 1) "MÁS DE 3 M"  2) "1 TO 3 METERS"  3) "LESS THAN 0.3 M" (nivel nulo: solo corta el trozo)
+            const re = /(?:(?:MORE|GREATER) THAN|OVER|>)\s*(\d+(?:\.\d+)?)\s*(?:METERS?|METRES?|M)\b|(\d+(?:\.\d+)?)\s*(?:TO|-|–)\s*(\d+(?:\.\d+)?)\s*(?:METERS?|METRES?|M)\b|(?:LESS|UNDER|BELOW) THAN\s*(\d+(?:\.\d+)?)\s*(?:METERS?|METRES?|M)\b/g;
+            const hits = [];
+            let m;
+            while ((m = re.exec(text))) {
+                let low, high;
+                if (m[1] !== undefined) { low = parseFloat(m[1]); high = Infinity; }
+                else if (m[2] !== undefined) { low = parseFloat(m[2]); high = parseFloat(m[3]); }
+                else { low = 0; high = parseFloat(m[4]); }
+                hits.push({ start: m.index, end: re.lastIndex, level: m[4] !== undefined ? null : ptwcRangeToLevel(low, high) });
+            }
+            return hits.map((h, i) => {
+                const nextStart = i + 1 < hits.length ? hits[i + 1].start : text.length;
+                let after = text.slice(h.end, Math.min(nextStart, h.end + 700));
+                const cut = after.search(/\.\s|;/);              // fin de la oración
+                if (cut >= 0) after = after.slice(0, cut);
+                // Formato tabla "PAÍS ... 1-3 m": el nombre va ANTES del rango (misma oración).
+                const prevEnd = i > 0 ? hits[i - 1].end : 0;
+                let before = text.slice(Math.max(prevEnd, h.start - 260), h.start);
+                const sep = Math.max(before.lastIndexOf('. '), before.lastIndexOf(';'));
+                if (sep >= 0) before = before.slice(sep + 1);
+                return { level: h.level, after, before };
+            });
+        }
+        async function ptwcZonesFromText(raw) {
+            const countries = await ptwcLoadCountries();
+            if (!countries) return [];
+            // nombres más largos primero para no confundir "GUINEA" con "PAPUA NEW GUINEA"
+            const nameIndex = [];
+            countries.forEach(c => c.names.forEach(n => n.length > 2 && nameIndex.push({ n, c })));
+            Object.entries(PTWC_ALIASES).forEach(([n, iso]) => {
+                const c = countries.find(x => x.iso === iso); if (c) nameIndex.push({ n, c });
+            });
+            nameIndex.sort((a, b) => b.n.length - a.n.length);
+            const findCountries = (chunk) => {
+                let t = ' ' + chunk + ' ';
+                const found = [];
+                for (const { n, c } of nameIndex) {
+                    const esc = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const rx = new RegExp('(?<![A-Z])' + esc + '(?![A-Z])');
+                    if (rx.test(t)) { found.push(c); t = t.replace(new RegExp('(?<![A-Z])' + esc + '(?![A-Z])', 'g'), ' '); }
+                }
+                return found;
+            };
+            const best = new Map();
+            for (const ch of ptwcExtractThreatChunks(raw)) {
+                if (!ch.level) continue;
+                let found = findCountries(ch.after);
+                if (!found.length) found = findCountries(ch.before);
+                found.forEach(c => {
+                    const cur = best.get(c.iso);
+                    if (!cur || PTWC_LEVELS[ch.level].rank > PTWC_LEVELS[cur.level].rank) {
+                        best.set(c.iso, { iso: c.iso, name: c.name, level: ch.level });
+                    }
+                });
+            }
+            return [...best.values()];
+        }
+
+        // ---- Costa de un país -------------------------------------------------
+        function ptwcBuildEdgeGrid(feature, tol) {
+            const geom = feature.geometry, grid = new Map();
+            const polys = geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates;
+            polys.forEach(poly => {
+                const ring = poly[0]; if (!ring) return;
+                for (let i = 0; i < ring.length - 1; i++) {
+                    const a = ring[i], b = ring[i + 1];
+                    const x0 = Math.floor(Math.min(a[0], b[0]) - tol), x1 = Math.floor(Math.max(a[0], b[0]) + tol);
+                    const y0 = Math.floor(Math.min(a[1], b[1]) - tol), y1 = Math.floor(Math.max(a[1], b[1]) + tol);
+                    if ((x1 - x0 + 1) * (y1 - y0 + 1) > 4000) continue;   // arista absurda (antimeridiano)
+                    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
+                        const k = x + ',' + y;
+                        let arr = grid.get(k); if (!arr) grid.set(k, arr = []);
+                        arr.push(a[0], a[1], b[0], b[1]);
+                    }
+                }
+            });
+            return grid;
+        }
+        function ptwcNearGrid(grid, lon, lat, tol2) {
+            const arr = grid.get(Math.floor(lon) + ',' + Math.floor(lat));
+            if (!arr) return false;
+            for (let i = 0; i < arr.length; i += 4) {
+                const ax = arr[i], ay = arr[i + 1], bx = arr[i + 2], by = arr[i + 3];
+                const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+                let t = l2 ? ((lon - ax) * dx + (lat - ay) * dy) / l2 : 0;
+                t = t < 0 ? 0 : t > 1 ? 1 : t;
+                const ex = ax + t * dx - lon, ey = ay + t * dy - lat;
+                if (ex * ex + ey * ey <= tol2) return true;
+            }
+            return false;
+        }
+        function ptwcPacificOk(iso, lon, lat) {
+            const cut = PTWC_PACIFIC_ONLY[iso]; if (!cut) return true;
+            if (lon <= cut[0][0]) return lat <= cut[0][1];
+            for (let i = 0; i < cut.length - 1; i++) {
+                const [x0, y0] = cut[i], [x1, y1] = cut[i + 1];
+                if (lon >= x0 && lon <= x1) return lat <= y0 + (y1 - y0) * (lon - x0) / (x1 - x0);
+            }
+            return lat <= cut[cut.length - 1][1];
+        }
+        const ptwcCoastCache = new Map();
+        async function ptwcCoastRuns(country) {
+            if (ptwcCoastCache.has(country.iso)) return ptwcCoastCache.get(country.iso);
+            const coast = await ptwcLoadCoast();
+            if (!coast) return [];
+            const tol = 0.06, tol2 = tol * tol;
+            const grid = ptwcBuildEdgeGrid(country.feature, tol);
+            const runs = [];
+            for (const line of coast) {
+                let run = [];
+                for (let i = 0; i < line.length; i++) {
+                    const [lon, lat] = line[i];
+                    const ok = grid.has(Math.floor(lon) + ',' + Math.floor(lat)) &&
+                        ptwcNearGrid(grid, lon, lat, tol2) && ptwcPacificOk(country.iso, lon, lat);
+                    if (ok) run.push([lat, lon]);
+                    else { if (run.length > 1) runs.push(run); run = []; }
+                }
+                if (run.length > 1) runs.push(run);
+            }
+            ptwcCoastCache.set(country.iso, runs);
+            return runs;
+        }
+
+        // ---- Dibujo -------------------------------------------------------------
+        async function renderPtwcCoastLines() {
+            const gen = ++ptwcRenderGeneration;
+            try { ptwcCoastLayer.clearLayers(); } catch (_) {}
+            if (!ptwcZones.length) return;
+            const countries = await ptwcLoadCountries();
+            if (!countries || gen !== ptwcRenderGeneration) return;
+            const allPts = [];
+            // primero el nivel más bajo, para que el rojo/morado quede encima
+            const ordered = [...ptwcZones].sort((a, b) => PTWC_LEVELS[a.level].rank - PTWC_LEVELS[b.level].rank);
+            for (const z of ordered) {
+                const country = countries.find(c => c.iso === z.iso); if (!country) continue;
+                const runs = await ptwcCoastRuns(country);
+                if (gen !== ptwcRenderGeneration) return;
+                if (!runs.length) continue;
+                const lv = PTWC_LEVELS[z.level];
+                L.polyline(runs, {
+                    pane: 'ptwcCoastPane', color: lv.color, weight: 5, opacity: .95,
+                    lineCap: 'round', lineJoin: 'round', interactive: false, smoothFactor: 1
+                }).addTo(ptwcCoastLayer);
+                runs.forEach(r => allPts.push(...r));
+            }
+            return allPts;
+        }
+
+        function ptwcSummaryToast() {
+            const by = {};
+            ptwcZones.forEach(z => (by[z.level] = by[z.level] || []).push(z.name));
+            const parts = Object.keys(PTWC_LEVELS).sort((a, b) => PTWC_LEVELS[b].rank - PTWC_LEVELS[a].rank)
+                .filter(k => by[k]).map(k => `${PTWC_LEVELS[k].label}: ${by[k].join(', ')}`);
+            return parts.length ? '🌊 PTWC · ' + parts.join(' · ') : '';
+        }
+
+        async function refreshPtwcCoastLines() {
+            try {
+                let texts = [];
+                if (ptwcManualBulletin) texts = [ptwcManualBulletin];
+                else texts = await fetchPtwcBulletinTexts();
+                const zonesMap = new Map();
+                for (const t of texts) {
+                    for (const z of await ptwcZonesFromText(t)) {
+                        const cur = zonesMap.get(z.iso);
+                        if (!cur || PTWC_LEVELS[z.level].rank > PTWC_LEVELS[cur.level].rank) zonesMap.set(z.iso, z);
+                    }
+                }
+                ptwcZones = [...zonesMap.values()];
+                ptwcDiag(ptwcZones.length ? ptwcZones.map(z => z.name + ' ' + PTWC_LEVELS[z.level].label).join(', ') : 'PTWC: sin zonas (' + texts.length + ' boletines)');
+                const sig = ptwcZones.map(z => z.iso + ':' + z.level).sort().join('|');
+                if (sig === ptwcZonesSignature) return;
+                const first = ptwcZonesSignature === '' && !ptwcManualBulletin;
+                ptwcZonesSignature = sig;
+                setTimeout(() => tsunamiSoundCheck(!!ptwcManualBulletin), 50);
+                const pts = await renderPtwcCoastLines();
+                try { ensureJmaTsunamiLayerVisible(); } catch (_) {}
+                if (ptwcZones.length) {
+                    try { showRegionToast(ptwcSummaryToast()); } catch (_) {}
+                    if (pts && pts.length && !first) {
+                        try {
+                            const b = L.latLngBounds(pts);
+                            setProgrammaticMapView(b.getCenter(), Math.max(3, Math.min(6, map.getBoundsZoom(b.pad(0.25)))), { animate: true });
+                        } catch (_) {}
+                    }
+                }
+            } catch (_) {}
+        }
+
+        // Descarga con varios proxies CORS (tsunami.gov no manda cabeceras CORS).
+        async function ptwcFetchText(url) {
+            const targets = [
+                url,
+                'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
+                'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url),
+                'https://corsproxy.io/?' + encodeURIComponent(url),
+                'https://r.jina.ai/http://' + url.replace(/^https?:\/\//, '')
+            ];
+            for (const t of targets) {
+                try {
+                    const r = await fetch(t, { cache: 'no-store' });
+                    if (!r.ok) continue;
+                    const txt = await r.text();
+                    if (txt && txt.length > 40) return txt;
+                } catch (_) {}
+            }
+            return '';
+        }
+        // Cancelación / fin de amenaza ("THE TSUNAMI THREAT FROM THIS EVENT HAS NOW PASSED", "CANCELLATION"…)
+        const PTWC_FINAL_RE = /CANCEL+ATION|CANCELED|CANCELLED|THREAT[^.]{0,80}(?:HAS|IS) (?:NOW )?(?:PASSED|OVER|ENDED)|FINAL (?:TSUNAMI )?(?:THREAT )?MESSAGE|NO FURTHER (?:TSUNAMI )?MESSAGES/i;
+
+        // Textos de boletines PTWC: feed Atom (una entrada por región, con
+        // "Category: 1-3 meters") + el WEPA40.txt de cada entrada + lo que ya
+        // bajó loadTsunami().
+        async function fetchPtwcBulletinTexts() {
+            const out = [];
+            const now = Date.now();
+            try {
+                (Array.isArray(tsunamiData) ? tsunamiData : [])
+                    .filter(x => /PTWC/i.test(String(x && (x.source || x.agency) || '')))
+                    .forEach(x => out.push([x.event, x.headline, x.description, x.area].join(' . ')));
+            } catch (_) {}
+            const feed = await ptwcFetchText(PTWC_ATOM_URL);
+            if (!feed) { ptwcDiag('Atom PTWC sin respuesta'); return out; }
+            let entries = [];
+            try {
+                const xml = new DOMParser().parseFromString(feed, 'application/xml');
+                entries = [...xml.getElementsByTagNameNS('*', 'entry')];
+            } catch (_) {}
+            if (!entries.length) {
+                // El proxy devolvió texto plano (no XML): usarlo tal cual + enlaces .txt
+                out.push(feed.replace(/<[^>]+>/g, ' '));
+                const hrefs = [...new Set((feed.match(/https?:\/\/[^\s"'<>)\]]+WEPA\d+\.txt/gi) || []))].slice(0, 2);
+                for (const h of hrefs) { const body = await ptwcFetchText(h); if (body) out.push(body); }
+                ptwcDiag('Atom PTWC (texto) ' + out.length + ' fuentes');
+                return out.filter(t => !PTWC_FINAL_RE.test(t));
+            }
+            const jobs = entries.slice(0, 8).map(async e => {
+                const g = n => (e.getElementsByTagNameNS('*', n)[0]?.textContent || '').trim();
+                const updated = Date.parse(g('updated') || g('published') || '');
+                if (Number.isFinite(updated) && now - updated > PTWC_MAX_AGE_MS) return;
+                let text = [g('title'), g('summary'), g('content')].join(' . ').replace(/<[^>]+>/g, ' ');
+                const links = [...e.getElementsByTagNameNS('*', 'link')].map(l => l.getAttribute('href') || '')
+                    .filter(h => /WEPA\d+\.txt$/i.test(h) || /\.txt$/i.test(h)).slice(0, 1);
+                for (const h of links) {
+                    const body = await ptwcFetchText(h);
+                    if (body) text += ' . ' + body;
+                }
+                if (PTWC_FINAL_RE.test(text)) return;
+                out.push(text);
+            });
+            await Promise.all(jobs);
+            ptwcDiag('Atom PTWC ' + entries.length + ' entradas');
+            return out;
+        }
+
+        // ---- Sonidos SREV de tsunami según el nivel de las líneas ------------------
+        // Niveles: 1 Forecast (JMA azul) · 2 Advisory (amarillo: JMA注意報 / PTWC 0.3-1 m)
+        //          3 Warning (rojo: JMA警報 / PTWC 1-3 m) · 4 Major Warning (morado: JMA大津波警報 / PTWC >3 m)
+        // Archivos SREV tsaAB: A = nivel anterior (0 = ninguno), B = nivel nuevo.
+        // Existen 01 02 03 04 · 12 13 14 · 21 22 23 24 · 32 33.
+        // Tabla EDITABLE "nivel anterior>nivel nuevo": nombre del sonido SREV.
+        // Si algún sonido no corresponde, cambia aquí el nombre (p. ej. '1>3': 'tsa13').
+        const TSUNAMI_SOUND_TABLE = {
+            '0>1': 'tsa01', '0>2': 'tsa02', '0>3': 'tsa03', '0>4': 'tsa04',
+            '1>2': 'tsa12', '1>3': 'tsa13', '1>4': 'tsa14',
+            '2>1': 'tsa21', '2>2': 'tsa22', '2>3': 'tsa23', '2>4': 'tsa24',
+            '3>2': 'tsa32', '3>3': 'tsa33'
+        };
+        const tsunamiSoundStart = Date.now();
+        let tsunamiSoundPrev = 0, tsunamiSoundSig = '';
+        function tsunamiCurrentLevel() {
+            let lvl = 0;
+            const jma = { forecast: 1, advisory: 2, warning: 3, major: 4 };
+            const pt = { medium: 2, high: 3, major: 4 };
+            (Array.isArray(jmaTsunamiReports) ? jmaTsunamiReports : []).forEach(r => {
+                if (jmaTsunamiReportIsCurrent(r)) lvl = Math.max(lvl, jma[r.jmaKind] || 0);
+            });
+            (Array.isArray(ptwcZones) ? ptwcZones : []).forEach(z => { lvl = Math.max(lvl, pt[z.level] || 0); });
+            return lvl;
+        }
+        function tsunamiSoundExists(name) {
+            try {
+                return !!((typeof SREV_SOUND_ASSETS !== 'undefined' && SREV_SOUND_ASSETS[name]) ||
+                          (typeof SREV_SOUND_URLS !== 'undefined' && SREV_SOUND_URLS[name]));
+            } catch (_) { return false; }
+        }
+        function tsunamiSoundCheck(force) {
+            try {
+                const lvl = tsunamiCurrentLevel();
+                const sig = lvl + '|' + (typeof jmaTsunamiSignature !== 'undefined' ? jmaTsunamiSignature : '') + '|' + ptwcZonesSignature;
+                // Primeros 25 s: solo línea base, sin sonar por avisos que ya existían al abrir la página.
+                if (!force && Date.now() - tsunamiSoundStart < 25000) { tsunamiSoundPrev = lvl; tsunamiSoundSig = sig; return; }
+                if (sig === tsunamiSoundSig) return;
+                const prev = tsunamiSoundPrev; tsunamiSoundPrev = lvl; tsunamiSoundSig = sig;
+                if (!lvl) return;                              // cancelado: sin sonido
+                let name = TSUNAMI_SOUND_TABLE[prev + '>' + lvl] || '';
+                if (!name || !tsunamiSoundExists(name)) {
+                    // Mismo nivel sin archivo propio (11, 44): actualización silenciosa.
+                    if (prev === lvl) return;
+                    name = TSUNAMI_SOUND_TABLE['0>' + lvl] || '';
+                }
+                if (tsunamiSoundExists(name)) playSrevSound(name, 'tsunami-lines:' + sig);
+            } catch (_) {}
+        }
+        setInterval(tsunamiSoundCheck, 3000);
+
+        // Prueba sin esperar un boletín real: abre el HTML con ?ptwc_test=panama
+        // o llama window.simularTsunamiPTWC() / window.limpiarTsunamiPTWC().
+        window.simularTsunamiPTWC = function (text) {
+            ptwcManualBulletin = text || (
+                'TSUNAMI THREAT MESSAGE NUMBER 2 ... ' +
+                'TSUNAMI WAVES REACHING 1 TO 3 METERS ABOVE THE TIDE LEVEL ARE POSSIBLE FOR SOME COASTAL AREAS OF PANAMA. ' +
+                'TSUNAMI WAVES REACHING 0.3 TO 1 METER ABOVE THE TIDE LEVEL ARE POSSIBLE FOR SOME COASTAL AREAS OF ECUADOR AND GALAPAGOS ISLANDS.');
+            ptwcZonesSignature = '';
+            return refreshPtwcCoastLines();
+        };
+        window.limpiarTsunamiPTWC = function () {
+            ptwcManualBulletin = null; ptwcZones = []; ptwcZonesSignature = '~';
+            ptwcRenderGeneration++;
+            try { ptwcCoastLayer.clearLayers(); } catch (_) {}
+        };
+        try {
+            if (/[?&]ptwc_test=/.test(location.search)) setTimeout(() => window.simularTsunamiPTWC(), 2500);
+        } catch (_) {}
+
+        // Parpadeo de las líneas de tsunami (PTWC + JMA). El mapa usa canvas,
+        // por eso se alterna la opacidad con JS en vez de una animación CSS.
+        let tsunamiBlinkOn = true;
+        setInterval(() => {
+            try {
+                if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+                tsunamiBlinkOn = !tsunamiBlinkOn;
+                const apply = grp => {
+                    if (!grp || !map.hasLayer(grp)) return;
+                    grp.eachLayer(l => {
+                        if (l.eachLayer) apply(l);
+                        else if (l.setStyle) l.setStyle({ opacity: tsunamiBlinkOn ? 1 : 0.15 });
+                    });
+                };
+                apply(ptwcCoastLayer);
+                apply(jmaTsunamiLayer);
+            } catch (_) {}
+        }, 650);
+
+        setTimeout(refreshPtwcCoastLines, 4000);
+        setInterval(refreshPtwcCoastLines, 2 * 60 * 1000);
+
         async function loadTsunami() {
             try {
                 const feeds = [
@@ -7688,7 +8164,7 @@ global.TauPJS=api;
                 if (updateDetected) {
                     const x = newTsunamiReports.find(t => /warning/i.test(t.event)) || newTsunamiReports.find(t => /advisory|watch/i.test(t.event)) || newTsunamiReports[0];
                     tsunamiAutoCloseAfter10s = !!(nhkCoverageMode && hasJapanTsunami(x) && newTsunamiReports.some(item => /\bPTWC\b/i.test(String(item.source || item.agency || ''))));
-                    playSrevSound('tsa01', `tsunami:${tsunamiReportKey(x)}`);
+                    // El sonido de tsunami (tsaAB según Forecast/Advisory/Warning/Major) lo reproduce tsunamiSoundCheck().
                     try {
                         [...newTsunamiReports].sort((a,b) => (Date.parse(a.sent || '') || 0) - (Date.parse(b.sent || '') || 0)).forEach(item => {
                             const fullSpeech = tsunamiSpeechSpanish(item);
