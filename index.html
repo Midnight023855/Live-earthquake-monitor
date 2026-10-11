@@ -9399,7 +9399,8 @@ global.TauPJS=api;
 
         function japanDetectionLocked() {
             const layout = document.getElementById('mainLayout');
-            return !!(layout?.classList.contains('japan-focus') &&
+            const kanameishiMotionOpen = !!document.getElementById('kanameishiMotionPanel')?.classList.contains('active');
+            return kanameishiMotionOpen || !!(layout?.classList.contains('japan-focus') &&
                 ((typeof waveMode !== 'undefined' && waveMode) ||
                  (typeof ynLiveJmaEvent !== 'undefined' && ynLiveJmaEvent) ||
                  (typeof ynMode !== 'undefined' && ynMode) ||
@@ -19080,6 +19081,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             try {
                 const layout = document.getElementById('mainLayout');
                 if (layout && [...layout.classList].some(c => c.endsWith('-focus'))) return true;
+                if (document.getElementById('kanameishiMotionPanel')?.classList.contains('active')) return true;
             } catch (_) {}
             return !!(
                 (typeof weatherListMode !== 'undefined' && weatherListMode) ||
