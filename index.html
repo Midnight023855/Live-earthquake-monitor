@@ -5582,7 +5582,7 @@ global.TauPJS=api;
             // Si este mismo evento ya recibió su enfoque, no repetir el vuelo
             // ni volver a disparar el mapa de intensidad en cada actualización.
             const autoFocusId = String(ev.id);
-            if (lastAutoFocusedEventId === autoFocusId) return false;
+            if (lastAutoFocusedEventId === autoFocusId && reason !== 'section-close') return false;
             try { playAutoZoomEarthquakeSound(ev); } catch (_) {}
             try { mapUserHasControl = false; } catch (_) {}
             try { if (typeof ynUserMapControl !== 'undefined') ynUserMapControl = false; } catch (_) {}
@@ -6020,6 +6020,7 @@ global.TauPJS=api;
             programmaticMapMove = true;
             let animated = false;
             try {
+                map.invalidateSize({ pan:false });
                 const moveOptions = {
                     padding: options.padding || [48, 48],
                     maxZoom: options.maxZoom != null ? options.maxZoom : 9,
@@ -7658,23 +7659,29 @@ global.TauPJS=api;
                 const candidates = [...(Array.isArray(jmaTsunamiReports) ? jmaTsunamiReports : []), ...(Array.isArray(tsunamiData) ? tsunamiData : [])]
                     .filter((item, index, all) => item && all.findIndex(x => tsunamiReportKey(x) === tsunamiReportKey(item)) === index)
                     .sort((a,b) => (Date.parse(b.sent || '') || 0) - (Date.parse(a.sent || '') || 0));
-                const target = preferredReport || candidates[0] || null;
-                if (target) {
-                    let bounds = null;
+                const targets = preferredReport ? [preferredReport] : candidates;
+                let bounds = null;
+                for (const target of targets) {
+                    let itemBounds = null;
                     if (target.jmaAreaCode) {
                         const geo = await getJmaTsunamiGeo(target.jmaAreaCode);
-                        if (geo) bounds = L.geoJSON(geo).getBounds();
+                        if (geo) itemBounds = L.geoJSON(geo).getBounds();
                     } else if (Array.isArray(target.polygon) && target.polygon.length >= 3) {
-                        bounds = L.latLngBounds(target.polygon);
+                        itemBounds = L.latLngBounds(target.polygon);
+                    } else if (Array.isArray(target.point) && Number.isFinite(Number(target.point[0])) && Number.isFinite(Number(target.point[1]))) {
+                        itemBounds = L.latLngBounds(target.point, target.point);
                     }
-                    // Cada boletín enfoca solo su zona oficial; si no publica
-                    // geometría de impacto, se conserva el encuadre actual.
-                    if (bounds && bounds.isValid()) {
-                        map.invalidateSize({pan:false});
-                        map.fitBounds(bounds, {padding:[30,30], maxZoom:9, animate:true, duration:0.7});
-                        return true;
+                    if (itemBounds && itemBounds.isValid()) {
+                        if (!bounds) bounds = itemBounds;
+                        else bounds.extend(itemBounds);
                     }
-                    return false;
+                }
+                // Con foco manual se encuadra una zona; automáticamente se encuadran
+                // todas las zonas activas, no solo la primera del boletín.
+                if (bounds && bounds.isValid()) {
+                    map.invalidateSize({pan:false});
+                    map.fitBounds(bounds, {padding:[34,34], maxZoom:preferredReport ? 9 : 7, animate:true, duration:0.7});
+                    return true;
                 }
             } catch (_) { return false; }
             if (nhkCoverageMode && nhkCoverageMainEvent && Number.isFinite(nhkCoverageMainEvent.lat) && Number.isFinite(nhkCoverageMainEvent.lon)) {
@@ -7686,8 +7693,7 @@ global.TauPJS=api;
         }
 
 
-        // JMA mantiene en su lista los Forecast vigentes hasta publicar una
-        // cancelación o un boletín que los reemplace; no caducarlos por edad local.
+        // Respetar la vigencia oficial de cada boletín, incluida su hora de expiración.
         function jmaTsunamiReportIsCurrent(report) {
             if (!report || report.cancelled) return false;
             const expires = Date.parse(report.expires || '');
@@ -7717,6 +7723,7 @@ global.TauPJS=api;
                 if (!forecasts.length) return [];
 
                 const sent = jmaTsunamiXmlText(xml, 'DateTime') || jmaTsunamiXmlText(xml, 'TargetDateTime') || new Date().toISOString();
+                const expires = jmaTsunamiXmlText(xml, 'ValidDateTime') || '';
                 const reportId = jmaTsunamiXmlText(xml, 'EventID') || jmaTsunamiXmlText(xml, 'InfoSerial') || jmaTsunamiXmlText(xml, 'Control');
                 const out = [];
 
@@ -7755,7 +7762,7 @@ global.TauPJS=api;
                                 area: areaName || `Zona JMA ${areaCode}`,
                                 headline: `${kind.meta.es} · ${areaName || areaCode}`,
                                 description: `${kind.name} · ${areaName || areaCode}`,
-                                sent, expires:'',
+                                sent, expires,
                                 point:null, polygon:null
                             });
                         });
@@ -7812,6 +7819,7 @@ global.TauPJS=api;
                 if (!rawItems) return [];
                 const items = Array.isArray(rawItems) ? rawItems : [rawItems];
                 const sent = data?.Head?.ReportDateTime || data?.Control?.DateTime || new Date().toISOString();
+                const expires = data?.Head?.ValidDateTime || '';
                 const reportId = data?.Head?.EventID || data?.Control?.Title || sent;
                 const out = [];
                 const asArray = value => value == null ? [] : Array.isArray(value) ? value : [value];
@@ -7837,7 +7845,7 @@ global.TauPJS=api;
                             jmaKindCode:String(kind.node?.Code || ''), jmaAreaCode:areaCode,
                             area:areaName, headline:`${kind.meta.es} · ${areaName}`,
                             description:`${kind.name} · ${areaName}`,
-                            sent, expires:'', point:null, polygon:null
+                            sent, expires, point:null, polygon:null
                         });
                     }
                 }
@@ -19195,7 +19203,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 try { mapUserHasControl = false; } catch (_) {}
                 const focusLat = Number(ev.lat), focusLon = Number(ev.lon);
                 if (Number.isFinite(focusLat) && Number.isFinite(focusLon)) {
-                    const bmkgFocusZoom = /\bbmkg\b/i.test(String(ev.agency || ev.source || '')) ? 5.0 : 5.0;
+                    const bmkgFocusZoom = NEW_EARTHQUAKE_FOCUS_ZOOM;
                     setProgrammaticMapView([focusLat, focusLon], bmkgFocusZoom, { force:true, srevAnimation:true, duration:0.8, overrideJapanPin:options.overrideJapanPin === true });
                 }
                 const selectedIdForFit = String(ev.id);
@@ -19223,13 +19231,13 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 // sin hacer un segundo encuadre que pueda sentirse como tirón.
                 try { mapUserHasControl = false; } catch (_) {}
                 if (Number.isFinite(eventLat) && Number.isFinite(eventLon)) {
-                    const bmkgFocusZoom = /\bbmkg\b/i.test(String(ev.agency || ev.source || '')) ? 5.0 : 5.0;
+                    const bmkgFocusZoom = NEW_EARTHQUAKE_FOCUS_ZOOM;
                     setProgrammaticMapView([eventLat, eventLon], bmkgFocusZoom, { force: true, srevAnimation: true, autoFocus: true, duration:1.0 });
                 }
                 runAfterMapMotion(() => drawIntensityZones(ev).catch(() => {}));
             } else if (!(yahooNiedModeActive && document.getElementById('mainLayout')?.classList.contains('japan-focus'))) {
                 if (Number.isFinite(eventLat) && Number.isFinite(eventLon)) {
-                    setProgrammaticMapView([eventLat, eventLon], Math.max(map.getZoom() || 3, 5), { force: !!options.forceMap, srevAnimation:true, duration:1.0 });
+                    setProgrammaticMapView([eventLat, eventLon], Math.max(map.getZoom() || 3, NEW_EARTHQUAKE_FOCUS_ZOOM), { force: !!options.forceMap, srevAnimation:true, duration:1.0 });
                 }
                 drawIntensityZones(ev).catch(() => {});
             }
@@ -23161,6 +23169,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 }
                 jmaWeatherZoomActive = true;
                 programmaticMapMove = true;
+                map.invalidateSize({ pan:false });
                 map.fitBounds(bounds, { padding:[30,30], maxZoom:9, animate:true, duration:0.7 });
                 setTimeout(() => { if (requestId === jmaWeatherFocusRequestId) programmaticMapMove = false; }, 850);
                 // El cierre se cuenta desde el enfoque: 10 s en la prefectura,
@@ -29048,6 +29057,7 @@ For more information on this, and how to apply and follow the GNU AGPL, see
     if(!bounds||!bounds.isValid())return;
     clearTimeout(focusTimer);const previous={center:map.getCenter(),zoom:map.getZoom()};
     const revision=manualViewRevision;programmaticUntil=Date.now()+1800;
+    try{map.invalidateSize({pan:false});}catch(_){}
     if(typeof map.flyToBounds==='function')map.flyToBounds(bounds,{padding:[24,24],maxZoom:7,duration:1.0});
     else map.fitBounds(bounds,{padding:[24,24],maxZoom:7});
     focusTimer=setTimeout(()=>{closeSiatAlertSection();if(manualViewRevision!==revision)return;programmaticUntil=Date.now()+1500;if(typeof map.flyTo==='function')map.flyTo(previous.center,previous.zoom,{duration:.8});else map.setView(previous.center,previous.zoom);},15000);
