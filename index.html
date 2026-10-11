@@ -1399,6 +1399,12 @@
         #ynEarlyAlert .yn-alert-grid { display:grid; grid-template-columns:1fr 1fr; gap:2px 10px; margin-top:6px; color:#f7dfaa; font-size:9px; line-height:13px; }
         #ynEarlyAlert .yn-alert-grid b { color:#fff8e7; font-weight:800; }
         #ynEarlyAlert .yn-alert-foot { margin-top:5px; color:#cdbb94; font-size:8px; line-height:10px; }
+        #ynEarlyAlert.yn-tsunami-forecast { border-color:rgba(35,201,255,.75) !important; border-left-color:#23c9ff !important; background:linear-gradient(135deg,rgba(5,48,67,.97),rgba(11,25,37,.98)) !important; color:#e7faff !important; }
+        #ynEarlyAlert .yn-tsunami-forecast-head { color:#8feaff; font-size:12px; line-height:16px; font-weight:900; }
+        #ynEarlyAlert .yn-tsunami-forecast-line-row { display:flex; align-items:center; gap:6px; margin:2px 0 4px; color:#c9efff; font-size:9px; line-height:12px; }
+        #ynEarlyAlert .yn-tsunami-forecast-line { display:inline-block; flex:0 0 28px; width:28px; height:3px; border-radius:2px; background:#23c9ff; box-shadow:0 0 5px rgba(35,201,255,.55); }
+        #ynEarlyAlert .yn-tsunami-forecast-change { color:#fff; font-size:10px; font-weight:800; }
+        #ynEarlyAlert .yn-tsunami-forecast-origin { margin-top:4px; color:#c4d4df; font-size:8px; line-height:11px; }
         /* Los números de intensidad de Japón son blancos para contrastar mejor. */
         .leaflet-yahooNiedStationsPane-pane .srev-int-dot:not(.srev-quiet) { color:#fff !important; text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 4px rgba(0,0,0,.8) !important; }
         /* Área calculada solo con estaciones Yahoo/NIED activas. Es visual,
@@ -7406,6 +7412,7 @@ global.TauPJS=api;
             }
         } catch (_) {}
         const jmaTsunamiGeoCache = new Map();
+        const jmaTsunamiOriginMetadataByEvent = new Map();
         let jmaTsunamiReports = [];
         let jmaTsunamiSignature = '';
         let jmaTsunamiBaselineReady = false;
@@ -7739,6 +7746,7 @@ global.TauPJS=api;
                             out.push({
                                 id, source:'JMA',
                                 agency:'JMA',
+                                jmaReportEventId: String(reportId || ''),
                                 event: kind.meta.es,
                                 jmaKind: kind.meta.type,
                                 jmaKindName: kind.name,
@@ -7824,7 +7832,7 @@ global.TauPJS=api;
                         const areaName = String(area?.Name || `Zona JMA ${areaCode}`);
                         out.push({
                             id:`JMA-${reportId}-${areaCode}-${kind.node?.Code || kind.name}`,
-                            source:'JMA', agency:'JMA', event:kind.meta.es,
+                            source:'JMA', agency:'JMA', jmaReportEventId:String(reportId || ''), event:kind.meta.es,
                             jmaKind:kind.meta.type, jmaKindName:kind.name,
                             jmaKindCode:String(kind.node?.Code || ''), jmaAreaCode:areaCode,
                             area:areaName, headline:`${kind.meta.es} · ${areaName}`,
@@ -7847,12 +7855,14 @@ global.TauPJS=api;
                 for (const e of entries.slice(0, 12)) {
                     const name = e?.json || e?.jsonName || e?.file || e?.path;
                     if (!name) continue;
-                    urls.push(/^https?:\/\//i.test(String(name)) ? String(name) : JMA_TSUNAMI_DATA_BASE + String(name));
+                    urls.push({url:/^https?:\/\//i.test(String(name)) ? String(name) : JMA_TSUNAMI_DATA_BASE + String(name), indexEntry:e});
                 }
                 const parsed = [];
                 let validTsunamiJson = false;
                 let keepPreviousOnEmpty = false;
-                for (const url of urls) {
+                for (const source of urls) {
+                    const url = source.url;
+                    const indexEntry = source.indexEntry || {};
                     const body = await fetchTextWithFallback(url);
                     if (!body) continue;
                     let reportData;
@@ -7862,7 +7872,22 @@ global.TauPJS=api;
                     validTsunamiJson = true;
                     const items = parseJmaTsunamiJson(reportData);
                     if (items.length) {
-                        parsed.push(...items);
+                        const originMagnitude = Number(indexEntry.mag);
+                        const reportEventId = String(reportData?.Head?.EventID || indexEntry.eid || '').trim();
+                        const originMeta = {
+                            jmaOriginName: String(indexEntry.anm || '').trim(),
+                            jmaOriginNameEn: String(indexEntry.en_anm || '').trim(),
+                            jmaOriginMagnitude: Number.isFinite(originMagnitude) ? originMagnitude : null,
+                            jmaOriginTime: String(indexEntry.at || '').trim(),
+                            jmaOriginCoordinates: String(indexEntry.cod || '').trim(),
+                            jmaOriginEventId: reportEventId,
+                            jmaReportEventId: reportEventId
+                        };
+                        if (reportEventId) {
+                            jmaTsunamiOriginMetadataByEvent.set(reportEventId, originMeta);
+                            if (jmaTsunamiOriginMetadataByEvent.size > 20) jmaTsunamiOriginMetadataByEvent.delete(jmaTsunamiOriginMetadataByEvent.keys().next().value);
+                        }
+                        parsed.push(...items.map(item => Object.assign({}, item, originMeta)));
                         break;
                     }
                     const hasForecastPayload = !!tsunamiEnvelope?.Forecast?.Item;
@@ -7934,7 +7959,7 @@ global.TauPJS=api;
                     if (!body) continue;
                     const items = parseJmaTsunamiXml(body, 'JMA');
                     if (items.length) {
-                        parsed.push(...items);
+                        parsed.push(...items.map(item => Object.assign({}, item, jmaTsunamiOriginMetadataByEvent.get(String(item.jmaReportEventId || '')) || {})));
                     } else if (/津波警報|津波注意報|津波予報/.test(body) && /取消|解除/.test(body) && !/<Forecast[\\s>]/i.test(body)) {
                         jmaCancellationSeen = true;
                     }
@@ -24064,8 +24089,8 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         // (dos tramas activas consecutivas y al menos dos estaciones coherentes).
         // Se rearma únicamente cuando el feed vuelve a reposo.
         let ynWaveSoundPlayed = false;
-        // Solo se marca cuando este episodio abrió Japón/NIED por sí mismo.
-        // Una apertura manual deja el modo bajo control del usuario.
+        // El episodio vuelve a la vista sísmica tras 5 s de reposo,
+        // salvo que el usuario haya fijado Japón.
         let ynAutoOpened = false;
         let ynMotionAutoClosePending = false;
         let ynMotionIdleCloseTimer = null;
@@ -24097,8 +24122,8 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             // No se bloquea por NHK/JMA/otros apartados: al confirmarse una estación,
             // Japón debe abrirse y centrar el recuadro de detección activo.
             const wasAlreadyOpen = !!(ynMode || yahooNiedModeActive || layout.classList.contains('japan-focus'));
-            if(!wasAlreadyOpen)ynMotionAutoClosePending=true;
-            ynAutoOpened = !wasAlreadyOpen;
+            if(!japanLiveStationsPinned)ynMotionAutoClosePending=true;
+            ynAutoOpened = !wasAlreadyOpen && !japanLiveStationsPinned;
             ynMode = true;
             yahooNiedModeActive = true;
             ynAutoActivationAttempted = true;
@@ -24670,8 +24695,54 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         }
         function ynShowIdlePanel(alert) {
             if (!alert || !(ynMode || yahooNiedModeActive || japanLiveStationsPinned) || !document.getElementById('mainLayout')?.classList.contains('japan-focus')) return;
-            alert.textContent = 'Sin Alertas Tempranas de Terremotos';
             alert.classList.remove('yn-motion-active','yn-weak','yn-shaking','yn-strong');
+            const forecasts = typeof jmaTsunamiActiveForecasts === 'function' ? jmaTsunamiActiveForecasts() : [];
+            const forecast = forecasts[0] || null;
+            alert.replaceChildren();
+            if (forecast) {
+                alert.classList.add('yn-tsunami-forecast');
+                const addLine = (tag, className, text) => {
+                    const node = document.createElement(tag);
+                    node.className = className;
+                    node.textContent = text;
+                    alert.appendChild(node);
+                    return node;
+                };
+                addLine('div','yn-tsunami-forecast-head','🌊 Tsunami Forecast En Efecto');
+                const lineRow = document.createElement('div');
+                lineRow.className = 'yn-tsunami-forecast-line-row';
+                const swatch = document.createElement('span');
+                swatch.className = 'yn-tsunami-forecast-line';
+                swatch.setAttribute('aria-label','Color de las líneas de Tsunami Forecast JMA en el mapa');
+                swatch.style.backgroundColor = '#23c9ff';
+                const lineText = document.createElement('span');
+                lineText.textContent = 'Líneas JMA dibujadas en el mapa';
+                lineRow.append(swatch,lineText);
+                alert.appendChild(lineRow);
+                addLine('div','yn-tsunami-forecast-change','Ligero cambio en las olas');
+                const rawName = String(forecast.jmaOriginNameEn || forecast.jmaOriginName || '').trim();
+                const coords = String(forecast.jmaOriginCoordinates || '').match(/([+-]\d+(?:\.\d+)?)([+-]\d+(?:\.\d+)?)/);
+                const lat = coords ? Number(coords[1]) : NaN;
+                const lon = coords ? Number(coords[2]) : NaN;
+                const isForeign = Number.isFinite(lat) && Number.isFinite(lon)
+                    ? !(lat >= 20 && lat <= 46 && lon >= 122 && lon <= 155)
+                    : /central america|中米/i.test(rawName);
+                let originName = rawName;
+                if (/central america|中米/i.test(rawName)) {
+                    originName = Number.isFinite(lat) && Number.isFinite(lon) && lat >= 6 && lat <= 10 && lon >= -84 && lon <= -78
+                        ? 'Centroamérica (frente a Panamá)' : 'Centroamérica';
+                } else if (/adjacent sea of yonagunijima island/i.test(rawName)) originName = 'aguas cercanas a Yonaguni';
+                const magnitude = Number(forecast.jmaOriginMagnitude);
+                const magText = Number.isFinite(magnitude) && magnitude > 0 ? `M${magnitude.toFixed(1)}` : '';
+                const sourcePrefix = isForeign ? 'Generado por un sismo en el extranjero' : 'Sismo de origen informado por JMA';
+                const sourceText = magText || originName
+                    ? `${sourcePrefix}${magText ? ` · ${magText}` : ''}${originName ? ` · ${originName}` : ''} · información de JMA`
+                    : 'Pronóstico oficial JMA; el informe disponible no incluye datos del sismo de origen.';
+                addLine('div','yn-tsunami-forecast-origin',sourceText);
+            } else {
+                alert.classList.remove('yn-tsunami-forecast');
+                alert.textContent = 'Sin Alertas Tempranas de Terremotos';
+            }
             alert.classList.add('active');
         }
 
@@ -24836,6 +24907,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         function ynUpdateEarlyAlert() {
             const alert = document.getElementById('ynEarlyAlert');
             if (!alert) return;
+            alert.classList.remove('yn-tsunami-forecast');
 
             if (ynRealEventOverride) {
                 ynClearMotionIdleCloseTimer();
