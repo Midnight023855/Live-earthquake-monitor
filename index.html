@@ -3368,6 +3368,13 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
   border-top:1px solid var(--eq-selected-intensity-color,var(--eq-list-cyan)) !important;
 }
 </style>
+<style id="eqs-volume-slider-style">
+#eqSettingsDialog .eqs-volume-row{display:grid;grid-template-columns:minmax(105px,1fr) minmax(140px,1.5fr);align-items:center;gap:8px}
+#eqSettingsDialog .eqs-volume-control{display:flex;align-items:center;gap:9px;min-width:0}
+#eqSettingsDialog #eqsMasterVolume{width:100%;min-width:80px;accent-color:#13a9c4}
+#eqSettingsDialog #eqsMasterVolumeValue{min-width:42px;text-align:right;color:#fff;font-variant-numeric:tabular-nums}
+@media(max-width:560px){#eqSettingsDialog .eqs-volume-row{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
     <div id="jmaJaBanner" aria-live="polite"></div>
@@ -3450,8 +3457,8 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
                 <div class="trem-metric-unit">cm</div>
             </div>
             <div class="palert-side-panel">
-                <div id="palertMetricsPanel" title="P-Alert · máximos de intensidad estimada, PGA y PGV">
-                    <div class="palert-label">Máx. Int.</div>
+                <div id="palertMetricsPanel" title="P-Alert · PGA/PGV de origen; el resaltado indica movimiento, no Shindo">
+                    <div class="palert-label">Estaciones activas</div>
                     <div class="palert-value" id="palertMaxInt">0</div>
                     <div class="palert-label">Máx. PGA</div>
                     <div class="palert-value" id="palertMaxPga">—</div>
@@ -10120,6 +10127,8 @@ global.TauPJS=api;
 
         // Sistema Audio y Voz
         let audioEnabled = true;
+        let masterVolume = 1;
+        try { const savedVolume = window.localStorage.getItem('earthquake.masterVolume'); if (savedVolume !== null) { const n = Number(savedVolume); if (Number.isFinite(n)) masterVolume = Math.max(0, Math.min(1, n)); } } catch (_) {}
         // La voz TTS se controla por separado de los pitidos y sonidos de alerta.
         let ttsEnabled = true;
         try {
@@ -10128,6 +10137,13 @@ global.TauPJS=api;
         window.__eqAudioSettings = {
             get audioEnabled() { return audioEnabled; },
             get ttsEnabled() { return ttsEnabled; },
+            get volume() { return masterVolume; },
+            setVolume(value) {
+                const n = Number(value);
+                masterVolume = Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 1;
+                try { window.localStorage.setItem('earthquake.masterVolume', String(masterVolume)); } catch (_) {}
+                try { if (srevCurrentAudio) srevCurrentAudio.volume = .9 * masterVolume; } catch (_) {}
+            },
             setAudio(value) {
                 audioEnabled = Boolean(value);
                 try { window.localStorage.setItem('earthquake.audioEnabled', String(audioEnabled)); } catch (_) {}
@@ -10149,6 +10165,7 @@ global.TauPJS=api;
                     const voices = ttsVoices.length ? ttsVoices : window.speechSynthesis.getVoices();
                     const voice = uri ? voices.find(v => v.voiceURI === uri) : getVoiceForLanguage('es-US');
                     const u = new SpeechSynthesisUtterance('Así suena esta voz para las alertas sísmicas.');
+                    u.volume = masterVolume;
                     if (voice) { u.voice = voice; u.lang = voice.lang; }
                     window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
                 } catch (_) {}
@@ -10200,7 +10217,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
     if (dedupeKey) window.__srevRemoteSoundDedupe = key;
     const audio = new Audio(url);
     audio.preload = 'auto';
-    audio.volume = 1;
+    audio.volume = masterVolume;
     audio.play().catch(() => {});
     return true;
   } catch (_) { return false; }
@@ -10222,7 +10239,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 if (srevCurrentAudio && !srevCurrentAudio.paused) { srevCurrentAudio.pause(); srevCurrentAudio.currentTime = 0; }
                 const src = bytes ? (`data:audio/mpeg;base64,${bytes}`) : url;
                 const audio = new Audio(src);
-                audio.preload = 'auto'; audio.volume = 0.9; audio.playsInline = true;
+                audio.preload = 'auto'; audio.volume = 0.9 * masterVolume; audio.playsInline = true;
                 srevCurrentAudio = audio;
                 audio.onended = () => { if (srevCurrentAudio === audio) srevCurrentAudio = null; };
                 const result = audio.play();
@@ -10359,6 +10376,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 const voices = ttsVoices.length ? ttsVoices : window.speechSynthesis.getVoices();
                 const voice = uri ? voices.find(v => v.voiceURI === uri) : getVoiceForLanguage('es-US');
                 const u = new SpeechSynthesisUtterance('Así suena esta voz para las alertas sísmicas.');
+                u.volume = masterVolume;
                 if (voice) { u.voice = voice; u.lang = voice.lang; }
                 window.speechSynthesis.cancel();
                 window.speechSynthesis.speak(u);
@@ -10637,7 +10655,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                     if (voice) utterance.voice = voice;
                     utterance.rate = 1.0;
                     utterance.pitch = 1.0;
-                    utterance.volume = 1.0;
+                    utterance.volume = masterVolume;
                     window.__eqTtsStartedAt = Date.now();
                     let chunkFinished = false;
                     const finishChunk = () => {
@@ -11699,13 +11717,20 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         const PALERT_MIN_FRAMES = 2;
         const PALERT_CLUSTER_KM = 300;
         const palertStationsLayer = L.layerGroup().addTo(map);
-        const palertRenderer = L.canvas({ padding:0.5, pane:'markerPane' });
+        const palertRenderer = L.canvas({ padding:0.5, pane:'stationsPane' });
         let palertStationMeta = {};
         let palertMarkers = {};
         let palertRealtimeBusy = false;
         let palertStationsLoading = false;
         let palertLastLoadAttempt = 0;
         let palertLoaded = false;
+        let palertLoadFailures = 0;
+        let palertNextStationsRetryAt = 0;
+        let palertRealtimeFailures = 0;
+        let palertNextRealtimeRetryAt = 0;
+        const PALERT_RETRY_BASE_MS = 15000;
+        const PALERT_RETRY_MAX_MS = 300000;
+        function palertRetryDelay(failures) { return Math.min(PALERT_RETRY_MAX_MS, PALERT_RETRY_BASE_MS * Math.pow(2, Math.max(0, Number(failures || 1) - 1))); }
         let palertLastFrameStamp = '';
         let palertBaselineCaptured = false;
         let palertQuietFrameStreak = 0;
@@ -12726,7 +12751,11 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                     }
                     const res = await fetch(url, { cache: 'no-store', signal: controller.signal, headers: { 'Accept': 'application/json' } });
                     clearTimeout(to);
-                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    if (!res.ok) {
+                        let detail = '';
+                        try { const failure = await res.clone().json(); detail = String(failure && (failure.detalle || failure.error) || '').trim(); } catch (_) {}
+                        throw new Error('HTTP ' + res.status + (detail ? ' · ' + detail : ''));
+                    }
                     const data = await res.json();
                     // allorigins wraps sometimes
                     if (data && data.contents && typeof data.contents === 'string') {
@@ -12775,20 +12804,46 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             return '#9000A0'; // 7
         }
 
-        function twColorByPga(pga, pgv) {
-            // PGA/PGV → intensidad instrumental → paleta NIED/SREV (raw, no code 0 gris)
-            const a = Number(pga), v = Number(pgv);
-            let inten = -3;
-            if (Number.isFinite(a) && a > 0) {
-                // kmoni-like: ruido ambiental ~0.1–0.3 gal → intens −3…−1 (azules)
-                inten = Math.max(-3, Math.min(7, -1 + Math.log10(Math.max(a, 0.01)) * 2.2));
-            } else if (Number.isFinite(v) && v > 0) {
-                inten = Math.max(-3, Math.min(7, Math.log10(Math.max(v, 0.001)) * 2.5));
-            } else if (!Number.isFinite(a) && !Number.isFinite(v)) {
-                inten = -3;
-            }
-            // IMPORTANTE: usar raw (−3…7), NO japanStationColorFromCode (code 0 = gris)
-            return twColorByI(inten);
+        function palertIsMobile() {
+            try { return window.matchMedia('(max-width:900px), (pointer:coarse)').matches || (navigator.maxTouchPoints > 0 && window.innerWidth < 1100); }
+            catch (_) { return window.innerWidth < 900; }
+        }
+        function palertEscapeHtml(value) {
+            return String(value === null || value === undefined ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        }
+        function palertMarkerOptions(active = false) {
+            const mobile = palertIsMobile();
+            return {
+                renderer: palertRenderer, pane: 'stationsPane', interactive: true,
+                radius: active ? (mobile ? 8 : 9) : (mobile ? 2.5 : 3.5),
+                fillColor: '#1428A0',
+                color: active ? 'rgba(255,255,255,.95)' : 'rgba(0,0,0,.35)',
+                weight: active ? 2 : 0.6, opacity: 1,
+                fillOpacity: active ? 0.98 : 0.85
+            };
+        }
+        function palertPopupHtml(id, meta, active = false) {
+            const data = meta || {};
+            const pga = Number(data.pga), pgv = Number(data.pgv);
+            const pgaText = Number.isFinite(pga) ? pga.toFixed(3) + ' gal' : '—';
+            const pgvText = Number.isFinite(pgv) ? pgv.toFixed(3) + ' cm/s' : '—';
+            return `<b>P-Alert · ${palertEscapeHtml(id)}</b><br>${palertEscapeHtml(data.name || id)}<br>${palertEscapeHtml(data.area || 'Taiwán')}` +
+                `<br>Estado: <b>${active ? 'umbral de movimiento confirmado' : 'sin umbral confirmado'}</b>` +
+                `<br>PGA: <b>${pgaText}</b><br>PGV: <b>${pgvText}</b>` +
+                `<br><small>PGA/PGV de P-Alert; no equivale a Shindo ni a intensidad oficial.</small>`;
+        }
+        function palertCreateMarker(id, meta, active = false) {
+            const marker = L.circleMarker([meta.lat, meta.lon], palertMarkerOptions(active));
+            marker.bindPopup(palertPopupHtml(id, meta, active));
+            marker.addTo(palertStationsLayer);
+            return marker;
+        }
+        function palertUpdateMarker(marker, id, meta, active = false) {
+            if (!marker) return;
+            const opts = palertMarkerOptions(active);
+            marker.setStyle(opts);
+            if (typeof marker.setRadius === 'function') marker.setRadius(opts.radius);
+            if (typeof marker.setPopupContent === 'function') marker.setPopupContent(palertPopupHtml(id, meta, active));
         }
 
         function twEnsureLayers() {
@@ -12806,7 +12861,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         }
 
         async function loadPAlertStations() {
-            if (palertStationsLoading) return;
+            if (palertStationsLoading || Date.now() < palertNextStationsRetryAt) return;
             palertStationsLoading = true;
             palertLastLoadAttempt = Date.now();
             try {
@@ -12824,29 +12879,20 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                     const id = String(st?.station || '').trim();
                     if (!id || !Number.isFinite(lat) || !Number.isFinite(lon)) return;
                     if (lat < 20 || lat > 27 || lon < 118 || lon > 124) return; // Taiwán
-                    palertStationMeta[id] = {
+                    const meta = palertStationMeta[id] = {
                         lat, lon,
                         area: st.area || '',
                         name: st.locname || id,
-                        pga: null, pgv: null
+                        pga: null, pgv: null, motionStreak: 0
                     };
-                    const restPa = (typeof twColorByI === 'function') ? twColorByI(-3) : '#1428A0';
-                    const marker = L.circleMarker([lat, lon], {
-                        radius: 5,
-                        color: 'rgba(255,255,255,.45)',
-                        weight: 1,
-                        fillColor: restPa,
-                        fillOpacity: 0.85,
-                        pane: 'stationsPane',
-                        interactive: true
-                    }).bindPopup(`<b>🟣 P-Alert · ${id}</b><br>${st.locname || ''}<br>${st.area || ''}`);
-                    marker.addTo(palertStationsLayer);
-                    palertMarkers[id] = marker;
+                    palertMarkers[id] = palertCreateMarker(id, meta, false);
                 });
 
                 const count = Object.keys(palertStationMeta).length;
                 if (!count) throw new Error('no valid stations');
                 palertLoaded = true;
+                palertLoadFailures = 0;
+                palertNextStationsRetryAt = 0;
                 try {
                     apiMetrics.palert = apiMetrics.palert || {};
                     apiMetrics.palert.count = count;
@@ -12860,15 +12906,19 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             } catch (e) {
                 console.warn('[P-Alert] load', e);
                 palertLoaded = false;
+                palertLoadFailures++;
+                const retryMs = palertRetryDelay(palertLoadFailures);
+                palertNextStationsRetryAt = Date.now() + retryMs;
+                try { apiMetrics.palert = apiMetrics.palert || {}; apiMetrics.palert.lastError = String(e && e.message || e); apiMetrics.palert.nextRetryAt = palertNextStationsRetryAt; } catch (_) {}
                 setApiState('palert', 'bad');
-                try { setPAlertStatus('● Sin conexión', '#ff6b8a'); } catch (_) {}
+                try { setPAlertStatus(`● Sin conexión · reintento en ${Math.ceil(retryMs / 1000)} s`, '#ff6b8a'); } catch (_) {}
             } finally {
                 palertStationsLoading = false;
             }
         }
 
         async function updatePAlertRealtime() {
-            if (!palertLoaded || palertRealtimeBusy) return;
+            if (!palertLoaded || palertRealtimeBusy || Date.now() < palertNextRealtimeRetryAt) return;
             palertRealtimeBusy = true;
             try {
                 const payload = await palertFetchJson('/realtime', 10000);
@@ -12876,8 +12926,9 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                     : (payload?.contents ? (() => { try { return JSON.parse(payload.contents); } catch (_) { return payload; } })() : payload);
                 const rawMotionFrameStamp = body?.timestamp ?? body?.pga?.timestamp ?? body?.pgv?.timestamp ?? payload?.timestamp;
                 const motionFrameStamp = rawMotionFrameStamp != null && String(rawMotionFrameStamp).trim()
-                    ? String(rawMotionFrameStamp) : `local:${Math.floor(Date.now() / 1000)}`;
-                const newMotionFrame = motionFrameStamp !== updatePAlertRealtime._lastMotionFrameStamp;
+                    ? String(rawMotionFrameStamp) : '';
+                // Sin sello de origen no se inventa una trama nueva a partir del reloj local.
+                const newMotionFrame = !!motionFrameStamp && motionFrameStamp !== updatePAlertRealtime._lastMotionFrameStamp;
                 if (newMotionFrame) updatePAlertRealtime._lastMotionFrameStamp = motionFrameStamp;
                 // dataVals es el mapa id→valor; NUNCA usar body.pga completo (trae timestamp)
                 let pgaValues = {};
@@ -12888,9 +12939,12 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 if (body?.pgv?.dataVals && typeof body.pgv.dataVals === 'object') pgvValues = body.pgv.dataVals;
                 else if (body?.pgv && typeof body.pgv === 'object' && !body.pgv.timestamp) pgvValues = body.pgv;
                 const pgaKeys = Object.keys(pgaValues).filter(k => typeof pgaValues[k] === 'number' || (typeof pgaValues[k] === 'string' && pgaValues[k] !== ''));
-                if (!pgaKeys.length) throw new Error('sin PGA dataVals');
+                const pgvKeys = Object.keys(pgvValues).filter(k => typeof pgvValues[k] === 'number' || (typeof pgvValues[k] === 'string' && pgvValues[k] !== ''));
+                if (!pgaKeys.length && !pgvKeys.length) throw new Error('sin PGA/PGV dataVals');
+                palertRealtimeFailures = 0;
+                palertNextRealtimeRetryAt = 0;
 
-                let maxPga = 0, maxPgv = 0, live = 0;
+                let maxPga = 0, maxPgv = 0, live = 0, validMetricCount = 0;
                 // índice case-insensitive por si el proxy cambia mayúsculas
                 const pgaLookup = {};
                 const pgvLookup = {};
@@ -12902,15 +12956,8 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                     let marker = palertMarkers[id];
                     if (!meta) return;
                     if (!marker) {
-                        // recrear marcador si se perdió
-                        try {
-                            marker = L.circleMarker([meta.lat, meta.lon], {
-                                radius: 5, color: 'rgba(255,255,255,.45)', weight: 1,
-                                fillColor: twColorByI(-3), fillOpacity: 0.85,
-                                pane: 'stationsPane', interactive: true
-                            }).addTo(palertStationsLayer);
-                            palertMarkers[id] = marker;
-                        } catch (_) { return; }
+                        try { marker = palertCreateMarker(id, meta, false); palertMarkers[id] = marker; }
+                        catch (_) { return; }
                     }
                     const rawPga = pgaLookup[id] ?? pgaLookup[String(id).toUpperCase()];
                     const rawPgv = pgvLookup[id] ?? pgvLookup[String(id).toUpperCase()];
@@ -12918,38 +12965,35 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                     const pgv = parseFloat(rawPgv);
                     meta.pga = Number.isFinite(pga) ? pga : null;
                     meta.pgv = Number.isFinite(pgv) ? pgv : null;
-                    if (Number.isFinite(pga)) { live++; if (pga > maxPga) maxPga = pga; }
-                    if (Number.isFinite(pgv) && pgv > maxPgv) maxPgv = pgv;
+                    if (Number.isFinite(pga)) { live++; validMetricCount++; if (pga > maxPga) maxPga = pga; }
+                    if (Number.isFinite(pgv)) { validMetricCount++; if (pgv > maxPgv) maxPgv = pgv; }
 
                     const aboveMotionThreshold = (Number.isFinite(pga) && pga >= PALERT_MOTION_PGA_GAL)
                         || (Number.isFinite(pgv) && pgv >= PALERT_MOTION_PGV_CMS);
                     if (newMotionFrame) meta.motionStreak = aboveMotionThreshold ? (meta.motionStreak || 0) + 1 : 0;
-                    // Paleta NIED / SREV (igual que estaciones de Japón)
-                    const fill = twColorByPga(pga, pgv);
+                    // Marcador circular del mismo lenguaje visual de NIED; el halo
+                    // señala el umbral local, no una intensidad Shindo.
                     const active = (meta.motionStreak || 0) >= PALERT_MIN_FRAMES;
-                    try {
-                        marker.setStyle({ fillColor: fill, color: active ? '#ffffff' : 'rgba(255,255,255,.45)', weight: active ? 2.5 : 1, radius: active ? 6 : 5 });
-                        marker.setPopupContent(
-                            `<b>🟣 P-Alert · ${id}</b><br>${meta.name || ''}<br>${meta.area || ''}` +
-                            `<br>PGA: <b>${Number.isFinite(pga) ? pga.toFixed(3) + ' gal' : '—'}</b>` +
-                            `<br>PGV: <b>${Number.isFinite(pgv) ? pgv.toFixed(3) + ' cm/s' : '—'}</b>`
-                        );
-                    } catch (_) {}
+                    try { palertUpdateMarker(marker, id, meta, active); } catch (_) {}
                 });
 
                 try {
                     apiMetrics.palert = apiMetrics.palert || {};
-                    apiMetrics.palert.frameCheckedAt = Date.now();
-                    apiMetrics.palert.lastSeen = Date.now();
-                    apiMetrics.palert.frameTimestamp = Date.now();
+                    const receivedAt = Date.now();
+                    if (newMotionFrame) {
+                        apiMetrics.palert.frameCheckedAt = receivedAt;
+                        apiMetrics.palert.frameTimestamp = motionFrameStamp;
+                    }
+                    apiMetrics.palert.lastSeen = receivedAt;
+                    apiMetrics.palert.metricCount = validMetricCount;
                     apiMetrics.palert.pgaCount = live;
                     const maxEl = document.getElementById('palertMaxPga');
                     const maxPgvEl = document.getElementById('palertMaxPgv');
                     if (maxEl) maxEl.textContent = maxPga ? maxPga.toFixed(2) : '—';
                     if (maxPgvEl) maxPgvEl.textContent = maxPgv ? maxPgv.toFixed(2) : '—';
                 } catch (_) {}
-                setApiState('palert', 'ok', live || Object.keys(palertStationMeta).length);
-                try { setPAlertStatus('● En vivo · ' + live + ' con PGA', '#67e8a5'); } catch (_) {}
+                setApiState('palert', 'ok', live || validMetricCount);
+                try { setPAlertStatus(newMotionFrame ? '● Trama reciente · ' + validMetricCount + ' métricas' : '● Sin trama nueva del origen', newMotionFrame ? '#67e8a5' : '#ffd166'); } catch (_) {}
 
                 // Movimiento P-Alert: ≥2 estaciones dentro de 300 km y dos lecturas consecutivas.
                 try {
@@ -12957,28 +13001,33 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                     Object.keys(palertStationMeta).forEach(id => {
                         const meta = palertStationMeta[id];
                         if (!meta || (meta.motionStreak || 0) < PALERT_MIN_FRAMES || !Number.isFinite(meta.lat) || !Number.isFinite(meta.lon)) return;
-                        const estimatedIntensity = palertIntensityEstimate(meta.pga, meta.pgv);
                         moving.push({
                             id, lat: meta.lat, lon: meta.lon,
-                            intensity: Number.isFinite(estimatedIntensity) ? estimatedIntensity : 0,
                             area: meta.area, name: meta.name, network: 'P-Alert',
                             pga: meta.pga, pgv: meta.pgv
                         });
                     });
                     const nearby = palertNearbyCluster(moving);
+                    const activeCountEl = document.getElementById('palertMaxInt');
+                    if (activeCountEl) activeCountEl.textContent = String(nearby.length);
+                    const hiddenMovementCount = document.getElementById('palertMovementCount');
+                    if (hiddenMovementCount) hiddenMovementCount.textContent = String(moving.length);
+                    const hiddenStationCount = document.getElementById('palertStationCount');
+                    if (hiddenStationCount) hiddenStationCount.textContent = String(Object.keys(palertStationMeta).length);
                     if (typeof syncTaiwanMovementView === 'function') syncTaiwanMovementView('palert', nearby);
-                    if (nearby.length >= PALERT_MIN_STATIONS) {
-                        try { notifyLocalMotionEpisode(nearby, 'P-Alert'); } catch (_) {}
-                    } else {
-                        try { playSrevMotionSound([]); } catch (_) {}
-                    }
+                    // P-Alert no publica Shindo medido: no derivar sonidos NewInt de PGA/PGV.
+                    if (nearby.length < PALERT_MIN_STATIONS) { try { playSrevMotionSound([]); } catch (_) {} }
                 } catch (e) { console.warn('[P-Alert motion]', e); }
 
                 twEnsureLayers();
             } catch (e) {
                 console.warn('[P-Alert] realtime', e);
-                setApiState('palert', 'stale');
-                try { setPAlertStatus('● Sin telemetría', '#ff6b8a'); } catch (_) {}
+                palertRealtimeFailures++;
+                const retryMs = palertRetryDelay(palertRealtimeFailures);
+                palertNextRealtimeRetryAt = Date.now() + retryMs;
+                try { apiMetrics.palert = apiMetrics.palert || {}; apiMetrics.palert.lastError = String(e && e.message || e); apiMetrics.palert.nextRetryAt = palertNextRealtimeRetryAt; } catch (_) {}
+                setApiState('palert', 'bad');
+                try { setPAlertStatus(`● Sin telemetría · reintento en ${Math.ceil(retryMs / 1000)} s`, '#ff6b8a'); } catch (_) {}
                 try { syncTaiwanMovementView('palert', []); } catch (_) {}
             } finally {
                 palertRealtimeBusy = false;
@@ -18030,9 +18079,10 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                     return `<div class="conn-row"><span>${name}</span><span class="conn-right"><b class="${connected ? 'ok' : 'bad'}">${label}</b></span></div>`;
                 }
                 if (key === 'palert') {
-                    const seen = Number(m.frameCheckedAt || m.lastSeen || 0);
+                    const seen = Number(m.frameCheckedAt || 0);
                     const age = seen ? now - seen : Infinity;
-                    const connected = (age <= 90000) || (s === 'ok' || s === 'stale');
+                    const hasTelemetry = Number(m.metricCount || 0) > 0;
+                    const connected = age >= 0 && age <= 90000 && hasTelemetry;
                     const label = connected ? 'Conectada' : 'Desconectada';
                     return `<div class="conn-row"><span>${name}</span><span class="conn-right"><b class="${connected ? 'ok' : 'bad'}">${label}</b></span></div>`;
                 }
@@ -27365,7 +27415,7 @@ function ynBuildLeafletMarkers() {
 </div>
 
 <div id="eqSettingsModal" role="dialog" aria-modal="true" aria-labelledby="eqSettingsTitle"><div id="eqSettingsDialog"><div class="eqs-head"><span id="eqSettingsTitle">Ajustes</span><button class="eqs-close" id="eqSettingsClose" type="button">×</button></div><div class="eqs-section"><div class="eqs-title">Apartados</div><div class="eqs-muted">Abre las alertas meteorológicas oficiales de Japón. Pulsa de nuevo para volver a la vista normal.</div><button class="eqs-control" id="eqsJmaWeatherToggle" type="button" aria-pressed="false" style="width:100%;margin-top:8px;text-align:left;padding:9px">🇯🇵 Alertas meteorológicas de Japón</button><button class="eqs-control" id="eqsJapanSeaStationsToggle" type="button" aria-pressed="false" style="width:100%;margin-top:8px;text-align:left;padding:9px">🌊 Mar de Japón · estaciones en vivo</button>
-<button class="eqs-control" id="eqsOpenSiatCt" type="button" style="width:100%;margin-top:8px;text-align:left;padding:9px">🌪️ SIAT-CT México · Ciclones tropicales</button><div class="eqs-muted">Consulta los boletines y regiones en el portal oficial.</div>
+<button class="eqs-control" id="eqsOpenSiatCt" type="button" style="width:100%;margin-top:8px;text-align:left;padding:9px">🌪️ SIAT-CT México · Ciclones tropicales</button><div class="eqs-muted">Las zonas oficiales se dibujan en el mapa; un boletín nuevo enfoca la alerta durante 15 segundos.</div>
 <div class="sismos-auto-box">
 <button class="eqs-control" id="eqsMeteoCenterToggle" type="button" aria-pressed="false" style="width:100%;text-align:left;padding:9px">🌦️ Abrir Centro Meteorológico LIVE</button>
 <button class="eqs-control" id="eqsAutoExploreToggle" type="button" aria-pressed="false" style="width:100%;margin-top:8px;text-align:left;padding:9px">🔄 Modo automático: desactivado</button>
@@ -27413,7 +27463,7 @@ function ynBuildLeafletMarkers() {
 </label>
 <div class="eqs-muted" style="grid-column:1/-1">El texto inferior (estilo TV) solo anuncia sismos desde esa magnitud. EEW y alertas prioritarias siguen saliendo.</div>
 </div>
-<div class="eqs-title">General</div><div class="eqs-grid"><label class="eqs-row">Lluvia de balones por gol de Colombia <input class="eqs-switch" id="eqsColombiaGoalRain" type="checkbox"></label><label class="eqs-row">Avisos de goles, descanso y final <input class="eqs-switch" id="eqsColombiaMatchAlerts" type="checkbox"></label><label class="eqs-row">Voz TTS <input class="eqs-switch" id="eqsTts" type="checkbox"></label><label class="eqs-row">Sonidos y alertas <input class="eqs-switch" id="eqsAudio" type="checkbox"></label><label class="eqs-row">Modelo TauP <select id="eqsTaup"><option value="precise">Preciso</option><option value="fast">Rápido</option><option value="fallback">Respaldo</option></select></label><label class="eqs-row eqs-intensity-row">Forzar escala de intensidad <select id="eqsIntensityScale"><option value="source">Desactivado (usar escala de la agencia)</option><option value="shindo">Shindo (JMA)</option><option value="mmi">MMI</option><option value="csis">CSIS (China)</option><option value="cwa">CWA (Taiwán)</option><option value="geonet">GeoNet MMI (NZ)</option></select></label>
+<div class="eqs-title">General</div><div class="eqs-grid"><label class="eqs-row">Lluvia de balones por gol de Colombia <input class="eqs-switch" id="eqsColombiaGoalRain" type="checkbox"></label><label class="eqs-row">Avisos de goles, descanso y final <input class="eqs-switch" id="eqsColombiaMatchAlerts" type="checkbox"></label><label class="eqs-row">Voz TTS <input class="eqs-switch" id="eqsTts" type="checkbox"></label><label class="eqs-row">Sonidos y alertas <input class="eqs-switch" id="eqsAudio" type="checkbox"></label><label class="eqs-row eqs-volume-row" style="grid-column:1/-1"><span>Volumen general</span><span class="eqs-volume-control"><input id="eqsMasterVolume" type="range" min="0" max="100" step="1" value="100" aria-label="Volumen general de sonidos y voz"><output id="eqsMasterVolumeValue">100%</output></span></label><div class="eqs-muted" style="grid-column:1/-1">Ajusta los sonidos de alerta y la voz TTS.</div><label class="eqs-row">Modelo TauP <select id="eqsTaup"><option value="precise">Preciso</option><option value="fast">Rápido</option><option value="fallback">Respaldo</option></select></label><label class="eqs-row eqs-intensity-row">Forzar escala de intensidad <select id="eqsIntensityScale"><option value="source">Desactivado (usar escala de la agencia)</option><option value="shindo">Shindo (JMA)</option><option value="mmi">MMI</option><option value="csis">CSIS (China)</option><option value="cwa">CWA (Taiwán)</option><option value="geonet">GeoNet MMI (NZ)</option></select></label>
 <label class="eqs-row eqs-intensity-row">Color del mar (mapa) <select id="eqsMapSea"><option value="dark">Oscuro (predeterminado)</option><option value="ocean">Azul océano</option><option value="deep">Azul profundo</option><option value="black">Negro</option><option value="slate">Gris pizarra</option><option value="teal">Verde azulado</option><option value="indigo">Índigo</option></select></label>
 <label class="eqs-row eqs-intensity-row">Estaciones Japón <select id="eqsJapanStations"><option value="yahoo">Yahoo (Kyoshin CDN)</option><option value="nied">NIED oficial (K-NET + KiK-net)</option><option value="knet">Solo K-NET</option><option value="kiknet">Solo KiK-net</option><option value="both">Yahoo + NIED</option><option value="hinet">Hi-net · catálogo (sin telemetría)</option><option value="fnet">F-net · catálogo (sin telemetría)</option><option value="vnet">V-net · sin catálogo/flujo público verificado</option></select></label>
 <div class="eqs-muted eqs-intensity-note">Solo K-NET/KiK-net tienen feed Kyoshin consultado cada 1 s. Hi-net y F-net muestran catálogo sin telemetría. Las estaciones oceánicas S-net, DONET y N-net se retiraron del mapa porque esta vista no recibe sus señales en vivo.</div>
@@ -27425,7 +27475,7 @@ function ynBuildLeafletMarkers() {
 <label class="eqs-row">Vista de estaciones NIED <select id="eqsNiedMetric"><option value="intensity">Intensidad</option><option value="pga">PGA ≈ (gal)</option><option value="pgv">PGV ≈ (cm/s)</option><option value="both">PGA + PGV ≈</option></select></label><div class="eqs-muted">PGA/PGV se estiman leyendo los colores del GIF NIED; no son mediciones crudas.</div>
 </div>
 <button class="eqs-control" id="eqsTestColombiaGoalRain" type="button" style="margin-top:8px;width:100%">⚽ Probar lluvia de balones</button><div class="eqs-muted">Vista previa: no cambia si la celebración está activada o desactivada.</div>
-<div class="eqs-muted eqs-intensity-note">Solo cambia el color del agua. Países, límites administrativos, estaciones y sismos se mantienen.</div><div class="eqs-muted eqs-intensity-note">La selección ajusta lista, ficha, telop y mapa. Las equivalencias entre escalas se marcan con ≈ y son estimadas, no oficiales.</div><div class="eqs-section"><div class="eqs-title">Probar sonidos del monitor</div><div class="eqs-muted">Pulsa cada botón para escucharlo. Los sonidos SREV son los avisos incorporados.</div><div class="eqs-muted">Marcador PLUM adaptado del punto de SREV · Kotoho7 · CC BY-SA 2.0. <a href="https://github.com/kotoho7/scratch-realtime-earthquake-viewer-page" target="_blank" rel="noopener">Fuente</a>.</div><div class="eqs-sound-group"><b>Interfaz</b><div class="eqs-sound-grid" id="eqsUiSounds"></div></div><div class="eqs-sound-group"><b>Alertas SREV</b><div class="eqs-sound-grid" id="eqsSrevSounds"></div></div><div class="eqs-sound-group"><b>Voz</b><button class="eqs-control" id="eqsTestTts" type="button">Probar TTS</button></div></div></div><div class="eqs-section"><div class="eqs-title">Voz de alertas en español</div><div class="eqs-muted">Elige y prueba la voz utilizada para los avisos hablados.</div><select id="ttsVoiceSelect"></select><div style="display:flex;gap:8px;margin-top:8px"><button class="eqs-control" id="btnTtsVoiceTest" type="button">Probar voz</button><button class="eqs-control" id="btnTtsVoiceReset" type="button">Usar automática</button></div></div><div class="eqs-muted">Las preferencias se guardan en este navegador.</div></div><div class="eqs-section"><div class="eqs-title">Agencias visibles en la lista</div><div class="eqs-agencies" id="eqsAgencies"></div><div class="eqs-muted">Desactivarlas las oculta de la lista, pero no elimina su conexión.</div></div><div class="eqs-actions"><button class="eqs-control" id="eqsReset" type="button">Restablecer</button><button class="eqs-save" id="eqsSave" type="button">Guardar</button></div></div></div><script id="eq-settings-module">(function(){'use strict';const modal=document.getElementById('eqSettingsModal'),open=document.getElementById('btnSettings');if(!modal||!open)return;const agencies=['USGS','NEIC','JMA','CENC','CEA','CEIC','EMSC','IGN','INETER','GEOFON','SSN','AFAD','BMKG','GEONET','INGV','IPGP','SED','PHIVOLCS','CSN','IG-EPN','EARLY-EST','HKO','NOA','KOERI','KMA','BCSF','NRCan','USP','MMD' ,'CEA-PR'],key='earthquake.settings.v1',defaults={tts:true,audio:true,taup:'precise',intensityScale:'source',mapSea:'dark',japanStations:'nied',showTremMetrics:true,showPalertMetrics:true,showNiedMetrics:true,niedMetric:'intensity',colombiaGoalRain:true,colombiaMatchAlerts:true,showFaults:false,browserNotify:false,minTickerMag:0,listMinMag:0,listFeltOnly:false,listRegion:'ALL',disabled:{}};const read=()=>{try{return Object.assign({},defaults,JSON.parse(localStorage.getItem(key)||'{}'));}catch(_){return Object.assign({},defaults)}};let state=read();delete state.uiLanguage;const tts=document.getElementById('eqsTts'),audio=document.getElementById('eqsAudio'),taup=document.getElementById('eqsTaup'),intensityScale=document.getElementById('eqsIntensityScale'),mapSea=document.getElementById('eqsMapSea'),japanStations=document.getElementById('eqsJapanStations'),showTremMetrics=document.getElementById('eqsShowTremMetrics'),showPalertMetrics=document.getElementById('eqsShowPalertMetrics'),showNiedMetrics=document.getElementById('eqsShowNiedMetrics'),niedMetric=document.getElementById('eqsNiedMetric'),colombiaGoalRain=document.getElementById('eqsColombiaGoalRain'),colombiaMatchAlerts=document.getElementById('eqsColombiaMatchAlerts'),goalRainTest=document.getElementById('eqsTestColombiaGoalRain'),showFaults=document.getElementById('eqsShowFaults'),browserNotify=document.getElementById('eqsBrowserNotify'),minTickerMag=document.getElementById('eqsMinTickerMag'),listMinMag=document.getElementById('eqsListMinMag'),listRegion=document.getElementById('eqsListRegion'),listFeltOnly=document.getElementById('eqsListFeltOnly'),list=document.getElementById('eqsAgencies');const uiSounds=document.getElementById('eqsUiSounds'),srevSounds=document.getElementById('eqsSrevSounds'),jmaToggle=document.getElementById('eqsJmaWeatherToggle');function syncJmaToggle(){const api=window.__eqJmaWeatherView;const active=!!(api&&typeof api.isActive==='function'&&api.isActive());if(jmaToggle){jmaToggle.textContent=active?'↩️ Volver a la vista normal':'🇯🇵 Alertas meteorológicas de Japón';jmaToggle.setAttribute('aria-pressed',String(active));jmaToggle.style.borderColor=active?'#ffb300':'';jmaToggle.style.color=active?'#ffd873':''}}const uiSoundNames=[['click','Clic'],['select','Selección'],['refresh','Actualizar'],['success','Correcto'],['home','Inicio'],['alert','Alerta'],['ynWave','Onda NIED'],['motion','Movimiento']];const srevSoundNames=[['eew0','EEW débil'],['eew3','EEW intensidad 3'],['eew5','EEW intensidad 5'],['eewC','EEW cancelación'],['koushin','Actualización'],['koushinE','Actualización EEW'],['VXSE51','VXSE51 información'],['VXSE52','VXSE52 epicentro'],['VXSE53','VXSE53 detalle'],['VXSE5C','VXSE5C'],['VTSE5','VTSE5 tsunami'],['tsa01','Tsunami tsa01'],['tsa02','Tsunami tsa02'],['tsa03','Tsunami tsa03'],['tsa04','Tsunami tsa04'],['tsa12','Tsunami tsa12'],['tsa13','Tsunami tsa13'],['tsa14','Tsunami tsa14'],['tsa21','Tsunami tsa21'],['tsa22','Tsunami tsa22'],['tsa23','Tsunami tsa23'],['tsa24','Tsunami tsa24'],['tsa32','Tsunami tsa32'],['tsa33','Tsunami tsa33'],['p1024','p1024'],['NewInt0','Movimiento int. 0'],['NewInt1','Movimiento int. 1'],['NewInt2','Movimiento int. 2'],['NewInt3','Movimiento int. 3'],['NewInt4','Movimiento int. 4'],['NewInt5','Movimiento int. 5'],['NewInt6','Movimiento int. 6–7']];function render(){const a=window.__eqAudioSettings;tts.checked=a?a.ttsEnabled:state.tts;audio.checked=a?a.audioEnabled:state.audio;taup.value=(window.__eqTaupSettings&&window.__eqTaupSettings.mode)||state.taup;intensityScale.value=state.intensityScale||'source';if(mapSea)mapSea.value=state.mapSea||'dark';if(japanStations)japanStations.value=state.japanStations||'nied';if(showTremMetrics)showTremMetrics.checked=state.showTremMetrics!==false;if(showPalertMetrics)showPalertMetrics.checked=state.showPalertMetrics!==false;if(showNiedMetrics)showNiedMetrics.checked=state.showNiedMetrics!==false;if(niedMetric)niedMetric.value=state.niedMetric||'intensity';if(colombiaGoalRain)colombiaGoalRain.checked=state.colombiaGoalRain!==false;if(colombiaMatchAlerts)colombiaMatchAlerts.checked=state.colombiaMatchAlerts!==false;if(showFaults)showFaults.checked=state.showFaults===true;if(browserNotify)browserNotify.checked=state.browserNotify===true;if(minTickerMag)minTickerMag.value=String(state.minTickerMag!=null?state.minTickerMag:0);if(listMinMag)listMinMag.value=String(state.listMinMag!=null?state.listMinMag:0);if(listRegion)listRegion.value=String(state.listRegion||'ALL');if(listFeltOnly)listFeltOnly.checked=state.listFeltOnly===true;uiSounds.innerHTML=uiSoundNames.map(x=>'<button class="eqs-control" type="button" data-ui-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');srevSounds.innerHTML=srevSoundNames.map(x=>'<button class="eqs-control" type="button" data-srev-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');list.innerHTML=agencies.map(x=>'<label class="eqs-agency"><input type="checkbox" data-agency="'+x+'" '+(!(state.disabled&&state.disabled[x])?'checked':'')+'> '+x+'</label>').join('')}
+<div class="eqs-muted eqs-intensity-note">Solo cambia el color del agua. Países, límites administrativos, estaciones y sismos se mantienen.</div><div class="eqs-muted eqs-intensity-note">La selección ajusta lista, ficha, telop y mapa. Las equivalencias entre escalas se marcan con ≈ y son estimadas, no oficiales.</div><div class="eqs-section"><div class="eqs-title">Probar sonidos del monitor</div><div class="eqs-muted">Pulsa cada botón para escucharlo. Los sonidos SREV son los avisos incorporados.</div><div class="eqs-muted">Marcador PLUM adaptado del punto de SREV · Kotoho7 · CC BY-SA 2.0. <a href="https://github.com/kotoho7/scratch-realtime-earthquake-viewer-page" target="_blank" rel="noopener">Fuente</a>.</div><div class="eqs-sound-group"><b>Interfaz</b><div class="eqs-sound-grid" id="eqsUiSounds"></div></div><div class="eqs-sound-group"><b>Alertas SREV</b><div class="eqs-sound-grid" id="eqsSrevSounds"></div></div><div class="eqs-sound-group"><b>Voz</b><button class="eqs-control" id="eqsTestTts" type="button">Probar TTS</button></div></div></div><div class="eqs-section"><div class="eqs-title">Voz de alertas en español</div><div class="eqs-muted">Elige y prueba la voz utilizada para los avisos hablados.</div><select id="ttsVoiceSelect"></select><div style="display:flex;gap:8px;margin-top:8px"><button class="eqs-control" id="btnTtsVoiceTest" type="button">Probar voz</button><button class="eqs-control" id="btnTtsVoiceReset" type="button">Usar automática</button></div></div><div class="eqs-muted">Las preferencias se guardan en este navegador.</div></div><div class="eqs-section"><div class="eqs-title">Agencias visibles en la lista</div><div class="eqs-agencies" id="eqsAgencies"></div><div class="eqs-muted">Desactivarlas las oculta de la lista, pero no elimina su conexión.</div></div><div class="eqs-actions"><button class="eqs-control" id="eqsReset" type="button">Restablecer</button><button class="eqs-save" id="eqsSave" type="button">Guardar</button></div></div></div><script id="eq-settings-module">(function(){'use strict';const modal=document.getElementById('eqSettingsModal'),open=document.getElementById('btnSettings');if(!modal||!open)return;const agencies=['USGS','NEIC','JMA','CENC','CEA','CEIC','EMSC','IGN','INETER','GEOFON','SSN','AFAD','BMKG','GEONET','INGV','IPGP','SED','PHIVOLCS','CSN','IG-EPN','EARLY-EST','HKO','NOA','KOERI','KMA','BCSF','NRCan','USP','MMD' ,'CEA-PR'],key='earthquake.settings.v1',defaults={tts:true,audio:true,masterVolume:1,taup:'precise',intensityScale:'source',mapSea:'dark',japanStations:'nied',showTremMetrics:true,showPalertMetrics:true,showNiedMetrics:true,niedMetric:'intensity',colombiaGoalRain:true,colombiaMatchAlerts:true,showFaults:false,browserNotify:false,minTickerMag:0,listMinMag:0,listFeltOnly:false,listRegion:'ALL',disabled:{}};const read=()=>{try{const saved=JSON.parse(localStorage.getItem(key)||'{}'),out=Object.assign({},defaults,saved);if(!Object.prototype.hasOwnProperty.call(saved,'masterVolume')){const v=Number(localStorage.getItem('earthquake.masterVolume'));if(Number.isFinite(v))out.masterVolume=Math.max(0,Math.min(1,v))}return out}catch(_){return Object.assign({},defaults)}};let state=read();delete state.uiLanguage;const tts=document.getElementById('eqsTts'),audio=document.getElementById('eqsAudio'),masterVolumeSlider=document.getElementById('eqsMasterVolume'),masterVolumeValue=document.getElementById('eqsMasterVolumeValue'),taup=document.getElementById('eqsTaup'),intensityScale=document.getElementById('eqsIntensityScale'),mapSea=document.getElementById('eqsMapSea'),japanStations=document.getElementById('eqsJapanStations'),showTremMetrics=document.getElementById('eqsShowTremMetrics'),showPalertMetrics=document.getElementById('eqsShowPalertMetrics'),showNiedMetrics=document.getElementById('eqsShowNiedMetrics'),niedMetric=document.getElementById('eqsNiedMetric'),colombiaGoalRain=document.getElementById('eqsColombiaGoalRain'),colombiaMatchAlerts=document.getElementById('eqsColombiaMatchAlerts'),goalRainTest=document.getElementById('eqsTestColombiaGoalRain'),showFaults=document.getElementById('eqsShowFaults'),browserNotify=document.getElementById('eqsBrowserNotify'),minTickerMag=document.getElementById('eqsMinTickerMag'),listMinMag=document.getElementById('eqsListMinMag'),listRegion=document.getElementById('eqsListRegion'),listFeltOnly=document.getElementById('eqsListFeltOnly'),list=document.getElementById('eqsAgencies');const uiSounds=document.getElementById('eqsUiSounds'),srevSounds=document.getElementById('eqsSrevSounds'),jmaToggle=document.getElementById('eqsJmaWeatherToggle');function syncJmaToggle(){const api=window.__eqJmaWeatherView;const active=!!(api&&typeof api.isActive==='function'&&api.isActive());if(jmaToggle){jmaToggle.textContent=active?'↩️ Volver a la vista normal':'🇯🇵 Alertas meteorológicas de Japón';jmaToggle.setAttribute('aria-pressed',String(active));jmaToggle.style.borderColor=active?'#ffb300':'';jmaToggle.style.color=active?'#ffd873':''}}const uiSoundNames=[['click','Clic'],['select','Selección'],['refresh','Actualizar'],['success','Correcto'],['home','Inicio'],['alert','Alerta'],['ynWave','Onda NIED'],['motion','Movimiento']];const srevSoundNames=[['eew0','EEW débil'],['eew3','EEW intensidad 3'],['eew5','EEW intensidad 5'],['eewC','EEW cancelación'],['koushin','Actualización'],['koushinE','Actualización EEW'],['VXSE51','VXSE51 información'],['VXSE52','VXSE52 epicentro'],['VXSE53','VXSE53 detalle'],['VXSE5C','VXSE5C'],['VTSE5','VTSE5 tsunami'],['tsa01','Tsunami tsa01'],['tsa02','Tsunami tsa02'],['tsa03','Tsunami tsa03'],['tsa04','Tsunami tsa04'],['tsa12','Tsunami tsa12'],['tsa13','Tsunami tsa13'],['tsa14','Tsunami tsa14'],['tsa21','Tsunami tsa21'],['tsa22','Tsunami tsa22'],['tsa23','Tsunami tsa23'],['tsa24','Tsunami tsa24'],['tsa32','Tsunami tsa32'],['tsa33','Tsunami tsa33'],['p1024','p1024'],['NewInt0','Movimiento int. 0'],['NewInt1','Movimiento int. 1'],['NewInt2','Movimiento int. 2'],['NewInt3','Movimiento int. 3'],['NewInt4','Movimiento int. 4'],['NewInt5','Movimiento int. 5'],['NewInt6','Movimiento int. 6–7']];function render(){const a=window.__eqAudioSettings;tts.checked=a?a.ttsEnabled:state.tts;audio.checked=a?a.audioEnabled:state.audio;if(masterVolumeSlider){const n=Math.max(0,Math.min(1,Number(state.masterVolume??1)));masterVolumeSlider.value=String(Math.round(n*100));if(masterVolumeValue)masterVolumeValue.textContent=Math.round(n*100)+'%'}taup.value=(window.__eqTaupSettings&&window.__eqTaupSettings.mode)||state.taup;intensityScale.value=state.intensityScale||'source';if(mapSea)mapSea.value=state.mapSea||'dark';if(japanStations)japanStations.value=state.japanStations||'nied';if(showTremMetrics)showTremMetrics.checked=state.showTremMetrics!==false;if(showPalertMetrics)showPalertMetrics.checked=state.showPalertMetrics!==false;if(showNiedMetrics)showNiedMetrics.checked=state.showNiedMetrics!==false;if(niedMetric)niedMetric.value=state.niedMetric||'intensity';if(colombiaGoalRain)colombiaGoalRain.checked=state.colombiaGoalRain!==false;if(colombiaMatchAlerts)colombiaMatchAlerts.checked=state.colombiaMatchAlerts!==false;if(showFaults)showFaults.checked=state.showFaults===true;if(browserNotify)browserNotify.checked=state.browserNotify===true;if(minTickerMag)minTickerMag.value=String(state.minTickerMag!=null?state.minTickerMag:0);if(listMinMag)listMinMag.value=String(state.listMinMag!=null?state.listMinMag:0);if(listRegion)listRegion.value=String(state.listRegion||'ALL');if(listFeltOnly)listFeltOnly.checked=state.listFeltOnly===true;uiSounds.innerHTML=uiSoundNames.map(x=>'<button class="eqs-control" type="button" data-ui-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');srevSounds.innerHTML=srevSoundNames.map(x=>'<button class="eqs-control" type="button" data-srev-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');list.innerHTML=agencies.map(x=>'<label class="eqs-agency"><input type="checkbox" data-agency="'+x+'" '+(!(state.disabled&&state.disabled[x])?'checked':'')+'> '+x+'</label>').join('')}
 function applyMetricsPanelsVisibility(st){
   const s=st||state||{};
   document.body.classList.toggle('hide-trem-metrics',s.showTremMetrics===false);
@@ -27440,7 +27490,7 @@ function applyMetricsPanelsVisibility(st){
   window.__eqNiedMetric=niedMetricMode;
   try{window.__eqApplyNiedMetricView?.(niedMetricMode);}catch(_){}
 }
-function apply(save){const previousIntensityScale=window.__eqForcedIntensityScale||'source';state.tts=tts.checked;state.audio=audio.checked;state.taup=taup.value;state.intensityScale=intensityScale.value||'source';state.mapSea=(mapSea&&mapSea.value)||'dark';state.japanStations=(japanStations&&japanStations.value)||'nied';window.__eqJapanStationsSource=state.japanStations;state.showTremMetrics=showTremMetrics?showTremMetrics.checked:state.showTremMetrics!==false;state.showPalertMetrics=showPalertMetrics?showPalertMetrics.checked:state.showPalertMetrics!==false;state.showNiedMetrics=showNiedMetrics?showNiedMetrics.checked:state.showNiedMetrics!==false;state.niedMetric=(niedMetric&&niedMetric.value)||state.niedMetric||'intensity';try{applyMetricsPanelsVisibility(state);}catch(_){}try{if(typeof window.__eqApplyJapanStationsSource==='function')window.__eqApplyJapanStationsSource(state.japanStations);}catch(_){}state.colombiaGoalRain=colombiaGoalRain?colombiaGoalRain.checked:state.colombiaGoalRain!==false;window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain;if(!state.colombiaGoalRain)window.__eqStopColombiaGoalRain?.();state.colombiaMatchAlerts=colombiaMatchAlerts?colombiaMatchAlerts.checked:state.colombiaMatchAlerts!==false;window.__eqColombiaMatchAlertsEnabled=state.colombiaMatchAlerts;
+function apply(save){const previousIntensityScale=window.__eqForcedIntensityScale||'source';state.tts=tts.checked;state.audio=audio.checked;state.masterVolume=masterVolumeSlider?Math.max(0,Math.min(1,Number(masterVolumeSlider.value)/100)):Number(state.masterVolume??1);window.__eqAudioSettings?.setVolume(state.masterVolume);state.taup=taup.value;state.intensityScale=intensityScale.value||'source';state.mapSea=(mapSea&&mapSea.value)||'dark';state.japanStations=(japanStations&&japanStations.value)||'nied';window.__eqJapanStationsSource=state.japanStations;state.showTremMetrics=showTremMetrics?showTremMetrics.checked:state.showTremMetrics!==false;state.showPalertMetrics=showPalertMetrics?showPalertMetrics.checked:state.showPalertMetrics!==false;state.showNiedMetrics=showNiedMetrics?showNiedMetrics.checked:state.showNiedMetrics!==false;state.niedMetric=(niedMetric&&niedMetric.value)||state.niedMetric||'intensity';try{applyMetricsPanelsVisibility(state);}catch(_){}try{if(typeof window.__eqApplyJapanStationsSource==='function')window.__eqApplyJapanStationsSource(state.japanStations);}catch(_){}state.colombiaGoalRain=colombiaGoalRain?colombiaGoalRain.checked:state.colombiaGoalRain!==false;window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain;if(!state.colombiaGoalRain)window.__eqStopColombiaGoalRain?.();state.colombiaMatchAlerts=colombiaMatchAlerts?colombiaMatchAlerts.checked:state.colombiaMatchAlerts!==false;window.__eqColombiaMatchAlertsEnabled=state.colombiaMatchAlerts;
 state.showFaults=showFaults?showFaults.checked:false;window.__eqShowFaults=state.showFaults;try{window.__eqApplyFaults?.(state.showFaults);}catch(_){}
 state.browserNotify=browserNotify?browserNotify.checked:false;window.__eqBrowserNotify=state.browserNotify;try{window.__eqApplyBrowserNotify?.(state.browserNotify);}catch(_){}
 state.minTickerMag=minTickerMag?parseFloat(minTickerMag.value)||0:0;window.__eqMinTickerMag=state.minTickerMag;
@@ -27448,7 +27498,7 @@ state.listMinMag=listMinMag?parseFloat(listMinMag.value)||0:0;window.__eqListMin
 state.listRegion=listRegion?listRegion.value:'ALL';window.__eqListRegion=state.listRegion;
 state.listFeltOnly=listFeltOnly?listFeltOnly.checked:false;window.__eqListFeltOnly=state.listFeltOnly;
 
-try{window.__eqSyncListFilters?.();}catch(_){}if(!state.colombiaMatchAlerts)window.__eqStopColombiaMatchAlert?.();state.disabled={};list.querySelectorAll('input[data-agency]').forEach(x=>{if(!x.checked)state.disabled[x.dataset.agency]=true});window.__eqDisabledAgencies=state.disabled;if(window.__eqAudioSettings){window.__eqAudioSettings.setAudio(state.audio);window.__eqAudioSettings.setTts(state.tts)}if(window.__eqTaupSettings)window.__eqTaupSettings.mode=state.taup;window.__eqForcedIntensityScale=state.intensityScale;try{if(typeof window.__eqApplyMapSeaTheme==='function')window.__eqApplyMapSeaTheme(state.mapSea||'dark');}catch(_){};try{localStorage.setItem(key,JSON.stringify(state))}catch(_){}document.getElementById('filterAgency')?.dispatchEvent(new Event('change'));if(previousIntensityScale!==state.intensityScale)window.__eqRefreshIntensityScale?.();if(save)modal.classList.remove('active')}function show(){state=read();render();window.__eqAudioSettings?.refreshVoiceSelect?.();syncJmaToggle();syncJapanSeaToggle();modal.classList.add('active')}open.addEventListener('click',show);jmaToggle?.addEventListener('click',()=>{const api=window.__eqJmaWeatherView;if(api&&typeof api.toggle==='function'){const pending=api.toggle();modal.classList.remove('active');syncJmaToggle();Promise.resolve(pending).then(syncJmaToggle).catch(syncJmaToggle)}else{document.getElementById('btnJmaWeatherAlerts')?.click();modal.classList.remove('active');setTimeout(syncJmaToggle,250)}});const japanSeaToggle=document.getElementById('eqsJapanSeaStationsToggle');function syncJapanSeaToggle(){const active=!!japanSeaStationsMode;if(japanSeaToggle){japanSeaToggle.textContent=active?'↩️ Volver a Japón · estaciones en vivo':'🌊 Mar de Japón · estaciones en vivo';japanSeaToggle.setAttribute('aria-pressed',String(active));japanSeaToggle.style.borderColor=active?'#35d5dd':'';japanSeaToggle.style.color=active?'#8ff7ff':''}}japanSeaToggle?.addEventListener('click',()=>{try{toggleJapanSeaStations();syncJapanSeaToggle()}catch(_){}});document.getElementById('eqSettingsClose').addEventListener('click',()=>modal.classList.remove('active'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('active')});document.getElementById('eqsSave').addEventListener('click',()=>apply(true));document.getElementById('eqsReset').addEventListener('click',()=>{state=Object.assign({},defaults,{disabled:{}});render();apply(false)});tts.addEventListener('change',()=>apply(false));audio.addEventListener('change',()=>apply(false));taup.addEventListener('change',()=>apply(false));intensityScale.addEventListener('change',()=>apply(false));mapSea?.addEventListener('change',()=>apply(false));japanStations?.addEventListener('change',()=>apply(false));showTremMetrics?.addEventListener('change',()=>apply(false));showPalertMetrics?.addEventListener('change',()=>apply(false));showNiedMetrics?.addEventListener('change',()=>apply(false));niedMetric?.addEventListener('change',()=>apply(false));colombiaGoalRain?.addEventListener('change',()=>apply(false));colombiaMatchAlerts?.addEventListener('change',()=>apply(false));showFaults?.addEventListener('change',()=>apply(false));browserNotify?.addEventListener('change',()=>apply(false));minTickerMag?.addEventListener('change',()=>apply(false));listMinMag?.addEventListener('change',()=>apply(false));listRegion?.addEventListener('change',()=>apply(false));listFeltOnly?.addEventListener('change',()=>apply(false));goalRainTest?.addEventListener('click',()=>window.__eqTestColombiaGoalRain?.());uiSounds.addEventListener('click',e=>{const b=e.target.closest('[data-ui-sound]');if(b)window.__eqAudioSettings?.testUi(b.dataset.uiSound)});srevSounds.addEventListener('click',e=>{const b=e.target.closest('[data-srev-sound]');if(b)window.__eqAudioSettings?.testSrev(b.dataset.srevSound)});document.getElementById('ttsVoiceSelect')?.addEventListener('change',e=>window.__eqAudioSettings?.setPreferredVoice(e.target.value));document.getElementById('btnTtsVoiceTest')?.addEventListener('click',()=>window.__eqAudioSettings?.testPreferredVoice());document.getElementById('btnTtsVoiceReset')?.addEventListener('click',()=>window.__eqAudioSettings?.resetPreferredVoice());document.getElementById('eqsTestTts').addEventListener('click',()=>window.__eqAudioSettings?.testTts());window.__eqDisabledAgencies=state.disabled||{};window.__eqForcedIntensityScale=state.intensityScale||'source';window.__eqJapanStationsSource=state.japanStations||'nied';try{applyMetricsPanelsVisibility(state);}catch(_){};window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain!==false;window.__eqColombiaMatchAlertsEnabled=state.colombiaMatchAlerts!==false;
+try{window.__eqSyncListFilters?.();}catch(_){}if(!state.colombiaMatchAlerts)window.__eqStopColombiaMatchAlert?.();state.disabled={};list.querySelectorAll('input[data-agency]').forEach(x=>{if(!x.checked)state.disabled[x.dataset.agency]=true});window.__eqDisabledAgencies=state.disabled;if(window.__eqAudioSettings){window.__eqAudioSettings.setAudio(state.audio);window.__eqAudioSettings.setTts(state.tts)}if(window.__eqTaupSettings)window.__eqTaupSettings.mode=state.taup;window.__eqForcedIntensityScale=state.intensityScale;try{if(typeof window.__eqApplyMapSeaTheme==='function')window.__eqApplyMapSeaTheme(state.mapSea||'dark');}catch(_){};try{localStorage.setItem(key,JSON.stringify(state))}catch(_){}document.getElementById('filterAgency')?.dispatchEvent(new Event('change'));if(previousIntensityScale!==state.intensityScale)window.__eqRefreshIntensityScale?.();if(save)modal.classList.remove('active')}function show(){state=read();render();window.__eqAudioSettings?.refreshVoiceSelect?.();syncJmaToggle();syncJapanSeaToggle();modal.classList.add('active')}open.addEventListener('click',show);jmaToggle?.addEventListener('click',()=>{const api=window.__eqJmaWeatherView;if(api&&typeof api.toggle==='function'){const pending=api.toggle();modal.classList.remove('active');syncJmaToggle();Promise.resolve(pending).then(syncJmaToggle).catch(syncJmaToggle)}else{document.getElementById('btnJmaWeatherAlerts')?.click();modal.classList.remove('active');setTimeout(syncJmaToggle,250)}});const japanSeaToggle=document.getElementById('eqsJapanSeaStationsToggle');function syncJapanSeaToggle(){const active=!!japanSeaStationsMode;if(japanSeaToggle){japanSeaToggle.textContent=active?'↩️ Volver a Japón · estaciones en vivo':'🌊 Mar de Japón · estaciones en vivo';japanSeaToggle.setAttribute('aria-pressed',String(active));japanSeaToggle.style.borderColor=active?'#35d5dd':'';japanSeaToggle.style.color=active?'#8ff7ff':''}}japanSeaToggle?.addEventListener('click',()=>{try{toggleJapanSeaStations();syncJapanSeaToggle()}catch(_){}});document.getElementById('eqSettingsClose').addEventListener('click',()=>modal.classList.remove('active'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('active')});document.getElementById('eqsSave').addEventListener('click',()=>apply(true));document.getElementById('eqsReset').addEventListener('click',()=>{state=Object.assign({},defaults,{disabled:{}});render();apply(false)});tts.addEventListener('change',()=>apply(false));audio.addEventListener('change',()=>apply(false));masterVolumeSlider?.addEventListener('input',()=>{const n=Math.max(0,Math.min(1,Number(masterVolumeSlider.value)/100));state.masterVolume=n;if(masterVolumeValue)masterVolumeValue.textContent=Math.round(n*100)+'%';window.__eqAudioSettings?.setVolume(n);try{localStorage.setItem(key,JSON.stringify(state))}catch(_){}});taup.addEventListener('change',()=>apply(false));intensityScale.addEventListener('change',()=>apply(false));mapSea?.addEventListener('change',()=>apply(false));japanStations?.addEventListener('change',()=>apply(false));showTremMetrics?.addEventListener('change',()=>apply(false));showPalertMetrics?.addEventListener('change',()=>apply(false));showNiedMetrics?.addEventListener('change',()=>apply(false));niedMetric?.addEventListener('change',()=>apply(false));colombiaGoalRain?.addEventListener('change',()=>apply(false));colombiaMatchAlerts?.addEventListener('change',()=>apply(false));showFaults?.addEventListener('change',()=>apply(false));browserNotify?.addEventListener('change',()=>apply(false));minTickerMag?.addEventListener('change',()=>apply(false));listMinMag?.addEventListener('change',()=>apply(false));listRegion?.addEventListener('change',()=>apply(false));listFeltOnly?.addEventListener('change',()=>apply(false));goalRainTest?.addEventListener('click',()=>window.__eqTestColombiaGoalRain?.());uiSounds.addEventListener('click',e=>{const b=e.target.closest('[data-ui-sound]');if(b)window.__eqAudioSettings?.testUi(b.dataset.uiSound)});srevSounds.addEventListener('click',e=>{const b=e.target.closest('[data-srev-sound]');if(b)window.__eqAudioSettings?.testSrev(b.dataset.srevSound)});document.getElementById('ttsVoiceSelect')?.addEventListener('change',e=>window.__eqAudioSettings?.setPreferredVoice(e.target.value));document.getElementById('btnTtsVoiceTest')?.addEventListener('click',()=>window.__eqAudioSettings?.testPreferredVoice());document.getElementById('btnTtsVoiceReset')?.addEventListener('click',()=>window.__eqAudioSettings?.resetPreferredVoice());document.getElementById('eqsTestTts').addEventListener('click',()=>window.__eqAudioSettings?.testTts());window.__eqAudioSettings?.setVolume(state.masterVolume);window.__eqDisabledAgencies=state.disabled||{};window.__eqForcedIntensityScale=state.intensityScale||'source';window.__eqJapanStationsSource=state.japanStations||'nied';try{applyMetricsPanelsVisibility(state);}catch(_){};window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain!==false;window.__eqColombiaMatchAlertsEnabled=state.colombiaMatchAlerts!==false;
 window.__eqShowFaults=state.showFaults===true;window.__eqBrowserNotify=state.browserNotify===true;window.__eqMinTickerMag=Number(state.minTickerMag)||0;window.__eqListMinMag=Number(state.listMinMag)||0;window.__eqListRegion=state.listRegion||'ALL';window.__eqListFeltOnly=state.listFeltOnly===true;
 setTimeout(()=>{try{window.__eqApplyFaults?.(!!window.__eqShowFaults);}catch(_){}try{window.__eqApplyBrowserNotify?.(!!window.__eqBrowserNotify);}catch(_){}},1200);setTimeout(()=>{render();syncJmaToggle();window.__eqRefreshIntensityScale?.()},0)})();</script>
 
@@ -28606,6 +28656,67 @@ For more information on this, and how to apply and follow the GNU AGPL, see
             sync();
             new MutationObserver(sync).observe(badge, { attributes:true, attributeFilter:['class'] });
         })();
+</script>
+<script id="siat-ct-map-overlay">
+(function(){'use strict';
+  const worker='https://siatmex.terremotis123.workers.dev';
+  const colors={ROJA:'#ff0000',NARANJA:'#ffa500',AMARILLA:'#ffff00',VERDE:'#38bf34',AZUL:'#4f81bc'};
+  const labels={ROJA:'Peligro máximo',NARANJA:'Peligro alto',AMARILLA:'Peligro medio',VERDE:'Peligro bajo',AZUL:'Peligro muy bajo'};
+  const lastIdKey='earthquake.siatCt.lastBulletin.v2';
+  let layer=null,legend=null,focusTimer=null,programmaticUntil=0,manualViewRevision=0,currentSignature='',currentId='',busy=false,loaded=false;
+  if(typeof map==='undefined'||typeof L==='undefined')return;
+  map.on('movestart zoomstart',()=>{if(Date.now()>programmaticUntil)manualViewRevision++;});
+  function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function ensureLegend(levels){
+    if(!legend){legend=L.control({position:'bottomright'});legend.onAdd=function(){const d=L.DomUtil.create('div','siatct-map-legend');d.id='siatCtMapLegend';d.style.cssText='background:rgba(9,16,25,.92);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:7px 9px;font:11px/1.35 system-ui;box-shadow:0 2px 10px #0008;max-width:185px';return d;};}
+    legend.addTo(map);const d=document.getElementById('siatCtMapLegend');if(!d)return;
+    d.innerHTML='<strong style="display:block;margin-bottom:4px">SIAT-CT · nivel oficial</strong>'+levels.filter(x=>Number(x.count)>0).map(x=>`<div style="display:flex;align-items:center;gap:6px;margin:2px 0"><i style="width:10px;height:10px;background:${esc(x.color)};border:1px solid #fff;display:inline-block"></i>${esc(x.label)}</div>`).join('');
+  }
+  function removeLegend(){if(legend&&map.hasLayer(legend))map.removeControl(legend);legend=null;}
+  function focusAlert(bounds){
+    if(!bounds||!bounds.isValid())return;
+    clearTimeout(focusTimer);const previous={center:map.getCenter(),zoom:map.getZoom()};
+    const revision=manualViewRevision;programmaticUntil=Date.now()+1800;
+    if(typeof map.flyToBounds==='function')map.flyToBounds(bounds,{padding:[24,24],maxZoom:7,duration:1.0});
+    else map.fitBounds(bounds,{padding:[24,24],maxZoom:7});
+    focusTimer=setTimeout(()=>{if(manualViewRevision!==revision)return;programmaticUntil=Date.now()+1500;if(typeof map.flyTo==='function')map.flyTo(previous.center,previous.zoom,{duration:.8});else map.setView(previous.center,previous.zoom);},15000);
+  }
+  async function loadCurrent(expectedSignature){
+    const response=await fetch(worker+'/siat/current',{method:'GET',cache:'no-store',headers:{'Accept':'application/json'}});
+    if(!response.ok)return false;
+    const data=await response.json();
+    if(!data?.ok||!data.featureCollection||!Array.isArray(data.featureCollection.features))return false;
+    const features=data.featureCollection.features;
+    if(!features.length&&data.warnings?.length)return false;
+    if(layer){map.removeLayer(layer);layer=null;}
+    if(!features.length)removeLegend();
+    else{
+      layer=L.geoJSON(data.featureCollection,{
+        style:f=>{const level=f?.properties?.siatLevel,color=colors[level]||f?.properties?.siatColor||'#ffb000';return{color,weight:1.5,opacity:.95,fillColor:color,fillOpacity:.38};},
+        onEachFeature:(f,l)=>{const p=f.properties||{},level=p.siatLevel||'',phase=String(p.siatPhase||'').replace('ACERCÁNDOSE','Ciclón acercándose').replace('ALEJANDOSE','Ciclón alejándose'),state=p.siatState||p.CVE_ENT||p.cve_ent||'—',region=String(p.Regional_2||p.regional_2||'').trim()||'—',municipality=String(p.siatMunicipality||p.NOM_MUN||p.nom_mun||'').trim()||'—';l.bindPopup(`<b>SIAT-CT · ${esc(labels[level]||level||'Alerta')}</b><br>${esc(phase||'Zona alertada')}<br>Entidad: ${esc(state)}<br>Municipio: ${esc(municipality)}<br>Región oficial: ${esc(region)}`);}
+      }).addTo(map);
+      ensureLegend(data.levels||[]);
+    }
+    const id=String(data.bulletin?.idBoletin||''),signature=String(data.signature||expectedSignature||id);
+    let previousId='';try{previousId=localStorage.getItem(lastIdKey)||'';}catch(_){}
+    const shouldFocus=(loaded&&currentSignature&&signature!==currentSignature)||(!loaded&&previousId&&id&&previousId!==id);
+    if(id){try{localStorage.setItem(lastIdKey,id);}catch(_){}}
+    currentSignature=signature;currentId=id;loaded=true;
+    if(shouldFocus&&layer)focusAlert(layer.getBounds());
+    return true;
+  }
+  async function refresh(){
+    if(busy||document.hidden)return;busy=true;
+    try{
+      const response=await fetch(worker+'/siat/meta',{method:'GET',cache:'no-store',headers:{'Accept':'application/json'}});
+      if(!response.ok)return;
+      const meta=await response.json();if(!meta?.ok||!meta.signature)return;
+      if(!loaded||String(meta.signature)!==currentSignature)await loadCurrent(meta.signature);
+    }catch(_){}finally{busy=false;}
+  }
+  setTimeout(refresh,2500);
+  setInterval(refresh,120000);
+})();
 </script>
 </body>
 </html>
