@@ -3141,11 +3141,16 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
 }
 #mainLayout > .left-panel .current-event .location-label { display: none !important; }
 #mainLayout > .left-panel .current-event .location {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
   color: var(--eq-list-ink) !important;
-  font-size: 15px !important;
-  line-height: 1.12 !important;
-  font-weight: 750 !important;
+  font-size: clamp(18px, 3.7vw, 23px) !important;
+  line-height: 1.18 !important;
+  font-weight: 800 !important;
   letter-spacing: 0 !important;
+  overflow-wrap: anywhere !important;
 }
 #mainLayout > .left-panel .current-event .time {
   margin-top: 4px !important;
@@ -3184,8 +3189,10 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
 }
 #mainLayout > .left-panel #bigDepth {
   color: #fff !important;
-  font-size: 18px !important;
-  line-height: 1 !important;
+  min-width: 64px !important;
+  font-size: clamp(18px, 3.2vw, 22px) !important;
+  line-height: 1.1 !important;
+  font-weight: 800 !important;
   font-variant-numeric: tabular-nums;
 }
 #mainLayout > .left-panel .current-event .tsunami-status {
@@ -3293,7 +3300,7 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
   #mainLayout > .left-panel .current-event .intensity-circle { width: 50px !important; height: 50px !important; font-size: 23px !important; }
   #mainLayout > .left-panel .current-event .details { margin-left: 57px !important; gap: 7px !important; }
   #mainLayout > .left-panel #bigMag { font-size: 21px !important; }
-  #mainLayout > .left-panel #bigDepth { font-size: 16px !important; }
+  #mainLayout > .left-panel #bigDepth { min-width: 64px !important; font-size: 18px !important; line-height: 1.1 !important; }
   #mainLayout > .left-panel .event-list { padding: 2px 4px 6px !important; }
   #mainLayout > .left-panel .event-item { grid-template-columns: 33px minmax(0,1fr) auto !important; gap: 6px !important; min-height: 48px !important; padding: 4px 5px !important; }
   #mainLayout > .left-panel .event-item .int-badge { width: 31px !important; height: 31px !important; font-size: 12px !important; }
@@ -5854,7 +5861,11 @@ global.TauPJS=api;
                     return;
                 }
                 let protectedView = false;
-                try { protectedView = typeof protectedAutomaticViewOpen === 'function' && protectedAutomaticViewOpen(); } catch (_) {}
+                try {
+                    protectedView = (typeof protectedAutomaticViewOpen === 'function' && protectedAutomaticViewOpen()) ||
+                        (typeof isSpecialMapSectionOpen === 'function' && isSpecialMapSectionOpen()) ||
+                        !!document.querySelector('#solarCivilAlertPanel.active, #alertCenterPanel.alert-center-active, #weatherPanel.active, #siatAlertSection.active, #nhkGPanel.nhk-active, #jmaEewPanel.active, #ynEarlyAlert.active, #kmoniPanel.kmoni-active');
+                } catch (_) {}
                 // Si el cierre visual aún está terminando, reintentar brevemente;
                 // nunca desplazar una alerta prioritaria que siga realmente activa.
                 if (protectedView) {
@@ -7397,6 +7408,7 @@ global.TauPJS=api;
         const jmaTsunamiGeoCache = new Map();
         let jmaTsunamiReports = [];
         let jmaTsunamiSignature = '';
+        let jmaTsunamiBaselineReady = false;
         let jmaTsunamiRenderGeneration = 0;
         const JMA_TSUNAMI_FEED = 'https://www.data.jma.go.jp/developer/xml/feed/extra.xml';
         const JMA_TSUNAMI_GEO_BASE = 'https://geoshape.ex.nii.ac.jp/jma/resource/AreaTsunami/20240520/';
@@ -7404,7 +7416,7 @@ global.TauPJS=api;
             major: '#a020f0',
             warning: '#e00000',
             advisory: '#ffd000',
-            forecast: '#008cff',
+            forecast: '#23c9ff',
             cancel: '#777777'
         };
 
@@ -7667,12 +7679,12 @@ global.TauPJS=api;
         }
 
 
-        // Un boletín JMA sigue vigente 36 h después de emitido (antes esta función
-        // no existía y el ReferenceError se tragaba todo el dibujo de las costas).
+        // JMA mantiene en su lista los Forecast vigentes hasta publicar una
+        // cancelación o un boletín que los reemplace; no caducarlos por edad local.
         function jmaTsunamiReportIsCurrent(report) {
-            const t = Date.parse(report && report.sent || '');
-            if (!Number.isFinite(t)) return true;
-            return Date.now() - t < 36 * 3600 * 1000;
+            if (!report || report.cancelled) return false;
+            const expires = Date.parse(report.expires || '');
+            return !Number.isFinite(expires) || expires > Date.now();
         }
 
         function jmaTsunamiKindEs(name) {
@@ -7788,28 +7800,38 @@ global.TauPJS=api;
             try {
                 const data = typeof body === 'string' ? JSON.parse(body) : body;
                 const forecast = data?.Body?.Tsunami?.Forecast;
-                if (!forecast?.Item) return [];
-                const items = Array.isArray(forecast.Item) ? forecast.Item : [forecast.Item];
+                const rawItems = forecast?.Item;
+                if (!rawItems) return [];
+                const items = Array.isArray(rawItems) ? rawItems : [rawItems];
                 const sent = data?.Head?.ReportDateTime || data?.Control?.DateTime || new Date().toISOString();
                 const reportId = data?.Head?.EventID || data?.Control?.Title || sent;
                 const out = [];
+                const asArray = value => value == null ? [] : Array.isArray(value) ? value : [value];
+                const kindRank = { major:4, warning:3, advisory:2, forecast:1 };
                 for (const item of items) {
-                    const area = item?.Area || {};
-                    const kind = item?.Category?.Kind || item?.Category?.Kind?.[0] || {};
-                    const areaCode = String(area?.Code || '').trim();
-                    const kindName = String(kind?.Name || '').trim();
-                    const meta = jmaTsunamiKindEs(kindName);
-                    if (!areaCode || !meta) continue;
-                    out.push({
-                        id:`JMA-${reportId}-${areaCode}-${kind?.Code || kindName}`,
-                        source:'JMA', agency:'JMA', event:meta.es,
-                        jmaKind:meta.type, jmaKindName:kindName,
-                        jmaKindCode:String(kind?.Code || ''), jmaAreaCode:areaCode,
-                        area:String(area?.Name || `Zona JMA ${areaCode}`),
-                        headline:`${meta.es} · ${area?.Name || areaCode}`,
-                        description:`${kindName} · ${area?.Name || areaCode}`,
-                        sent, expires:'', point:null, polygon:null
-                    });
+                    const category = item?.Category || {};
+                    const currentKinds = asArray(category.Kind);
+                    const rawKinds = currentKinds.length ? currentKinds : asArray(category.LastKind);
+                    const kind = rawKinds.map(k => {
+                        const name = String(k?.Name || '').trim();
+                        return { node:k, name, meta:jmaTsunamiKindEs(name) };
+                    }).filter(k => k.meta).sort((a,b) => (kindRank[b.meta.type] || 0) - (kindRank[a.meta.type] || 0))[0];
+                    if (!kind) continue;
+                    const areas = asArray(item?.Area);
+                    for (const area of areas) {
+                        const areaCode = String(area?.Code || '').trim();
+                        if (!areaCode) continue;
+                        const areaName = String(area?.Name || `Zona JMA ${areaCode}`);
+                        out.push({
+                            id:`JMA-${reportId}-${areaCode}-${kind.node?.Code || kind.name}`,
+                            source:'JMA', agency:'JMA', event:kind.meta.es,
+                            jmaKind:kind.meta.type, jmaKindName:kind.name,
+                            jmaKindCode:String(kind.node?.Code || ''), jmaAreaCode:areaCode,
+                            area:areaName, headline:`${kind.meta.es} · ${areaName}`,
+                            description:`${kind.name} · ${areaName}`,
+                            sent, expires:'', point:null, polygon:null
+                        });
+                    }
                 }
                 return out;
             } catch (_) { return []; }
@@ -7828,25 +7850,44 @@ global.TauPJS=api;
                     urls.push(/^https?:\/\//i.test(String(name)) ? String(name) : JMA_TSUNAMI_DATA_BASE + String(name));
                 }
                 const parsed = [];
+                let validTsunamiJson = false;
+                let keepPreviousOnEmpty = false;
                 for (const url of urls) {
                     const body = await fetchTextWithFallback(url);
                     if (!body) continue;
-                    const items = parseJmaTsunamiJson(body);
-                    if (items.length) parsed.push(...items);
-                    if (parsed.length) break;
-                    // Si el boletín MÁS RECIENTE es una cancelación/解除, no resucitar
-                    // un Forecast viejo: se queda sin avisos y se limpia el mapa.
-                    if (/解除|取消|cancel/i.test(body)) break;
+                    let reportData;
+                    try { reportData = JSON.parse(body); } catch (_) { continue; }
+                    const tsunamiEnvelope = reportData?.Body?.Tsunami;
+                    if (!tsunamiEnvelope) continue;
+                    validTsunamiJson = true;
+                    const items = parseJmaTsunamiJson(reportData);
+                    if (items.length) {
+                        parsed.push(...items);
+                        break;
+                    }
+                    const hasForecastPayload = !!tsunamiEnvelope?.Forecast?.Item;
+                    const explicitCancellation = /解除|取消|cancel/i.test(JSON.stringify(reportData));
+                    // Si la fuente sí entregó un Forecast pero el formato no se pudo
+                    // interpretar, conserva las líneas previas; un fallo no las borra.
+                    keepPreviousOnEmpty = hasForecastPayload && !explicitCancellation;
+                    // El informe JMA más reciente manda: no resucitar un Forecast viejo.
+                    break;
                 }
                 if (!parsed.length) {
+                    if (!validTsunamiJson || keepPreviousOnEmpty) {
+                        try { ensureJmaTsunamiLayerVisible(); } catch (_) {}
+                        return false;
+                    }
                     jmaTsunamiRenderGeneration++;
                     try { jmaTsunamiLayer.clearLayers(); } catch (_) {}
                     jmaTsunamiReports = [];
                     jmaTsunamiSignature = '';
+                    jmaTsunamiBaselineReady = true;
                     const nonJma = (Array.isArray(tsunamiData)?tsunamiData:[]).filter(x => String(x?.source||'').toUpperCase() !== 'JMA' && Number(x?.p2pCode) !== 552);
                     tsunamiData = nonJma;
                     renderTsunamiPanel(tsunamiData);
                     renderAlertCenter();
+                    try { ensureJmaTsunamiLayerVisible(); } catch (_) {}
                     return false;
                 }
 
@@ -7861,18 +7902,19 @@ global.TauPJS=api;
                     byArea.set(key, x);
                 }
                 const previousJmaTsunamiSignature = jmaTsunamiSignature;
+                const wasBaselined = jmaTsunamiBaselineReady;
                 jmaTsunamiRenderGeneration++;
                 try { jmaTsunamiLayer.clearLayers(); } catch (_) {}
                 jmaTsunamiReports = [...byArea.values()];
                 jmaTsunamiSignature = jmaTsunamiReports.map(x=>`${x.jmaAreaCode}|${x.jmaKind}|${x.sent}`).sort().join('|');
+                jmaTsunamiBaselineReady = true;
                 const nonJma = (Array.isArray(tsunamiData)?tsunamiData:[]).filter(x => String(x?.source||'').toUpperCase() !== 'JMA' && Number(x?.p2pCode) !== 552);
                 tsunamiData = [...nonJma, ...jmaTsunamiReports].slice(-120);
                 renderTsunamiPanel(tsunamiData);
                 renderTsunamiMap(tsunamiData);
                 await renderJmaTsunamiZones();
-                if (previousJmaTsunamiSignature && previousJmaTsunamiSignature !== jmaTsunamiSignature && jmaTsunamiReports.length) {
-                    const hasForecast = jmaTsunamiReports.some(x => x.jmaKind === 'forecast');
-                    showTsunamiPriorityView(10000, hasForecast ? 'tsunami' : 'tsunami');
+                if (wasBaselined && previousJmaTsunamiSignature !== jmaTsunamiSignature && jmaTsunamiReports.length) {
+                    showTsunamiPriorityView(10000, 'tsunami');
                 }
                 return true;
             } catch (_) {
@@ -7914,10 +7956,13 @@ global.TauPJS=api;
                 });
                 const active = jmaCancellationSeen ? [] : [...byArea.values()].filter(x => jmaTsunamiReportIsCurrent(x));
                 const signature = active.map(x=>`${x.jmaAreaCode}|${x.jmaKind}|${x.sent}`).sort().join('|');
+                const previousSignature = jmaTsunamiSignature;
+                const wasBaselined = jmaTsunamiBaselineReady;
                 jmaTsunamiRenderGeneration++;
                 try { jmaTsunamiLayer.clearLayers(); } catch (_) {}
                 jmaTsunamiReports = active;
                 jmaTsunamiSignature = signature;
+                jmaTsunamiBaselineReady = true;
 
                 // Integra JMA al mismo panel/listado sin destruir PTWC/NTWC/P2P.
                 const nonJma = (Array.isArray(tsunamiData)?tsunamiData:[]).filter(x => String(x?.source||'').toUpperCase() !== 'JMA' && Number(x?.p2pCode) !== 552);
@@ -7925,8 +7970,10 @@ global.TauPJS=api;
                 renderTsunamiPanel(tsunamiData);
                 renderTsunamiMap(tsunamiData);
                 renderJmaTsunamiZones();
-                if (jmaTsunamiReports.length && jmaTsunamiSignature) {
+                if (wasBaselined && previousSignature !== signature && active.length) {
                     showTsunamiPriorityView(10000, 'tsunami');
+                } else {
+                    try { ensureJmaTsunamiLayerVisible(); } catch (_) {}
                 }
                 apiMetrics.tsunami = apiMetrics.tsunami || {};
                 apiMetrics.tsunami.jma=`${active.length} zonas`;
@@ -7969,7 +8016,7 @@ global.TauPJS=api;
             try {
                 const all = await loadJmaTsunamiOfficialGeo();
                 if (all && Array.isArray(all.features)) {
-                    const features = all.features.filter(f => String(f?.properties?.code || '') === code);
+                    const features = all.features.filter(f => String(f?.properties?.code ?? f?.properties?.Code ?? f?.properties?.areaCode ?? '').trim().padStart(3,'0') === code.padStart(3,'0'));
                     if (features.length) {
                         const geo = { type:'FeatureCollection', features };
                         jmaTsunamiGeoCache.set(code, geo);
@@ -7991,10 +8038,10 @@ global.TauPJS=api;
 
         function jmaTsunamiStyle(type) {
             const color = JMA_TSUNAMI_COLORS[type] || JMA_TSUNAMI_COLORS.forecast;
-            // El GeoJSON oficial de JMA es MultiLineString, por lo que el
-            // Forecast se representa como costa amarilla claramente visible.
+            // El GeoJSON oficial de JMA es MultiLineString; el Forecast usa
+            // cian brillante y trazo grueso para distinguirse sobre el mapa oscuro.
             return {
-                color, weight: type === 'major' ? 5 : (type === 'forecast' ? 4 : 3),
+                color, weight: type === 'major' || type === 'forecast' ? 5 : 3,
                 fillColor: color, fillOpacity: type === 'forecast' ? .12 : .28,
                 opacity: 1
             };
@@ -8029,6 +8076,7 @@ global.TauPJS=api;
                     layer.addTo(jmaTsunamiLayer);
                 } catch (_) {}
             }
+            try { ensureJmaTsunamiLayerVisible(); } catch (_) {}
         }
 
         // true = las líneas de tsunami (JMA azul + PTWC rojo/amarillo) se quedan
@@ -10947,8 +10995,15 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             pairs.forEach(([re, rep]) => { t = t.replace(re, rep); });
             return t;
         }
+        function stripAlertUrlsFromSpeech(value) {
+            return String(value ?? '').replace(/<[^>]*>/g, ' ')
+                .replace(/\b(?:https?:\/\/|www\.)[^\s<>"']+/gi, ' ')
+                .replace(/\b(?:[\w-]+\.)+[a-z]{2,24}(?:\/[^\s<>"']*)?/gi, ' ')
+                .replace(/\s+/g, ' ').trim();
+        }
         function speakAlert(text, channel = 'general', language = 'es-US', dedupeKey = '', expiresAt = 0) {
-            if (!audioEnabled || !ttsEnabled || !('speechSynthesis' in window) || !text) return;
+            const speechInput = stripAlertUrlsFromSpeech(text);
+            if (!audioEnabled || !ttsEnabled || !('speechSynthesis' in window) || !speechInput) return;
             // Canales desconocidos se permiten (antes se silenciaban si no estaban en la tabla)
             if (ttsChannels[channel] === false) return;
             const dedupeText = String(dedupeKey || '');
@@ -10961,9 +11016,9 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             const selectedLanguage = 'es-US';
             let fallback, sourceCandidate = '', sourceIsSpanish = false;
             try {
-                sourceCandidate = normalizeTtsText(forceSpanishAlertText(String(text)));
+                sourceCandidate = normalizeTtsText(forceSpanishAlertText(speechInput));
                 sourceIsSpanish = ttsTextLooksSpanish(sourceCandidate);
-                fallback = spanishTtsFallback(channel, String(text));
+                fallback = spanishTtsFallback(channel, speechInput);
             } catch (_) { fallback = 'Nueva alerta del monitor sísmico. Consulta los detalles en pantalla.'; }
             if (!fallback || !String(fallback).trim()) return;
             const key = `${selectedLanguage}|${channel}|${dedupeKey || fallback}`;
@@ -10983,11 +11038,11 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 ...(Number(expiresAt) > 0 ? { expiresAt: Number(expiresAt) } : {})
             };
             ttsQueue.push(slot);
-            const translateTimeout = Math.min(90000, Math.max(8000, Math.ceil(String(text).length / 400) * 1600));
+            const translateTimeout = Math.min(90000, Math.max(8000, Math.ceil(speechInput.length / 400) * 1600));
             const translateDeadline = new Promise(resolve => setTimeout(() => resolve(null), translateTimeout));
             Promise.race([
                 (async () => {
-                    try { return await translateToSpanish(String(text), 'auto'); }
+                    try { return await translateToSpanish(speechInput, 'auto'); }
                     catch (_) { return null; }
                 })(),
                 translateDeadline
@@ -18892,8 +18947,17 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 placeNode.textContent = String(ev.place || ev.hypocenter || ev.epicenter || ev.location || ev.placeName || ev.region || 'Desconocido');
                 div.addEventListener('click', () => {
                     playUiSound('click');
+                    const specialSectionOpen = !!(
+                        (typeof isSpecialMapSectionOpen === 'function' && isSpecialMapSectionOpen()) ||
+                        (typeof protectedAutomaticViewOpen === 'function' && protectedAutomaticViewOpen()) ||
+                        document.querySelector('#solarCivilAlertPanel.active, #alertCenterPanel.alert-center-active, #weatherPanel.active, #siatAlertSection.active, #nhkGPanel.nhk-active, #jmaEewPanel.active, #ynEarlyAlert.active, #kmoniPanel.kmoni-active')
+                    );
+                    if (specialSectionOpen) {
+                        selectEvent(ev.id, { noMap:true });
+                        return;
+                    }
                     try { mapUserHasControl = false; } catch (_) {}
-                    selectEvent(ev.id, { autoFocus:true, forceMap:true, fitIntensityBounds:true, overrideManual:true, sectionMap:true, overrideKmoniMap:true, forceIntensityRedraw:true, overrideJapanPin:true });
+                    selectEvent(ev.id, { autoFocus:true, forceMap:true, fitIntensityBounds:true, overrideManual:true, overrideKmoniMap:true, forceIntensityRedraw:true, overrideJapanPin:true });
                 });
                 listFragment.appendChild(div);
             });
@@ -21877,6 +21941,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
 
         // ========== GDACS · alertas globales ==========
         let gdacsMode = false;
+        let gdacsViewRevision = 0;
         let gdacsLayer = L.layerGroup().addTo(map);
         let gdacsData = [];
         let gdacsEqCache = [];
@@ -21898,9 +21963,18 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             if (L === 'green') return 'verde';
             return level || 'desconocido';
         }
+        function gdacsCleanAlertText(value) {
+            return String(value ?? '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&#39;/gi, "'")
+                .replace(/\b(?:https?:\/\/|www\.)[^\s<>"']+/gi, ' ')
+                .replace(/\b(?:[\w-]+\.)+[a-z]{2,24}(?:\/[^\s<>"']*)?/gi, ' ')
+                .replace(/\s+/g, ' ').trim();
+        }
+        function gdacsEscapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
         function gdacsSpeechSpanish(feature) {
             const p = (feature && feature.properties) || feature || {};
-            const clean = value => String(value ?? '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&#39;/gi, "'").replace(/\s+/g, ' ').trim();
+            const clean = gdacsCleanAlertText;
             const type = gdacsTypeLabel(p.eventtype);
             const level = gdacsAlertLevelEs(p.alertlevel || p.episodealertlevel);
             const name = clean(p.name || p.title || 'Evento global').replace(/^(?:Green|Orange|Red)\s+/i, '');
@@ -21915,33 +21989,22 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             const severityText = clean(severity.severitytext || p.severitytext || '');
             const where = [country, location].filter(Boolean).join(', ');
             const issued = clean(p.fromdate || p.eventdate || p.datemodified || '');
-            const eventId = clean(p.eventid);
-            const episodeId = clean(p.episodeid);
-            const source = clean(p.source || p.datasource || p.eventsource || '');
             const population = clean(p.population || p.pop || p.exposedpopulation || '');
-            const vulnerability = clean(p.vulnerability || p.vulnerabilitydata || '');
             const alertText = clean(p.alerttext || p.alertdescription || p.episodealertleveltext || '');
             const impact = clean(p.impact || p.impactdescription || p.impacttext || '');
-            const url = clean(p.url?.report || p.reporturl || '');
             const details = [
                 `Alerta GDACS de ${type}.`,
                 `Nombre del evento: ${name}.`,
                 where ? `País o zona: ${where}.` : '',
-                `Nivel oficial de alerta GDACS: ${level}.`,
+                `Nivel oficial de alerta: ${level}.`,
                 magnitude,
                 depthText,
-                severityText ? `Datos de severidad: ${severityText}.` : '',
-                alertText && alertText !== name ? `Información de alerta: ${alertText}.` : '',
+                severityText ? `Severidad: ${severityText}.` : '',
+                alertText && alertText !== name ? `Información del aviso: ${alertText}.` : '',
                 impact ? `Impacto informado: ${impact}.` : '',
-                population ? `Población asociada: ${population}.` : '',
-                vulnerability ? `Vulnerabilidad informada: ${vulnerability}.` : '',
-                source ? `Fuente del evento: ${source}.` : '',
-                eventId ? `Identificador del evento: ${eventId}.` : '',
-                episodeId ? `Identificador de episodio: ${episodeId}.` : '',
-                issued ? `Fecha y hora del reporte: ${issued}.` : '',
-                description && description !== name ? `Descripción de GDACS: ${description}.` : '',
-                url ? `Informe: ${url}.` : '',
-                `Fin de la alerta GDACS.`
+                population ? `Población expuesta informada: ${population}.` : '',
+                issued ? `Fecha del aviso: ${issued}.` : '',
+                description && description !== name ? `Descripción: ${description}.` : ''
             ].filter(Boolean);
             return details.join(' ');
         }
@@ -22001,12 +22064,12 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             const depth = gdacsParseDepth(p);
             const ts = gdacsParseTs(p);
             const id = `gdacs-eq-${p.eventid}-${p.episodeid || 0}`;
-            const place = String(p.name || p.description || 'GDACS').replace(/^Earthquake in\s*/i, '') || 'GDACS';
+            const place = gdacsCleanAlertText(p.name || p.description || 'GDACS').replace(/^Earthquake in\s*/i, '') || 'GDACS';
             const level = p.alertlevel || p.episodealertlevel || 'Green';
             return {
                 id,
                 intensity: typeof magToMMI === 'function' ? magToMMI(mag) : Math.min(12, Math.round(mag)),
-                place: place + (p.country ? ` · ${p.country}` : ''),
+                place: place + (p.country ? ` · ${gdacsCleanAlertText(p.country)}` : ''),
                 time: typeof formatTime === 'function' ? formatTime(ts) : new Date(ts).toISOString(),
                 mag: typeof magnitudeDisplay === 'function' ? magnitudeDisplay(mag) : ('M' + mag),
                 magnitudeDisplay: typeof magnitudeDisplay === 'function' ? magnitudeDisplay(mag) : ('M' + mag),
@@ -22017,7 +22080,6 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 colorClass: typeof intensityClass === 'function' ? intensityClass(typeof magToMMI === 'function' ? magToMMI(mag) : mag) : '',
                 reportConfidence: 'GDACS ' + level,
                 gdacsAlertLevel: level,
-                gdacsUrl: (p.url && p.url.report) || `https://www.gdacs.org/report.aspx?eventid=${p.eventid}&eventtype=EQ`,
                 tsunami: false
             };
         }
@@ -22076,13 +22138,17 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             info.innerHTML = ordered.slice(0, 40).map(f => {
                 const p = f.properties || {};
                 const color = gdacsColor(p.alertlevel);
-                const type = gdacsTypeLabel(p.eventtype);
-                const report = (p.url && p.url.report) || '';
-                const when = p.fromdate ? String(p.fromdate).replace('T',' ').slice(0,16) : '—';
-                return `<div class="gdacs-item"><strong style="color:${color}">${type} · ${p.alertlevel || '—'}</strong><br>${p.name || p.description || 'Evento GDACS'}<br>País: ${p.country || p.iso3 || '—'} · Desde: ${when}${p.htmldescription ? `<br>${String(p.htmldescription).slice(0,160)}` : ''}${report ? `<br><a href="${report}" target="_blank" rel="noopener">Informe GDACS</a>` : ''}</div>`;
+                const type = gdacsEscapeHtml(gdacsTypeLabel(p.eventtype));
+                const level = gdacsEscapeHtml(gdacsCleanAlertText(p.alertlevel || p.episodealertlevel || '—'));
+                const name = gdacsEscapeHtml(gdacsCleanAlertText(p.name || p.description || 'Evento GDACS'));
+                const country = gdacsEscapeHtml(gdacsCleanAlertText(p.country || p.iso3 || '—'));
+                const when = gdacsEscapeHtml(gdacsCleanAlertText(p.fromdate ? String(p.fromdate).replace('T',' ').slice(0,16) : '—'));
+                const description = gdacsCleanAlertText(p.htmldescription || p.eventdescription || p.description || '');
+                return `<div class="gdacs-item"><strong style="color:${color}">${type} · ${level}</strong><br>${name}<br>País: ${country} · Desde: ${when}${description ? `<br>${gdacsEscapeHtml(description.slice(0,160))}` : ''}</div>`;
             }).join('');
         }
-        async function renderGdacsMap(list) {
+        async function renderGdacsMap(list, viewRevision = gdacsViewRevision) {
+            if (!gdacsMode || viewRevision !== gdacsViewRevision) return;
             try { gdacsLayer.clearLayers(); } catch (_) {}
             const rank = { Red:3, Orange:2, Green:1 };
             const prioritized = [...list].filter(f => f && f.properties).sort((a,b) => (rank[b.properties.alertlevel]||0) - (rank[a.properties.alertlevel]||0)).slice(0, 25);
@@ -22096,6 +22162,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                         geomData = await fetchGdacsGeometry(feature);
                     }
                 } catch (_) {}
+                if (!gdacsMode || viewRevision !== gdacsViewRevision) return;
                 try {
                     const collection = geomData.features ? geomData : { type:'FeatureCollection', features:[feature] };
                     L.geoJSON(collection, {
@@ -22113,28 +22180,31 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                         },
                         onEachFeature: function (feat, layer) {
                             const pp = feat.properties || p;
-                            const report = (pp.url && pp.url.report) || (p.url && p.url.report) || '';
+                            const typeText = gdacsEscapeHtml(gdacsTypeLabel(pp.eventtype || p.eventtype));
+                            const levelText = gdacsEscapeHtml(gdacsCleanAlertText(pp.alertlevel || pp.episodealertlevel || p.alertlevel || p.episodealertlevel || '—'));
+                            const nameText = gdacsEscapeHtml(gdacsCleanAlertText(pp.name || pp.description || p.name || 'Evento'));
+                            const countryText = gdacsEscapeHtml(gdacsCleanAlertText(pp.country || pp.iso3 || p.country || p.iso3 || '—'));
                             layer.bindPopup(
-                                `<b>🌍 GDACS · ${gdacsTypeLabel(pp.eventtype || p.eventtype)}</b><br>` +
-                                `<span style="color:${color}"><b>${pp.alertlevel || p.alertlevel || '—'}</b></span><br>` +
-                                `${pp.name || p.name || 'Evento'}<br>` +
-                                `País: ${pp.country || p.country || '—'}<br>` +
-                                (report ? `<a href="${report}" target="_blank" rel="noopener">Informe oficial</a>` : '')
+                                `<b>🌍 GDACS · ${typeText}</b><br>` +
+                                `<span style="color:${color}"><b>${levelText}</b></span><br>` +
+                                `${nameText}<br>País: ${countryText}`
                             );
                         }
                     }).addTo(gdacsLayer);
                 } catch (_) {}
             }
         }
-        let gdacsInitialized = false;
-        let gdacsSignature = '';
         let gdacsSeenKeys = new Set();
+        const gdacsFeedBaselines = new Set();
+        const gdacsFeedData = new Map();
+        let gdacsLoadBusy = false;
         let gdacsAutoCloseTimer = null;
 
         function openGdacsApartado(focusFeature) {
             try {
                 if (jmaVolcanoMode) hideJmaVolcanoView(false);
                 gdacsMode = true;
+                gdacsViewRevision++;
                 const layout = document.getElementById('mainLayout');
                 const panel = document.getElementById('gdacsPanel');
                 const topbar = document.getElementById('gdacsTopbar');
@@ -22174,6 +22244,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         function closeGdacsApartado() {
             if (!gdacsMode) return;
             gdacsMode = false;
+            gdacsViewRevision++;
             const layout = document.getElementById('mainLayout');
             layout?.classList.remove('gdacs-focus');
             document.getElementById('gdacsPanel')?.classList.remove('gdacs-active');
@@ -22186,6 +22257,8 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         }
 
         async function loadGdacs() {
+            if (gdacsLoadBusy) return;
+            gdacsLoadBusy = true;
             try {
                 const feeds = [
                     'https://www.gdacs.org/xml/gdacsEQ.geojson',
@@ -22193,85 +22266,81 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                     'https://www.gdacs.org/xml/gdacsFL.geojson',
                     'https://www.gdacs.org/xml/gdacsVO.geojson'
                 ];
-                const all = [];
+                const brandNew = [];
+                let successfulFeeds = 0;
+                const eventKey = f => {
+                    const p = f?.properties || {};
+                    if (!p.eventtype || !p.eventid) return '';
+                    const level = String(p.alertlevel || p.episodealertlevel || '').trim().toLowerCase();
+                    return `${String(p.eventtype).toUpperCase()}|${p.eventid}|${p.episodeid || 0}|${level}`;
+                };
+                const levelRank = { red:3, orange:2, green:1 };
+                const isActionable = f => {
+                    const p = f?.properties || {};
+                    const lvl = String(p.alertlevel || p.episodealertlevel || '').trim().toLowerCase();
+                    return lvl === 'red' || lvl === 'orange';
+                };
                 for (const url of feeds) {
                     try {
                         const data = await fetchGdacsJson(url);
-                        const fs = Array.isArray(data?.features) ? data.features : [];
-                        const type = (url.match(/gdacs([A-Z]{2})/i) || [])[1];
-                        const slice = type === 'TC' ? fs.slice(0, 40) : fs.slice(0, 30);
-                        all.push(...slice);
+                        if (!data || !Array.isArray(data.features)) continue;
+                        successfulFeeds++;
+                        const type = (url.match(/gdacs([A-Z]{2})/i) || [])[1] || url;
+                        const slice = type === 'TC' ? data.features.slice(0, 40) : data.features.slice(0, 30);
+                        const wasBaselined = gdacsFeedBaselines.has(type);
+                        gdacsFeedData.set(type, slice);
+                        slice.forEach(feature => {
+                            const key = eventKey(feature);
+                            if (!key) return;
+                            if (wasBaselined && !gdacsSeenKeys.has(key) && isActionable(feature)) brandNew.push(feature);
+                            gdacsSeenKeys.add(key);
+                        });
+                        gdacsFeedBaselines.add(type);
                     } catch (_) {}
                 }
-                // Si el fetch falló o vino vacío, NO borrar datos previos ni abrir panel vacío
-                if (!all.length) {
-                    if (!gdacsInitialized) gdacsInitialized = true;
+                if (!successfulFeeds) {
                     setApiState('gdacs', gdacsData.length ? 'stale' : 'bad', gdacsData.length);
                     return;
                 }
-                const eventKey = (f) => {
-                    const p = f.properties || {};
-                    return `${p.eventtype}|${p.eventid}|${p.episodeid}`;
-                };
-                const levelRank = { Red:3, Orange:2, Green:1 };
-                const isActionable = (f) => {
-                    const p = f.properties || {};
-                    const lvl = String(p.alertlevel || p.episodealertlevel || '');
-                    // Solo Roja/Naranja (las verdes saturan el feed de TC y abrían el panel en falso)
-                    return levelRank[lvl] >= 2;
-                };
-                // Primera carga: registrar todo sin abrir (evita el flash de 1 s)
-                if (!gdacsInitialized) {
-                    all.forEach(f => gdacsSeenKeys.add(eventKey(f)));
-                    gdacsData = all;
-                    gdacsEqCache = all.map(gdacsFeatureToQuake).filter(Boolean);
-                    gdacsSignature = all.map(eventKey).sort().join('|');
-                    gdacsInitialized = true;
-                    setApiState('gdacs', 'ok', all.length);
-                    renderGdacsPanel(all);
+                if (gdacsSeenKeys.size > 400) gdacsSeenKeys = new Set([...gdacsSeenKeys].slice(-200));
+                const all = [...gdacsFeedData.values()].flat();
+                if (!all.length && successfulFeeds < feeds.length) {
+                    setApiState('gdacs', gdacsData.length ? 'stale' : 'bad', gdacsData.length);
                     return;
-                }
-                // Alertas realmente nuevas (id no visto) y accionables
-                const brandNew = all.filter(f => {
-                    const k = eventKey(f);
-                    return k && k !== '||' && !gdacsSeenKeys.has(k) && isActionable(f);
-                });
-                all.forEach(f => gdacsSeenKeys.add(eventKey(f)));
-                // Limitar tamaño del set
-                if (gdacsSeenKeys.size > 400) {
-                    gdacsSeenKeys = new Set([...gdacsSeenKeys].slice(-200));
                 }
                 gdacsData = all;
                 gdacsEqCache = all.map(gdacsFeatureToQuake).filter(Boolean);
-                gdacsSignature = all.map(eventKey).sort().join('|');
-                setApiState('gdacs', 'ok', all.length);
+                setApiState('gdacs', successfulFeeds === feeds.length ? 'ok' : (all.length ? 'stale' : 'ok'), all.length);
                 renderGdacsPanel(all);
-                if (gdacsMode) await renderGdacsMap(all);
+                if (gdacsMode && all.length) await renderGdacsMap(all);
                 if (brandNew.length) {
-                    const newest = [...brandNew].sort((a,b) =>
-                        (levelRank[b.properties?.alertlevel]||0) - (levelRank[a.properties?.alertlevel]||0)
-                    )[0];
+                    const newest = [...brandNew].sort((a,b) => {
+                        const level = f => String(f.properties?.alertlevel || f.properties?.episodealertlevel || '').trim().toLowerCase();
+                        return (levelRank[level(b)] || 0) - (levelRank[level(a)] || 0);
+                    })[0];
                     openGdacsApartado(newest);
                     try { playSrevSound?.('VTSE5', 'gdacs:' + eventKey(newest)); } catch (_) {}
                     [...brandNew].sort((a,b) => (Date.parse(a.properties?.fromdate || a.properties?.eventdate || '') || 0) - (Date.parse(b.properties?.fromdate || b.properties?.eventdate || '') || 0)).forEach(feature => {
                         try {
                             const speech = gdacsSpeechSpanish(feature);
                             const p = feature.properties || {};
-                            const key = `gdacs:${p.eventtype}-${p.eventid}-${p.episodeid}-${p.alertlevel || p.episodealertlevel || ''}`;
+                            const key = `gdacs:${p.eventtype}-${p.eventid}-${p.episodeid || 0}-${String(p.alertlevel || p.episodealertlevel || '').toLowerCase()}`;
                             if (typeof speakAlert === 'function') speakAlert(speech, 'gdacs', 'es-US', key);
                         } catch (_) {}
                     });
                 }
                 try {
-                    const reds = all.filter(f => /red/i.test(String(f.properties?.alertlevel||'')));
+                    const reds = all.filter(f => /red/i.test(String(f.properties?.alertlevel || f.properties?.episodealertlevel || '')));
                     if (reds.length) {
-                        setTickerItem('gdacs', 'GDACS · Alertas', reds.slice(0,3).map(f => f.properties?.name || 'Alerta').join('  |  '), true);
+                        setTickerItem('gdacs', 'GDACS · Alertas', reds.slice(0,3).map(f => gdacsCleanAlertText(f.properties?.name || 'Alerta')).join(' · '), true);
                     } else {
                         setTickerItem('gdacs', 'GDACS · Alertas', all.length ? `${all.length} alertas activas (EQ/TC/FL/VO)` : 'Sin alertas GDACS');
                     }
                 } catch (_) {}
             } catch (_) {
                 setApiState('gdacs', 'bad');
+            } finally {
+                gdacsLoadBusy = false;
             }
         }
         async function fetchGdacsEarthquakes() {
@@ -22407,6 +22476,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         // Temporizadores separados: prioridad sísmica (10 s desde la última
         // actualización) y retorno al área meteorológica alertada.
         let jmaWeatherZoomTimer = null;
+        let jmaWeatherFocusRequestId = 0;
         let jmaWeatherSeismicTimer = null;
         let jmaWeatherReturnTimer = null;
         let jmaWeatherZoomActive = false;
@@ -22534,6 +22604,13 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         function jmaWeatherClearPriorityTimers() {
             clearTimeout(jmaWeatherSeismicTimer); jmaWeatherSeismicTimer = null;
             clearTimeout(jmaWeatherReturnTimer); jmaWeatherReturnTimer = null;
+        }
+        function jmaWeatherScheduleAutoClose(delayMs) {
+            clearTimeout(jmaWeatherAutoCloseTimer);
+            jmaWeatherAutoCloseTimer = setTimeout(() => {
+                jmaWeatherAutoCloseTimer = null;
+                if (jmaWeatherAlertMode) jmaWeatherDeactivate();
+            }, Math.max(0, Number(delayMs) || 0));
         }
 
         function jmaWeatherFitJapanOverview() {
@@ -22978,16 +23055,12 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             } else {
                 jmaWeatherPanelHideTimer = null;
             }
-            // El cierre automático se cuenta desde que se abrió el apartado,
-            // no se reinicia cuando llegan nuevas actualizaciones.
+            // Sin prefectura enfocada, limita la vista a 15 s desde su apertura.
+            // Cuando una alerta enfoca una prefectura, ese ciclo se reajusta a 10+5 s.
             if (jmaWeatherAlertMode) {
-                clearTimeout(jmaWeatherAutoCloseTimer);
                 const elapsed = Math.max(0, Date.now() - Number(jmaWeatherOpenedAt || 0));
                 const remaining = Math.max(0, JMA_WEATHER_AUTO_CLOSE_MS - elapsed);
-                jmaWeatherAutoCloseTimer = setTimeout(() => {
-                    jmaWeatherAutoCloseTimer = null;
-                    if (jmaWeatherAlertMode) jmaWeatherDeactivate();
-                }, remaining);
+                jmaWeatherScheduleAutoClose(remaining);
             }
         }
         function jmaWeatherSuspendForUsAlerts() {
@@ -23040,26 +23113,46 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         }
         async function jmaWeatherFocusArea(code) {
             if (!jmaWeatherAlertMode || jmaWeatherUsInterruptActive || jmaWeatherPriorityActive()) return;
+            const requestId = ++jmaWeatherFocusRequestId;
+            clearTimeout(jmaWeatherZoomTimer); jmaWeatherZoomTimer = null;
+            clearTimeout(jmaWeatherReturnTimer); jmaWeatherReturnTimer = null;
+            jmaWeatherZoomActive = false;
+            // Respaldo por si tarda o falla la geometría; si enfoca la prefectura,
+            // el cierre se reajusta a 10 s allí + 5 s con Japón visible.
+            jmaWeatherScheduleAutoClose(JMA_WEATHER_AUTO_CLOSE_MS + 15000);
             try {
                 const gj = await jmaWeatherEnsureGeoJSON(code);
-                if (!jmaWeatherAlertMode || jmaWeatherPriorityActive()) return;
+                if (requestId !== jmaWeatherFocusRequestId || !jmaWeatherAlertMode || jmaWeatherUsInterruptActive || jmaWeatherPriorityActive()) return;
+                if (!jmaWeatherActiveAreas || !jmaWeatherActiveAreas[code]) {
+                    jmaWeatherFitJapanOverview();
+                    jmaWeatherScheduleAutoClose(5000);
+                    return;
+                }
                 const bounds = L.geoJSON(gj).getBounds();
-                if (!bounds.isValid()) return;
-                clearTimeout(jmaWeatherZoomTimer);
-                clearTimeout(jmaWeatherReturnTimer);
-                jmaWeatherReturnTimer = null;
+                if (!bounds.isValid()) {
+                    jmaWeatherFitJapanOverview();
+                    jmaWeatherScheduleAutoClose(5000);
+                    return;
+                }
                 jmaWeatherZoomActive = true;
                 programmaticMapMove = true;
                 map.fitBounds(bounds, { padding:[30,30], maxZoom:9, animate:true, duration:0.7 });
-                setTimeout(() => { programmaticMapMove = false; }, 850);
+                setTimeout(() => { if (requestId === jmaWeatherFocusRequestId) programmaticMapMove = false; }, 850);
+                // El cierre se cuenta desde el enfoque: 10 s en la prefectura,
+                // 5 s en Japón y después retorno automático a la vista normal.
+                jmaWeatherScheduleAutoClose(JMA_WEATHER_AUTO_CLOSE_MS);
                 jmaWeatherZoomTimer = setTimeout(() => {
                     jmaWeatherZoomTimer = null;
+                    if (requestId !== jmaWeatherFocusRequestId) return;
                     jmaWeatherZoomActive = false;
-                    // Mantener la prefectura enfocada 10 s; después mostrar Japón
-                    // hasta que el apartado automático se cierre a los 15 s.
                     if (jmaWeatherAlertMode && !jmaWeatherUsInterruptActive && !jmaWeatherPriorityActive()) jmaWeatherFitJapanOverview();
                 }, JMA_WEATHER_FOCUS_MS);
-            } catch (_) {}
+            } catch (_) {
+                if (requestId === jmaWeatherFocusRequestId && jmaWeatherAlertMode && !jmaWeatherUsInterruptActive && !jmaWeatherPriorityActive()) {
+                    jmaWeatherFitJapanOverview();
+                    jmaWeatherScheduleAutoClose(5000);
+                }
+            }
         }
         const jmaWeatherTranslationCache = new Map();
         async function jmaWeatherTranslateToSpanish(text) {
@@ -23110,9 +23203,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 const raw = String(k.name || '');
                 for (const [jp, es] of translations) if (raw.includes(jp) && !found.includes(es)) found.push(es);
             }
-            return found.length
-                ? `La JMA informa sobre ${found.join(', ')}.`
-                : 'Hay una actualización meteorológica oficial de Japón. Revisa el panel para consultar el boletín.';
+            return found.length ? found.join(', ') : '';
         }
         async function jmaWeatherSpeakAlerts(codes, areas, isNewOpen) {
             if (!codes || !codes.length || !areas) return;
@@ -23123,27 +23214,26 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             for (const code of ordered) {
                 const a = areas[code];
                 if (!a) continue;
-                const name = JMA_PREF_CODES[code] || a.name || code;
+                const name = String(a.name || JMA_PREF_CODES[code] || code).trim();
                 const label = JMA_WEATHER_SEVERITY_LABELS[a.severity] || 'Aviso';
                 const time = a.reportTime ? formatTime(a.reportTime) : '';
                 const uniqueKinds = [...new Map((a.kinds || []).map(k => [`${k.name}|${k.status || ''}`, k])).values()];
                 const kindDetails = uniqueKinds.map(k => `${k.name}${k.status ? `（${k.status}）` : ''}`).join('、');
-                const sourceText = [String(a.rawText || '').trim(), String(a.headline || '').trim(), kindDetails ? `発表中の警報・注意報：${kindDetails}` : ''].filter(Boolean).filter((value,index,array) => array.indexOf(value) === index).join('。');
-                const translated = await jmaWeatherTranslateToSpanish(sourceText);
+                const headline = String(a.headline || '').trim();
+                const headlineIsGeneric = /^(?:気象(?:特別)?警報[・･・]注意報|気象警報・注意報)$/i.test(headline);
+                const sourceText = headline && !headlineIsGeneric ? headline : kindDetails;
+                const translated = sourceText ? await jmaWeatherTranslateToSpanish(sourceText) : '';
                 const details = translated || jmaWeatherSpanishFallback(uniqueKinds);
-                const timestamp = time ? `Actualización reportada a las ${time}. ` : '';
-                parts.push(`${name}. ${timestamp}${label}. ${details}`);
+                const alertInfo = [name, label, time ? `Emitido ${time}` : '', details].filter(Boolean).join('. ');
+                if (alertInfo) parts.push(alertInfo);
             }
             if (!parts.length) return;
-            const head = isNewOpen
-                ? 'Nueva actualización meteorológica de Japón.'
-                : 'Actualización meteorológica de Japón.';
             try {
                 const weatherKey = ordered.map(code => jmaWeatherAlertKey(code, areas[code])).join('||');
                 playSrevSound('VTSE5', `jma-weather:${weatherKey}`);
             } catch (_) {}
             try {
-                speakAlert(`${head} ${parts.join(' ')}`, 'jma-weather', 'es-US');
+                speakAlert(parts.join('. '), 'jma-weather', 'es-US');
             } catch (_) {}
         }
         function jmaWeatherAlertKey(code, area) {
@@ -23283,6 +23373,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         }
         function jmaWeatherDeactivate() {
             jmaWeatherAlertMode = false;
+            jmaWeatherFocusRequestId++;
             jmaWeatherSyncSettingsToggle();
             document.getElementById('mainLayout')?.classList.remove('jma-weather-focus');
             jmaWeatherRestoreMapBase();
@@ -26610,15 +26701,18 @@ function ynBuildLeafletMarkers() {
   }
 
   function gridColor(level){return level<=7?'#38d46a':level<=13?'#ffdf3f':'#ff4f50';}
-  function connectedGroups(stations,adj){
-    const byId=new Map(stations.map(s=>[s.id,s])),seen=new Set(),groups=[];
-    for(const s of stations){if(seen.has(s.id))continue;const q=[s],g=[];seen.add(s.id);while(q.length){const x=q.pop();g.push(x);for(const id of adj[x.id]||[]){if(byId.has(id)&&!seen.has(id)){seen.add(id);q.push(byId.get(id));}}}groups.push(g);}
-    return groups.sort((a,b)=>b.length-a.length).slice(0,12);
-  }
   function ensureLayers(){
     if(!map||typeof L==='undefined')return false;
-    try{if(!map.getPane('kanameishiMotionPane')){const p=map.createPane('kanameishiMotionPane');p.style.zIndex='640';p.style.pointerEvents='none';}}
-    catch(_){}
+    try{
+      let pane=map.getPane('kanameishiMotionPane');
+      if(!pane){pane=map.createPane('kanameishiMotionPane');pane.style.zIndex='640';pane.style.pointerEvents='none';}
+      if(!document.getElementById('kanameishi-motion-blink-keyframes')){
+        const style=document.createElement('style');style.id='kanameishi-motion-blink-keyframes';
+        style.textContent='@keyframes kanameishiMotionGridBlink{0%,49.99%{opacity:1}50%,99.99%{opacity:0}100%{opacity:1}}';
+        (document.head||document.documentElement).appendChild(style);
+      }
+      if(pane.style.animationName!=='kanameishiMotionGridBlink')pane.style.animation='kanameishiMotionGridBlink 1s infinite';
+    }catch(_){}
     if(!niedLayers)niedLayers=L.layerGroup().addTo(map);return true;
   }
   function renderNetwork(network,stations){
@@ -26633,14 +26727,13 @@ function ynBuildLeafletMarkers() {
     for(const cell of cells.values()){
       const color=gridColor(cell.level);L.rectangle([[cell.lat-.5,cell.lon-.5],[cell.lat+.5,cell.lon+.5]],{pane:'kanameishiMotionPane',color,weight:1.5,opacity:.9,fill:false,interactive:false}).addTo(layer);
     }
-    const groups=connectedGroups(stations,niedAdj);
-    for(const g of groups){const lat=g.reduce((a,s)=>a+s.lat,0)/g.length,lon=g.reduce((a,s)=>a+s.lon,0)/g.length;let r=0;for(const s of g)r=Math.max(r,haversine({lat,lon},s));const maxLevel=Math.max(...g.map(s=>s.level));L.circle([lat,lon],{pane:'kanameishiMotionPane',radius:Math.max(6000,r*1000+4000),color:gridColor(maxLevel),weight:2,opacity:.85,fill:false,interactive:false,dashArray:'5 5'}).addTo(layer);}
+    // Solo cuadros locales de actividad; no dibujar anillos/ondas inferidas.
     lastDraw=Date.now();
   }
   function ensurePanel(){
     if(motionPanel)return motionPanel;
     const host=document.querySelector('.map-container')||document.getElementById('mainLayout');if(!host)return null;
-    motionPanel=document.createElement('div');motionPanel.id='kanameishiMotionPanel';motionPanel.setAttribute('role','status');motionPanel.setAttribute('aria-live','polite');motionPanel.innerHTML='<div class="kmd-head"><span>Detección de movimiento</span><span class="kmd-tag">NIED / KYOSHIN</span></div><div class="kmd-row" id="kmdNiedLive">NIED · esperando feed</div><div class="kmd-foot">Celdas y anillos indican movimiento de estaciones; no son epicentro, Shindo oficial ni EEW.</div>';
+    motionPanel=document.createElement('div');motionPanel.id='kanameishiMotionPanel';motionPanel.setAttribute('role','status');motionPanel.setAttribute('aria-live','polite');motionPanel.setAttribute('aria-hidden','true');motionPanel.style.setProperty('display','none','important');motionPanel.innerHTML='<div class="kmd-head"><span>Detección de movimiento</span><span class="kmd-tag">NIED / KYOSHIN</span></div><div class="kmd-row" id="kmdNiedLive">NIED · esperando feed</div><div class="kmd-foot">Los cuadros muestran actividad de estaciones; no son epicentro, Shindo oficial ni EEW.</div>';
     host.appendChild(motionPanel);return motionPanel;
   }
   function setLiveRow(id,label,active,count,max){const el=document.getElementById(id);if(!el)return;el.textContent=`${label} · ${active?'movimiento':'en vivo'}${active?` · ${count} estaciones · nivel red ${max}`:''}`;el.classList.toggle('active',!!active);}
@@ -26713,7 +26806,7 @@ function ynBuildLeafletMarkers() {
  const esText=s=>String(s||'').replace(/Space Weather Message/gi,'Mensaje de clima espacial').replace(/Warning/gi,'Advertencia').replace(/Watch/gi,'Vigilancia').replace(/Alert/gi,'Alerta').replace(/Summary/gi,'Resumen').replace(/Issued/gi,'Emitido').replace(/Earth-directed/gi,'dirigido a la Tierra').replace(/solar flare/gi,'fulguración solar').replace(/geomagnetic storm/gi,'tormenta geomagnética').replace(/radio blackout/gi,'apagón de radio').replace(/High/gi,'Alta').replace(/Moderate/gi,'Moderada').replace(/Strong/gi,'Fuerte');
  const now=()=>Date.now();
  function beep(sev){try{const A=window.AudioContext||window.webkitAudioContext;if(A){const a=new A(),o=a.createOscillator(),g=a.createGain();o.frequency.value=sev>1?880:620;g.gain.value=.045;o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+.18);}}catch(_){}}
- function cleanSpeechField(value){const raw=String(value??'');try{return new DOMParser().parseFromString(raw,'text/html').body.textContent.replace(/\s+/g,' ').trim()}catch(_){return raw.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim()}}
+ function cleanSpeechField(value){const raw=String(value??'');let text='';try{text=new DOMParser().parseFromString(raw,'text/html').body.textContent}catch(_){text=raw.replace(/<[^>]*>/g,' ')}return String(text).replace(/\b(?:https?:\/\/|www\.)[^\s<>"']+/gi,' ').replace(/\b(?:[\w-]+\.)+[a-z]{2,24}(?:\/[^\s<>"']*)?/gi,' ').replace(/\s+/g,' ').trim()}
  function solarCivilSpeechText(kind,item){
   const solar=kind==='noaa', p=item.properties||{};
   const fields=[];
@@ -26738,7 +26831,7 @@ function ynBuildLeafletMarkers() {
  function show(kind,item,options={}){
   if(window.eewWaveCoordinatorInterrupt)window.eewWaveCoordinatorInterrupt();
   const solar=kind==='noaa';
-  const original=solar?(item.message||''):(item.properties?.description||item.properties?.eventdescription||'');
+  const original=cleanSpeechField(solar?(item.message||''):(item.properties?.description||item.properties?.eventdescription||''));
   const translated=esText(original);
   const sev=solar&&/warning|alert|strong|severe|extreme/i.test(original)?2:1;
   title.textContent=solar?'☀️ Alerta de clima espacial NOAA SWPC':'🌐 Alerta mundial de protección civil · GDACS';
@@ -26762,12 +26855,11 @@ function ynBuildLeafletMarkers() {
  async function fetchNoaa(){try{const r=await fetch(NOAA_SWPC_ALERTS,{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const a=await r.json();if(!Array.isArray(a))throw Error('formato no válido');const fresh=a.filter(x=>x&&noaaId(x));if(!initialized.noaa){fresh.forEach(x=>seen.noaa.add(noaaId(x)));initialized.noaa=true;save('noaa');return;}const n=fresh.filter(x=>!seen.noaa.has(noaaId(x)));n.forEach(x=>seen.noaa.add(noaaId(x)));if(n.length){save('noaa');const ordered=n.sort((x,y)=>(Date.parse(x.issue_datetime)||0)-(Date.parse(y.issue_datetime)||0));show('noaa',ordered[ordered.length-1],{speechItems:ordered});}}catch(e){console.warn('[solar-civil] NOAA SWPC no disponible',e)}}
  async function fetchGdacs(){try{const r=await fetch(GDACS_EVENTS,{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const j=await r.json(),a=Array.isArray(j.features)?j.features:[];if(!initialized.gdacs){a.forEach(x=>seen.gdacs.add(gdacsId(x)));initialized.gdacs=true;save('gdacs');return;}const n=a.filter(x=>!seen.gdacs.has(gdacsId(x)));n.forEach(x=>seen.gdacs.add(gdacsId(x)));if(n.length){save('gdacs');const ordered=n.sort((x,y)=>(Date.parse(x.properties?.fromdate||x.properties?.eventdate||'')||0)-(Date.parse(y.properties?.fromdate||y.properties?.eventdate||'')||0));show('gdacs',ordered[ordered.length-1],{speechItems:ordered});}}catch(e){console.warn('[solar-civil] GDACS no disponible',e)}}
  document.getElementById('solarCivilAlertClose')?.addEventListener('click',()=>panel.classList.remove('active'));
- fetchNoaa();fetchGdacs();timers.push(setInterval(fetchNoaa,POLL_MS),setInterval(fetchGdacs,POLL_MS));
+ // GDACS lo gestiona su apartado cartográfico principal: se evita una segunda apertura/TTS duplicada.
+ fetchNoaa();timers.push(setInterval(fetchNoaa,POLL_MS));
  async function showCurrent(kind='noaa'){
-  try{
-   if(kind==='noaa'){const r=await fetch(NOAA_SWPC_ALERTS,{cache:'no-store'});if(!r.ok)throw Error('NOAA');const a=await r.json();const items=Array.isArray(a)?a.filter(x=>x&&noaaId(x)):[];if(!items.length)return false;items.sort((x,y)=>(Date.parse(y.issue_datetime)||0)-(Date.parse(x.issue_datetime)||0));show('noaa',items[0]);return true;}
-   const r=await fetch(GDACS_EVENTS,{cache:'no-store'});if(!r.ok)throw Error('GDACS');const j=await r.json();const a=Array.isArray(j.features)?j.features:[];if(!a.length)return false;a.sort((x,y)=>(Date.parse(y.properties?.fromdate||y.properties?.eventdate||'')||0)-(Date.parse(x.properties?.fromdate||x.properties?.eventdate||'')||0));show('gdacs',a[0]);return true;
-  }catch(_){return false;}
+  if(kind!=='noaa')return false;
+  try{const r=await fetch(NOAA_SWPC_ALERTS,{cache:'no-store'});if(!r.ok)throw Error('NOAA');const a=await r.json();const items=Array.isArray(a)?a.filter(x=>x&&noaaId(x)):[];if(!items.length)return false;items.sort((x,y)=>(Date.parse(y.issue_datetime)||0)-(Date.parse(x.issue_datetime)||0));show('noaa',items[0]);return true;}catch(_){return false;}
  }
  window.__solarCivilAlerts={sources:['NOAA SWPC alerts.json','GDACS geteventlist/SEARCH'],testShow:show,showCurrent};
 })();
@@ -27758,6 +27850,7 @@ setTimeout(()=>{try{window.__eqApplyFaults?.(!!window.__eqShowFaults);}catch(_){
       });
       busy=false;
       lastActive=newId;
+      try { if(typeof ensureJmaTsunamiLayerVisible==='function') ensureJmaTsunamiLayerVisible(); } catch(_) {}
       motionResumeTimer=setTimeout(()=>{
         try {
           busy=true;
@@ -27777,6 +27870,7 @@ setTimeout(()=>{try{window.__eqApplyFaults?.(!!window.__eqShowFaults);}catch(_){
     });
     busy=false;
     lastActive=newId;
+    try { if(typeof ensureJmaTsunamiLayerVisible==='function') ensureJmaTsunamiLayerVisible(); } catch(_) {}
   }
 
   const observer=new MutationObserver(mutations=>{
@@ -27801,6 +27895,7 @@ setTimeout(()=>{try{window.__eqApplyFaults?.(!!window.__eqShowFaults);}catch(_){
     if(id){ exclusiveFor(id); return; }
     if(newlyClosed.length){
       const anotherSectionOpen=FOCUS_TRACK_IDS.some(panelId=>isOpen(document.getElementById(panelId),panelId));
+      try { if(typeof ensureJmaTsunamiLayerVisible==='function') ensureJmaTsunamiLayerVisible(); } catch(_) {}
       if(!anotherSectionOpen && typeof focusLastQuakeAfterSectionClose==='function') focusLastQuakeAfterSectionClose();
     }
   });
@@ -28842,10 +28937,16 @@ For more information on this, and how to apply and follow the GNU AGPL, see
     try{const popup=map._popup,content=popup&&typeof popup.getContent==='function'?String(popup.getContent()):'';if(popup&&content.indexOf('SIAT-CT')>=0)map.closePopup(popup);}catch(_){}
     const legacyLegend=document.getElementById('siatCtMapLegend');if(legacyLegend)legacyLegend.remove();
   }
+  function syncSiatPolygonVisibility(){
+    if(!layer)return;
+    const shouldShow=!!(section&&section.classList.contains('active'));
+    try{if(shouldShow){if(!map.hasLayer(layer))layer.addTo(map);}else if(map.hasLayer(layer))map.removeLayer(layer);}catch(_){}
+  }
   function closeSiatAlertSection(){
     if(alertTimer){clearTimeout(alertTimer);alertTimer=null;}
     if(section){section.classList.remove('active');section.setAttribute('aria-hidden','true');}
     closeSiatPopups();
+    syncSiatPolygonVisibility();
   }
   function openSiatAlertSection(meta,data){
     if(!section)return;
@@ -28892,14 +28993,14 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       layer=L.geoJSON(data.featureCollection,{
         style:f=>{const level=f?.properties?.siatLevel,color=colors[level]||f?.properties?.siatColor||'#ffb000';return{color,weight:1.5,opacity:.95,fillColor:color,fillOpacity:.38};},
         onEachFeature:(f,l)=>{const p=f.properties||{},level=p.siatLevel||'',phase=String(p.siatPhase||'').replace('ACERCÁNDOSE','Ciclón acercándose').replace('ALEJANDOSE','Ciclón alejándose'),state=p.siatState||p.CVE_ENT||p.cve_ent||'—',region=String(p.Regional_2||p.regional_2||'').trim()||'—',municipality=String(p.siatMunicipality||p.NOM_MUN||p.nom_mun||'').trim()||'—';l.bindPopup(`<b>SIAT-CT · ${esc(labels[level]||level||'Alerta')}</b><br>${esc(phase||'Zona alertada')}<br>Entidad: ${esc(state)}<br>Municipio: ${esc(municipality)}<br>Región oficial: ${esc(region)}`);}
-      }).addTo(map);
+      });
     }
     const id=String(data.bulletin?.idBoletin||metaSnapshot?.bulletin?.idBoletin||''),signature=String(data.signature||expectedSignature||id);
     let previousId='';try{previousId=localStorage.getItem(lastIdKey)||'';}catch(_){}
     const isNewBulletin=!!id&&((loaded&&!!currentId&&id!==currentId)||(!loaded&&!!previousId&&id!==previousId));
     if(id){try{localStorage.setItem(lastIdKey,id);}catch(_){}}
     currentSignature=signature;currentId=id;loaded=true;
-    if(isNewBulletin){openSiatAlertSection(metaSnapshot,data);if(layer)focusAlert(layer.getBounds());}else closeSiatPopups();
+    if(isNewBulletin){openSiatAlertSection(metaSnapshot,data);syncSiatPolygonVisibility();if(layer&&map.hasLayer(layer))focusAlert(layer.getBounds());}else{closeSiatPopups();syncSiatPolygonVisibility();}
     return true;
   }
   async function refresh(){
