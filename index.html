@@ -1102,6 +1102,16 @@
         #usAlertsPanel .us-alert-item { border-top:1px solid rgba(255,255,255,.14); padding:8px 0 2px; font-size:11px; line-height:1.4; }
         #usAlertsPanel .us-alert-item strong { color:#fff0a8; font-size:12px; }
         #usAlertsPanel a { color:#ffe27a; }
+        #usAlertsPanel .us-alert-open { display:block; width:100%; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+        #usAlertsPanel .us-alert-open:hover strong, #usAlertsPanel .us-alert-open:focus-visible strong { text-decoration:underline; }
+        #usAlertsPanel .us-alert-detail { margin:8px 0; padding:9px; border:1px solid #627d97; border-left:4px solid #ffcf4a; border-radius:6px; background:rgba(11,23,38,.98); font-size:11px; line-height:1.45; }
+        #usAlertsPanel .us-alert-detail[hidden] { display:none !important; }
+        #usAlertsPanel .us-alert-detail-head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:6px; color:#fff0a8; font-weight:800; }
+        #usAlertsPanel .us-alert-detail-close { flex:0 0 auto; border:1px solid #71869b; border-radius:4px; background:#18314a; color:#fff; padding:2px 7px; font:700 11px system-ui; cursor:pointer; }
+        #usAlertsPanel .us-alert-detail-row { margin:4px 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+        #usAlertsPanel .us-alert-detail-label { color:#b9d4eb; font-weight:700; }
+        #usAlertsPanel .us-county-status { color:#b8dfc1; font-size:9px; white-space:nowrap; }
+        #usAlertsPanel .us-county-status.error { color:#ff9a9a; }
         #mainLayout.us-alerts-focus .left-panel,
         #mainLayout.us-alerts-focus .trem-side-panel,
         #mainLayout.us-alerts-focus #connectionPanel,
@@ -3526,7 +3536,8 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
             </div>
 
             <div id="usAlertsPanel">
-                <div class="us-alerts-title"><span>⚠️ Alertas oficiales NWS</span><button id="usRadarToggle" type="button" aria-pressed="true">🌧️ Radar NOAA: activado</button><span id="usAlertsStatus">● Consultando</span></div>
+                <div class="us-alerts-title"><span>⚠️ Alertas oficiales NWS</span><button id="usRadarToggle" type="button" aria-pressed="true">🌧️ Radar NOAA: activado</button><span id="usAlertsStatus">● Consultando</span><span id="usCountyStatus" class="us-county-status">Condados: esperando</span></div>
+                <div id="usAlertDetail" class="us-alert-detail" role="region" aria-live="polite" hidden></div>
                 <div id="usAlertsInfo">Cargando alertas de Estados Unidos…</div>
             </div>
             <div id="jmaVolcanoTopbar">
@@ -6960,6 +6971,13 @@ global.TauPJS=api;
         let usAlertsMode = false;
         let usAlertsLayer = L.layerGroup().addTo(map);
         let usRadarEnabled = true;
+        map.createPane('usCountyAlertsPane');
+        const usCountyAlertsPane=map.getPane('usCountyAlertsPane');
+        if(usCountyAlertsPane){usCountyAlertsPane.style.zIndex='395';usCountyAlertsPane.style.pointerEvents='auto';}
+        const usCountyAlertsLayer=L.layerGroup();
+        const usCountyGeometryCache=new Map();
+        const usCountyBoundsByFips=new Map();
+        let usCountyRenderGeneration=0;
         map.createPane('usRadarPane');
         const usRadarPane = map.getPane('usRadarPane');
         if (usRadarPane) usRadarPane.style.zIndex = '390';
@@ -6975,7 +6993,7 @@ global.TauPJS=api;
             else if (!show && map.hasLayer(usRadarLayer)) map.removeLayer(usRadarLayer);
         }
         const usRadarLayout = document.getElementById('mainLayout');
-        if (usRadarLayout && 'MutationObserver' in window) new MutationObserver(syncUsRadarLayer).observe(usRadarLayout, { attributes:true, attributeFilter:['class'] });
+        if (usRadarLayout && 'MutationObserver' in window) new MutationObserver(()=>{syncUsRadarLayer();syncUsCountyAlertsLayer();}).observe(usRadarLayout, { attributes:true, attributeFilter:['class'] });
         const usRadarToggle = document.getElementById('usRadarToggle');
         if (usRadarToggle) usRadarToggle.addEventListener('click', () => {
             usRadarEnabled = !usRadarEnabled;
@@ -6988,6 +7006,7 @@ global.TauPJS=api;
         let usAlertsSignature = '';
         const usAlertsSessionStartedAt = Date.now();
         const usAlertsSeenReports = new Set();
+        let usSelectedAlertKey = '';
         function usAlertReportKey(feature) {
             const p = feature?.properties || {};
             const id = String(feature?.id || p['@id'] || '').trim();
@@ -7007,32 +7026,186 @@ global.TauPJS=api;
             return ({ Extreme:'#ff1744', Severe:'#ff7b00', Moderate:'#ffd166', Minor:'#74c0fc' })[String(severity || '')] || '#ffe066';
         }
 
-        function renderUsAlertsPanel(alerts) {
-            const info = document.getElementById('usAlertsInfo');
-            const status = document.getElementById('usAlertsStatus');
-            const title = document.getElementById('usAlertsTopTitle');
-            if (!info || !status) return;
-            if (!alerts.length) {
-                status.textContent = '● Sin alertas activas';
-                status.style.color = '#8bd8ff';
-                info.innerHTML = 'El NWS no reporta alertas meteorológicas activas dentro de Estados Unidos.';
-                if (title) title.textContent = 'Alertas meteorológicas de EE. UU.';
-                return;
-            }
-            status.textContent = `● ${alerts.length} activa${alerts.length > 1 ? 's' : ''}`;
-            status.style.color = '#ffe27a';
-            if (title) title.textContent = `NWS · ${alerts.length} alerta${alerts.length > 1 ? 's' : ''}`;
-            const ordered = [...alerts].sort((a,b) => {
-                const rank = { Extreme:4, Severe:3, Moderate:2, Minor:1 };
-                return (rank[b.properties?.severity] || 0) - (rank[a.properties?.severity] || 0);
+        const usCountyStateFips={AL:'01',AK:'02',AZ:'04',AR:'05',CA:'06',CO:'08',CT:'09',DE:'10',DC:'11',FL:'12',GA:'13',HI:'15',ID:'16',IL:'17',IN:'18',IA:'19',KS:'20',KY:'21',LA:'22',ME:'23',MD:'24',MA:'25',MI:'26',MN:'27',MS:'28',MO:'29',MT:'30',NE:'31',NV:'32',NH:'33',NJ:'34',NM:'35',NY:'36',NC:'37',ND:'38',OH:'39',OK:'40',OR:'41',PA:'42',RI:'44',SC:'45',SD:'46',TN:'47',TX:'48',UT:'49',VT:'50',VA:'51',WA:'53',WV:'54',WI:'55',WY:'56',AS:'60',GU:'66',MP:'69',PR:'72',VI:'78'};
+        const US_NWS_COUNTY_QUERY='https://mapservices.weather.noaa.gov/static/rest/services/nws_reference_maps/nws_reference_map/MapServer/2/query';
+        const US_ZONE_COUNTY_INDEX_URL='https://www.weather.gov/gis/ZoneCounty';
+        const usZoneCountyMap=new Map();
+        let usZoneCountyLoadPromise=null,usZoneCountyLoaded=false,usZoneCountyRetryAfter=0;
+        map.attributionControl.addAttribution('Condados: © NOAA/NWS Reference Map · Correlación de zonas NOAA/NWS');
+        function escapeUsAlertHtml(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+        function safeUsAlertLink(feature){const link=String(feature?.id||feature?.properties?.['@id']||'').trim();return /^https:\/\/(?:api\.weather\.gov|www\.weather\.gov)\//i.test(link)?link:'';}
+        function usAlertForecastZoneKeys(feature){
+            const geo=feature?.properties?.geocode||{},ugc=Array.isArray(geo.UGC)?geo.UGC:(geo.UGC?[geo.UGC]:[]),keys=new Set();
+            ugc.forEach(code=>{const m=/^([A-Z]{2})Z(\d{3})$/i.exec(String(code||'').trim());if(m)keys.add(m[1].toUpperCase()+m[2]);});
+            return [...keys];
+        }
+        function usZoneCountyFileStamp(file){
+            const m=/^bp(\d{2})([a-z]{2}|\d{2})(\d{2})\.dbx$/i.exec(String(file||''));if(!m)return 0;
+            const months={ja:1,fe:2,mr:3,ap:4,my:5,jn:6,jl:7,au:8,se:9,oc:10,no:11,de:12};
+            const month=/^\d{2}$/.test(m[2])?Number(m[2]):months[m[2].toLowerCase()],year=2000+Number(m[3]),day=Number(m[1]);
+            return month>=1&&month<=12&&day>=1&&day<=31?Date.UTC(year,month-1,day):0;
+        }
+        function latestUsZoneCountyFileUrl(html){
+            const refs=[...String(html||'').matchAll(/href\s*=\s*["']([^"']+)["']/gi)],files=[];
+            refs.forEach((match,index)=>{try{
+                const url=new URL(match[1],US_ZONE_COUNTY_INDEX_URL),file=url.pathname.split('/').pop();
+                if(url.protocol!=='https:'||url.hostname.toLowerCase()!=='www.weather.gov'||!/^\/source\/gis\/Shapefiles\/County\/bp\d{2}(?:[a-z]{2}|\d{2})\d{2}\.dbx$/i.test(url.pathname))return;
+                files.push({url:url.href,stamp:usZoneCountyFileStamp(file),index});
+            }catch(_){}});
+            files.sort((a,b)=>a.stamp-b.stamp||a.index-b.index);
+            return files.length?files[files.length-1].url:'';
+        }
+        async function ensureUsZoneCountyMap(){
+            if(usZoneCountyLoaded&&usZoneCountyMap.size)return true;
+            if(usZoneCountyLoadPromise)return usZoneCountyLoadPromise;
+            if(Date.now()<usZoneCountyRetryAfter)return false;
+            usZoneCountyLoadPromise=(async()=>{
+                try{
+                    const indexResponse=await fetch(US_ZONE_COUNTY_INDEX_URL,{cache:'no-cache',headers:{Accept:'text/html'}});
+                    if(!indexResponse.ok)throw new Error('No se pudo consultar el índice NWS de zonas y condados');
+                    const fileUrl=latestUsZoneCountyFileUrl(await indexResponse.text());if(!fileUrl)throw new Error('El índice NWS no publicó un archivo de correlación reconocible');
+                    const fileResponse=await fetch(fileUrl,{cache:'force-cache',headers:{Accept:'text/plain'}});
+                    if(!fileResponse.ok)throw new Error('No se pudo descargar la correlación NWS');
+                    const text=(await fileResponse.text()).replace(/^\uFEFF/,'');const parsed=new Map();
+                    for(const line of text.split(/\r?\n/)){
+                        const fields=line.split('|');if(fields.length<7)continue;
+                        const key=String(fields[4]||'').trim().toUpperCase(),county=String(fields[5]||'').trim(),fips=String(fields[6]||'').trim();
+                        if(!/^[A-Z]{2}\d{3}$/.test(key)||!county||!/^\d{5}$/.test(fips)||fips.slice(2)==='000')continue;
+                        const rows=parsed.get(key)||[];if(!rows.some(row=>row.fips===fips))rows.push({fips,county});parsed.set(key,rows);
+                    }
+                    if(!parsed.size)throw new Error('El archivo NWS no contiene filas de zona-condado válidas');
+                    usZoneCountyMap.clear();for(const [key,rows] of parsed)usZoneCountyMap.set(key,rows);
+                    usZoneCountyLoaded=true;usZoneCountyRetryAfter=0;return true;
+                }catch(_){usZoneCountyRetryAfter=Date.now()+60000;return false;}
+                finally{usZoneCountyLoadPromise=null;}
+            })();
+            return usZoneCountyLoadPromise;
+        }
+        function usAlertCountyFips(feature){
+            const p=feature?.properties||{},geo=p.geocode||{},set=new Set();
+            const add=value=>{const raw=String(value||'').trim().replace(/\D/g,''),fips=raw.length===6&&raw[0]==='0'?raw.slice(1):(raw.length===5?raw:'');if(/^\d{5}$/.test(fips)&&fips.slice(2)!=='000')set.add(fips);};
+            const same=Array.isArray(geo.SAME)?geo.SAME:(geo.SAME?[geo.SAME]:[]);same.forEach(add);
+            const ugc=Array.isArray(geo.UGC)?geo.UGC:(geo.UGC?[geo.UGC]:[]);
+            ugc.forEach(code=>{
+                const value=String(code||'').trim(),countyMatch=/^([A-Z]{2})C(\d{3})$/i.exec(value),zoneMatch=/^([A-Z]{2})Z(\d{3})$/i.exec(value);
+                if(countyMatch&&usCountyStateFips[countyMatch[1].toUpperCase()])add(usCountyStateFips[countyMatch[1].toUpperCase()]+countyMatch[2]);
+                else if(zoneMatch){const key=zoneMatch[1].toUpperCase()+zoneMatch[2];(usZoneCountyMap.get(key)||[]).forEach(row=>add(row.fips));}
             });
-            info.innerHTML = ordered.slice(0, 30).map(feature => {
-                const p = feature.properties || {};
-                const link = feature.id || p['@id'] || '';
-                const expires = p.expires ? formatTime(p.expires) : 'sin hora de finalización';
-                return `<div class="us-alert-item"><strong style="color:${usAlertColor(p.severity)}">⚠️ ${p.event || 'Alerta meteorológica'}</strong><br>Zona: ${p.areaDesc || 'Estados Unidos'}<br>Severidad: ${p.severity || '—'} · Prioridad: ${p.urgency || '—'}<br>Válida hasta: ${expires}${p.headline ? `<br>${p.headline}` : ''}${link ? `<br><a href="${link}" target="_blank" rel="noopener">Ver aviso oficial NWS</a>` : ''}</div>`;
+            return [...set].sort();
+        }
+        function syncUsCountyAlertsLayer(){
+            const layout=document.getElementById('mainLayout'),show=!!(usAlertsMode&&layout&&layout.classList.contains('us-alerts-focus')&&usCountyAlertsLayer.getLayers().length);
+            if(show&&!map.hasLayer(usCountyAlertsLayer))usCountyAlertsLayer.addTo(map);
+            else if(!show&&map.hasLayer(usCountyAlertsLayer))map.removeLayer(usCountyAlertsLayer);
+        }
+        async function fetchUsCountyGeometries(fipsList){
+            const unique=[...new Set((fipsList||[]).filter(x=>/^\d{5}$/.test(String(x))))];
+            const missing=unique.filter(f=>!usCountyGeometryCache.has(f));
+            for(let offset=0;offset<missing.length;offset+=100){
+                const batch=missing.slice(offset,offset+100),where=`fips IN (${batch.map(f=>`'${f}'`).join(',')})`;
+                const params=new URLSearchParams({where,outFields:'fips,countyname,state',returnGeometry:'true',outSR:'4326',resultRecordCount:String(batch.length+5),f:'geojson'});
+                const response=await fetch(US_NWS_COUNTY_QUERY+'?'+params.toString(),{cache:'force-cache',headers:{Accept:'application/geo+json'}});
+                if(!response.ok)throw new Error('No se pudo consultar la geometría oficial de condados NWS');
+                const data=await response.json();
+                (Array.isArray(data.features)?data.features:[]).forEach(feature=>{const f=String(feature?.properties?.fips||'').padStart(5,'0');if(batch.includes(f)&&feature.geometry)usCountyGeometryCache.set(f,feature);});
+                while(usCountyGeometryCache.size>400)usCountyGeometryCache.delete(usCountyGeometryCache.keys().next().value);
+            }
+            return unique.map(f=>usCountyGeometryCache.get(f)).filter(Boolean);
+        }
+        async function renderUsAlertCounties(alerts,focusFeature=null){
+            const generation=++usCountyRenderGeneration,layout=document.getElementById('mainLayout'),status=document.getElementById('usCountyStatus');
+            const active=!!(usAlertsMode&&layout&&layout.classList.contains('us-alerts-focus'));
+            if(!active){syncUsCountyAlertsLayer();return;}
+            const alertList=Array.isArray(alerts)?alerts:[],hasForecastZones=alertList.some(feature=>usAlertForecastZoneKeys(feature).length>0);
+            if(status&&hasForecastZones&&!usZoneCountyLoaded){status.textContent='Condados: cargando correlación…';status.classList.remove('error');}
+            const zoneCountyAvailable=hasForecastZones?await ensureUsZoneCountyMap():true;
+            if(generation!==usCountyRenderGeneration)return;
+            const nowLayout=document.getElementById('mainLayout');
+            if(!usAlertsMode||!nowLayout||!nowLayout.classList.contains('us-alerts-focus')){syncUsCountyAlertsLayer();return;}
+            const rank={Extreme:4,Severe:3,Moderate:2,Minor:1};
+            const ordered=[...alertList].sort((a,b)=>(rank[b.properties?.severity]||0)-(rank[a.properties?.severity]||0)||(Date.parse(b.properties?.sent||'')||0)-(Date.parse(a.properties?.sent||'')||0));
+            const assignment=new Map();
+            ordered.forEach(feature=>usAlertCountyFips(feature).forEach(fips=>{if(!assignment.has(fips))assignment.set(fips,feature);}));
+            const focusFips=focusFeature?usAlertCountyFips(focusFeature):[];
+            focusFips.forEach(fips=>{if(!assignment.has(fips))assignment.set(fips,focusFeature);});
+            const allFips=[...new Set([...focusFips,...assignment.keys()])],fipsList=allFips.slice(0,200);
+            usCountyAlertsLayer.clearLayers();usCountyBoundsByFips.clear();
+            if(!fipsList.length){
+                if(status){status.textContent=hasForecastZones&&!zoneCountyAvailable?'Condados: correlación sin conexión':(hasForecastZones?'Condados: zona sin condados asociados':(alertList.length?'Condados: sin código oficial':'Condados: 0'));status.classList.toggle('error',hasForecastZones&&!zoneCountyAvailable);}
+                const note=document.getElementById('usAlertCountyNote');
+                if(note&&focusFeature){const hasZone=usAlertForecastZoneKeys(focusFeature).length>0;note.textContent=hasZone&&!zoneCountyAvailable?'El NWS da un código de zona, pero no se pudo cargar su correlación oficial a condados.':focusFeature.geometry?(hasZone?'El polígono NWS se muestra; la correlación oficial no asocia esta zona a condados.':'El polígono NWS se muestra; este aviso no trae códigos oficiales de condado.'):(hasZone?'No se encontraron condados oficiales para esta zona; no se inventa la ubicación.':'Sin polígono ni códigos oficiales de condado; no se inventa la ubicación.');}
+                syncUsCountyAlertsLayer();return;
+            }
+            if(status){status.textContent=hasForecastZones&&!zoneCountyAvailable?'Condados: cargando · correlación parcial':'Condados: cargando…';status.classList.remove('error');}
+            try{
+                const features=await fetchUsCountyGeometries(fipsList);
+                if(generation!==usCountyRenderGeneration)return;
+                const currentLayout=document.getElementById('mainLayout');
+                if(!usAlertsMode||!currentLayout||!currentLayout.classList.contains('us-alerts-focus')){syncUsCountyAlertsLayer();return;}
+                features.forEach(county=>{
+                    const p=county.properties||{},fips=String(p.fips||'').padStart(5,'0'),alert=assignment.get(fips);if(!alert)return;
+                    const ap=alert.properties||{},color=usAlertColor(ap.severity);
+                    const countyLayer=L.geoJSON(county,{pane:'usCountyAlertsPane',style:{color,weight:.8,opacity:.92,fillColor:color,fillOpacity:.31,pane:'usCountyAlertsPane'}});
+                    const link=safeUsAlertLink(alert),popup='<b>Condado bajo alerta NWS</b><br>'+escapeUsAlertHtml(p.countyname||'Condado')+', '+escapeUsAlertHtml(p.state||'EE. UU.')+'<br>'+escapeUsAlertHtml(ap.event||'Alerta meteorológica')+'<br>Severidad: '+escapeUsAlertHtml(ap.severity||'—')+(link?'<br><a href="'+escapeUsAlertHtml(link)+'" target="_blank" rel="noopener noreferrer">Aviso oficial NWS</a>':'');
+                    countyLayer.bindPopup(popup).addTo(usCountyAlertsLayer);
+                    try{usCountyBoundsByFips.set(fips,countyLayer.getBounds());}catch(_){}
+                });
+                syncUsCountyAlertsLayer();
+                const limited=allFips.length>200,suffix=hasForecastZones&&!zoneCountyAvailable?' · correlación parcial':'';
+                if(status){status.textContent='Condados: '+features.length+(limited?' (límite 200)':'')+suffix;status.classList.toggle('error',hasForecastZones&&!zoneCountyAvailable);}
+                if(focusFeature){
+                    const boundsList=focusFips.map(f=>usCountyBoundsByFips.get(f)).filter(bounds=>bounds&&bounds.isValid());
+                    if(!focusFeature.geometry&&boundsList.length){let bounds=boundsList[0];for(let i=1;i<boundsList.length;i++)bounds.extend(boundsList[i]);map.invalidateSize({pan:false});map.fitBounds(bounds,{padding:[28,28],maxZoom:8,animate:true,duration:.7});}
+                    const note=document.getElementById('usAlertCountyNote'),hasZone=usAlertForecastZoneKeys(focusFeature).length>0;
+                    if(note)note.textContent=focusFeature.geometry?(boundsList.length?'Polígono oficial resaltado; además se sombrearon '+boundsList.length+' condados.':(hasZone&&!zoneCountyAvailable?'Polígono resaltado; no se pudo descargar la correlación zona-condado.':'Polígono oficial resaltado; no hay condados oficiales que sombrear.')):(boundsList.length?'Se resaltaron los condados identificados por la correlación oficial NWS.':(hasZone&&!zoneCountyAvailable?'No se pudo cargar la correlación zona-condado; no se inventó la ubicación.':'El boletín no trae condados oficiales que permitan enfocar el mapa.'));
+                }
+            }catch(_){
+                if(generation!==usCountyRenderGeneration)return;
+                usCountyAlertsLayer.clearLayers();syncUsCountyAlertsLayer();
+                if(status){status.textContent='Condados: sin conexión';status.classList.add('error');}
+                const note=document.getElementById('usAlertCountyNote');if(note&&focusFeature)note.textContent=focusFeature.geometry?'El polígono oficial sigue visible; no se pudieron cargar límites de condados.':'No se pudieron cargar límites oficiales de condados; no se inventó el área del aviso.';
+            }
+        }
+        function hideUsAlertDetails(){const detail=document.getElementById('usAlertDetail');if(detail){detail.hidden=true;detail.innerHTML='';}usSelectedAlertKey='';}
+        function renderUsAlertDetail(feature){
+            const detail=document.getElementById('usAlertDetail');if(!detail||!feature)return;
+            const p=feature.properties||{},row=(label,value)=>value?'<div class="us-alert-detail-row"><span class="us-alert-detail-label">'+escapeUsAlertHtml(label)+': </span>'+escapeUsAlertHtml(value)+'</div>':'';
+            const description=p.description?'<div class="us-alert-detail-row"><span class="us-alert-detail-label">Descripción oficial: </span><div>'+escapeUsAlertHtml(p.description)+'</div></div>':'';
+            const instructions=p.instruction?'<div class="us-alert-detail-row"><span class="us-alert-detail-label">Instrucciones oficiales: </span><div>'+escapeUsAlertHtml(p.instruction)+'</div></div>':'';
+            const link=safeUsAlertLink(feature),countyNote=feature.geometry?'Polígono NWS resaltado; cargando condados identificados por códigos oficiales.':'Buscando códigos y límites oficiales de condado…';
+            detail.innerHTML='<div class="us-alert-detail-head"><span>Detalle de alerta · '+escapeUsAlertHtml(p.event||'Aviso NWS')+'</span><button class="us-alert-detail-close" type="button" data-us-alert-close>Cerrar</button></div>'+
+                row('Zona afectada',p.areaDesc)+row('Titular',p.headline)+row('Severidad',p.severity)+row('Urgencia',p.urgency)+row('Certeza',p.certainty)+row('Respuesta recomendada',p.response)+row('Vigente desde',p.effective?formatTime(p.effective):p.onset?formatTime(p.onset):'')+row('Válida hasta',p.expires?formatTime(p.expires):'')+row('Emisor',p.senderName)+description+instructions+
+                '<div id="usAlertCountyNote" class="us-alert-detail-row">'+escapeUsAlertHtml(countyNote)+'</div>'+(link?'<div class="us-alert-detail-row"><a href="'+escapeUsAlertHtml(link)+'" target="_blank" rel="noopener noreferrer">Abrir aviso oficial NWS ↗</a></div>':'');
+            detail.hidden=false;
+        }
+        function showUsAlertDetails(feature){
+            if(!feature)return;usSelectedAlertKey=usAlertReportKey(feature);renderUsAlertDetail(feature);renderUsAlertsMap(usAlertsData,feature);
+            zoomToUsAlert(feature);renderUsAlertCounties(usAlertsData,feature);
+        }
+        const usAlertsPanelRoot=document.getElementById('usAlertsPanel');
+        if(usAlertsPanelRoot)usAlertsPanelRoot.addEventListener('click',event=>{
+            const close=event.target.closest('[data-us-alert-close]');if(close){hideUsAlertDetails();return;}
+            if(event.target.closest('a'))return;
+            const button=event.target.closest('[data-us-alert-index]');if(!button)return;
+            const index=Number(button.getAttribute('data-us-alert-index'));if(Number.isInteger(index)&&usAlertsData[index])showUsAlertDetails(usAlertsData[index]);
+        });
+
+        function renderUsAlertsPanel(alerts) {
+            const info=document.getElementById('usAlertsInfo'),status=document.getElementById('usAlertsStatus'),title=document.getElementById('usAlertsTopTitle');
+            if(!info||!status)return;
+            if(!alerts.length){
+                status.textContent='● Sin alertas activas';status.style.color='#8bd8ff';info.innerHTML='El NWS no reporta alertas meteorológicas activas dentro de Estados Unidos.';
+                if(title)title.textContent='Alertas meteorológicas de EE. UU.';hideUsAlertDetails();return;
+            }
+            status.textContent=`● ${alerts.length} activa${alerts.length>1?'s':''}`;status.style.color='#ffe27a';
+            if(title)title.textContent=`NWS · ${alerts.length} alerta${alerts.length>1?'s':''}`;
+            const ordered=[...alerts].sort((a,b)=>{const rank={Extreme:4,Severe:3,Moderate:2,Minor:1};return(rank[b.properties?.severity]||0)-(rank[a.properties?.severity]||0)||(Date.parse(b.properties?.sent||'')||0)-(Date.parse(a.properties?.sent||'')||0);});
+            info.innerHTML='<div class="weather-muted">Toca una alerta para ver el detalle y enfocar el mapa.</div>'+ordered.slice(0,30).map(feature=>{
+                const p=feature.properties||{},idx=alerts.indexOf(feature),link=safeUsAlertLink(feature),expires=p.expires?formatTime(p.expires):'sin hora de finalización';
+                return '<div class="us-alert-item"><button type="button" class="us-alert-open" data-us-alert-index="'+idx+'" aria-label="Ver detalle y enfocar '+escapeUsAlertHtml(p.event||'alerta NWS')+'"><strong style="color:'+usAlertColor(p.severity)+'">⚠️ '+escapeUsAlertHtml(p.event||'Alerta meteorológica')+'</strong><br>Zona: '+escapeUsAlertHtml(p.areaDesc||'Estados Unidos')+'<br>Severidad: '+escapeUsAlertHtml(p.severity||'—')+' · Urgencia: '+escapeUsAlertHtml(p.urgency||'—')+'<br>Válida hasta: '+escapeUsAlertHtml(expires)+(p.headline?'<br>'+escapeUsAlertHtml(p.headline):'')+'</button>'+(link?'<a href="'+escapeUsAlertHtml(link)+'" target="_blank" rel="noopener noreferrer">Ver aviso oficial NWS ↗</a>':'')+'</div>';
             }).join('');
-            if (alerts.length > 30) info.insertAdjacentHTML('beforeend', `<div class="weather-muted">Se muestran las 30 alertas más importantes.</div>`);
+            if(alerts.length>30)info.insertAdjacentHTML('beforeend','<div class="weather-muted">Se muestran las 30 alertas más importantes.</div>');
+            if(usSelectedAlertKey){const selected=alerts.find(f=>usAlertReportKey(f)===usSelectedAlertKey);if(selected)renderUsAlertDetail(selected);else hideUsAlertDetails();}
         }
 
         function renderUsAlertsMap(alerts, focusFeature = null) {
@@ -7049,9 +7222,10 @@ global.TauPJS=api;
             mapAlerts.forEach(feature => {
                 try {
                     const p = feature.properties || {};
+                    const link=safeUsAlertLink(feature);
                     L.geoJSON(feature, {
                         style: { color: usAlertColor(p.severity), weight: 1.5, fillColor: usAlertColor(p.severity), fillOpacity: .18 }
-                    }).bindPopup(`<b>⚠️ ${p.event || 'Alerta NWS'}</b><br>${p.areaDesc || 'Estados Unidos'}<br>Severidad: ${p.severity || '—'}${feature.id ? `<br><a href="${feature.id}" target="_blank" rel="noopener">Aviso oficial NWS</a>` : ''}`).addTo(usAlertsLayer);
+                    }).bindPopup('<b>⚠️ '+escapeUsAlertHtml(p.event||'Alerta NWS')+'</b><br>'+escapeUsAlertHtml(p.areaDesc||'Estados Unidos')+'<br>Severidad: '+escapeUsAlertHtml(p.severity||'—')+(link?'<br><a href="'+escapeUsAlertHtml(link)+'" target="_blank" rel="noopener noreferrer">Aviso oficial NWS</a>':'')).addTo(usAlertsLayer);
                 } catch (_) {}
             });
         }
@@ -7085,48 +7259,39 @@ global.TauPJS=api;
             }, 250);
         }
 
-        function nwsSpeechText(properties = {}) {
-            const clean = value => String(value || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/\s+/g, ' ').trim();
-            const parts = ['New weather alert in the United States.'];
-            const fields = [
-                ['Event', properties.event], ['Headline', properties.headline], ['Affected area', properties.areaDesc],
-                ['Severity', properties.severity], ['Urgency', properties.urgency], ['Certainty', properties.certainty],
-                ['Status', properties.status], ['Message type', properties.messageType], ['Response', properties.response],
-                ['Effective time', properties.effective], ['Start time', properties.onset], ['Expiration time', properties.expires],
-                ['Issued by', properties.senderName], ['Description', properties.description], ['Instructions', properties.instruction]
+        function nwsSpeechTextSpanish(properties = {}) {
+            const clean=value=>String(value||'').replace(/<[^>]*>/g,' ').replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>').replace(/\s+/g,' ').trim();
+            const event=clean(properties.event),eventMap=[
+                [/tornado warning/i,'alerta de tornado'],[/tornado watch/i,'vigilancia de tornado'],
+                [/severe thunderstorm warning/i,'alerta de tormenta eléctrica severa'],[/severe thunderstorm watch/i,'vigilancia de tormenta eléctrica severa'],
+                [/flash flood warning/i,'alerta de inundación repentina'],[/flash flood watch/i,'vigilancia de inundación repentina'],
+                [/coastal flood warning/i,'alerta de inundación costera'],[/coastal flood watch/i,'vigilancia de inundación costera'],
+                [/flood warning/i,'alerta de inundación'],[/flood watch/i,'vigilancia de inundación'],
+                [/storm surge warning/i,'alerta de marejada ciclónica'],[/hurricane warning/i,'alerta de huracán'],[/hurricane watch/i,'vigilancia de huracán'],
+                [/tropical storm warning/i,'alerta de tormenta tropical'],[/tropical storm watch/i,'vigilancia de tormenta tropical'],
+                [/blizzard warning/i,'alerta de ventisca'],[/ice storm warning/i,'alerta de tormenta de hielo'],
+                [/winter storm warning/i,'alerta de tormenta invernal'],[/winter storm watch/i,'vigilancia de tormenta invernal'],[/winter weather advisory/i,'aviso de tiempo invernal'],
+                [/excessive heat warning|heat warning/i,'alerta de calor extremo'],[/heat advisory/i,'aviso de calor'],
+                [/extreme cold warning|cold weather advisory|cold warning/i,'alerta de frío extremo'],[/high wind warning/i,'alerta de vientos fuertes'],[/wind advisory/i,'aviso de vientos'],
+                [/red flag warning/i,'alerta de peligro de incendios'],[/fire weather watch/i,'vigilancia por peligro de incendios'],
+                [/dense fog advisory/i,'aviso de niebla densa'],[/special weather statement/i,'comunicado meteorológico especial']
             ];
-            fields.forEach(([label, value]) => {
-                const text = clean(value);
-                if (text && !/^text message$/i.test(text)) parts.push(`${label}: ${text}.`);
-            });
-            if (properties.parameters && typeof properties.parameters === 'object') {
-                Object.entries(properties.parameters).forEach(([key, value]) => {
-                    const text = clean(Array.isArray(value) ? value.join(', ') : value);
-                    if (text) parts.push(`Additional alert detail ${key}: ${text}.`);
-                });
-            }
+            const translatedEvent=(eventMap.find(([pattern])=>pattern.test(event))||[])[1]||'alerta meteorológica';
+            const severity=({Extreme:'extrema',Severe:'grave',Moderate:'moderada',Minor:'leve',Unknown:'no especificada'})[clean(properties.severity)]||'';
+            const urgency=({Immediate:'inmediata',Expected:'esperada',Future:'futura',Past:'pasada',Unknown:'no especificada'})[clean(properties.urgency)]||'';
+            const certainty=({Observed:'observada',Likely:'probable',Possible:'posible',Unlikely:'improbable',Unknown:'no especificada'})[clean(properties.certainty)]||'';
+            const response=({Shelter:'buscar refugio',Evacuate:'evacuar',Prepare:'prepararse',Execute:'seguir el plan indicado',Avoid:'evitar el área',Monitor:'mantenerse informado',Assess:'evaluar la situación',AllClear:'sin peligro'})[clean(properties.response)]||'';
+            const time=value=>{const ms=Date.parse(value||'');if(!Number.isFinite(ms))return '';try{return new Intl.DateTimeFormat('es-CO',{timeZone:'America/Bogota',dateStyle:'short',timeStyle:'short'}).format(new Date(ms));}catch(_){return '';}};
+            const parts=['Alerta meteorológica en Estados Unidos. Tipo de aviso: '+translatedEvent+'.'];
+            const area=clean(properties.areaDesc);if(area)parts.push('Zona afectada: '+area+'.');
+            if(severity)parts.push('Severidad: '+severity+'.');if(urgency)parts.push('Urgencia: '+urgency+'.');if(certainty)parts.push('Certeza: '+certainty+'.');if(response)parts.push('Respuesta indicada: '+response+'.');
+            const start=time(properties.onset||properties.effective);if(start)parts.push('Vigente desde las '+start+'.');
+            const expires=time(properties.expires);if(expires)parts.push('Válida hasta las '+expires+'.');
             return parts.join(' ');
         }
-        function nwsSpeechSpanishFallback(properties = {}) {
-            const clean = value => String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-            const eventMap = [
-                [/tornado warning/i, 'alerta de tornado'], [/tornado watch/i, 'vigilancia de tornado'],
-                [/severe thunderstorm warning/i, 'alerta de tormenta eléctrica severa'], [/flash flood warning/i, 'alerta de inundación repentina'],
-                [/flood warning/i, 'alerta de inundación'], [/winter storm warning/i, 'alerta de tormenta invernal'],
-                [/hurricane warning/i, 'alerta de huracán'], [/hurricane watch/i, 'vigilancia de huracán'],
-                [/hurricane/i, 'huracán'], [/heat advisory/i, 'aviso de calor'], [/heat warning/i, 'alerta de calor'],
-                [/wind advisory/i, 'aviso de vientos'], [/winter weather advisory/i, 'aviso de tiempo invernal'],
-                [/red flag warning/i, 'alerta de peligro de incendios'], [/special weather statement/i, 'comunicado meteorológico especial']
-            ];
-            const rawEvent = clean(properties.event);
-            const translatedEvent = eventMap.find(([re]) => re.test(rawEvent))?.[1] || 'alerta meteorológica';
-            const area = clean(properties.areaDesc);
-            const severity = ({ Extreme:'extrema', Severe:'grave', Moderate:'moderada', Minor:'leve', Unknown:'no especificada' })[clean(properties.severity)] || '';
-            return `Alerta meteorológica en Estados Unidos. Tipo de aviso: ${translatedEvent}.${area ? ' Zona: ' + area + '.' : ''}${severity ? ' Severidad: ' + severity + '.' : ''}`;
-        }
         function speakNwsAlertSpanish(properties = {}, alertKey = '') {
-            const speech = nwsSpeechText(properties);
-            speakAlert(speech, 'nws', 'es-US', `nws:${alertKey || speech}`);
+            const speech=nwsSpeechTextSpanish(properties);
+            speakAlert(speech,'nws','es-CO',`nws:${alertKey||speech}`);
         }
 
         async function loadUsAlerts() {
@@ -7178,6 +7343,7 @@ global.TauPJS=api;
                     if (intensityZonesLayer) { map.removeLayer(intensityZonesLayer); intensityZonesLayer = null; }
                     map.invalidateSize({ pan:false });
                     renderUsAlertsMap(usAlertsData, updated);
+                    renderUsAlertCounties(usAlertsData);
                     zoomToUsAlert(updated);
                     if (returnToJma) jmaWeatherScheduleUsAlertsReturn();
                     else scheduleReturnToLastQuake();
@@ -7186,7 +7352,7 @@ global.TauPJS=api;
                 usAlertsInitialized = true;
                 renderUsAlertsPanel(usAlertsData);
                 renderAlertCenter();
-                if (usAlertsMode && !updateDetected) renderUsAlertsMap(usAlertsData);
+                if (usAlertsMode && !updateDetected) { renderUsAlertsMap(usAlertsData); renderUsAlertCounties(usAlertsData); }
                 scheduleStartupActiveAlert();
             } catch (_) {
                 setApiState('nws', 'bad');
@@ -9279,6 +9445,7 @@ global.TauPJS=api;
                     document.getElementById('usAlertsPanel')?.classList.add('us-alerts-active');
                     document.getElementById('usAlertsTopbar')?.classList.add('us-alerts-top-active');
                     renderUsAlertsMap(usAlertsData || []);
+                    renderUsAlertCounties(usAlertsData || []);
                     centerUsAlertsView();
                 } else if (state.modes.volcano && jmaVolcanoMode) {
                     document.getElementById('jmaVolcanoPanel')?.classList.add('jma-volcano-active');
@@ -23521,6 +23688,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 if (intensityZonesLayer) { map.removeLayer(intensityZonesLayer); intensityZonesLayer = null; }
                 map.invalidateSize({ pan:false });
                 renderUsAlertsMap(usAlertsData);
+                renderUsAlertCounties(usAlertsData);
                 centerUsAlertsView();
                 showRegionToast('⚠️ Alertas NWS de EE. UU. centradas en el mapa');
                 // Al abrir manualmente, refrescar el feed para mostrar el estado actual.
@@ -23529,6 +23697,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 layout.classList.remove('us-alerts-focus');
                 panel.classList.remove('us-alerts-active');
                 topbar.classList.remove('us-alerts-top-active');
+                hideUsAlertDetails();
                 usAlertsLayer.clearLayers();
                 focusLastQuakeAfterSectionClose();
                 showRegionToast('🌍 Vista global restaurada');
@@ -27412,7 +27581,7 @@ function ynBuildLeafletMarkers() {
   <div id="sismosMeteoFallback"><div><div style="font-size:18px;font-weight:800">🌦️ Centro Meteorológico LIVE</div><div style="margin-top:8px;color:#9db2c8">Si Meteo365 no permite mostrarse dentro del monitor, puedes abrirlo directamente.</div><button type="button" id="sismosMeteoFallbackOpen" style="margin-top:12px;border:1px solid #4da3ff;border-radius:8px;background:#163a5b;color:#fff;padding:9px 14px">Abrir Meteo365</button></div></div>
 </div>
 
-<div id="eqSettingsModal" role="dialog" aria-modal="true" aria-labelledby="eqSettingsTitle"><div id="eqSettingsDialog"><div class="eqs-head"><span id="eqSettingsTitle">Ajustes</span><button class="eqs-close" id="eqSettingsClose" type="button">×</button></div><div class="eqs-section"><div class="eqs-title">Apartados</div><div class="eqs-muted">Abre las alertas meteorológicas oficiales de Japón. Pulsa de nuevo para volver a la vista normal.</div><button class="eqs-control" id="eqsJmaWeatherToggle" type="button" aria-pressed="false" style="width:100%;margin-top:8px;text-align:left;padding:9px">🇯🇵 Alertas meteorológicas de Japón</button><button class="eqs-control" id="eqsJapanSeaStationsToggle" type="button" aria-pressed="false" style="width:100%;margin-top:8px;text-align:left;padding:9px">🌊 Mar de Japón · estaciones en vivo</button>
+<div id="eqSettingsModal" role="dialog" aria-modal="true" aria-labelledby="eqSettingsTitle"><div id="eqSettingsDialog"><div class="eqs-head"><span id="eqSettingsTitle">Ajustes</span><button class="eqs-close" id="eqSettingsClose" type="button">×</button></div><div class="eqs-section" id="eqsSectionsButtons" hidden aria-hidden="true"><div class="eqs-title">Apartados</div><div class="eqs-muted">Abre las alertas meteorológicas oficiales de Japón. Pulsa de nuevo para volver a la vista normal.</div><button class="eqs-control" id="eqsJmaWeatherToggle" type="button" aria-pressed="false" style="width:100%;margin-top:8px;text-align:left;padding:9px">🇯🇵 Alertas meteorológicas de Japón</button><button class="eqs-control" id="eqsJapanSeaStationsToggle" type="button" aria-pressed="false" style="width:100%;margin-top:8px;text-align:left;padding:9px">🌊 Mar de Japón · estaciones en vivo</button>
 <button class="eqs-control" id="eqsOpenSiatCt" type="button" style="width:100%;margin-top:8px;text-align:left;padding:9px">🌪️ SIAT-CT México · Ciclones tropicales</button><div class="eqs-muted">Las zonas oficiales permanecen en el mapa; el apartado SIAT se abre solo ante un boletín nuevo y se cierra a los 15 segundos.</div>
 <div class="sismos-auto-box">
 <button class="eqs-control" id="eqsMeteoCenterToggle" type="button" aria-pressed="false" style="width:100%;text-align:left;padding:9px">🌦️ Abrir Centro Meteorológico LIVE</button>
