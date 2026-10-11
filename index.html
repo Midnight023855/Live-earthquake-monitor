@@ -24595,12 +24595,15 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 return;
             }
             window.__deactivateYahooNied?.();
+            const motionAlert = document.getElementById('ynEarlyAlert');
+            motionAlert?.classList.remove('active','yn-motion-active','yn-weak','yn-shaking','yn-strong','yn-tsunami-forecast');
+            if (motionAlert) motionAlert.textContent = '';
             taiwanStationsLayer.addTo(map);
             const layout = document.getElementById('mainLayout');
             layout?.classList.remove('japan-focus', 'taiwan-focus');
             document.getElementById('taiwanDetectorPanel')?.classList.remove('taiwan-focus-panel', 'active-shake');
             map.invalidateSize({ pan:false });
-            if (events.length) setTimeout(() => selectEvent(events[0].id), 0);
+            if (events.length) setTimeout(() => focusLastQuakeAfterSectionClose(), 0);
             else setProgrammaticMapView([20, 140], 3);
         }
 
@@ -24792,17 +24795,26 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         }
         function ynStartJapanIdleGracePeriod() {
             if(ynMotionIsConfirmedNow())return false;
+            if(typeof waveMode!=='undefined'&&waveMode)return false;
+            if(ynLiveJmaEvent)return false;
             if(!ynCenterJapanAfterMotionIdle())return false;
-            if(ynMotionAutoClosePending){
+            if(japanLiveStationsPinned){
+                ynMotionAutoClosePending=false;
                 ynClearMotionIdleCloseTimer();
-                ynMotionIdleCloseTimer=setTimeout(()=>{
-                    ynMotionIdleCloseTimer=null;
-                    if(ynMotionIsConfirmedNow())return;
-                    const layout=document.getElementById('mainLayout');
-                    if(japanLiveStationsPinned||!layout?.classList.contains('japan-focus')){ynMotionAutoClosePending=false;return;}
-                    ynCloseAutomatically();
-                },5000);
+                return true;
             }
+            // Todo episodio local confirmado arma su propio cierre al cesar,
+            // aunque Japón ya estuviera abierto por otra ruta del detector.
+            ynMotionAutoClosePending=true;
+            ynClearMotionIdleCloseTimer();
+            ynMotionIdleCloseTimer=setTimeout(()=>{
+                ynMotionIdleCloseTimer=null;
+                if(ynMotionIsConfirmedNow())return;
+                const layout=document.getElementById('mainLayout');
+                if(japanLiveStationsPinned||!layout?.classList.contains('japan-focus')){ynMotionAutoClosePending=false;return;}
+                if((typeof waveMode!=='undefined'&&waveMode)||ynLiveJmaEvent)return;
+                ynCloseAutomatically();
+            },5000);
             return true;
         }
         function ynFinishMotionEpisodeAfterIdle() {
