@@ -1389,19 +1389,8 @@
         #ynEarlyAlert .yn-alert-grid { display:grid; grid-template-columns:1fr 1fr; gap:2px 10px; margin-top:6px; color:#f7dfaa; font-size:9px; line-height:13px; }
         #ynEarlyAlert .yn-alert-grid b { color:#fff8e7; font-weight:800; }
         #ynEarlyAlert .yn-alert-foot { margin-top:5px; color:#cdbb94; font-size:8px; line-height:10px; }
-        /* Segunda área NIED, solo cuando existe un segundo grupo cercano coherente. */
-        #ynEarlyAlertSecondary { display:none; position:absolute; z-index:2200 !important; left:12px; top:122px; width:min(82vw,330px); max-height:28dvh; overflow-y:auto; box-sizing:border-box; padding:8px 10px; border:1px solid #5d6268; border-left:4px solid #ffad42; border-radius:2px; background:rgba(35,38,42,.96); color:#eee; box-shadow:0 1px 4px rgba(0,0,0,.35); font-size:10px; line-height:13px; pointer-events:none; }
-        #mainLayout.japan-focus #ynEarlyAlertSecondary.active { display:block !important; }
-        #ynEarlyAlertSecondary .yn-alert-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; color:#e5e7eb; font-size:12px; line-height:17px; font-weight:900; }
-        #ynEarlyAlertSecondary .yn-alert-badge { flex:0 0 auto; padding:2px 5px; border:1px solid #747a80; border-radius:2px; color:#d8dde2; font-size:8px; line-height:10px; font-weight:800; }
-        #ynEarlyAlertSecondary .yn-motion-title { font-size:12px; font-weight:800; color:#e5e7eb; margin:2px 0 3px; }
-        #ynEarlyAlertSecondary .yn-motion-place { font-size:11px; font-weight:700; color:#fff; margin-bottom:3px; }
-        #ynEarlyAlertSecondary .yn-motion-metrics { display:flex; gap:12px; margin-top:4px; font-size:10px; color:#aeb5bc; }
-        #ynEarlyAlertSecondary .yn-motion-metrics b { color:#fff; font-size:14px; display:block; }
-        #ynEarlyAlertSecondary .yn-alert-foot { margin-top:5px; color:#cdbb94; font-size:8px; line-height:10px; }
         /* Los números de intensidad de Japón son blancos para contrastar mejor. */
         .leaflet-yahooNiedStationsPane-pane .srev-int-dot:not(.srev-quiet) { color:#fff !important; text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 4px rgba(0,0,0,.8) !important; }
-        @media (max-width:700px) { #ynEarlyAlertSecondary { left:8px; width:calc(100vw - 16px); max-height:24dvh; } }
         /* Área calculada solo con estaciones Yahoo/NIED activas. Es visual,
            aproximada y no representa un epicentro ni una zona oficial. */
         @keyframes ynMovementBoxPulse {
@@ -3073,6 +3062,19 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
 #siatCtOverlay .siatct-actions button,#siatCtOverlay .siatct-actions a{display:inline-flex;align-items:center;justify-content:center;border:1px solid #56718b;border-radius:6px;background:#1a3550;color:#fff;padding:7px 9px;font:600 11px system-ui;text-decoration:none;cursor:pointer;}
 #siatCtFrame{display:block;flex:1 1 auto;width:100%;min-height:0;border:0;background:#fff;}
 #siatCtOverlay .siatct-foot{padding:5px 10px;background:#10243a;}
+#siatAlertSection{display:none;position:absolute;z-index:4600;top:12px;right:12px;width:min(360px,calc(100% - 24px));max-height:min(48vh,420px);overflow:auto;box-sizing:border-box;color:#eef6ff;background:rgba(7,17,29,.97);border:1px solid #46c7ff;border-left:4px solid #ff4d4f;border-radius:8px;box-shadow:0 8px 24px #000a;font:12px/1.4 system-ui;}
+#siatAlertSection.active{display:block;}
+#siatAlertSection .siat-alert-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;background:#10243a;border-bottom:1px solid #2f4c67;font-weight:800;}
+#siatAlertSection .siat-alert-close{border:1px solid #7890a8;border-radius:5px;background:#1a3550;color:#fff;font-size:18px;line-height:20px;padding:2px 8px;cursor:pointer;}
+#siatAlertSection .siat-alert-body{padding:10px 11px;}
+#siatAlertSection .siat-alert-name{font-size:14px;font-weight:850;margin-bottom:4px;}
+#siatAlertSection .siat-alert-meta{color:#c4d3e1;white-space:normal;}
+#siatAlertSection .siat-alert-levels{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;margin:9px 0;}
+#siatAlertSection .siat-alert-level{display:flex;align-items:center;gap:6px;color:#e8f2fb;font-size:10px;}
+#siatAlertSection .siat-alert-swatch{width:10px;height:10px;flex:0 0 10px;border:1px solid #fff;}
+#siatAlertSection .siat-alert-comment{margin-top:6px;color:#d6e2ed;font-size:10px;}
+#siatAlertSection .siat-alert-source{display:inline-flex;margin-top:9px;color:#8bdcff;font-weight:700;text-decoration:underline;}
+@media(max-width:640px){#siatAlertSection{left:8px;right:8px;top:8px;width:auto;max-height:36vh;}}
 @media(max-width:640px){#siatCtOverlay .siatct-head{align-items:flex-start;flex-direction:column;}#siatCtOverlay .siatct-actions{width:100%;}#siatCtOverlay .siatct-actions button,#siatCtOverlay .siatct-actions a{flex:1;}}
 </style>
 <style id="earthquake-list-visual-reference">
@@ -3489,6 +3491,10 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
 
         <div class="map-container">
             <div id="map"></div>
+            <section id="siatAlertSection" role="region" aria-label="Nueva alerta SIAT-CT" aria-live="assertive" aria-hidden="true">
+                <div class="siat-alert-head"><span>🌪️ SIAT-CT · Nueva alerta</span><button id="siatAlertClose" class="siat-alert-close" type="button" aria-label="Cerrar alerta SIAT-CT">×</button></div>
+                <div class="siat-alert-body"><div id="siatAlertName" class="siat-alert-name"></div><div id="siatAlertMeta" class="siat-alert-meta"></div><div id="siatAlertLevels" class="siat-alert-levels"></div><div id="siatAlertComment" class="siat-alert-comment"></div><a class="siat-alert-source" href="https://preparados.gob.mx/SIAT-CT/consulta.php?evento=actual" target="_blank" rel="noopener noreferrer">Abrir boletín oficial ↗</a></div>
+            </section>
 
             <div id="typhoonTopbar">
                 <span id="typhoonTopTitle">Información de tifones</span>
@@ -3598,7 +3604,6 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
             </div>
             <div id="jmaWeatherAlertPanel" role="status" aria-live="polite" style="display:none;position:absolute;z-index:2250;"></div>
             <div id="ynEarlyAlert" role="status" aria-live="polite">Sin Alertas Tempranas de Terremotos</div>
-            <div id="ynEarlyAlertSecondary" role="status" aria-live="polite"></div>
             <div id="ynDiag" aria-live="polite">NIED K-NET/KiK-net: esperando catálogo…</div>
 
             <div id="kmoniPanel" class="kmoni-hidden" aria-live="polite">
@@ -23656,6 +23661,9 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         let ynSamples = 0, ynValidCodes = 0, ynUnknownCodes = 0, ynCatalogCount = 0;
         let ynLastError = '';
         let ynStationTimes = new Map();
+        let ynMotionNeighborIndex = new Map();
+        let ynMotionNeighborIndexSize = -1;
+        let ynNominatimLastRequestAt = 0;
         let ynLastObservedMs = 0;
         const YN_FRAME_STALE_MS = 15000;
         function ynFeedIsFresh(now = Date.now()) {
@@ -23883,7 +23891,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         const YN_ACTIVE_CODE_MIN = 6; // intensidad instrumental Yahoo/NIED >= 0.0
         const YN_MOTION_DELTA_MIN = 2; // subida rápida solo cuenta si code >= 6
         const YN_MOTION_QUORUM = 2; // mínimo dos estaciones coherentes
-        const YN_MOTION_RADIUS_KM = 300; // coherencia geográfica máxima
+        const YN_MOTION_RADIUS_KM = 40; // hasta 30 km; un vecino de respaldo puede llegar a 40 km
         let ynDiagActiveCount = 0, ynDiagCoherentCount = 0, ynDiagStreak = 0;
         let ynDiagReason = 'esperando primera lectura';
         function ynMotionDiagnosticText() {
@@ -23904,6 +23912,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         }
         
         let ynMotionHighlightLayer = null;
+        let ynMotionGridOrigin = null;
         let ynLastMotionIntLevel = -1;
         let ynMotionBoxesTimer = null;
         let ynLastMotionBoxFitKey = '';
@@ -23915,22 +23924,13 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         }
         function ynMotionPlaceLabel(stations) {
             try {
-                if (!stations || !stations.length) return 'Japón';
-                // Preferencia: nombre de estación NIED / Yahoo
-                const names = [];
-                stations.slice(0, 4).forEach(st => {
-                    const nied = st.nied || (typeof ynLookupNied === 'function' ? ynLookupNied(st.lat, st.lon) : null);
-                    if (nied && (nied.pref || nied.name)) names.push(nied.pref || nied.name);
-                    else if (typeof ynSiteCode === 'function' && ynSites[st.index]) {
-                        const c = ynSiteCode(ynSites[st.index]);
-                        if (c) names.push(c);
-                    }
-                });
-                if (names.length) return [...new Set(names)].slice(0, 3).join(' · ');
-                const lat = stations.reduce((a,s)=>a+s.lat,0)/stations.length;
-                const lon = stations.reduce((a,s)=>a+s.lon,0)/stations.length;
-                return lat.toFixed(2) + '°, ' + lon.toFixed(2) + '°';
-            } catch (_) { return 'Japón'; }
+                if(!stations||!stations.length)return 'Área sin ubicar';
+                const names=[];
+                stations.forEach(st=>{const nied=st.nied||(typeof ynLookupNied==='function'?ynLookupNied(st.lat,st.lon):null);const name=ynSpanishPrefecture(nied&&nied.pref);if(name&&!names.includes(name))names.push(name);});
+                if(names.length)return names.slice(0,6).join(' · ');
+                const lat=stations.reduce((a,x)=>a+Number(x.lat),0)/stations.length,lon=stations.reduce((a,x)=>a+Number(x.lon),0)/stations.length;
+                return 'Área aprox. '+lat.toFixed(2)+'°, '+lon.toFixed(2)+'°';
+            }catch(_){return 'Área sin ubicar';}
         }
         function ynMotionBoxBounds(stations) {
             const valid=(stations||[]).map(s=>({lat:Number(s.lat),lon:Number(s.lon)}))
@@ -23942,98 +23942,46 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         }
         function ynUpdateMotionBoxes(groupsOrStations) {
             try {
-                if (typeof map === 'undefined' || !map || typeof L === 'undefined') return;
-                if (!ynMotionHighlightLayer) ynMotionHighlightLayer = L.layerGroup().addTo(map);
+                if(typeof map==='undefined'||!map||typeof L==='undefined')return;
+                if(!ynMotionHighlightLayer)ynMotionHighlightLayer=L.layerGroup().addTo(map);
                 ynMotionHighlightLayer.clearLayers();
-                const grouped=Array.isArray(groupsOrStations) && groupsOrStations.length && Array.isArray(groupsOrStations[0]);
-                const clusters=(grouped ? groupsOrStations : [groupsOrStations || []]).slice(0,2);
-                const boxes=clusters.map(ynMotionBoxBounds).filter(Boolean);
-                if(!boxes.length){ynLastMotionBoxFitKey='';return;}
-                // Un marco independiente por cada grupo cercano; nunca se unen áreas lejanas.
-                boxes.forEach((bounds,index)=>L.rectangle(bounds, {
-                    className: 'yn-motion-box', color:index===0?'#ff3030':'#ffad42', weight:3, opacity:.98,
-                    fill:false, fillOpacity:0, interactive:false, pane:'overlayPane'
-                }).addTo(ynMotionHighlightLayer));
-                const layout=document.getElementById('mainLayout');
-                if(ynUserMapControl||mapUserHasControl)ynLastMotionBoxFitKey='';
-                if(!layout?.classList.contains('japan-focus')||ynUserMapControl||mapUserHasControl)return;
-                const allCorners=boxes.flat(1);
-                const combined=[[Math.min(...allCorners.map(b=>b[0])),Math.min(...allCorners.map(b=>b[1]))],
-                    [Math.max(...allCorners.map(b=>b[0])),Math.max(...allCorners.map(b=>b[1]))]];
-                const key=boxes.flat(2).map(v=>Number(v).toFixed(3)).join(',');
-                if(key===ynLastMotionBoxFitKey)return;
-                ynLastMotionBoxFitKey=key;
-                programmaticMapMove=true;
-                map.fitBounds(combined,{padding:[48,48],maxZoom:boxes.length>1?7:8,animate:true,duration:.55});
-                setTimeout(()=>{programmaticMapMove=false;},700);
-            } catch (_) { programmaticMapMove=false; }
+                const grouped=Array.isArray(groupsOrStations)&&groupsOrStations.length&&Array.isArray(groupsOrStations[0]);
+                const source=grouped?groupsOrStations.flat():(Array.isArray(groupsOrStations)?groupsOrStations:[]),unique=new Map();
+                source.forEach(st=>{if(st&&Number.isFinite(Number(st.lat))&&Number.isFinite(Number(st.lon)))unique.set(st.index??`${st.lat},${st.lon}`,st);});
+                const stations=[...unique.values()];
+                if(!stations.length){ynMotionGridOrigin=null;ynLastMotionBoxFitKey='';return;}
+                if(!ynMotionGridOrigin){const anchor=[...stations].sort((a,b)=>(Number(b.code)||0)-(Number(a.code)||0))[0],offset=v=>Math.round(((Number(v)+180)%1)*10)/10;ynMotionGridOrigin={lat:offset(anchor.lat),lon:offset(anchor.lon)};}
+                const cells=new Map();
+                stations.forEach(st=>{const lat=Math.round(Number(st.lat)-ynMotionGridOrigin.lat)+ynMotionGridOrigin.lat,lon=Math.round(Number(st.lon)-ynMotionGridOrigin.lon)+ynMotionGridOrigin.lon,key=lat.toFixed(3)+','+lon.toFixed(3),code=Number(st.code)||0;if(!cells.has(key)||code>cells.get(key).code)cells.set(key,{lat,lon,code});});
+                cells.forEach(cell=>{const color=cell.code<=7?'#38bf34':cell.code<=13?'#ffff00':'#ff3030';L.rectangle([[cell.lat-.495,cell.lon-.495],[cell.lat+.495,cell.lon+.495]],{className:'yn-movement-box',color,weight:2,opacity:.98,fill:false,fillOpacity:0,interactive:false,pane:'overlayPane'}).addTo(ynMotionHighlightLayer);});
+                ynLastMotionBoxFitKey=[...cells.keys()].sort().join('|');
+            }catch(_){}
         }
         function ynClearMotionBoxes() {
-            try { if (ynMotionHighlightLayer) ynMotionHighlightLayer.clearLayers(); } catch (_) {}
-            ynLastMotionBoxFitKey='';
-            const secondary=document.getElementById('ynEarlyAlertSecondary');
-            if(secondary){secondary.classList.remove('active','yn-motion-active','yn-weak','yn-shaking','yn-strong');secondary.innerHTML='';}
+            try{if(ynMotionHighlightLayer)ynMotionHighlightLayer.clearLayers();}catch(_){}
+            ynLastMotionBoxFitKey='';ynMotionGridOrigin=null;
         }
-        function ynPositionSecondaryMotionPanel() {
-            const primary=document.getElementById('ynEarlyAlert');
-            const secondary=document.getElementById('ynEarlyAlertSecondary');
-            if(!primary||!secondary)return;
-            const top=Math.max(12,(primary.offsetTop||12)+(primary.offsetHeight||0)+8);
-            secondary.style.top=top+'px';
-        }
-        function ynShowMotionPanel(alert, stations, maxInstr, updateBoxes=true, areaNumber=1) {
-            if (!alert) return;
-            const place = ynMotionPlaceLabel(stations);
-            const shindo = Math.max(0, Math.min(7, Number(maxInstr) || 0));
-            let label = '0';
-            if (typeof ynIntensityLabel === 'function') {
-                const code = Math.round((shindo + 3) * 2);
-                label = ynIntensityLabel(code);
-            } else if (shindo < 0.5) label = '0';
-            else if (shindo < 4.5) label = String(Math.round(shindo));
-            else if (shindo < 5) label = '5−';
-            else if (shindo < 5.5) label = '5+';
-            else if (shindo < 6) label = '6−';
-            else if (shindo < 6.5) label = '6+';
-            else label = '7';
-            let pgaTxt = '—';
-            try {
-                if (typeof ynCodeToApproxPgaPgv === 'function') {
-                    const code = Math.round((Number(maxInstr) + 3) * 2);
-                    const approx = ynCodeToApproxPgaPgv(Math.max(0, code));
-                    if (approx && approx.pga > 0.05) pgaTxt = (approx.pga >= 10 ? approx.pga.toFixed(1) : approx.pga.toFixed(2)) + ' gal';
-                }
-            } catch (_) {}
-            const n = stations ? stations.length : 0;
-            const shakingTier = ynShakingLevel(shindo);
-            const title = shakingTier.title;
-            alert.innerHTML =
-                '<div class="yn-alert-head"><span>🇯🇵 NIED · detección' + (areaNumber>1?' · Área '+areaNumber:'') + '</span><span class="yn-alert-badge">EN VIVO</span></div>' +
-                '<div class="yn-motion-title">' + title + '</div>' +
-                '<div class="yn-motion-place">' + place + '</div>' +
-                '<div class="yn-motion-metrics">' +
-                '<div>Máx. Int.<b>' + label + '</b></div>' +
-                '<div>Máx. PGA ≈<b style="font-size:14px">' + pgaTxt + '</b></div>' +
-                '<div>Estaciones<b style="font-size:14px">' + n + '</b></div>' +
-                '</div>' +
-                '<div class="yn-alert-foot">≥2 estaciones coherentes · confirmación en dos lecturas · detección local</div>';
-            alert.classList.remove('yn-weak','yn-shaking','yn-strong');
-            alert.classList.add('active', 'yn-motion-active', 'yn-' + shakingTier.level);
+        function ynShowMotionPanel(alert,stations,maxInstr,updateBoxes=false){
+            if(!alert)return;
+            const place=ynMotionPlaceLabel(stations),shindo=Math.max(0,Math.min(7,Number(maxInstr)||0));
+            let label='0';
+            if(typeof ynIntensityLabel==='function')label=ynIntensityLabel(Math.round((shindo+3)*2));
+            else if(shindo<4.5)label=String(Math.round(shindo));else if(shindo<5)label='5−';else if(shindo<5.5)label='5+';else if(shindo<6)label='6−';else if(shindo<6.5)label='6+';else label='7';
+            let pgaTxt='—';try{if(typeof ynCodeToApproxPgaPgv==='function'){const code=Math.round((Number(maxInstr)+3)*2),approx=ynCodeToApproxPgaPgv(Math.max(0,code));if(approx&&approx.pga>.05)pgaTxt=(approx.pga>=10?approx.pga.toFixed(1):approx.pga.toFixed(2))+' gal';}}catch(_){}
+            alert.innerHTML='<div class="yn-alert-head"><span>🇯🇵 NIED · detección local</span><span class="yn-alert-badge">EN VIVO</span></div><div class="yn-motion-title">Movimiento instrumental</div><div class="yn-motion-place">'+place+'</div><div class="yn-motion-metrics"><div>Máx. Int.<b>'+label+'</b></div><div>Máx. PGA ≈<b style="font-size:14px">'+pgaTxt+'</b></div><div>Estaciones<b style="font-size:14px">'+(stations?stations.length:0)+'</b></div></div><div class="yn-alert-foot">Vecinos ≤30–40 km · actividad ponderada · 2 lecturas · celdas ~0,99° · sin epicentro oficial</div>';
+            alert.classList.remove('yn-weak','yn-shaking','yn-strong');alert.classList.add('active','yn-motion-active');
             if(updateBoxes)ynUpdateMotionBoxes(stations);
         }
-        function ynRenderMotionGroups(groups, primaryAlert=document.getElementById('ynEarlyAlert')) {
-            const valid=(Array.isArray(groups)?groups:[]).filter(g=>Array.isArray(g?.stations)&&g.stations.length>=YN_MOTION_QUORUM).slice(0,2);
+        function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEarlyAlert')){
+            const valid=(Array.isArray(groups)?groups:[]).filter(g=>Array.isArray(g&&g.stations)&&g.stations.length>=YN_MOTION_QUORUM).slice(0,2);
             if(!valid.length||!primaryAlert)return;
-            const secondary=document.getElementById('ynEarlyAlertSecondary');
-            ynShowMotionPanel(primaryAlert,valid[0].stations,valid[0].maxIntensity,false,1);
-            const primaryPlace=primaryAlert.querySelector('.yn-motion-place');
-            if(primaryPlace&&valid[0].prefectures?.length)primaryPlace.textContent=valid[0].prefectures.join(' · ');
-            if(valid[1]&&secondary){
-                ynShowMotionPanel(secondary,valid[1].stations,valid[1].maxIntensity,false,2);
-                const secondaryPlace=secondary.querySelector('.yn-motion-place');
-                if(secondaryPlace&&valid[1].prefectures?.length)secondaryPlace.textContent=valid[1].prefectures.join(' · ');
-                ynPositionSecondaryMotionPanel();
-            }else if(secondary){secondary.classList.remove('active','yn-motion-active','yn-weak','yn-shaking','yn-strong');secondary.innerHTML='';}
+            const stationMap=new Map();valid.forEach(g=>(g.stations||[]).forEach(st=>stationMap.set(st.index??`${st.lat},${st.lon}`,st)));
+            const stations=[...stationMap.values()],maxIntensity=Math.max(...valid.map(g=>Number(g.maxIntensity)||0));
+            ynShowMotionPanel(primaryAlert,stations,maxIntensity,false);
+            const placeLabels=[];
+            valid.forEach(g=>{const names=Array.isArray(g.prefectures)?g.prefectures.filter(name=>name&&name!=='Japón'):[];if(names.length)placeLabels.push(...names);else if(Number.isFinite(Number(g.lat))&&Number.isFinite(Number(g.lon)))placeLabels.push('Área aprox. '+Number(g.lat).toFixed(2)+'°, '+Number(g.lon).toFixed(2)+'°');});
+            const places=[...new Set(placeLabels)],placeEl=primaryAlert.querySelector('.yn-motion-place');
+            if(placeEl)placeEl.textContent=places.length?(places.some(name=>name.startsWith('Área aprox.'))?'Prefecturas/áreas: ':'Prefecturas: ')+places.join(' · '):'Ubicación no disponible';
             ynUpdateMotionBoxes(valid.map(g=>g.stations));
         }
 
@@ -24072,7 +24020,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             const frameStations = [];
             for (let i=0; i<ynSites.length; i++) {
                 const code = i < intensity.length ? intensity.charCodeAt(i) - 100 : NaN;
-                const rec = ynStationTimes.get(i) || { first6:0, last6:0, lastCode:null, prevCode:null };
+                const rec = ynStationTimes.get(i) || { first6:0, last6:0, lastCode:null, prevCode:null, recentCodes:[], motionRise:0, motionActivity:0 };
                 const prevCode = Number.isInteger(rec.lastCode) ? rec.lastCode : null;
                 const motionDelta = prevCode === null ? 0 : code - prevCode;
                 const codeValid = Number.isInteger(code) && code >= 0 && code <= 20;
@@ -24082,21 +24030,26 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 // Los códigos sin lectura son estaciones desconocidas, no una trama
                 // completa inválida: jamás se pintan como activas ni cuentan al quorum.
                 if (!codeValid) {
-                    rec.first6=0; rec.last6=0; rec.lastCode=null; rec.lastSeen=t; ynStationTimes.set(i, rec);
+                    rec.first6=0; rec.last6=0; rec.lastCode=null; rec.recentCodes=[]; rec.motionRise=0; rec.motionActivity=0; rec.lastSeen=t; ynStationTimes.set(i, rec);
                     continue;
                 }
                 validStationCodes++;
                 // Una estación cuenta desde intensidad instrumental 0.0 (code 6).
                 // La subida rápida solo se considera si la lectura también alcanza 0.0.
-                const motionDetected = code >= YN_ACTIVE_CODE_MIN || (motionDelta >= YN_MOTION_DELTA_MIN && code >= 6);
+                const recentCodes=Array.isArray(rec.recentCodes)?rec.recentCodes.filter(v=>Number.isInteger(v)&&v>=0&&v<=20):[];
+                const lowRecent=recentCodes.length?Math.min(...recentCodes):code;
+                const rise=Math.max(0,code-lowRecent);
+                const activity=code>=YN_ACTIVE_CODE_MIN?1+Math.min(1.5,Math.max(0,code-YN_ACTIVE_CODE_MIN)*0.25)+Math.min(1.5,rise*0.25):0;
+                const motionDetected = code >= YN_ACTIVE_CODE_MIN || (motionDelta >= YN_MOTION_DELTA_MIN && code >= YN_ACTIVE_CODE_MIN);
                 if (motionDetected) {
-                    if (Number.isFinite(lat) && Number.isFinite(lon)) frameStations.push({ index:i, code, lat, lon, motionDelta });
+                    if (Number.isFinite(lat) && Number.isFinite(lon)) frameStations.push({ index:i, code, lat, lon, motionDelta, rise, activity });
                     if (!rec.first6) rec.first6=t;
                     rec.last6=t;
                 } else {
                     rec.first6=0; rec.last6=0;
                 }
                 rec.prevCode = prevCode;
+                rec.motionRise=rise; rec.motionActivity=activity; rec.recentCodes=[code,...recentCodes].slice(0,6);
                 rec.lastCode = code; rec.lastSeen = t; ynStationTimes.set(i, rec);
                 ynPreviousStationCodes.set(i, code);
             }
@@ -24200,15 +24153,41 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             window.__realEarthquakePriority(pending);
         }
 
-        // Distancia geográfica real entre estaciones. El umbral de coherencia
-        // es ~300 km, no una caja de grados: así no se aceptan pares lejanos
-        // solo porque estén cerca en longitud/latitud proyectadas.
+        // Distancia geográfica real entre estaciones. La vecindad es local
+        // (hasta 30 km y un único respaldo hasta 40 km), no una caja de grados.
         function ynDistanceKm(a, b) {
             const lat1 = Number(a?.lat), lon1 = Number(a?.lon), lat2 = Number(b?.lat), lon2 = Number(b?.lon);
             if (![lat1, lon1, lat2, lon2].every(Number.isFinite)) return Infinity;
             const rad = Math.PI / 180, dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
             const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
             return 6371.0088 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1 - h)));
+        }
+
+        function ynResetMotionNeighborIndex() { ynMotionNeighborIndex.clear(); ynMotionNeighborIndexSize=-1; }
+        function ynBuildMotionNeighborIndex() {
+            if(ynMotionNeighborIndexSize===ynSites.length&&ynMotionNeighborIndex.size===ynSites.length)return;
+            ynMotionNeighborIndex.clear();
+            const points=(ynSites||[]).map((site,index)=>({index,lat:Number(Array.isArray(site)?site[0]:site?.lat),lon:Number(Array.isArray(site)?site[1]:site?.lon)}));
+            const step=.5,buckets=new Map();
+            points.forEach(point=>{if(!Number.isFinite(point.lat)||!Number.isFinite(point.lon))return;const key=Math.floor(point.lat/step)+','+Math.floor(point.lon/step);if(!buckets.has(key))buckets.set(key,[]);buckets.get(key).push(point.index);});
+            points.forEach(point=>{
+                if(!Number.isFinite(point.lat)||!Number.isFinite(point.lon)){ynMotionNeighborIndex.set(point.index,[]);return;}
+                const row=Math.floor(point.lat/step),col=Math.floor(point.lon/step),candidates=new Set();
+                for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++)(buckets.get((row+dy)+','+(col+dx))||[]).forEach(index=>{if(index!==point.index)candidates.add(index);});
+                const distances=[...candidates].map(index=>({index,km:ynDistanceKm(point,points[index])})).filter(x=>x.km<=YN_MOTION_RADIUS_KM).sort((a,b)=>a.km-b.km);
+                const near30=distances.filter(x=>x.km<=30),picked=near30.slice(0,6);
+                if(near30.length<2){const backup=distances.find(x=>x.km>30&&!picked.some(y=>y.index===x.index));if(backup)picked.push(backup);}
+                ynMotionNeighborIndex.set(point.index,picked.map(x=>x.index));
+            });
+            ynMotionNeighborIndexSize=ynSites.length;
+        }
+        function ynMotionNeighbors(index) { ynBuildMotionNeighborIndex(); return ynMotionNeighborIndex.get(Number(index))||[]; }
+        function ynStationMotionActivity(station) {
+            const code=Number(station&&station.code);if(!Number.isFinite(code)||code<YN_ACTIVE_CODE_MIN)return 0;
+            const rec=ynStationTimes.get(station.index)||{};
+            const rise=Number(station.rise??rec.motionRise??station.motionDelta??0);
+            const signal=1+Math.min(1.5,Math.max(0,code-YN_ACTIVE_CODE_MIN)*.25);
+            return signal+Math.min(1.5,Math.max(0,rise)*.25);
         }
 
         // Deriva una instantánea coherente del feed. Solo cuentan códigos >= 6
@@ -24223,14 +24202,14 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 const lat = Number(Array.isArray(site) ? site[0] : NaN);
                 const lon = Number(Array.isArray(site) ? site[1] : NaN);
                 if (Number.isInteger(code) && code >= YN_ACTIVE_CODE_MIN && code <= 20 && Number.isFinite(lat) && Number.isFinite(lon)) {
-                    active.push({ index:i, code, lat, lon });
+                    const rec=ynStationTimes.get(i)||{};
+                    active.push({ index:i, code, lat, lon, rise:Number(rec.motionRise)||0, activity:Number(rec.motionActivity)||1 });
                 }
             }
             return active;
         }
-        // Una sola estación puede colorearse, pero nunca es evidencia suficiente
-        // para detección, ondas, cuadro o autoapertura. La coherencia exige que cada
-        // estación activa tenga al menos otra dentro de ~300 km.
+        // Una sola estación puede colorearse, pero no activa detector, cuadro
+        // ni autoapertura. Se exige una pareja vecina con actividad ponderada.
         function ynCoherentActiveStations(stations = ynActiveStations()) {
             if (!Array.isArray(stations) || !stations.length) return [];
             const quorum = (typeof YN_MOTION_QUORUM === 'number') ? YN_MOTION_QUORUM : 2;
@@ -24332,37 +24311,35 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         }
 
         function ynClusterActiveStations(stations) {
-            // Agrupación de diámetro limitado: todas las estaciones de un grupo
-            // deben quedar a ≤300 km entre sí; grupos remotos nunca se fusionan.
-            const thresholdKm = (typeof YN_MOTION_RADIUS_KM === 'number') ? YN_MOTION_RADIUS_KM : 300;
-            const quorum = (typeof YN_MOTION_QUORUM === 'number') ? YN_MOTION_QUORUM : 2;
-            const groups=[];
-            const ordered=(Array.isArray(stations)?stations:[]).filter(st=>Number.isFinite(Number(st?.lat))&&Number.isFinite(Number(st?.lon)))
-                .slice().sort((a,b)=>(Number(b.code)||0)-(Number(a.code)||0));
+            const quorum=YN_MOTION_QUORUM;
+            const ordered=(Array.isArray(stations)?stations:[]).filter(st=>st&&Number.isFinite(Number(st.lat))&&Number.isFinite(Number(st.lon))&&Number.isFinite(Number(st.index)))
+                .map(st=>({...st,activity:ynStationMotionActivity(st)}))
+                .sort((a,b)=>b.activity-a.activity||(Number(b.code)||0)-(Number(a.code)||0));
+            if(ordered.length<quorum)return [];
+            const activeByIndex=new Map(ordered.map(st=>[Number(st.index),st]));
+            const adjacency=new Map(ordered.map(st=>[Number(st.index),new Set()]));
+            ordered.forEach(st=>ynMotionNeighbors(st.index).forEach(index=>{if(activeByIndex.has(index)){adjacency.get(Number(st.index)).add(Number(index));adjacency.get(Number(index)).add(Number(st.index));}}));
+            const qualifying=new Set();
             ordered.forEach(st=>{
-                let best=-1,bestDiameter=Infinity;
-                groups.forEach((group,index)=>{
-                    const maxDistance=Math.max(...group.stations.map(other=>ynDistanceKm(st,other)));
-                    if(maxDistance<=thresholdKm&&maxDistance<bestDiameter){best=index;bestDiameter=maxDistance;}
-                });
-                if(best>=0)groups[best].stations.push(st);
-                else groups.push({stations:[st]});
+                const ids=[Number(st.index),...ynMotionNeighbors(st.index)].filter((id,i,a)=>a.indexOf(id)===i&&activeByIndex.has(id));
+                if(ids.length<quorum)return;
+                let score=0,usedFallback=false;
+                ids.forEach(id=>{const other=activeByIndex.get(id),distance=id===Number(st.index)?0:ynDistanceKm(st,other),weight=distance>30?.75:1;if(distance>30)usedFallback=true;score+=ynStationMotionActivity(other)*weight;});
+                if(score>=(usedFallback?1.7:2.0))qualifying.add(Number(st.index));
             });
-            // Mantener como máximo dos áreas dominantes para no saturar móviles;
-            // se descartan, no se mezclan, otros grupos alejados.
-            const eligible=groups.filter(g=>g.stations.length>=quorum)
-                .sort((a,b)=>b.stations.length-a.stations.length || Math.max(...b.stations.map(s=>Number(s.code)||0))-Math.max(...a.stations.map(s=>Number(s.code)||0)))
-                .slice(0,2);
-            return eligible.map(g=>{
-                const timed=g.stations.map(st=>({s:st,t:ynStationTimes.get(st.index)?.first6||ynLastObservedMs||Date.now()}));
-                const t0=Math.min(...timed.map(x=>x.t));
-                const weights=timed.map(x=>1+Math.min(2,Math.max(0,(x.t-t0)/1000))*.12);
-                const ws=weights.reduce((a,b)=>a+b,0);
-                const lat=timed.reduce((a,x,i)=>a+x.s.lat*weights[i],0)/ws;
-                const lon=timed.reduce((a,x,i)=>a+x.s.lon*weights[i],0)/ws;
-                const maxCode=Math.max(...g.stations.map(st=>Number(st.code)||0));
-                return {...g,lat,lon,firstObserved:t0,maxCode,maxIntensity:(-3+maxCode*.5).toFixed(1),signature:g.stations.map(st=>st.index).sort((a,b)=>a-b).join(',')};
+            const visited=new Set(),components=[];
+            ordered.forEach(seed=>{
+                const seedId=Number(seed.index);if(!qualifying.has(seedId)||visited.has(seedId))return;
+                const queue=[seedId],members=[];visited.add(seedId);
+                while(queue.length){const id=queue.shift();members.push(activeByIndex.get(id));(adjacency.get(id)||[]).forEach(next=>{if(!visited.has(next)){visited.add(next);queue.push(next);}});}
+                if(members.length<quorum)return;
+                const maxCode=Math.max(...members.map(st=>Number(st.code)||0));
+                const timed=members.map(st=>({s:st,t:ynStationTimes.get(st.index)?.first6||ynLastObservedMs||Date.now()}));
+                const t0=Math.min(...timed.map(x=>x.t)),weights=timed.map(x=>1+Math.min(2,Math.max(0,(x.t-t0)/1000)*.12)),ws=weights.reduce((a,b)=>a+b,0);
+                const lat=timed.reduce((a,x,i)=>a+x.s.lat*weights[i],0)/ws,lon=timed.reduce((a,x,i)=>a+x.s.lon*weights[i],0)/ws;
+                components.push({stations:members,lat,lon,firstObserved:t0,maxCode,maxIntensity:(-3+maxCode*.5).toFixed(1),activityScore:members.reduce((a,st)=>a+st.activity,0),signature:members.map(st=>st.index).sort((a,b)=>a-b).join(',')});
             });
+            return components.sort((a,b)=>b.stations.length-a.stations.length||b.activityScore-a.activityScore||b.maxCode-a.maxCode).slice(0,2);
         }
         function ynUpdateMotionGroupConfirmation(groups) {
             const stamp=Number(ynLastObservedMs)||0;
@@ -24515,45 +24492,61 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             '熊本県':'Kumamoto','大分県':'Oita','宮崎県':'Miyazaki','鹿児島県':'Kagoshima','沖縄県':'Okinawa'
         };
         const ynPrefectureCache = new Map();
+        const ynPrefectureResolveTasks = new Map();
         function ynSpanishPrefecture(raw) {
-            const text = String(raw || '').trim();
-            if (!text) return 'Japón';
-            if (ynPrefectureSpanish[text]) return ynPrefectureSpanish[text];
-            const translated = text.replace(/^(?:Prefectura|Provincia|Metropolitana)\s+de\s+/i, '').trim();
-            const translatedHit = Object.entries(ynPrefectureSpanish).find(([, value]) => value.toLowerCase() === translated.toLowerCase());
-            if (translatedHit) return translatedHit[1];
-            const clean = text.replace(/[都府県]$/, '');
-            const hit = Object.keys(ynPrefectureSpanish).find(k => k.replace(/[都府県]$/, '') === clean);
-            if (hit) return ynPrefectureSpanish[hit];
-            return translated.replace(/ Prefecture$/i, '').replace(/ Metropolitan$/i, '').replace(/ Province$/i, '') || 'Japón';
+            const text=String(raw||'').trim();
+            if(!text||/^(?:japan|japón|日本)$/i.test(text))return '';
+            if(ynPrefectureSpanish[text])return ynPrefectureSpanish[text];
+            const clean=text.replace(/^(?:Prefectura|Provincia|Metropolitana)\s+de\s+/i,'').replace(/[都府県]$/,'').trim();
+            const direct=Object.entries(ynPrefectureSpanish).find(([key])=>key.replace(/[都府県]$/,'').toLowerCase()===clean.toLowerCase());
+            if(direct)return direct[1];
+            const suffix=clean.replace(/\s+(?:Prefecture|Metropolitan|Province)$/i,'').trim();
+            const romanized=Object.entries(ynPrefectureSpanish).find(([,value])=>value.toLowerCase()===suffix.toLowerCase());
+            return romanized?romanized[1]:'';
         }
-        function ynCachedPrefecture(lat, lon) {
-            const key = `${Number(lat).toFixed(3)},${Number(lon).toFixed(3)}`;
-            return ynPrefectureCache.get(key) || '';
+        function ynCachedPrefecture(lat,lon){const key=`${Number(lat).toFixed(3)},${Number(lon).toFixed(3)}`;return ynPrefectureCache.get(key)||'';}
+        async function ynResolvePrefecture(lat,lon){
+            const key=`${Number(lat).toFixed(3)},${Number(lon).toFixed(3)}`;
+            if(ynPrefectureCache.has(key))return ynPrefectureCache.get(key);
+            try{
+                const local=typeof ynLookupNied==='function'?ynLookupNied(lat,lon):null;
+                const localName=ynSpanishPrefecture(local&&local.pref);
+                if(localName){ynPrefectureCache.set(key,localName);return localName;}
+            }catch(_){}
+            try{
+                const wait=Math.max(0,1100-(Date.now()-ynNominatimLastRequestAt));
+                if(wait)await new Promise(resolve=>setTimeout(resolve,wait));
+                ynNominatimLastRequestAt=Date.now();
+                const url=`https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&format=jsonv2&zoom=10&accept-language=es`;
+                const res=await fetch(url,{headers:{'Accept':'application/json'},cache:'force-cache'});
+                if(!res.ok)throw new Error('reverse geocode HTTP '+res.status);
+                const data=await res.json(),address=data&&data.address||{};
+                const value=ynSpanishPrefecture(address.state||address.province||address.region||address.county||'');
+                if(value){ynPrefectureCache.set(key,value);return value;}
+            }catch(_){}
+            ynPrefectureCache.set(key,'');
+            return '';
         }
-        async function ynResolvePrefecture(lat, lon) {
-            const key = `${Number(lat).toFixed(3)},${Number(lon).toFixed(3)}`;
-            if (ynPrefectureCache.has(key)) return ynPrefectureCache.get(key);
-            try {
-                const url = `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&format=jsonv2&zoom=10&accept-language=es`;
-                const res = await fetch(url, { headers: { 'Accept':'application/json' }, cache:'force-cache' });
-                if (!res.ok) throw new Error('reverse geocode HTTP '+res.status);
-                const data = await res.json();
-                const a = data?.address || {};
-                const value = ynSpanishPrefecture(a.state || a.province || a.region || 'Japón');
-                ynPrefectureCache.set(key, value);
-                return value;
-            } catch (_) {
-                return 'Japón';
-            }
-        }
-        async function ynResolvePrefectures(stations) {
-            const out = [];
-            for (const st of (stations || []).slice(0, 12)) {
-                const name = await ynResolvePrefecture(st.lat, st.lon);
-                if (name && !out.includes(name)) out.push(name);
-            }
-            return out;
+        async function ynResolvePrefectures(stations){
+            const list=Array.isArray(stations)?stations:[];
+            const key=list.map(st=>`${st.index}:${Number(st.lat).toFixed(3)},${Number(st.lon).toFixed(3)}`).sort().join('|');
+            if(!key)return [];
+            if(ynPrefectureResolveTasks.has(key))return ynPrefectureResolveTasks.get(key);
+            const task=(async()=>{
+                const out=[],unresolved=[];
+                for(const st of list){
+                    const local=typeof ynLookupNied==='function'?ynLookupNied(st.lat,st.lon):null;
+                    const name=ynSpanishPrefecture(local&&local.pref);
+                    if(name&&!out.includes(name))out.push(name);else if(!name)unresolved.push(st);
+                }
+                for(const st of unresolved.slice(0,3)){
+                    const name=await ynResolvePrefecture(st.lat,st.lon);
+                    if(name&&!out.includes(name))out.push(name);
+                }
+                return out;
+            })();
+            ynPrefectureResolveTasks.set(key,task);
+            try{return await task;}finally{if(ynPrefectureResolveTasks.get(key)===task)ynPrefectureResolveTasks.delete(key);}
         }
         function ynShakingLevel(intensity) {
             const value=Number(intensity);
@@ -24566,7 +24559,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             const tier = ynShakingLevel(raw);
             const level = tier.level;
             const title = tier.title;
-            const places = (mainGroup?.prefectures || []).length ? mainGroup.prefectures : ['Japón'];
+            const places = (mainGroup?.prefectures || []).filter(x=>x&&x!=='Japón').length ? mainGroup.prefectures.filter(x=>x&&x!=='Japón') : [ynMotionPlaceLabel(mainGroup?.stations||[])];
             return { level, html: `<div class="yn-alert-head"><span>${title}</span><span class="yn-alert-badge">NIED</span></div>`
                 + `<div class="yn-alert-sub">${places.map(x => `<span class="yn-place">${x}</span>`).join(' ')}</div>`
                 + `<div class="yn-alert-foot">Intensidad máxima detectada: ${Number.isFinite(raw) ? raw.toFixed(1).replace(/\.0$/, '') : '0'} · ${current.length} estación${current.length === 1 ? '' : 'es'} · cuadro local de detección</div>` };
@@ -24671,7 +24664,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             const signature = groups.flatMap(g=>g.stations).map(st=>st.index).sort((a,b)=>a-b).join(',');
             ynGroups=groups;
             window.__ynLastMotionGroups=groups;
-            // Un panel y un marco por cada área coherente, máximo dos áreas.
+            // Un panel resume las prefecturas; las áreas se marcan con celdas locales.
             try {
                 ynRenderMotionGroups(groups,alert);
                 ynPlayMotionIntensitySound(mainGroup.maxIntensity, signature);
@@ -24733,8 +24726,11 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             groups.forEach(group=>{
                 if(!group.prefectures){
                     group.prefectures=[];
+                    const groupSignature=group.signature;
                     ynResolvePrefectures(group.stations||[]).then(names=>{
                         group.prefectures=names;
+                        const latest=(ynGroups||[]).find(item=>item.signature===groupSignature);
+                        if(latest)latest.prefectures=names;
                         if(ynEarlyEpisode&&ynActiveSignature===signature)ynRenderMotionGroups(ynGroups,alert);
                     });
                 }
@@ -25891,6 +25887,7 @@ function ynBuildLeafletMarkers() {
                             ynFetchHosts('/SiteList/sitelist.json', 8000).then(fresh => {
                                 if (Array.isArray(fresh?.items) && fresh.items.length) {
                                     ynSites = fresh.items.filter(site => Array.isArray(site) && site.length >= 2 && Number.isFinite(Number(site[0])) && Number.isFinite(Number(site[1])));
+                                    ynResetMotionNeighborIndex();
                                     ynSites.siteConfigId = String(fresh.siteConfigId || '');
                                     ynCatalogCount = ynSites.length;
                                     ynLeafletBuilt = false;
@@ -25967,6 +25964,7 @@ function ynBuildLeafletMarkers() {
                     return;
                 }
                 ynSites = catalog.items.filter(site => Array.isArray(site) && site.length >= 2 && Number.isFinite(Number(site[0])) && Number.isFinite(Number(site[1])));
+                ynResetMotionNeighborIndex();
                 ynSites.siteConfigId = String(catalog.siteConfigId || '');
                 ynCatalogCount = ynSites.length;
                 ynFeedState = 'catálogo · ' + ynCatalogCount + ' sitios';
@@ -27415,7 +27413,7 @@ function ynBuildLeafletMarkers() {
 </div>
 
 <div id="eqSettingsModal" role="dialog" aria-modal="true" aria-labelledby="eqSettingsTitle"><div id="eqSettingsDialog"><div class="eqs-head"><span id="eqSettingsTitle">Ajustes</span><button class="eqs-close" id="eqSettingsClose" type="button">×</button></div><div class="eqs-section"><div class="eqs-title">Apartados</div><div class="eqs-muted">Abre las alertas meteorológicas oficiales de Japón. Pulsa de nuevo para volver a la vista normal.</div><button class="eqs-control" id="eqsJmaWeatherToggle" type="button" aria-pressed="false" style="width:100%;margin-top:8px;text-align:left;padding:9px">🇯🇵 Alertas meteorológicas de Japón</button><button class="eqs-control" id="eqsJapanSeaStationsToggle" type="button" aria-pressed="false" style="width:100%;margin-top:8px;text-align:left;padding:9px">🌊 Mar de Japón · estaciones en vivo</button>
-<button class="eqs-control" id="eqsOpenSiatCt" type="button" style="width:100%;margin-top:8px;text-align:left;padding:9px">🌪️ SIAT-CT México · Ciclones tropicales</button><div class="eqs-muted">Las zonas oficiales se dibujan en el mapa; un boletín nuevo enfoca la alerta durante 15 segundos.</div>
+<button class="eqs-control" id="eqsOpenSiatCt" type="button" style="width:100%;margin-top:8px;text-align:left;padding:9px">🌪️ SIAT-CT México · Ciclones tropicales</button><div class="eqs-muted">Las zonas oficiales permanecen en el mapa; el apartado SIAT se abre solo ante un boletín nuevo y se cierra a los 15 segundos.</div>
 <div class="sismos-auto-box">
 <button class="eqs-control" id="eqsMeteoCenterToggle" type="button" aria-pressed="false" style="width:100%;text-align:left;padding:9px">🌦️ Abrir Centro Meteorológico LIVE</button>
 <button class="eqs-control" id="eqsAutoExploreToggle" type="button" aria-pressed="false" style="width:100%;margin-top:8px;text-align:left;padding:9px">🔄 Modo automático: desactivado</button>
@@ -28663,25 +28661,57 @@ For more information on this, and how to apply and follow the GNU AGPL, see
   const colors={ROJA:'#ff0000',NARANJA:'#ffa500',AMARILLA:'#ffff00',VERDE:'#38bf34',AZUL:'#4f81bc'};
   const labels={ROJA:'Peligro máximo',NARANJA:'Peligro alto',AMARILLA:'Peligro medio',VERDE:'Peligro bajo',AZUL:'Peligro muy bajo'};
   const lastIdKey='earthquake.siatCt.lastBulletin.v2';
-  let layer=null,legend=null,focusTimer=null,programmaticUntil=0,manualViewRevision=0,currentSignature='',currentId='',busy=false,loaded=false;
+  let layer=null,focusTimer=null,programmaticUntil=0,manualViewRevision=0,currentSignature='',currentId='',busy=false,loaded=false;
   if(typeof map==='undefined'||typeof L==='undefined')return;
   map.on('movestart zoomstart',()=>{if(Date.now()>programmaticUntil)manualViewRevision++;});
   function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function ensureLegend(levels){
-    if(!legend){legend=L.control({position:'bottomright'});legend.onAdd=function(){const d=L.DomUtil.create('div','siatct-map-legend');d.id='siatCtMapLegend';d.style.cssText='background:rgba(9,16,25,.92);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:7px 9px;font:11px/1.35 system-ui;box-shadow:0 2px 10px #0008;max-width:185px';return d;};}
-    legend.addTo(map);const d=document.getElementById('siatCtMapLegend');if(!d)return;
-    d.innerHTML='<strong style="display:block;margin-bottom:4px">SIAT-CT · nivel oficial</strong>'+levels.filter(x=>Number(x.count)>0).map(x=>`<div style="display:flex;align-items:center;gap:6px;margin:2px 0"><i style="width:10px;height:10px;background:${esc(x.color)};border:1px solid #fff;display:inline-block"></i>${esc(x.label)}</div>`).join('');
+  const section=document.getElementById('siatAlertSection');
+  const closeButton=document.getElementById('siatAlertClose');
+  let alertTimer=null;
+  function closeSiatPopups(){
+    try{if(layer&&typeof layer.eachLayer==='function')layer.eachLayer(feature=>{const popup=feature&&typeof feature.getPopup==='function'?feature.getPopup():null;if(popup&&popup.isOpen())map.closePopup(popup);});}catch(_){}
+    try{const popup=map._popup,content=popup&&typeof popup.getContent==='function'?String(popup.getContent()):'';if(popup&&content.indexOf('SIAT-CT')>=0)map.closePopup(popup);}catch(_){}
+    const legacyLegend=document.getElementById('siatCtMapLegend');if(legacyLegend)legacyLegend.remove();
   }
-  function removeLegend(){if(legend&&map.hasLayer(legend))map.removeControl(legend);legend=null;}
+  function closeSiatAlertSection(){
+    if(alertTimer){clearTimeout(alertTimer);alertTimer=null;}
+    if(section){section.classList.remove('active');section.setAttribute('aria-hidden','true');}
+    closeSiatPopups();
+  }
+  function openSiatAlertSection(meta,data){
+    if(!section)return;
+    closeSiatPopups();
+    const bulletin=(meta&&meta.bulletin)||(data&&data.bulletin)||{};
+    const levels=(meta&&Array.isArray(meta.levels)?meta.levels:(data&&Array.isArray(data.levels)?data.levels:[]));
+    const setText=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=String(value||'').trim();};
+    const name=[bulletin.nombre,bulletin.categoria].filter(Boolean).map(v=>String(v).trim()).join(' · ');
+    setText('siatAlertName',name||'Nuevo boletín SIAT-CT');
+    const details=[];
+    if(bulletin.titulo)details.push(String(bulletin.titulo).trim());
+    const when=[bulletin.fecha,bulletin.hora].filter(Boolean).map(v=>String(v).trim()).join(' · ');if(when)details.push(when);
+    if(bulletin.localizacion)details.push(String(bulletin.localizacion).trim());
+    if(bulletin.desplazamiento)details.push('Desplazamiento: '+String(bulletin.desplazamiento).trim());
+    if(bulletin.sostenidos)details.push('Vientos sostenidos: '+String(bulletin.sostenidos).trim());
+    if(bulletin.rachas)details.push('Rachas: '+String(bulletin.rachas).trim());
+    setText('siatAlertMeta',details.join(' · '));
+    const levelsEl=document.getElementById('siatAlertLevels');
+    if(levelsEl)levelsEl.innerHTML=levels.filter(x=>Number(x.count)>0).map(x=>{const key=String(x.key||'').toUpperCase(),color=colors[key]||'#8899aa';return '<div class="siat-alert-level"><i class="siat-alert-swatch" style="background:'+esc(color)+'"></i><span>'+esc(labels[key]||x.label||key)+' · '+esc(x.count)+'</span></div>';}).join('');
+    setText('siatAlertComment',bulletin.comentarios||'');
+    section.classList.add('active');section.setAttribute('aria-hidden','false');
+    if(alertTimer)clearTimeout(alertTimer);alertTimer=setTimeout(closeSiatAlertSection,15000);
+  }
+  closeButton&&closeButton.addEventListener('click',closeSiatAlertSection);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&section&&section.classList.contains('active'))closeSiatAlertSection();});
   function focusAlert(bounds){
     if(!bounds||!bounds.isValid())return;
     clearTimeout(focusTimer);const previous={center:map.getCenter(),zoom:map.getZoom()};
     const revision=manualViewRevision;programmaticUntil=Date.now()+1800;
     if(typeof map.flyToBounds==='function')map.flyToBounds(bounds,{padding:[24,24],maxZoom:7,duration:1.0});
     else map.fitBounds(bounds,{padding:[24,24],maxZoom:7});
-    focusTimer=setTimeout(()=>{if(manualViewRevision!==revision)return;programmaticUntil=Date.now()+1500;if(typeof map.flyTo==='function')map.flyTo(previous.center,previous.zoom,{duration:.8});else map.setView(previous.center,previous.zoom);},15000);
+    focusTimer=setTimeout(()=>{closeSiatAlertSection();if(manualViewRevision!==revision)return;programmaticUntil=Date.now()+1500;if(typeof map.flyTo==='function')map.flyTo(previous.center,previous.zoom,{duration:.8});else map.setView(previous.center,previous.zoom);},15000);
   }
-  async function loadCurrent(expectedSignature){
+  async function loadCurrent(metaSnapshot){
+    const expectedSignature=String(metaSnapshot&&metaSnapshot.signature||'');
     const response=await fetch(worker+'/siat/current',{method:'GET',cache:'no-store',headers:{'Accept':'application/json'}});
     if(!response.ok)return false;
     const data=await response.json();
@@ -28689,20 +28719,18 @@ For more information on this, and how to apply and follow the GNU AGPL, see
     const features=data.featureCollection.features;
     if(!features.length&&data.warnings?.length)return false;
     if(layer){map.removeLayer(layer);layer=null;}
-    if(!features.length)removeLegend();
-    else{
+    if(features.length){
       layer=L.geoJSON(data.featureCollection,{
         style:f=>{const level=f?.properties?.siatLevel,color=colors[level]||f?.properties?.siatColor||'#ffb000';return{color,weight:1.5,opacity:.95,fillColor:color,fillOpacity:.38};},
         onEachFeature:(f,l)=>{const p=f.properties||{},level=p.siatLevel||'',phase=String(p.siatPhase||'').replace('ACERCÁNDOSE','Ciclón acercándose').replace('ALEJANDOSE','Ciclón alejándose'),state=p.siatState||p.CVE_ENT||p.cve_ent||'—',region=String(p.Regional_2||p.regional_2||'').trim()||'—',municipality=String(p.siatMunicipality||p.NOM_MUN||p.nom_mun||'').trim()||'—';l.bindPopup(`<b>SIAT-CT · ${esc(labels[level]||level||'Alerta')}</b><br>${esc(phase||'Zona alertada')}<br>Entidad: ${esc(state)}<br>Municipio: ${esc(municipality)}<br>Región oficial: ${esc(region)}`);}
       }).addTo(map);
-      ensureLegend(data.levels||[]);
     }
-    const id=String(data.bulletin?.idBoletin||''),signature=String(data.signature||expectedSignature||id);
+    const id=String(data.bulletin?.idBoletin||metaSnapshot?.bulletin?.idBoletin||''),signature=String(data.signature||expectedSignature||id);
     let previousId='';try{previousId=localStorage.getItem(lastIdKey)||'';}catch(_){}
-    const shouldFocus=(loaded&&currentSignature&&signature!==currentSignature)||(!loaded&&previousId&&id&&previousId!==id);
+    const isNewBulletin=!!id&&((loaded&&!!currentId&&id!==currentId)||(!loaded&&!!previousId&&id!==previousId));
     if(id){try{localStorage.setItem(lastIdKey,id);}catch(_){}}
     currentSignature=signature;currentId=id;loaded=true;
-    if(shouldFocus&&layer)focusAlert(layer.getBounds());
+    if(isNewBulletin){openSiatAlertSection(metaSnapshot,data);if(layer)focusAlert(layer.getBounds());}else closeSiatPopups();
     return true;
   }
   async function refresh(){
@@ -28711,7 +28739,7 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       const response=await fetch(worker+'/siat/meta',{method:'GET',cache:'no-store',headers:{'Accept':'application/json'}});
       if(!response.ok)return;
       const meta=await response.json();if(!meta?.ok||!meta.signature)return;
-      if(!loaded||String(meta.signature)!==currentSignature)await loadCurrent(meta.signature);
+      if(!loaded||String(meta.signature)!==currentSignature)await loadCurrent(meta);
     }catch(_){}finally{busy=false;}
   }
   setTimeout(refresh,2500);
