@@ -24581,7 +24581,6 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
 
         function ynCloseAutomatically() {
             if (!ynAutoOpened && !ynMotionAutoClosePending) return;
-            if(japanLiveStationsPinned){ynAutoOpened=false;ynMotionAutoClosePending=false;ynClearMotionIdleCloseTimer();return;}
             const wasJmaPriority = !!(typeof jmaWeatherAlertMode !== 'undefined' && jmaWeatherAlertMode);
             // Desarmar antes de redibujar evita una llamada recursiva desde
             // ynUpdateEarlyAlert cuando el feed ya está en reposo.
@@ -24590,6 +24589,17 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             ynClearMotionIdleCloseTimer();
             ynEarlyEpisode = false;
             ynAutoActivationAttempted = false;
+            ynLastMotionIntLevel=-1;ynGroups=[];ynWaveStartedAt=0;ynActiveSignature='';ynInitialViewDone=false;
+            try{ynClearMotionBoxes();}catch(_){}
+            try{ynStopWaveAnimation();}catch(_){}
+            if(japanLiveStationsPinned){
+                // Japón fijado permanece abierto, pero el episodio/aviso local sí se cierra.
+                const pinnedAlert=document.getElementById('ynEarlyAlert');
+                if(pinnedAlert)pinnedAlert.classList.remove('yn-motion-active','yn-weak','yn-shaking','yn-strong');
+                if(wasJmaPriority)window.__jmaWeatherWaveEnd?.();
+                else if(!ynLiveJmaEvent&&!ynRealEventOverride)ynShowIdlePanel(pinnedAlert);
+                return;
+            }
             if (wasJmaPriority) {
                 // En JMA no se toca la capa/panel meteorológico. El retorno a
                 // Japón se programa 10 s después de terminar el episodio.
@@ -24799,13 +24809,8 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             if(typeof waveMode!=='undefined'&&waveMode)return false;
             if(ynLiveJmaEvent)return false;
             if(!ynCenterJapanAfterMotionIdle())return false;
-            if(japanLiveStationsPinned){
-                ynMotionAutoClosePending=false;
-                ynClearMotionIdleCloseTimer();
-                return true;
-            }
-            // Todo episodio local confirmado arma su propio cierre al cesar,
-            // aunque Japón ya estuviera abierto por otra ruta del detector.
+            // Fijar Japón conserva el mapa, no el aviso/episodio de movimiento.
+            // Ambos tipos de vista cierran la detección tras la misma pausa.
             ynMotionAutoClosePending=true;
             ynClearMotionIdleCloseTimer();
             ynMotionIdleCloseTimer=setTimeout(()=>{
@@ -24814,7 +24819,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 // desde ynUpdateEarlyAlert; no reconsultar un frame cacheado aquí.
                 if(ynEarlyEpisode)return;
                 const layout=document.getElementById('mainLayout');
-                if(japanLiveStationsPinned||!layout?.classList.contains('japan-focus')){ynMotionAutoClosePending=false;return;}
+                if(!layout?.classList.contains('japan-focus')){ynMotionAutoClosePending=false;return;}
                 if((typeof waveMode!=='undefined'&&waveMode)||ynLiveJmaEvent)return;
                 ynCloseAutomatically();
             },5000);
