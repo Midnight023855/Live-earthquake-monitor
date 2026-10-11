@@ -64,11 +64,11 @@ Reúne catálogos sísmicos, alertas tempranas, señales de redes de estaciones 
 ### SIAT-CT México
 
 - El panel independiente incrusta la [consulta oficial SIAT-CT](https://preparados.gob.mx/SIAT-CT/consulta.php?evento=actual) y ofrece abrir la fuente en otra pestaña, actualizar y cerrar el visor.
-- El mapa consulta `https://siatmex.terremotis123.workers.dev/siat/meta` y, cuando cambia la firma del boletín, descarga `.../siat/current`. La metadata se revisa cada 120 segundos; el GeoJSON se vuelve a pedir al inicio o cuando hay una firma nueva.
+- El mapa consulta un Worker para obtener los metadatos del boletín y la geometría oficial de SIAT-CT.
 - Dibuja las zonas con los cinco niveles oficiales **ROJA, NARANJA, AMARILLA, VERDE y AZUL**, leyenda dinámica y popups con fase, entidad, municipio asociado y región SIAT oficial.
 - Los polígonos representan las regiones oficiales SIAT; el municipio indicado en el popup no significa que se hayan inventado límites municipales para el mapa.
 - Un boletín nuevo enfoca temporalmente la zona durante 15 segundos y luego intenta restaurar la vista previa; si la persona mueve el mapa manualmente, no fuerza el retorno.
-- **Dependencia:** para que el overlay y sus datos funcionen, el Worker debe exponer `/siat/meta` y `/siat/current`. El visor oficial incrustado tiene su propio botón para abrirse directamente si el iframe no carga.
+- **Dependencia:** el Worker debe estar disponible para cargar el overlay y sus datos. El visor oficial incrustado tiene su propio botón para abrirse directamente si el iframe no carga.
 
 ### Clima, noticias y fútbol de Colombia
 
