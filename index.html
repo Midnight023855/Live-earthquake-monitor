@@ -24794,7 +24794,6 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             return true;
         }
         function ynStartJapanIdleGracePeriod() {
-            if(ynMotionIsConfirmedNow())return false;
             if(typeof waveMode!=='undefined'&&waveMode)return false;
             if(ynLiveJmaEvent)return false;
             if(!ynCenterJapanAfterMotionIdle())return false;
@@ -24809,7 +24808,9 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             ynClearMotionIdleCloseTimer();
             ynMotionIdleCloseTimer=setTimeout(()=>{
                 ynMotionIdleCloseTimer=null;
-                if(ynMotionIsConfirmedNow())return;
+                // Una detección nueva confirma ynEarlyEpisode y cancela este timer
+                // desde ynUpdateEarlyAlert; no reconsultar un frame cacheado aquí.
+                if(ynEarlyEpisode)return;
                 const layout=document.getElementById('mainLayout');
                 if(japanLiveStationsPinned||!layout?.classList.contains('japan-focus')){ynMotionAutoClosePending=false;return;}
                 if((typeof waveMode!=='undefined'&&waveMode)||ynLiveJmaEvent)return;
@@ -24818,7 +24819,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             return true;
         }
         function ynFinishMotionEpisodeAfterIdle() {
-            if(ynMotionIsConfirmedNow())return false;
+            // Se llama desde una rama que ya determinó que no hay episodio confirmado.
             ynClearMotionIdleCloseTimer();
             ynEarlyEpisode=false;ynAutoActivationAttempted=false;
             ynLastMotionIntLevel=-1;ynGroups=[];ynWaveStartedAt=0;ynActiveSignature='';ynInitialViewDone=false;
@@ -24829,7 +24830,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             return ynStartJapanIdleGracePeriod();
         }
         function ynScheduleMotionIdleClose() {
-            if(!ynEarlyEpisode||ynMotionIsConfirmedNow())return;
+            if(!ynEarlyEpisode)return;
             // Al cesar el movimiento, mostrar Japón completo inmediatamente.
             // El cierre de la vista automática se agenda cinco segundos después.
             ynFinishMotionEpisodeAfterIdle();
@@ -26645,7 +26646,8 @@ function ynBuildLeafletMarkers() {
   let niedSites = [], niedStates = [], niedAdj = [], niedSignature = '', niedLastFrame = 0;
   let niedLayers = null, motionPanel = null, motionStatusTimer = 0;
   let lastDraw = 0, niedFrameCount = 0, niedWarmupStarted = 0;
-  const FRESH_MS = 15000;
+  const FRESH_MS = 15000, MOTION_UI_IDLE_MS = 5000;
+  let niedLastDetectedAt = 0;
   const activityThresArr1 = [Infinity,10,14,16,18,19,20];
   const activityThresArr2 = [Infinity,8,11,13,14,15,16];
   const activityThresArr3 = [Infinity,6,9,11,12,13,14];
@@ -26787,9 +26789,14 @@ function ynBuildLeafletMarkers() {
       const activityThres=(sens===1?activityThresArr1:sens===2?activityThresArr2:activityThresArr3)[n]??Infinity;
       if(activeScore>=countThres){const activity=activeScore*(activeScore+1)/2+compatible.reduce((sum,x)=>sum+x.activity,0);if(activity>=activityThres)niedActivate(st,activeSet,checked);}
     }
-    activeSet.forEach(st=>{st.activeUntil=t+12500;});
+    // Renovar la retención solo con actividad confirmada en esta trama;
+    // las estaciones heredadas conservan su vencimiento original y sí expiran.
+    const detectedThisFrame=[...activeSet];
+    if(detectedThisFrame.length)niedLastDetectedAt=Date.now();
+    detectedThisFrame.forEach(st=>{st.activeUntil=t+12500;});
     niedStates.filter(st=>st.activeUntil>t).forEach(st=>activeSet.add(st));
-    renderNetwork('nied',[...activeSet]);
+    const showMotion=detectedThisFrame.length>0||Date.now()-niedLastDetectedAt<=MOTION_UI_IDLE_MS;
+    renderNetwork('nied',showMotion?[...activeSet]:[]);
     updateMotionPanel();
   }
 
@@ -26834,10 +26841,11 @@ function ynBuildLeafletMarkers() {
     const p=ensurePanel();if(!p)return;
     const now=Date.now(),fresh=cfg.niedEnabled&&niedLastFrame>0&&now-niedLastFrame<=FRESH_MS;
     const active=fresh?niedStates.filter(s=>s.activeUntil>now):[];
+    const motionVisible=active.length>0&&niedLastDetectedAt>0&&now-niedLastDetectedAt<=MOTION_UI_IDLE_MS;
     const row=document.getElementById('kmdNiedLive');
-    if(row){row.textContent=fresh?`NIED/Kyoshin · ${active.length?'movimiento detectado':'en vivo'}${active.length?` · ${active.length} estaciones · nivel red ${Math.max(...active.map(s=>s.level))}`:''}`:'NIED/Kyoshin · sin trama reciente';row.classList.toggle('active',active.length>0);}
-    p.classList.toggle('active',active.length>0);
-    if(!fresh&&niedLayers)niedLayers.clearLayers();
+    if(row){row.textContent=fresh?`NIED/Kyoshin · ${motionVisible?'movimiento detectado':'en vivo'}${motionVisible?` · ${active.length} estaciones · nivel red ${Math.max(...active.map(s=>s.level))}`:''}`:'NIED/Kyoshin · sin trama reciente';row.classList.toggle('active',motionVisible);}
+    p.classList.toggle('active',motionVisible);
+    if((!fresh||!motionVisible)&&niedLayers)niedLayers.clearLayers();
   }
   function installStyles(){
     if(document.getElementById('kanameishi-motion-style'))return;
