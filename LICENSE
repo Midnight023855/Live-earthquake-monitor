@@ -1,3 +1,64 @@
+Live Earthquake Monitor / EarthQuake — Monitor Sísmico Multi-Agencia
+================================================================================
+
+Copyright (c) of the maintainers of this repository and respective contributors.
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+--------------------------------------------------------------------------------
+THIRD-PARTY SOFTWARE (AGPL-3.0) — REQUIRED ATTRIBUTION
+--------------------------------------------------------------------------------
+
+This project adapts or incorporates presentation and/or logic inspired by the
+following AGPL-3.0 projects. Their copyright holders retain rights to their
+original works. Redistribution of this combined work remains under AGPL-3.0.
+
+1) SesnaQuake
+   Author / project: Domiko7
+   Repository: https://github.com/Domiko7/SesnaQuake
+   License: GNU Affero General Public License v3.0
+   Notes: UI list/intensity colors, interface theme, clock styling, EEW status
+   presentation, and related visual patterns adapted into this HTML monitor.
+   SesnaQuake itself is a Tauri + React application; this is not a complete fork.
+
+2) Kanameishi
+   Author / project: Lipomoea
+   Repository: https://github.com/Lipomoea/kanameishi
+   License: GNU Affero General Public License v3.0
+   Notes: Patterns and any related monitor/map/alert approaches present in this
+   HTML. Upstream is a Vue + Leaflet web application for seismic alerts via
+   public APIs.
+
+If you modify this software and run it on a network server (including static
+hosting such as GitHub Pages), AGPL-3.0 requires that you offer the
+Corresponding Source of the version users interact with.
+
+--------------------------------------------------------------------------------
+OTHER COMPONENTS (NOT RELICENSED BY THIS FILE)
+--------------------------------------------------------------------------------
+
+- Leaflet and other libraries: their own licenses apply.
+- Official seismic/meteorological data (JMA, NIED, USGS, EMSC, etc.): terms of
+  each data provider apply; data are not claimed under this LICENSE.
+- SREV / kotoho7 sound or intensity assets: see attribution in index.html
+  (e.g. CC BY-SA 2.0 where applicable).
+
+See README.md for a human-readable summary of features and credits.
+
+--------------------------------------------------------------------------------
+FULL TEXT OF THE GNU AFFERO GENERAL PUBLIC LICENSE VERSION 3
+--------------------------------------------------------------------------------
+
 GNU AFFERO GENERAL PUBLIC LICENSE
                        Version 3, 19 November 2007
 
