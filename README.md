@@ -3,7 +3,6 @@
 Monitor sísmico en un solo `index.html` (mapa Leaflet, alertas, estaciones, ondas y más).
 
 - **Archivo principal:** `index.html`
-- **Tamaño aproximado:** ~2,7 MB (HTML monolítico)
 - **Idioma de interfaz:** español (con textos mixtos EN/JA según fuente)
 - **Licencia del proyecto (derivados):** **AGPL-3.0** (ver sección de licencias)
 
