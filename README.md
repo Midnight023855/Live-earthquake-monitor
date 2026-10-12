@@ -2,7 +2,7 @@
 
 README de la edición global `index.html`, en español. Describe las funciones presentes en esta versión del HTML; no corresponde a la edición separada Japón–Taiwán.
 
-**Actualizado:** 10 de octubre de 2026  
+**Actualizado:** 11 de octubre de 2026  
 **Formato:** aplicación de una sola página HTML, adaptable a escritorio y móvil.
 
 ## Qué hace
