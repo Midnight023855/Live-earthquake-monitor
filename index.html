@@ -26696,7 +26696,10 @@ function ynBuildLeafletMarkers() {
             const motionActive=()=>!!ynEarlyEpisode||kmdActive();
             function cancelHold(){if(holdTimer){clearTimeout(holdTimer);holdTimer=null;}holding=false;}
             function jmaOwnsView(){
-                return !!((typeof waveMode!=='undefined'&&waveMode)||ynLiveJmaEvent||ynRealEventOverride);
+                // Un override histórico/no activo no debe cancelar el cierre
+                // de Japón. Solo una vista de ondas activa o JMA en vivo
+                // debe mantener el apartado abierto.
+                return !!((typeof waveMode!=='undefined'&&waveMode)||ynLiveJmaEvent);
             }
             function finishHold(){
                 holdTimer=null;holding=false;
