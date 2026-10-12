@@ -6896,9 +6896,9 @@ global.TauPJS=api;
                     const intensityBounds = intensityZonesLayer.getBounds?.();
                     if (intensityBounds && intensityBounds.isValid?.()) bounds = intensityBounds;
                 }
-                // La vista debe incluir tanto la extensión coloreada como el epicentro,
-                // aunque el punto quede por fuera de las zonas de intensidad oficiales.
-                if (bounds && Number.isFinite(lat) && Number.isFinite(lon)) {
+                // Al elegir un sismo de la lista, el encuadre se limita a la extensión
+                // completa del mapa de intensidad; otros modos también incluyen el epicentro.
+                if (bounds && options.fitIntensityExtent !== true && Number.isFinite(lat) && Number.isFinite(lon)) {
                     const epicenterBounds = L.latLngBounds([lat, lon], [lat, lon]);
                     bounds.extend(epicenterBounds);
                 }
@@ -20076,7 +20076,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 drawIntensityZones(ev).then(() => {
                     if (String(selectedEventId) !== selectedIdForFit) return;
                     if (typeof protectedAutomaticViewOpen === 'function' && protectedAutomaticViewOpen()) return;
-                    focusMapOnIntensityOrEpicenter(ev, { force:true, animate:true, duration:1.0, fallbackZoom:8, overrideJapanPin:options.overrideJapanPin === true });
+                    focusMapOnIntensityOrEpicenter(ev, { force:true, animate:true, duration:1.0, fallbackZoom:8, fitIntensityExtent:true, overrideJapanPin:options.overrideJapanPin === true });
                 }).catch(() => {});
                 return;
             }
@@ -28026,7 +28026,7 @@ function ynBuildLeafletMarkers() {
     updateMotionPanel();
   }
 
-  function gridColor(level){return level<=7?'#38d46a':level<=13?'#ffdf3f':'#ff4f50';}
+  function gridColor(level){return level<=7?'green':level<=13?'yellow':'red';}
   function ensureLayers(){
     if(!map||typeof L==='undefined')return false;
     try{
@@ -28051,7 +28051,7 @@ function ynBuildLeafletMarkers() {
     const cells=new Map();
     for(const st of stations){if(!Number.isFinite(st.lat)||!Number.isFinite(st.lon))continue;const level=st.level;const lat=Math.round(st.lat-decLat)+decLat,lon=Math.round(st.lon-decLon)+decLon,key=`${lat.toFixed(2)},${lon.toFixed(2)}`;const old=cells.get(key);if(!old||level>old.level)cells.set(key,{lat,lon,level});}
     for(const cell of cells.values()){
-      const color=gridColor(cell.level);L.rectangle([[cell.lat-.5,cell.lon-.5],[cell.lat+.5,cell.lon+.5]],{pane:'kanameishiMotionPane',color,weight:1.5,opacity:.9,fill:false,interactive:false}).addTo(layer);
+      const color=gridColor(cell.level);L.rectangle([[cell.lat-.5,cell.lon-.5],[cell.lat+.5,cell.lon+.5]],{pane:'kanameishiMotionPane',color,weight:2,fill:false,interactive:false}).addTo(layer);
     }
     // Solo cuadros locales de actividad; no dibujar anillos/ondas inferidas.
     lastDraw=Date.now();
