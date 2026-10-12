@@ -1381,6 +1381,13 @@
             color:#eee; box-shadow:0 1px 4px rgba(0,0,0,.35);
             font-size:10px; line-height:13px;
         }
+        /* Durante las ondas el panel izquierdo se oculta, pero el cuadro de
+           información del evento debe seguir visible en la esquina superior. */
+        #mainLayout.wave-focus #ynEarlyAlert.active {
+            display:block !important; left:12px !important; right:auto !important;
+            top:12px !important; width:min(82vw,330px) !important;
+            box-sizing:border-box; z-index:2200 !important;
+        }
         #ynEarlyAlert.yn-weak { border-left-color:#39d353 !important; box-shadow:0 1px 4px rgba(0,0,0,.35); }
         #ynEarlyAlert.yn-weak .yn-alert-head { color:#8cff9a !important; }
         #ynEarlyAlert.yn-shaking { border-left-color:#28b9e8 !important; box-shadow:0 1px 4px rgba(0,0,0,.35); }
@@ -2395,21 +2402,23 @@
         .srev-plum-badge img { width:38px; height:38px; flex:0 0 auto; filter:drop-shadow(0 0 3px #07131d); animation:srevPlumPulse 1.3s ease-in-out infinite; }
         .srev-plum-badge b { margin-left:-7px; padding:3px 5px; border:1px solid #b9f0ff; border-radius:5px; background:#062538; color:#b9f0ff; font:800 10px/1 system-ui,sans-serif; letter-spacing:.3px; box-shadow:0 0 8px rgba(58,180,232,.55); }
         @keyframes srevPlumPulse { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(1.12); opacity:.84; } }
-        /* Frente de onda inspirado visualmente en SREV: brillo, trazo vivo y
-           guiones en movimiento. El cálculo del radio sigue siendo TauP. */
+        /* Frente de onda estilo SREV: anillo continuo, brillante y pulsante.
+           El cálculo del radio sigue siendo TauP; aquí solo cambia el estilo. */
         .srev-wavefront-p, .srev-wavefront-s {
             pointer-events: none !important;
+            stroke-dasharray: none !important;
+            stroke-linecap: round !important;
             filter: drop-shadow(0 0 4px currentColor);
         }
-        .srev-wavefront-p { animation: srevWaveDashP 1.15s linear infinite; }
-        .srev-wavefront-s { animation: srevWaveDashS 1.65s linear infinite; }
-        @keyframes srevWaveDashP {
-            from { stroke-dashoffset: 0; }
-            to { stroke-dashoffset: -40; }
+        .srev-wavefront-p { animation: srevWavePulseP 1.15s ease-in-out infinite; }
+        .srev-wavefront-s { animation: srevWavePulseS 1.65s ease-in-out infinite; }
+        @keyframes srevWavePulseP {
+            0%,100% { stroke-opacity: .98; filter: drop-shadow(0 0 3px currentColor); }
+            50% { stroke-opacity: .42; filter: drop-shadow(0 0 8px currentColor); }
         }
-        @keyframes srevWaveDashS {
-            from { stroke-dashoffset: 0; }
-            to { stroke-dashoffset: 34; }
+        @keyframes srevWavePulseS {
+            0%,100% { stroke-opacity: .9; filter: drop-shadow(0 0 3px currentColor); }
+            50% { stroke-opacity: .32; filter: drop-shadow(0 0 9px currentColor); }
         }
         .srev-epc-icon .srev-epc-x.srev-wave-blink {
             animation: srevWaveBlink 1.25s ease-in-out infinite !important;
@@ -9667,13 +9676,29 @@ global.TauPJS=api;
             const title = document.getElementById('waveTopTitle');
             const panelTitle = document.querySelector('#waveModePanel .wave-title span:first-child');
             if (!ev) { deactivateWaveMode(); return; }
+            // El modo ondas oculta el panel lateral; reutilizar el cuadro
+            // superior para no dejarlo vacío. Si NIED está detectando
+            // movimiento simultáneamente, se conserva su información local.
+            const waveAlert = document.getElementById('ynEarlyAlert');
+            if (waveAlert && !ynEarlyEpisode) {
+                const wavePlace = ev.displayPlace || ev.place || 'Japón';
+                const waveMag = ev.mag != null && String(ev.mag) !== '—' ? `M${String(ev.mag).replace(/^M/i,'')}` : 'M—';
+                const waveDepth = ev.depth != null && String(ev.depth) !== '—' ? `${ev.depth} km` : '— km';
+                const waveAgency = ev.agency || (ev.estimated ? 'TREM' : 'EEW');
+                waveAlert.innerHTML = `<div class="yn-alert-head"><span>🇯🇵 Ondas sísmicas</span><span class="yn-alert-badge">${waveAgency}</span></div><div class="yn-alert-sub">${wavePlace}</div><div class="yn-alert-grid"><div>Magnitud <b>${waveMag}</b></div><div>Profundidad <b>${waveDepth}</b></div><div>Estado <b>${ev.status || 'En vivo'}</b></div><div>Origen <b>${ev.epicenterConfirmed === true ? 'Confirmado' : 'Estimado'}</b></div></div><div class="yn-alert-foot">Ondas P/S estimadas; no reemplazan el boletín oficial.</div>`;
+                waveAlert.classList.remove('yn-motion-active','yn-weak','yn-shaking','yn-strong');
+                waveAlert.classList.add('active');
+            }
             waveLayer.clearLayers();
             const origin = [ev.lat, ev.lon];
             const magText = String(ev.mag).replace(/^M/i, '');
             let agencyLabel = String(ev.agency || (ev.estimated ? 'TREM' : 'EEW'));
             if (ev.isTaupEew && !/\beew\b/i.test(agencyLabel)) agencyLabel = /shakealert/i.test(agencyLabel) ? 'ShakeAlert EEW' : agencyLabel + ' EEW';
             const isJmaEew = /\bjma\b/i.test(agencyLabel);
-            const showPlumMarker = isJmaEew && !!ev.isTaupEew && ev.epicenterConfirmed !== true;
+            // En eventos EEW el epicentro se representa siempre con la X de
+            // SREV, incluso si JMA aún lo marca como provisional. PLUM queda
+            // reservado para otros flujos que no sean EEW.
+            const showPlumMarker = isJmaEew && !ev.isTaupEew && ev.epicenterConfirmed !== true;
             const marker = L.marker(origin, { icon:showPlumMarker ? srevPlumIcon : xIcon, zIndexOffset:900 }).addTo(waveLayer);
             if (!showPlumMarker) { try { marker.getElement()?.querySelector('.srev-epc-x')?.classList.add('srev-wave-blink'); } catch (_) {} }
             const markerHeading = showPlumMarker ? 'PLUM · epicentro JMA no confirmado' : ev.estimated ? 'Detección local TREM' : 'Epicentro ' + agencyLabel;
@@ -9825,7 +9850,7 @@ global.TauPJS=api;
                 if (!waveMode) return;
                 if (document.hidden) { waveAutoFollowTimer = setTimeout(tick, 1000); return; }
                 try { followWaveFront(); } catch (_) {}
-                if (waveMode) waveAutoFollowTimer = setTimeout(tick, 1000);
+                if (waveMode) waveAutoFollowTimer = setTimeout(tick, 650);
             };
             waveAutoFollowTimer = setTimeout(tick, Math.max(0, delay));
         }
@@ -9842,6 +9867,9 @@ global.TauPJS=api;
             if (!waveMode) return;
             const ev = getCurrentWaveEvent();
             if (!ev) { renderWaveMode(); return; }
+            // Actualizar el encuadre junto con cada nueva posición de los
+            // frentes P/S, no solo al abrir el apartado.
+            try { followWaveFront(ev); } catch (_) {}
             const originTs = Number(ev.waveOriginTs) || (ev.raw ? parseJmaEewTime(ev.raw.OriginTime || ev.raw.originTime || ev.raw.AnnouncedTime) : (Number(ev.ts) || parseTs(ev.time)));
             waveLayer.clearLayers();
             const magText = String(ev.mag).replace(/^M/i, '');
@@ -9872,8 +9900,8 @@ global.TauPJS=api;
                     : waveMag < 8 ? {p:'#ff5a36', s:'#ff1744'}
                     : {p:'#ff315f', s:'#d91cff'})
                 : {p:'#36c8ff', s:'#ff7a32'};
-            if (pRadius > 0) L.circle(originPoint, { radius:Math.max(5000, pRadius), color:wavePalette.p, weight:4, opacity:.98, fill:false, dashArray:'16 7', className:'srev-wavefront-p', interactive:false }).addTo(waveLayer);
-            if (sRadius > 0) L.circle(originPoint, { radius:Math.max(5000, sRadius), color:wavePalette.s, weight:4.5, opacity:.98, fill:false, dashArray:'8 7', className:'srev-wavefront-s', interactive:false }).addTo(waveLayer);
+            if (pRadius > 0) L.circle(originPoint, { radius:Math.max(5000, pRadius), color:wavePalette.p, weight:3, opacity:.98, fill:false, className:'srev-wavefront-p', interactive:false }).addTo(waveLayer);
+            if (sRadius > 0) L.circle(originPoint, { radius:Math.max(5000, sRadius), color:wavePalette.s, weight:3.5, opacity:.9, fill:false, className:'srev-wavefront-s', interactive:false }).addTo(waveLayer);
             if (window.__jmaEewWaveDiag) { window.__jmaEewWaveDiag.last = `${ev.estimated ? 'TREM' : (ev.agency || 'EEW')} · marker + TauP P/S`; window.__jmaEewWaveDiag.layerCount = waveLayer.getLayers().length; window.__jmaEewWaveDiag.waveKey = ev.raw ? jmaEewEventKey(ev.raw) : String(ev.id || ''); }
         }
 
@@ -24261,6 +24289,30 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 source.forEach(st=>{if(st&&Number.isFinite(Number(st.lat))&&Number.isFinite(Number(st.lon)))unique.set(st.index??`${st.lat},${st.lon}`,st);});
                 const stations=[...unique.values()];
                 if(!stations.length){ynMotionGridOrigin=null;ynLastMotionBoxFitKey='';return;}
+                // Un cuadro por grupo confirmado, no una celda por estación.
+                // Las celdas individuales se superponían cuando dos estaciones
+                // vecinas pertenecían a la misma zona de movimiento.
+                if(grouped){
+                    const regions=[];
+                    groupsOrStations.forEach(groupStations=>{
+                        const valid=(groupStations||[]).filter(st=>Number.isFinite(Number(st.lat))&&Number.isFinite(Number(st.lon)));
+                        if(!valid.length)return;
+                        const lats=valid.map(st=>Number(st.lat)),lons=valid.map(st=>Number(st.lon));
+                        regions.push({minLat:Math.min(...lats)-.15,maxLat:Math.max(...lats)+.15,minLon:Math.min(...lons)-.15,maxLon:Math.max(...lons)+.15,code:Math.max(...valid.map(st=>Number(st.code)||0))});
+                    });
+                    // Fusionar regiones que se tocan o se solapan para que no
+                    // queden bordes duplicados en la misma zona.
+                    for(let i=0;i<regions.length;i++){
+                        for(let j=i+1;j<regions.length;j++){
+                            const a=regions[i],b=regions[j],touch=a.minLat<=b.maxLat+.05&&a.maxLat>=b.minLat-.05&&a.minLon<=b.maxLon+.05&&a.maxLon>=b.minLon-.05;
+                            if(!touch)continue;
+                            a.minLat=Math.min(a.minLat,b.minLat);a.maxLat=Math.max(a.maxLat,b.maxLat);a.minLon=Math.min(a.minLon,b.minLon);a.maxLon=Math.max(a.maxLon,b.maxLon);a.code=Math.max(a.code,b.code);regions.splice(j,1);j--;i=-1;break;
+                        }
+                    }
+                    regions.forEach(region=>{const color=region.code<=7?'#38bf34':region.code<=13?'#ffff00':'#ff3030';L.rectangle([[region.minLat,region.minLon],[region.maxLat,region.maxLon]],{className:'yn-movement-box',color,weight:2,opacity:.98,fill:false,fillOpacity:0,interactive:false,pane:'ynMotionBoxPane'}).addTo(ynMotionHighlightLayer);});
+                    ynLastMotionBoxFitKey=regions.map(r=>[r.minLat,r.minLon,r.maxLat,r.maxLon].map(v=>v.toFixed(3)).join(',')).sort().join('|');
+                    return;
+                }
                 if(!ynMotionGridOrigin){const anchor=[...stations].sort((a,b)=>(Number(b.code)||0)-(Number(a.code)||0))[0],offset=v=>Math.round(((Number(v)+180)%1)*10)/10;ynMotionGridOrigin={lat:offset(anchor.lat),lon:offset(anchor.lon)};}
                 const cells=new Map();
                 stations.forEach(st=>{const lat=Math.round(Number(st.lat)-ynMotionGridOrigin.lat)+ynMotionGridOrigin.lat,lon=Math.round(Number(st.lon)-ynMotionGridOrigin.lon)+ynMotionGridOrigin.lon,key=lat.toFixed(3)+','+lon.toFixed(3),code=Number(st.code)||0;if(!cells.has(key)||code>cells.get(key).code)cells.set(key,{lat,lon,code});});
