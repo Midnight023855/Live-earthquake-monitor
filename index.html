@@ -25256,7 +25256,9 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
                 const lowRecent=recentCodes.length?Math.min(...recentCodes):code;
                 const rise=Math.max(0,code-lowRecent);
                 const activity=code>=YN_ACTIVE_CODE_MIN?1+Math.min(1.5,Math.max(0,code-YN_ACTIVE_CODE_MIN)*0.25)+Math.min(1.5,rise*0.25):0;
-                const motionDetected = code >= YN_ACTIVE_CODE_MIN || (motionDelta >= YN_MOTION_DELTA_MIN && code >= YN_ACTIVE_CODE_MIN);
+                // El código 6 equivale a intensidad 0.0: solo cuenta como movimiento
+                // si hay una subida rápida o una subida reciente; un cero plano es reposo.
+                const motionDetected = code > YN_ACTIVE_CODE_MIN || (code === YN_ACTIVE_CODE_MIN && (motionDelta >= YN_MOTION_DELTA_MIN || rise > 0));
                 if (motionDetected) {
                     if (Number.isFinite(lat) && Number.isFinite(lon)) frameStations.push({ index:i, code, lat, lon, motionDelta, rise, activity });
                     if (!rec.first6) rec.first6=t;
@@ -25418,8 +25420,9 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
                 const site = ynSites[i];
                 const lat = Number(Array.isArray(site) ? site[0] : NaN);
                 const lon = Number(Array.isArray(site) ? site[1] : NaN);
-                if (Number.isInteger(code) && code >= YN_ACTIVE_CODE_MIN && code <= 20 && Number.isFinite(lat) && Number.isFinite(lon)) {
-                    const rec=ynStationTimes.get(i)||{};
+                const rec=ynStationTimes.get(i)||{};
+                const movingReading=Number.isInteger(code)&&code<=20&&(code>YN_ACTIVE_CODE_MIN||(code===YN_ACTIVE_CODE_MIN&&Number(rec.motionRise)>0));
+                if (movingReading && Number.isFinite(lat) && Number.isFinite(lon)) {
                     active.push({ index:i, code, lat, lon, rise:Number(rec.motionRise)||0, activity:Number(rec.motionActivity)||1 });
                 }
             }
