@@ -18,8 +18,7 @@ Monitor sísmico en un solo `index.html` (mapa Leaflet, alertas, estaciones, ond
 4. [Detección y ondas](#detección-y-ondas)
 5. [Interfaz y UX](#interfaz-y-ux)
 6. [Licencias y atribuciones](#licencias-y-atribuciones)
-7. [Publicación (GitHub Pages)](#publicación-github-pages)
-8. [Créditos](#créditos)
+7. [Créditos](#créditos)
 
 ---
 
