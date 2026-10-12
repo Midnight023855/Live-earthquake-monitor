@@ -24646,14 +24646,6 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             if (!ynLiveJmaEvent && typeof waveMode !== 'undefined' && waveMode) {
                 try { if (typeof deactivateWaveMode === 'function') deactivateWaveMode(); } catch (_) {}
             }
-            if(japanLiveStationsPinned){
-                // Japón fijado permanece abierto, pero el episodio/aviso local sí se cierra.
-                const pinnedAlert=document.getElementById('ynEarlyAlert');
-                if(pinnedAlert)pinnedAlert.classList.remove('yn-motion-active','yn-weak','yn-shaking','yn-strong');
-                if(wasJmaPriority)window.__jmaWeatherWaveEnd?.();
-                else if(!ynLiveJmaEvent&&!ynRealEventOverride)ynShowIdlePanel(pinnedAlert);
-                return;
-            }
             if (wasJmaPriority) {
                 // En JMA no se toca la capa/panel meteorológico. El retorno a
                 // Japón se programa 10 s después de terminar el episodio.
@@ -24666,7 +24658,12 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             if (motionAlert) motionAlert.textContent = '';
             taiwanStationsLayer.addTo(map);
             const layout = document.getElementById('mainLayout');
-            layout?.classList.remove('japan-focus', 'taiwan-focus');
+            // No depender de __deactivateYahooNied ni de la bandera de pin:
+            // el cierre automático debe retirar visualmente todo el apartado.
+            japanLiveStationsPinned = false;
+            yahooNiedModeActive = false;
+            ynMode = false;
+            layout?.classList.remove('japan-focus', 'yahoo-nied-active', 'wave-focus', 'taiwan-focus');
             document.getElementById('taiwanDetectorPanel')?.classList.remove('taiwan-focus-panel', 'active-shake');
             map.invalidateSize({ pan:false });
             if (events.length) setTimeout(() => focusLastQuakeAfterSectionClose(), 0);
