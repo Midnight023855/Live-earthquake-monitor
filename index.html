@@ -1417,6 +1417,11 @@
             animation:ynMovementBoxPulse 1.8s ease-in-out infinite;
             pointer-events:none;
         }
+        /* Parpadeo de los cuadros de movimiento como en Kanameishi (AGPL-3.0): encendido/apagado cada 0.5 s.
+           Con Leaflet en canvas la clase del rectángulo no se anima, así que se anima el panel que los contiene. */
+        @keyframes ynMotionBoxBlink { 0%,49.99% { opacity:1; } 50%,99.99% { opacity:0; } 100% { opacity:1; } }
+        .yn-motion-box-pane { animation:ynMotionBoxBlink 1s infinite; pointer-events:none; }
+        @media (prefers-reduced-motion: reduce) { .yn-motion-box-pane { animation:none; } }
         /* KMONI: mapa oficial de movimiento fuerte de Japón */
         .kmoni-station-icon {
             background: transparent !important; border: 0 !important;
@@ -3091,6 +3096,14 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
 #siatAlertSection .siat-alert-comment{margin-top:6px;color:#d6e2ed;font-size:10px;}
 #siatAlertSection .siat-alert-source{display:inline-flex;margin-top:9px;color:#8bdcff;font-weight:700;text-decoration:underline;}
 @media(max-width:640px){#siatAlertSection{left:8px;right:8px;top:8px;width:auto;max-height:36vh;}}
+/* Apartado SIAT-CT propio: oculta la pantalla principal mientras dura la alerta (15 s). */
+#mainLayout.siat-focus .left-panel,#mainLayout.siat-focus .trem-side-panel,#mainLayout.siat-focus #connectionPanel,#mainLayout.siat-focus #intensityLegendPanel,#mainLayout.siat-focus #jmaEewPanel,#mainLayout.siat-focus #taiwanDetectorPanel,#mainLayout.siat-focus #weatherPanel,#mainLayout.siat-focus #hurricanePanel,#mainLayout.siat-focus #usAlertsPanel,#mainLayout.siat-focus #typhoonPanel,#mainLayout.siat-focus #tsunamiPanel,#mainLayout.siat-focus #gdacsPanel{display:none !important;}
+#mainLayout.siat-focus .map-container{position:absolute;inset:0;width:100%;height:100%;}
+#mainLayout.siat-focus #siatAlertSection{top:12px;left:12px;right:auto;width:min(420px,calc(100% - 24px));}
+#siatAlertSection .siat-alert-timer{height:3px;background:#1a3550;}
+#siatAlertSection .siat-alert-timer i{display:block;height:100%;width:100%;background:#46c7ff;transform-origin:left center;}
+@keyframes siatCountdown{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+@media(max-width:640px){#mainLayout.siat-focus #siatAlertSection{left:8px;right:8px;width:auto;}}
 @media(max-width:640px){#siatCtOverlay .siatct-head{align-items:flex-start;flex-direction:column;}#siatCtOverlay .siatct-actions{width:100%;}#siatCtOverlay .siatct-actions button,#siatCtOverlay .siatct-actions a{flex:1;}}
 </style>
 <style id="earthquake-list-visual-reference">
@@ -3516,6 +3529,7 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
             <div id="map"></div>
             <section id="siatAlertSection" role="region" aria-label="Nueva alerta SIAT-CT" aria-live="assertive" aria-hidden="true">
                 <div class="siat-alert-head"><span>🌪️ SIAT-CT · Nueva alerta</span><button id="siatAlertClose" class="siat-alert-close" type="button" aria-label="Cerrar alerta SIAT-CT">×</button></div>
+                <div class="siat-alert-timer" aria-hidden="true"><i></i></div>
                 <div class="siat-alert-body"><div id="siatAlertName" class="siat-alert-name"></div><div id="siatAlertMeta" class="siat-alert-meta"></div><div id="siatAlertLevels" class="siat-alert-levels"></div><div id="siatAlertComment" class="siat-alert-comment"></div><a class="siat-alert-source" href="https://preparados.gob.mx/SIAT-CT/consulta.php?evento=actual" target="_blank" rel="noopener noreferrer">Abrir boletín oficial ↗</a></div>
             </section>
 
@@ -24239,6 +24253,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         function ynUpdateMotionBoxes(groupsOrStations) {
             try {
                 if(typeof map==='undefined'||!map||typeof L==='undefined')return;
+                try{if(!map.getPane('ynMotionBoxPane')){const bp=map.createPane('ynMotionBoxPane');bp.style.zIndex='450';bp.style.pointerEvents='none';bp.classList.add('yn-motion-box-pane');}}catch(_){}
                 if(!ynMotionHighlightLayer)ynMotionHighlightLayer=L.layerGroup().addTo(map);
                 ynMotionHighlightLayer.clearLayers();
                 const grouped=Array.isArray(groupsOrStations)&&groupsOrStations.length&&Array.isArray(groupsOrStations[0]);
@@ -24249,13 +24264,45 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 if(!ynMotionGridOrigin){const anchor=[...stations].sort((a,b)=>(Number(b.code)||0)-(Number(a.code)||0))[0],offset=v=>Math.round(((Number(v)+180)%1)*10)/10;ynMotionGridOrigin={lat:offset(anchor.lat),lon:offset(anchor.lon)};}
                 const cells=new Map();
                 stations.forEach(st=>{const lat=Math.round(Number(st.lat)-ynMotionGridOrigin.lat)+ynMotionGridOrigin.lat,lon=Math.round(Number(st.lon)-ynMotionGridOrigin.lon)+ynMotionGridOrigin.lon,key=lat.toFixed(3)+','+lon.toFixed(3),code=Number(st.code)||0;if(!cells.has(key)||code>cells.get(key).code)cells.set(key,{lat,lon,code});});
-                cells.forEach(cell=>{const color=cell.code<=7?'#38bf34':cell.code<=13?'#ffff00':'#ff3030';L.rectangle([[cell.lat-.495,cell.lon-.495],[cell.lat+.495,cell.lon+.495]],{className:'yn-movement-box',color,weight:2,opacity:.98,fill:false,fillOpacity:0,interactive:false,pane:'overlayPane'}).addTo(ynMotionHighlightLayer);});
+                cells.forEach(cell=>{const color=cell.code<=7?'#38bf34':cell.code<=13?'#ffff00':'#ff3030';L.rectangle([[cell.lat-.495,cell.lon-.495],[cell.lat+.495,cell.lon+.495]],{className:'yn-movement-box',color,weight:2,opacity:.98,fill:false,fillOpacity:0,interactive:false,pane:'ynMotionBoxPane'}).addTo(ynMotionHighlightLayer);});
                 ynLastMotionBoxFitKey=[...cells.keys()].sort().join('|');
             }catch(_){}
         }
+        // El encuadre sigue a los cuadros de movimiento mientras dure el episodio: si los cuadros salen
+        // de la vista (o la vista queda demasiado abierta), se vuelve a encuadrar. Con histéresis y
+        // máx. 1 vez cada 1.5 s para no marear; se detiene si el usuario toma el mapa.
+        let ynFollowLastAt = 0, ynFollowLastKey = '';
+        function ynFollowMotionBoxes(groups) {
+            try {
+                if (typeof map === 'undefined' || !map || typeof L === 'undefined') return;
+                if (ynUserMapControl || mapUserHasControl || (typeof manualMapControlActive === 'function' && manualMapControlActive())) return;
+                if (!ynEarlyEpisode && !ynInitialViewDone) return;           // el primer encuadre lo hace ynFocusEpisodeOnce
+                const now = Date.now();
+                if (now - ynFollowLastAt < 1500) return;
+                const stations = (groups || []).flatMap(g => g.stations || []);
+                const base = ynMotionBoxBounds(stations);
+                if (!base) return;
+                const cell = 0.55;                                             // los cuadros miden ~1° alrededor de la estación
+                const bounds = [[base[0][0] - cell, base[0][1] - cell], [base[1][0] + cell, base[1][1] + cell]];
+                const key = bounds.flat().map(v => Number(v).toFixed(1)).join(',');
+                if (key === ynFollowLastKey) return;
+                const target = L.latLngBounds(bounds), view = map.getBounds();
+                const vLat = Math.max(1e-6, view.getNorth() - view.getSouth()), vLon = Math.max(1e-6, view.getEast() - view.getWest());
+                const tLat = target.getNorth() - target.getSouth(), tLon = target.getEast() - target.getWest();
+                const visible = view.contains(target);
+                const tooWide = Math.max(tLat / vLat, tLon / vLon) < 0.25;   // vista demasiado abierta para el área activa
+                const tooSmall = Math.max(tLat / vLat, tLon / vLon) > 1.0;   // los cuadros ya no caben
+                if (visible && !tooWide && !tooSmall) { ynFollowLastKey = key; return; }
+                ynFollowLastAt = now; ynFollowLastKey = key;
+                programmaticMapMove = true;
+                ynLastMotionBoxFitKey = key;
+                map.fitBounds(bounds, { padding:[48,48], maxZoom:8, animate:true, duration:.6 });
+                setTimeout(() => { programmaticMapMove = false; }, 800);
+            } catch (_) { programmaticMapMove = false; }
+        }
         function ynClearMotionBoxes() {
             try{if(ynMotionHighlightLayer)ynMotionHighlightLayer.clearLayers();}catch(_){}
-            ynLastMotionBoxFitKey='';ynMotionGridOrigin=null;
+            ynLastMotionBoxFitKey='';ynMotionGridOrigin=null;ynFollowLastKey='';ynFollowLastAt=0;
         }
         function ynShowMotionPanel(alert,stations,maxInstr,updateBoxes=false){
             if(!alert)return;
@@ -24279,6 +24326,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             const places=[...new Set(placeLabels)],placeEl=primaryAlert.querySelector('.yn-motion-place');
             if(placeEl)placeEl.textContent=places.length?(places.some(name=>name.startsWith('Área aprox.'))?'Prefecturas/áreas: ':'Prefecturas: ')+places.join(' · '):'Ubicación no disponible';
             ynUpdateMotionBoxes(valid.map(g=>g.stations));
+            ynFollowMotionBoxes(valid);
         }
 
         function ynPlayMotionIntensitySound(maxInstr, signature) {
@@ -26653,7 +26701,6 @@ function ynBuildLeafletMarkers() {
             function finishHold(){
                 holdTimer=null;holding=false;
                 if(motionActive()||jmaOwnsView())return;
-                if(mapUserHasControl){ynMotionAutoClosePending=false;return;}   // el usuario movió el mapa: no se lo quitamos
                 ynMotionAutoClosePending=true;
                 try{ynCloseAutomatically();}catch(err){console.warn('[motion-end]',err);}
             }
@@ -28081,7 +28128,7 @@ setTimeout(()=>{try{window.__eqApplyFaults?.(!!window.__eqShowFaults);}catch(_){
     'tsunamiPanel','gdacsPanel','usAlertsPanel','hurricanePanel','typhoonPanel',
     'jmaVolcanoPanel','nhkGPanel','jmaEewPanel','taiwanDetectorPanel',
     'ynEarlyAlert','jmaWeatherAlertPanel','kmoniPanel',
-    'solarCivilAlertPanel','mainLayout'
+    'solarCivilAlertPanel','siatAlertSection','mainLayout'
   ];
   const FOCUS_TRACK_IDS = [...new Set([...PANEL_IDS,'weatherPanel','alertCenterPanel'])];
   const ACTIVE_CLASSES = {
@@ -28090,7 +28137,7 @@ setTimeout(()=>{try{window.__eqApplyFaults?.(!!window.__eqShowFaults);}catch(_){
     typhoonPanel:['typhoon-active'], jmaVolcanoPanel:['jma-volcano-active'],
     nhkGPanel:['nhk-active'], jmaEewPanel:['active'], taiwanDetectorPanel:['active','taiwan-focus-panel'],
     ynEarlyAlert:['active'], jmaWeatherAlertPanel:[], kmoniPanel:['kmoni-active'],
-    mainLayout:['wave-focus'], solarCivilAlertPanel:['active'],
+    mainLayout:['wave-focus'], solarCivilAlertPanel:['active'], siatAlertSection:['active'],
     weatherPanel:['active'], alertCenterPanel:['alert-center-active']
   };
   const focusPanelStates=new Map();
@@ -28115,6 +28162,7 @@ setTimeout(()=>{try{window.__eqApplyFaults?.(!!window.__eqShowFaults);}catch(_){
       if(id==='mainLayout' && el.classList.contains('wave-focus') && typeof deactivateWaveMode==='function'){ deactivateWaveMode(); return; }
       if(id==='jmaWeatherAlertPanel' && typeof jmaWeatherDeactivate==='function'){ jmaWeatherDeactivate(); return; }
       if(id==='kmoniPanel' && typeof removeKmoniLiveOverlay==='function'){ removeKmoniLiveOverlay(); }
+      if(id==='siatAlertSection' && typeof window.__siatCloseApartment==='function'){ window.__siatCloseApartment(); return; }
     } catch(_) {}
     (ACTIVE_CLASSES[id]||[]).forEach(c=>el.classList.remove(c));
     if(id==='jmaWeatherAlertPanel') el.style.display='none';
@@ -28209,6 +28257,7 @@ setTimeout(()=>{try{window.__eqApplyFaults?.(!!window.__eqShowFaults);}catch(_){
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start,{once:true});
   else start();
   window.__eqExclusiveAlertApartments={closeOtherApartments:exclusiveFor};
+  window.__eqApartmentBusy=exceptId=>PANEL_IDS.some(id=>id!==exceptId&&isOpen(document.getElementById(id),id));
 })();
 </script>
 
@@ -31570,6 +31619,7 @@ For more information on this, and how to apply and follow the GNU AGPL, see
   const colors={ROJA:'#ff0000',NARANJA:'#ffa500',AMARILLA:'#ffff00',VERDE:'#38bf34',AZUL:'#4f81bc'};
   const labels={ROJA:'Peligro máximo',NARANJA:'Peligro alto',AMARILLA:'Peligro medio',VERDE:'Peligro bajo',AZUL:'Peligro muy bajo'};
   const lastIdKey='earthquake.siatCt.lastBulletin.v2';
+  let prevView=null,viewRevisionAtOpen=0,pendingOpen=null,retryTimer=null;
   let layer=null,focusTimer=null,programmaticUntil=0,manualViewRevision=0,currentSignature='',currentId='',busy=false,loaded=false;
   if(typeof map==='undefined'||typeof L==='undefined')return;
   map.on('movestart zoomstart',()=>{if(Date.now()>programmaticUntil)manualViewRevision++;});
@@ -31587,11 +31637,24 @@ For more information on this, and how to apply and follow the GNU AGPL, see
     const shouldShow=!!(section&&section.classList.contains('active'));
     try{if(shouldShow){if(!map.hasLayer(layer))layer.addTo(map);}else if(map.hasLayer(layer))map.removeLayer(layer);}catch(_){}
   }
-  function closeSiatAlertSection(){
+  function restorePreviousView(){
+    const view=prevView;prevView=null;
+    if(!view||manualViewRevision!==viewRevisionAtOpen)return;   // si el usuario movió el mapa, no se lo quitamos
+    programmaticUntil=Date.now()+2200;
+    setTimeout(()=>{try{if(typeof map.flyTo==='function')map.flyTo(view.center,view.zoom,{duration:.8});else map.setView(view.center,view.zoom);}catch(_){}},150);
+  }
+  /* Cierra el apartado SIAT-CT. opts.restore===false: lo cierra otro apartado, no se toca la vista. */
+  function closeSiatAlertSection(opts){
+    const restore=!(opts&&opts.restore===false);
     if(alertTimer){clearTimeout(alertTimer);alertTimer=null;}
+    if(focusTimer){clearTimeout(focusTimer);focusTimer=null;}
+    const wasOpen=!!(section&&section.classList.contains('active'));
     if(section){section.classList.remove('active');section.setAttribute('aria-hidden','true');}
+    document.getElementById('mainLayout')?.classList.remove('siat-focus');
     closeSiatPopups();
     syncSiatPolygonVisibility();
+    if(wasOpen){try{map.invalidateSize({pan:false});}catch(_){}}
+    if(restore&&wasOpen)restorePreviousView();else prevView=null;
   }
   function openSiatAlertSection(meta,data){
     if(!section)return;
@@ -31612,20 +31675,37 @@ For more information on this, and how to apply and follow the GNU AGPL, see
     const levelsEl=document.getElementById('siatAlertLevels');
     if(levelsEl)levelsEl.innerHTML=levels.filter(x=>Number(x.count)>0).map(x=>{const key=String(x.key||'').toUpperCase(),color=colors[key]||'#8899aa';return '<div class="siat-alert-level"><i class="siat-alert-swatch" style="background:'+esc(color)+'"></i><span>'+esc(labels[key]||x.label||key)+' · '+esc(x.count)+'</span></div>';}).join('');
     setText('siatAlertComment',bulletin.comentarios||'');
+    // Apartado propio: oculta la pantalla principal, anima la cuenta atrás y se cierra a los 15 s.
+    prevView={center:map.getCenter(),zoom:map.getZoom()};viewRevisionAtOpen=manualViewRevision;
+    programmaticUntil=Date.now()+2500;
+    document.getElementById('mainLayout')?.classList.add('siat-focus');
     section.classList.add('active');section.setAttribute('aria-hidden','false');
-    if(alertTimer)clearTimeout(alertTimer);alertTimer=setTimeout(closeSiatAlertSection,15000);
+    try{const bar=section.querySelector('.siat-alert-timer i');if(bar){bar.style.animation='none';void bar.offsetWidth;bar.style.animation='siatCountdown 15s linear forwards';}}catch(_){}
+    try{map.invalidateSize({pan:false});}catch(_){}
+    if(alertTimer)clearTimeout(alertTimer);alertTimer=setTimeout(()=>closeSiatAlertSection(),15000);
   }
   closeButton&&closeButton.addEventListener('click',closeSiatAlertSection);
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&section&&section.classList.contains('active'))closeSiatAlertSection();});
   function focusAlert(bounds){
     if(!bounds||!bounds.isValid())return;
-    clearTimeout(focusTimer);const previous={center:map.getCenter(),zoom:map.getZoom()};
-    const revision=manualViewRevision;programmaticUntil=Date.now()+1800;
+    programmaticUntil=Date.now()+2500;
     try{map.invalidateSize({pan:false});}catch(_){}
     if(typeof map.flyToBounds==='function')map.flyToBounds(bounds,{padding:[24,24],maxZoom:7,duration:1.0});
     else map.fitBounds(bounds,{padding:[24,24],maxZoom:7});
-    focusTimer=setTimeout(()=>{closeSiatAlertSection();if(manualViewRevision!==revision)return;programmaticUntil=Date.now()+1500;if(typeof map.flyTo==='function')map.flyTo(previous.center,previous.zoom,{duration:.8});else map.setView(previous.center,previous.zoom);},15000);
   }
+  /* Una alerta nueva espera (hasta 2 min) si hay un apartado sísmico más importante abierto. */
+  function trySiatOpen(){
+    clearTimeout(retryTimer);retryTimer=null;
+    if(!pendingOpen)return;
+    if(Date.now()-pendingOpen.since>120000){pendingOpen=null;return;}
+    if(window.__eqApartmentBusy&&window.__eqApartmentBusy('siatAlertSection')){retryTimer=setTimeout(trySiatOpen,3000);return;}
+    const p=pendingOpen;pendingOpen=null;
+    openSiatAlertSection(p.meta,p.data);
+    syncSiatPolygonVisibility();
+    if(layer&&map.hasLayer(layer))focusAlert(layer.getBounds());
+  }
+  function queueSiatApartment(meta,data){pendingOpen={meta,data,since:Date.now()};trySiatOpen();}
+  window.__siatCloseApartment=()=>closeSiatAlertSection({restore:false});
   async function loadCurrent(metaSnapshot){
     const expectedSignature=String(metaSnapshot&&metaSnapshot.signature||'');
     const response=await fetch(worker+'/siat/current',{method:'GET',cache:'no-store',headers:{'Accept':'application/json'}});
@@ -31646,7 +31726,7 @@ For more information on this, and how to apply and follow the GNU AGPL, see
     const isNewBulletin=!!id&&((loaded&&!!currentId&&id!==currentId)||(!loaded&&!!previousId&&id!==previousId));
     if(id){try{localStorage.setItem(lastIdKey,id);}catch(_){}}
     currentSignature=signature;currentId=id;loaded=true;
-    if(isNewBulletin){openSiatAlertSection(metaSnapshot,data);syncSiatPolygonVisibility();if(layer&&map.hasLayer(layer))focusAlert(layer.getBounds());}else{closeSiatPopups();syncSiatPolygonVisibility();}
+    if(isNewBulletin){queueSiatApartment(metaSnapshot,data);}else{closeSiatPopups();syncSiatPolygonVisibility();}
     return true;
   }
   async function refresh(){
