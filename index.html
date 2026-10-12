@@ -1759,6 +1759,48 @@
 
 
 
+        
+        /* Fix apilado: EEW arriba; sacudida debajo solo con contenido; sin cuadro vacío */
+        #mainLayout.japan-focus #sesnaEewBanner,
+        #mainLayout.wave-focus #sesnaEewBanner {
+            top: 12px !important;
+            left: 12px !important;
+            z-index: 2210 !important;
+        }
+        #mainLayout.japan-focus #ynEarlyAlert.active.yn-motion-active,
+        #mainLayout.japan-focus #ynEarlyAlert.active.yn-weak,
+        #mainLayout.japan-focus #ynEarlyAlert.active.yn-shaking,
+        #mainLayout.japan-focus #ynEarlyAlert.active.yn-strong,
+        #mainLayout.wave-focus #ynEarlyAlert.active.yn-motion-active {
+            display: block !important;
+            top: 12px !important;
+            left: 12px !important;
+            z-index: 2220 !important; /* encima del EEW idle al detectar */
+        }
+        /* Con sacudida activa, ocultar el "No Earthquake Warning" para no duplicar */
+        #mainLayout.japan-focus:has(#ynEarlyAlert.active.yn-motion-active) #sesnaEewBanner,
+        #mainLayout.japan-focus:has(#ynEarlyAlert.active.yn-weak) #sesnaEewBanner,
+        #mainLayout.japan-focus:has(#ynEarlyAlert.active.yn-shaking) #sesnaEewBanner,
+        #mainLayout.japan-focus:has(#ynEarlyAlert.active.yn-strong) #sesnaEewBanner,
+        #mainLayout.wave-focus:has(#ynEarlyAlert.active.yn-motion-active) #sesnaEewBanner {
+            display: none !important;
+        }
+        #mainLayout.japan-focus #ynLocalEpicenterCard.active {
+            top: auto !important;
+            left: 12px !important;
+            margin-top: 0;
+            z-index: 2215 !important;
+            /* JS posiciona; fallback bajo el shake */
+            transform: translateY(0);
+        }
+        /* Evitar el top:118px forzado que dejaba un hueco/cuadro fantasma */
+        #mainLayout.japan-focus #ynEarlyAlert.active {
+            top: 12px !important;
+        }
+        #mainLayout.japan-focus #ynEarlyAlert.active.eqk-only-shake {
+            top: 12px !important;
+        }
+
         /* EEW status card estilo EQuake (idle / activo) — solo mapa Japón */
         #sesnaEewBanner {
             display: none !important;
@@ -1781,6 +1823,7 @@
         #mainLayout.wave-focus #sesnaEewBanner {
             display: block !important;
         }
+        #sesnaEewBanner.motion-hidden { display: none !important; }
         #sesnaEewBanner .sesna-eew-header {
             display: block;
             padding: 0 0 10px 0;
@@ -25137,6 +25180,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         }
                 function ynShowMotionPanel(alert,stations,maxInstr,updateBoxes=false){
             if(!alert)return;
+            ynClearMotionIdleCloseTimer(); // movimiento vivo: cancelar cierre
             const place=ynMotionPlaceLabel(stations),shindo=Math.max(0,Math.min(7,Number(maxInstr)||0));
             const tier=ynShakingLevel(shindo);
             let places=[];
@@ -25145,10 +25189,14 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 if(Array.isArray(groups))groups.forEach(g=>{(g.prefectures||[]).forEach(n=>{if(n&&n!=='Japón'&&!places.includes(n))places.push(n);});});
             }catch(_){}
             if(!places.length&&place)places=[place];
-            const list=places.length?places.map(x=>'<li>'+String(x)+'</li>').join(''):'<li>Área en detección</li>';
+            if(!places.length)places=['Área en detección'];
+            const list=places.map(x=>'<li>'+String(x)+'</li>').join('');
             alert.innerHTML='<div class="eqk-shake-head">'+tier.title+'</div><div class="eqk-shake-body"><ul class="eqk-pref-list">'+list+'</ul></div>';
-            alert.classList.remove('yn-weak','yn-shaking','yn-strong','eqk-only-shake');
-            alert.classList.add('active','yn-motion-active', 'yn-'+tier.level);
+            alert.classList.remove('yn-weak','yn-shaking','yn-strong','eqk-only-shake','yn-tsunami-forecast');
+            alert.classList.add('active','yn-motion-active','yn-'+tier.level);
+            alert.style.display='block';
+            // Ocultar EEW idle mientras hay sacudida
+            try{ document.getElementById('sesnaEewBanner')?.classList.add('motion-hidden'); }catch(_){}
             if(updateBoxes)ynUpdateMotionBoxes(stations);
             try{ if(typeof ynSyncLocalEpicenterCard==='function') ynSyncLocalEpicenterCard(stations, maxInstr); }catch(_){}
         }
@@ -25694,7 +25742,10 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
 
         function ynShowIdlePanel(alert) {
             try{ynHideLocalEpicenterCard();}catch(_){}
+            try{ document.getElementById('sesnaEewBanner')?.classList.remove('motion-hidden'); }catch(_){}
             if (!alert || !(ynMode || yahooNiedModeActive || japanLiveStationsPinned) || !document.getElementById('mainLayout')?.classList.contains('japan-focus')) return;
+            // Este panel no muestra sismos finales (solo movimiento / EEW / tsunami forecast).
+            alert.classList.remove('yn-motion-active','yn-weak','yn-shaking','yn-strong');
             alert.classList.remove('yn-motion-active','yn-weak','yn-shaking','yn-strong');
             const forecasts = typeof jmaTsunamiActiveForecasts === 'function' ? jmaTsunamiActiveForecasts() : [];
             const forecast = forecasts[0] || null;
@@ -25800,21 +25851,32 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
             return true;
         }
         function ynFinishMotionEpisodeAfterIdle() {
-            // Se llama desde una rama que ya determinó que no hay episodio confirmado.
+            // Se llama tras 5 s sin movimiento confirmado.
             ynClearMotionIdleCloseTimer();
             ynEarlyEpisode=false;ynAutoActivationAttempted=false;
             ynLastMotionIntLevel=-1;ynGroups=[];ynWaveStartedAt=0;ynActiveSignature='';ynInitialViewDone=false;
             try{ynClearMotionBoxes();}catch(_){}
             try{ynStopWaveAnimation();}catch(_){}
+            try{ynHideLocalEpicenterCard();}catch(_){}
             const alert=document.getElementById('ynEarlyAlert');
-            if(alert)alert.classList.remove('yn-motion-active','yn-weak','yn-shaking','yn-strong');
+            if(alert){
+                alert.classList.remove('active','yn-motion-active','yn-weak','yn-shaking','yn-strong','eqk-only-shake');
+                // No dejar un cuadro vacío debajo del EEW: volver a idle o limpiar
+                try{ynShowIdlePanel(alert);}catch(_){ alert.innerHTML=''; }
+            }
             return ynStartJapanIdleGracePeriod();
         }
         function ynScheduleMotionIdleClose() {
             if(!ynEarlyEpisode)return;
-            // Al cesar el movimiento, mostrar Japón completo inmediatamente.
-            // El cierre de la vista automática se agenda cinco segundos después.
-            ynFinishMotionEpisodeAfterIdle();
+            // Esperar 5 s de reposo real antes de quitar el cuadro de sacudida.
+            // Antes se cerraba en el primer frame sin movimiento y el aviso quedaba vacío.
+            if(ynMotionIdleCloseTimer)return; // ya hay cuenta atrás
+            ynMotionIdleCloseTimer=setTimeout(()=>{
+                ynMotionIdleCloseTimer=null;
+                if(ynMotionIsConfirmedNow())return; // volvió el movimiento
+                if(!ynEarlyEpisode)return;
+                ynFinishMotionEpisodeAfterIdle();
+            },5000);
         }
         const ynPrefectureSpanish = {
             '北海道':'Hokkaido','青森県':'Aomori','岩手県':'Iwate','宮城県':'Miyagi','秋田県':'Akita','山形県':'Yamagata','福島県':'Fukushima',
@@ -25904,12 +25966,14 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
         }
         function ynRenderMovementAlert(current, mainGroup, alert) {
             if (!alert) return;
+            ynClearMotionIdleCloseTimer();
             const view = ynMovementAlertHtml(current, mainGroup);
-            alert.classList.toggle('yn-weak', view.level === 'weak');
-            alert.classList.toggle('yn-shaking', view.level === 'shaking');
-            alert.classList.toggle('yn-strong', view.level === 'strong');
+            alert.classList.remove('yn-weak','yn-shaking','yn-strong','yn-tsunami-forecast');
+            alert.classList.add('active','yn-motion-active','yn-'+view.level);
             alert.innerHTML = view.html;
-            alert.classList.add('active');
+            alert.style.display='block';
+            try{ document.getElementById('sesnaEewBanner')?.classList.add('motion-hidden'); }catch(_){}
+            try{ if(typeof ynSyncLocalEpicenterCard==='function') ynSyncLocalEpicenterCard(current, mainGroup?.maxIntensity); }catch(_){}
         }
         function ynUpdateEarlyAlert() {
             const alert = document.getElementById('ynEarlyAlert');
@@ -25925,16 +25989,8 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
                 ynActiveSignature = '';
                 ynStopWaveAnimation();
                 try{ynClearMotionBoxes();}catch(_){}
-                if (ynLiveJmaEvent) {
-                    const ev = ynLiveJmaEvent;
-                    let mag = 'M—';
-                    try { mag = (typeof eventMagnitudeDisplay === 'function' ? eventMagnitudeDisplay(ev) : null) || (ev.mag != null ? 'M' + ev.mag : 'M—'); } catch (_) {}
-                    alert.innerHTML = '<div class="yn-alert-head"><span>🇯🇵 Sismo real JMA</span><span class="yn-alert-badge">EN VIVO</span></div>'
-                        + '<div class="yn-alert-sub">' + (ev.place || 'Japón') + ' · ' + mag + ' · ' + (ev.depth || '—') + ' km</div>'
-                        + '<div class="yn-alert-foot">Ondas oficiales/estimadas JMA; no se mezclan con la detección Yahoo/NIED.</div>';
-                    alert.classList.remove('yn-motion-active', 'yn-weak', 'yn-shaking', 'yn-strong');
-                    alert.classList.add('active');
-                } else if ((ynMode || yahooNiedModeActive || japanLiveStationsPinned) && document.getElementById('mainLayout')?.classList.contains('japan-focus')) {
+                // Info final de sismos solo en la lista; este cuadro = movimiento / EEW.
+                if ((ynMode || yahooNiedModeActive || japanLiveStationsPinned) && document.getElementById('mainLayout')?.classList.contains('japan-focus')) {
                     ynShowIdlePanel(alert);
                 } else {
                     alert.classList.remove('active');
@@ -25970,13 +26026,12 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
                 try { ynClearMotionBoxes(); } catch (_) {}
                 ynStopWaveAnimation();
                 alert.classList.remove('yn-motion-active', 'yn-weak', 'yn-shaking', 'yn-strong');
-                const ev = ynLiveJmaEvent;
-                let mag = 'M—';
-                try { mag = (typeof eventMagnitudeDisplay === 'function' ? eventMagnitudeDisplay(ev) : null) || (ev.mag != null ? 'M' + ev.mag : 'M—'); } catch (_) {}
-                alert.innerHTML = '<div class="yn-alert-head"><span>🇯🇵 Sismo real JMA</span><span class="yn-alert-badge">EN VIVO</span></div>'
-                    + '<div class="yn-alert-sub">' + (ev.place || 'Japón') + ' · ' + mag + ' · ' + (ev.depth || '—') + ' km</div>'
-                    + '<div class="yn-alert-foot">Ondas JMA en pantalla · detección local NIED independiente.</div>';
-                alert.classList.add('active');
+                if ((ynMode || yahooNiedModeActive || japanLiveStationsPinned) && document.getElementById('mainLayout')?.classList.contains('japan-focus')) {
+                    ynShowIdlePanel(alert);
+                } else {
+                    alert.classList.remove('active');
+                    alert.textContent = '';
+                }
                 return;
             }
 
@@ -32875,12 +32930,16 @@ For more information on this, and how to apply and follow the GNU AGPL, see
         for (const ev of events) {
           if (!ev) continue;
           const ag = String(ev.agency || ev.source || '');
+          // Solo EEW / ondas en vivo — no reportes finales de la lista
           const isEewFlag = !!(ev.isTaupEew || ev.isEew || ev.eew === true);
-          const looksEew = /\beew\b|shakealert|wolfx|jma[\s_-]*eew|cenc[\s_-]*eew|cwa[\s_-]*eew|kma[\s_-]*eew|sea-?eew|fea|ceac/i.test(ag)
+          const looksEew = /\beew\b|shakealert|jma[\s_-]*eew|cenc[\s_-]*eew|cwa[\s_-]*eew|kma[\s_-]*eew|sea-?eew/i.test(ag)
             || /\beew\b/i.test(String(ev.id || ''))
             || /\beew\b/i.test(String(ev.type || ev.kind || ''));
           if (!isEewFlag && !looksEew) continue;
           if (ev.isFinal || ev.isCancel || ev.cancelled) continue;
+          if (ev.estimated === false && !isEewFlag && !/\beew\b/i.test(ag)) continue;
+          // Reportes confirmados de catálogo no van al banner EEW
+          if (!isEewFlag && /prelim|confirm|final|actualiz/i.test(String(ev.reportConfidence || ev.confidence || ''))) continue;
           const t = Date.parse(ev.time || ev.originTime || ev.timestamp || ev.ts || 0) || Number(ev.waveOriginTs) || 0;
           const age = t ? (now - t) : 0;
           // live window ~10 min for list EEWs
