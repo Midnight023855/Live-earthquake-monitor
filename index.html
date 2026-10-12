@@ -24640,6 +24640,12 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             ynLastMotionIntLevel=-1;ynGroups=[];ynWaveStartedAt=0;ynActiveSignature='';ynInitialViewDone=false;
             try{ynClearMotionBoxes();}catch(_){}
             try{ynStopWaveAnimation();}catch(_){}
+            // Las ondas estimadas NIED también usan waveMode, pero no deben
+            // impedir el retorno automático. Solo se conserva una vista JMA
+            // realmente activa; las ondas locales se cierran con el apartado.
+            if (!ynLiveJmaEvent && typeof waveMode !== 'undefined' && waveMode) {
+                try { if (typeof deactivateWaveMode === 'function') deactivateWaveMode(); } catch (_) {}
+            }
             if(japanLiveStationsPinned){
                 // Japón fijado permanece abierto, pero el episodio/aviso local sí se cierra.
                 const pinnedAlert=document.getElementById('ynEarlyAlert');
@@ -24834,7 +24840,6 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             if(ynMotionIsConfirmedNow())return false;
             const layout=document.getElementById('mainLayout');
             if(!layout||typeof map==='undefined'||!map)return false;
-            if(typeof waveMode!=='undefined'&&waveMode)return false;
             ynMode=true;yahooNiedModeActive=true;
             layout.classList.remove('wave-focus','taiwan-focus','taiwan-motion-focus');
             layout.classList.add('japan-focus','yahoo-nied-active');
@@ -24854,7 +24859,6 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             return true;
         }
         function ynStartJapanIdleGracePeriod() {
-            if(typeof waveMode!=='undefined'&&waveMode)return false;
             if(ynLiveJmaEvent)return false;
             if(!ynCenterJapanAfterMotionIdle())return false;
             // Fijar Japón conserva el mapa, no el aviso/episodio de movimiento.
@@ -24868,7 +24872,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 if(ynEarlyEpisode)return;
                 const layout=document.getElementById('mainLayout');
                 if(!layout?.classList.contains('japan-focus')){ynMotionAutoClosePending=false;return;}
-                if((typeof waveMode!=='undefined'&&waveMode)||ynLiveJmaEvent)return;
+                if(ynLiveJmaEvent)return;
                 ynCloseAutomatically();
             },5000);
             return true;
@@ -26697,9 +26701,9 @@ function ynBuildLeafletMarkers() {
             function cancelHold(){if(holdTimer){clearTimeout(holdTimer);holdTimer=null;}holding=false;}
             function jmaOwnsView(){
                 // Un override histórico/no activo no debe cancelar el cierre
-                // de Japón. Solo una vista de ondas activa o JMA en vivo
-                // debe mantener el apartado abierto.
-                return !!((typeof waveMode!=='undefined'&&waveMode)||ynLiveJmaEvent);
+                // de Japón. Las ondas locales NIED también usan waveMode;
+                // solamente JMA en vivo debe mantener el apartado abierto.
+                return !!ynLiveJmaEvent;
             }
             function finishHold(){
                 holdTimer=null;holding=false;
