@@ -24652,6 +24652,11 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 window.__jmaWeatherWaveEnd?.();
                 return;
             }
+            // Apagar primero las banderas de vista. Si se desactiva NIED antes,
+            // su rutina de restauración puede volver a añadir japan-focus.
+            japanLiveStationsPinned = false;
+            yahooNiedModeActive = false;
+            ynMode = false;
             window.__deactivateYahooNied?.();
             const motionAlert = document.getElementById('ynEarlyAlert');
             motionAlert?.classList.remove('active','yn-motion-active','yn-weak','yn-shaking','yn-strong','yn-tsunami-forecast');
@@ -24660,12 +24665,17 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             const layout = document.getElementById('mainLayout');
             // No depender de __deactivateYahooNied ni de la bandera de pin:
             // el cierre automático debe retirar visualmente todo el apartado.
-            japanLiveStationsPinned = false;
-            yahooNiedModeActive = false;
-            ynMode = false;
             layout?.classList.remove('japan-focus', 'yahoo-nied-active', 'wave-focus', 'taiwan-focus');
             document.getElementById('taiwanDetectorPanel')?.classList.remove('taiwan-focus-panel', 'active-shake');
             map.invalidateSize({ pan:false });
+            // Algunas sincronizaciones de mapa se ejecutan en el siguiente
+            // tick; repetir la limpieza evita que reintroduzcan la vista.
+            [0, 250, 900].forEach(delay => setTimeout(() => {
+                if (ynEarlyEpisode || ynLiveJmaEvent) return;
+                const currentLayout = document.getElementById('mainLayout');
+                currentLayout?.classList.remove('japan-focus', 'yahoo-nied-active', 'wave-focus');
+                try { if (!yahooNiedModeActive && ynCanvas) ynCanvas.style.display = 'none'; } catch (_) {}
+            }, delay));
             if (events.length) setTimeout(() => focusLastQuakeAfterSectionClose(), 0);
             else setProgrammaticMapView([20, 140], 3);
         }
