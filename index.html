@@ -5,8 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Akshar:wght@400;500;600;700&family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Akshar:wght@400;500;600;700&family=BIZ+UDPGothic:wght@400;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <title>Monitor Sísmico Multi-Agencia | EQuake Style</title>
+    <meta name="license" content="AGPL-3.0-or-later">
+    <meta name="license-notes" content="UI list/intensity presentation adapted from SesnaQuake (Domiko7), AGPL-3.0: https://github.com/Domiko7/SesnaQuake. Other components remain under their original terms. Full source of this page should be provided when distributed over a network.">
+
     <meta name="srev-audio-attribution" content="SREV sound assets by kotoho7, CC BY-SA 2.0; source: https://github.com/kotoho7/scratch-realtime-earthquake-viewer-page">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
@@ -719,11 +722,17 @@
 
         /* Paletas visuales separadas para cada escala forzada. */
         /* Paleta exacta SREV: 0, 1, 2, 3, 4, 5−, 5+, 6−, 6+, 7. */
-        .eq-int-shindo-0{background:#686870;color:#fff!important}.eq-int-shindo-1{background:#3098bd;color:#fff!important}
-        .eq-int-shindo-2{background:#4cd0a7;color:#1c1c1c!important}.eq-int-shindo-3{background:#f6cb51;color:#1c1c1c!important}
-        .eq-int-shindo-4{background:#ff9939;color:#1c1c1c!important}.eq-int-shindo-5{background:#e52a18;color:#fff!important}
-        .eq-int-shindo-6{background:#c31b1b;color:#fff!important}.eq-int-shindo-7{background:#a30a6b;color:#fff!important}
-        .eq-int-shindo-8{background:#86046e;color:#fff!important}.eq-int-shindo-9{background:#54068e;color:#fff!important}
+        /* SesnaQuake/SREV intensity colors (from Domiko7/SesnaQuake transform.ts, AGPL-3.0) */
+        .eq-int-shindo-0{background:#464646;color:#f5f5f5!important}
+        .eq-int-shindo-1{background:#2b8cb3;color:#f5f5f5!important}
+        .eq-int-shindo-2{background:#3fa887;color:#1a1a1a!important}
+        .eq-int-shindo-3{background:#e0b134;color:#1a1a1a!important}
+        .eq-int-shindo-4{background:#e88527;color:#1a1a1a!important}
+        .eq-int-shindo-5{background:#c92214;color:#f5f5f5!important}
+        .eq-int-shindo-6{background:#b01312;color:#f5f5f5!important}
+        .eq-int-shindo-7{background:#7c0b53;color:#f5f5f5!important}
+        .eq-int-shindo-8{background:#6d0359;color:#f5f5f5!important}
+        .eq-int-shindo-9{background:#440375;color:#f5f5f5!important}
         .eq-int-cwa-0{background:#f2f2f2;color:#111!important}.eq-int-cwa-1{background:#30343b;color:#fff!important}
         .eq-int-cwa-2{background:#2878d0;color:#fff!important}.eq-int-cwa-3{background:#31a65c;color:#111!important}
         .eq-int-cwa-4{background:#9fbd36;color:#111!important}.eq-int-cwa-5{background:#f1d22f;color:#111!important}
@@ -739,16 +748,19 @@
         /* Intensity colors */
         /* Colores Mercalli de la tabla proporcionada por el usuario. */
         .int-0 { background: #ffffff; color: #000000 !important; }
-        .int-1 { background: #ffffff; color: #000000 !important; }
-        .int-2 { background: #b9d0e8; color: #000000 !important; }
-        .int-3 { background: #8fa8d5; color: #000000 !important; }
-        .int-4 { background: #4fe3ef; color: #000000 !important; }
-        .int-5 { background: #5cff5c; color: #000000 !important; }
-        .int-6 { background: #fff200; color: #000000 !important; }
-        .int-7 { background: #ffbd00; color: #000000 !important; }
-        .int-8 { background: #ff7518; color: #000000 !important; }
-        .int-9 { background: #ff1010; color: #000000 !important; }
-        .int-10 { background: #b00000; color: #ffffff !important; }
+        .int-0 { background: #464646; color: #f5f5f5 !important; }
+        .int-1 { background: #777777; color: #f5f5f5 !important; }
+        .int-2 { background: #aae0fa; color: #1a1a1a !important; }
+        .int-3 { background: #6cbce8; color: #1a1a1a !important; }
+        .int-4 { background: #4cd3c2; color: #1a1a1a !important; }
+        .int-5 { background: #6cd94e; color: #1a1a1a !important; }
+        .int-6 { background: #f2db36; color: #1a1a1a !important; }
+        .int-7 { background: #e59b12; color: #1a1a1a !important; }
+        .int-8 { background: #dc6e19; color: #1a1a1a !important; }
+        .int-9 { background: #e24329; color: #1a1a1a !important; }
+        .int-10 { background: #b81414; color: #f5f5f5 !important; }
+        .int-11 { background: #8f0606; color: #f5f5f5 !important; }
+        .int-12 { background: #500000; color: #f5f5f5 !important; }
 
         /* La intensidad I corresponde al blanco de la escala mostrada. */
         .int-unknown { background: #5b6470; color: #ffffff !important; }
@@ -756,18 +768,19 @@
         .leaflet-tooltip.jma-official-intensity-label:before{display:none!important}
         .leaflet-tooltip.jma-official-intensity-label.jma-dark{color:#111!important;text-shadow:0 1px 2px rgba(255,255,255,.9)!important}
         .leaflet-tooltip.jma-official-intensity-label.jma-light{color:#fff!important;text-shadow:0 1px 2px rgba(0,0,0,.9)!important}
-        .int-I { background: #ffffff; color: #000000 !important; }
-        .int-II { background: #b9d0e8; color: #000000 !important; }
-        .int-III { background: #8fa8d5; color: #000000 !important; }
-        .int-IV { background: #4fe3ef; color: #000000 !important; }
-        .int-V { background: #5cff5c; color: #000000 !important; }
-        .int-VI { background: #fff200; color: #000000 !important; }
-        .int-VII { background: #ffbd00; color: #000000 !important; }
-        .int-VIII { background: #ff7518; color: #000000 !important; }
-        .int-IX { background: #ff1010; color: #000000 !important; }
-        .int-X { background: #b00000; color: #ffffff !important; }
-        .int-XI { background: #800080; color: #ffffff !important; }
-        .int-XII { background: #000000; color: #ffffff !important; }
+        /* SesnaQuake MMI colors (transform.ts AGPL-3.0) index 1..12; 0 unused gray */
+        .int-I { background: #777777; color: #f5f5f5 !important; }
+        .int-II { background: #aae0fa; color: #1a1a1a !important; }
+        .int-III { background: #6cbce8; color: #1a1a1a !important; }
+        .int-IV { background: #4cd3c2; color: #1a1a1a !important; }
+        .int-V { background: #6cd94e; color: #1a1a1a !important; }
+        .int-VI { background: #f2db36; color: #1a1a1a !important; }
+        .int-VII { background: #e59b12; color: #1a1a1a !important; }
+        .int-VIII { background: #dc6e19; color: #1a1a1a !important; }
+        .int-IX { background: #e24329; color: #1a1a1a !important; }
+        .int-X { background: #b81414; color: #f5f5f5 !important; }
+        .int-XI { background: #8f0606; color: #f5f5f5 !important; }
+        .int-XII { background: #500000; color: #f5f5f5 !important; }
 
         /* Scrollbar */
         .event-list::-webkit-scrollbar {
@@ -1365,6 +1378,152 @@
         /* Aviso español independiente de la leyenda oculta, sin solaparse con otros paneles. */
         #ynDiag { display:none; position:absolute; z-index:1110; right:10px; bottom:10px; max-width:min(92vw,430px); padding:4px 7px; border:1px solid rgba(150,190,210,.55); border-radius:4px; background:rgba(7,14,22,.82); color:#b9d3df; font:9px/12px monospace; pointer-events:none; white-space:normal; }
         #mainLayout.japan-focus #ynDiag { display:block; }
+
+        /* EQuake-style motion / local estimation cards */
+        #ynEarlyAlert.yn-motion-active,
+        #ynEarlyAlert.yn-weak,
+        #ynEarlyAlert.yn-shaking,
+        #ynEarlyAlert.yn-strong {
+            display: block !important;
+            width: min(92vw, 360px) !important;
+            padding: 0 !important;
+            border-radius: 8px !important;
+            border: 3px solid #2ecc71 !important;
+            border-left-width: 3px !important;
+            background: rgba(20, 28, 36, 0.94) !important;
+            box-shadow: 0 6px 18px rgba(0,0,0,.45) !important;
+            overflow: hidden !important;
+            pointer-events: none !important;
+            color: #eef3f7 !important;
+            font-family: 'Akshar', Roboto, 'Segoe UI', system-ui, sans-serif !important;
+        }
+        #ynEarlyAlert.yn-weak { border-color: #2ecc71 !important; }
+        #ynEarlyAlert.yn-shaking { border-color: #f1c40f !important; }
+        #ynEarlyAlert.yn-strong { border-color: #e74c3c !important; }
+        #ynEarlyAlert .eqk-shake-head {
+            padding: 8px 12px 6px;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: .01em;
+            color: #fff;
+            background: transparent;
+        }
+        #ynEarlyAlert.yn-weak .eqk-shake-head { color: #7dffa0; }
+        #ynEarlyAlert.yn-shaking .eqk-shake-head { color: #ffe566; }
+        #ynEarlyAlert.yn-strong .eqk-shake-head { color: #ff9b93; }
+        #ynEarlyAlert .eqk-shake-body {
+            margin: 0 10px 10px;
+            padding: 8px 10px;
+            min-height: 52px;
+            border-radius: 6px;
+            background: rgba(12, 16, 22, 0.88);
+            border: 1px solid rgba(255,255,255,.08);
+        }
+        #ynEarlyAlert .eqk-pref-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        #ynEarlyAlert .eqk-pref-list li {
+            font-size: 13px;
+            font-weight: 600;
+            color: #f2f5f8;
+            line-height: 1.35;
+        }
+        #ynLocalEpicenterCard {
+            display: none;
+            position: absolute;
+            z-index: 2201;
+            left: 12px;
+            top: 12px;
+            width: min(92vw, 380px);
+            border-radius: 8px;
+            border: 3px solid #2ecc71;
+            background: rgba(20, 28, 36, 0.95);
+            box-shadow: 0 6px 18px rgba(0,0,0,.45);
+            overflow: hidden;
+            pointer-events: none;
+            font-family: 'Akshar', Roboto, 'Segoe UI', system-ui, sans-serif;
+            color: #eef3f7;
+        }
+        #ynLocalEpicenterCard.active { display: block; }
+        #ynLocalEpicenterCard .eqk-lee-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(46, 204, 113, 0.22);
+            border-bottom: 1px solid rgba(46, 204, 113, 0.35);
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+        }
+        #ynLocalEpicenterCard .eqk-lee-no { opacity: .95; white-space: nowrap; }
+        #ynLocalEpicenterCard .eqk-lee-body {
+            display: grid;
+            grid-template-columns: 64px 1fr;
+            gap: 10px;
+            padding: 10px 12px 12px;
+            align-items: center;
+        }
+        #ynLocalEpicenterCard .eqk-lee-int {
+            width: 56px;
+            height: 56px;
+            border-radius: 8px;
+            background: #3a4550;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        #ynLocalEpicenterCard .eqk-lee-place {
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1.2;
+        }
+        #ynLocalEpicenterCard .eqk-lee-meta {
+            margin-top: 3px;
+            font-size: 11px;
+            color: #aeb8c2;
+        }
+        #ynLocalEpicenterCard .eqk-lee-stats {
+            margin-top: 6px;
+            font-size: 20px;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+        }
+        #ynLocalEpicenterCard .eqk-lee-stats span { white-space: nowrap; }
+        #mainLayout.japan-focus #ynLocalEpicenterCard.active,
+        #mainLayout.wave-focus #ynLocalEpicenterCard.active {
+            display: block !important;
+        }
+        /* When both cards show, stack estimation under shake box */
+        #mainLayout.japan-focus #ynEarlyAlert.active ~ #ynLocalEpicenterCard.active,
+        #mainLayout.wave-focus #ynEarlyAlert.active ~ #ynLocalEpicenterCard.active {
+            top: auto;
+            bottom: auto;
+        }
+        #mainLayout.japan-focus #ynLocalEpicenterCard.active {
+            top: 12px;
+            left: 12px;
+        }
+        #mainLayout.japan-focus #ynEarlyAlert.active {
+            top: 118px !important; /* leave room if estimation also shown; JS can adjust */
+        }
+        #mainLayout.japan-focus #ynEarlyAlert.active.eqk-only-shake {
+            top: 12px !important;
+        }
+
         #ynEarlyAlert { display:none; position:absolute; z-index:2200 !important; left:12px; top:12px; width:min(86vw,390px); box-sizing:border-box; padding:10px 11px 9px; border:1px solid rgba(255,183,77,.88); border-left:4px solid #ffb74d; border-radius:6px; background:linear-gradient(135deg,rgba(92,55,9,.97),rgba(37,27,10,.98)); color:#fff2d0; font-size:10px; line-height:14px; box-shadow:0 3px 12px rgba(0,0,0,.55); pointer-events:none; }
         /* El aviso solo puede verse dentro de Japón/NIED y tras la confirmación
            automática del episodio; la leyenda y el diagnóstico no lo cubren. */
@@ -1390,8 +1549,8 @@
         }
         #ynEarlyAlert.yn-weak { border-left-color:#39d353 !important; box-shadow:0 1px 4px rgba(0,0,0,.35); }
         #ynEarlyAlert.yn-weak .yn-alert-head { color:#8cff9a !important; }
-        #ynEarlyAlert.yn-shaking { border-left-color:#28b9e8 !important; box-shadow:0 1px 4px rgba(0,0,0,.35); }
-        #ynEarlyAlert.yn-shaking .yn-alert-head { color:#7de5ff !important; }
+        #ynEarlyAlert.yn-shaking { border-left-color:#f1c40f !important; box-shadow:0 1px 4px rgba(0,0,0,.35); }
+        #ynEarlyAlert.yn-shaking .yn-alert-head { color:#ffe566 !important; }
         #ynEarlyAlert.yn-strong { border-left-color:#ff3b30 !important; box-shadow:0 1px 4px rgba(0,0,0,.35); }
         #ynEarlyAlert.yn-strong .yn-alert-head { color:#ff8a84 !important; }
         #ynEarlyAlert .yn-alert-head { color:#e5e7eb !important; font-size:12px; }
@@ -1596,6 +1755,570 @@
         #jmaEewPanel .eew-message { line-height:15px; }
         #jmaEewPanel .eew-muted { color:#999; }
         @media (max-width: 700px) { #jmaEewPanel { top:112px; left:8px; width:205px; } }
+
+
+
+
+        /* EEW status card estilo EQuake (idle / activo) — solo mapa Japón */
+        #sesnaEewBanner {
+            display: none !important;
+            position: absolute;
+            z-index: 2210;
+            left: 12px;
+            top: 12px;
+            width: min(88vw, 340px);
+            margin: 0;
+            padding: 12px 14px 14px;
+            border-radius: 10px;
+            border: none;
+            background: rgba(32, 38, 46, 0.92);
+            box-shadow: 0 8px 24px rgba(0,0,0,.45);
+            font-family: 'Akshar', Roboto, 'Segoe UI', system-ui, sans-serif;
+            pointer-events: none;
+            box-sizing: border-box;
+        }
+        #mainLayout.japan-focus #sesnaEewBanner,
+        #mainLayout.wave-focus #sesnaEewBanner {
+            display: block !important;
+        }
+        #sesnaEewBanner .sesna-eew-header {
+            display: block;
+            padding: 0 0 10px 0;
+            background: transparent;
+            color: #f0f2f5;
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: .01em;
+            line-height: 1.25;
+            min-height: 0;
+        }
+        #sesnaEewBanner .sesna-eew-title {
+            display: block;
+            overflow: visible;
+            text-overflow: unset;
+            white-space: normal;
+            color: #f2f4f6;
+            font-size: 17px;
+            font-weight: 700;
+        }
+        #sesnaEewBanner .sesna-eew-report {
+            display: none;
+            margin-top: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            color: rgba(255,255,255,.75);
+            white-space: nowrap;
+        }
+        #sesnaEewBanner.active .sesna-eew-report {
+            display: block;
+            opacity: 1;
+        }
+        /* Caja oscura inferior (como EQuake) */
+        #sesnaEewBanner .sesna-eew-body {
+            display: block;
+            min-height: 72px;
+            border-radius: 8px;
+            background: rgba(18, 22, 28, 0.95);
+            border: 1px solid rgba(255,255,255,.06);
+            padding: 10px 12px;
+            color: #d8dee6;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.35;
+        }
+        #sesnaEewBanner.idle .sesna-eew-body {
+            min-height: 88px;
+        }
+        #sesnaEewBanner.idle .sesna-eew-body:empty::after {
+            content: '';
+            display: block;
+            min-height: 64px;
+        }
+        #sesnaEewBanner.active .sesna-eew-header {
+            color: #fff;
+        }
+        @media (max-width: 700px) {
+            #sesnaEewBanner {
+                left: 8px;
+                top: 8px;
+                width: calc(100vw - 16px);
+                max-width: 340px;
+                padding: 10px 12px 12px;
+            }
+            #sesnaEewBanner .sesna-eew-title { font-size: 15px; }
+            #sesnaEewBanner.idle .sesna-eew-body { min-height: 72px; }
+        }
+
+
+
+        /* === SesnaQuake UI theme + clock (adapted AGPL-3.0 from Domiko7/SesnaQuake index.css) === */
+        :root {
+            --sesna-bg: #242424;
+            --sesna-widget-bg: #333439;
+            --sesna-widget-top: #3a3a3a;
+            --sesna-panel-info: #292a2f;
+            --sesna-text: #ececec;
+            --sesna-text-mute: #9a9a9a;
+            --sesna-border: rgba(255, 255, 255, 0.1);
+            --sesna-accent: #19b0c8;
+            --sesna-clock-bg: rgb(40, 40, 40);
+            --sesna-clock-time: rgb(236, 236, 236);
+        }
+        html, body {
+            background-color: var(--sesna-bg) !important;
+            color: var(--sesna-text) !important;
+        }
+        /* Left panel / cards closer to Sesna grays */
+        body .left-panel,
+        #mainLayout > .left-panel {
+            background: var(--sesna-panel-info) !important;
+            border-right: 1px solid var(--sesna-border) !important;
+            border-color: var(--sesna-widget-top) !important;
+        }
+        body .current-event {
+            background: linear-gradient(160deg, #3a3a3a 0%, #333439 55%, #2a2b30 100%) !important;
+            border: 1px solid var(--sesna-border) !important;
+            border-radius: 9px !important;
+            color: var(--sesna-text) !important;
+        }
+        body .current-event .location { color: #fff !important; }
+        body .current-event .time,
+        body .current-event .location-label { color: #b0b0b0 !important; }
+        body .event-list#eventList,
+        #eventList {
+            background: var(--sesna-panel-info) !important;
+        }
+        body .event-item {
+            color: #fff !important;
+            border-bottom: 1px solid rgba(255,255,255,.08) !important;
+        }
+        body .event-item:hover {
+            filter: saturate(1.15) brightness(1.12);
+            background: rgba(255,255,255,.04) !important;
+        }
+        body .event-item .place { color: #f0f0f0 !important; }
+        body .event-item .meta { color: rgba(255,255,255,.55) !important; }
+        body .event-item .mag { color: #fff !important; }
+        body .event-item .agency-tag { color: rgba(255,255,255,.55) !important; }
+        /* Connection / side panels */
+        body #connectionPanel,
+        body #intensityLegendPanel,
+        body #jmaEewPanel,
+        body #yahooNiedLegendPanel {
+            background: var(--sesna-widget-bg) !important;
+            border: 1px solid var(--sesna-border) !important;
+            border-radius: 8px !important;
+            color: var(--sesna-text) !important;
+            box-shadow: none !important;
+            backdrop-filter: none !important;
+        }
+        body #mapActionToolbar {
+            background: rgba(40, 40, 40, 0.92) !important;
+            border: 1px solid var(--sesna-border) !important;
+            border-radius: 8px !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+        }
+        body #mapActionToolbar > button,
+        body #mapActionToolbar > label {
+            background: var(--sesna-clock-bg) !important;
+            border: 1px solid var(--sesna-border) !important;
+            border-radius: 8px !important;
+            color: var(--sesna-text) !important;
+        }
+        body #infoTickerPanel {
+            background: linear-gradient(90deg, #292a2f, #333439, #292a2f) !important;
+            border-bottom: 1px solid var(--sesna-border) !important;
+            color: var(--sesna-text) !important;
+        }
+        body #infoTickerTitle { color: var(--sesna-accent) !important; }
+
+        /* SesnaQuake-style clock (#clock / #time) */
+        body #multiClockPanel,
+        #mapActionToolbar #multiClockPanel,
+        #multiClockPanel {
+            position: fixed !important;
+            right: 12px !important;
+            bottom: 60px !important;
+            z-index: 9000 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 2px !important;
+            min-width: 0 !important;
+            max-width: none !important;
+            padding: 0.65rem 0.85rem !important;
+            background-color: var(--sesna-clock-bg) !important;
+            border: 1px solid var(--sesna-border) !important;
+            border-radius: 8px !important;
+            box-shadow: none !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            font-family: "Google Sans", Arimo, Roboto, "Segoe UI", system-ui, sans-serif !important;
+            cursor: default !important;
+        }
+        body #multiClockPanel .clock-date,
+        #mapActionToolbar #multiClockPanel .clock-date {
+            color: rgba(236, 236, 236, 0.72) !important;
+            font-size: 0.72rem !important;
+            line-height: 1.2 !important;
+            font-weight: 500 !important;
+            text-align: center !important;
+            white-space: nowrap !important;
+            font-family: inherit !important;
+            max-width: none !important;
+        }
+        body #multiClockPanel .clock-time,
+        #mapActionToolbar #multiClockPanel .clock-time {
+            color: var(--sesna-clock-time) !important;
+            font-size: 1.65rem !important;
+            line-height: 1.15 !important;
+            font-weight: 500 !important;
+            white-space: nowrap !important;
+            font-variant-numeric: tabular-nums !important;
+            font-family: inherit !important;
+            text-align: center !important;
+            letter-spacing: 0.02em !important;
+        }
+        body #multiClockPanel #todayQuakeCount,
+        #multiClockPanel #todayQuakeCount {
+            font-size: 0.65rem !important;
+            color: var(--sesna-text-mute) !important;
+            text-align: center !important;
+            margin-top: 2px !important;
+            width: 100% !important;
+        }
+        @media (max-width: 700px) {
+            body #multiClockPanel,
+            #mapActionToolbar #multiClockPanel {
+                right: 8px !important;
+                bottom: 56px !important;
+                padding: 0.5rem 0.65rem !important;
+            }
+            body #multiClockPanel .clock-time,
+            #mapActionToolbar #multiClockPanel .clock-time {
+                font-size: 1.35rem !important;
+            }
+            body #multiClockPanel .clock-date {
+                font-size: 0.65rem !important;
+            }
+        }
+
+        /* === SesnaQuake-inspired UI (adapted under AGPL-3.0; source: Domiko7/SesnaQuake) === */
+        /* List row closer to PastEventItem layout */
+        body .event-item,
+        .event-item {
+            display: grid !important;
+            grid-template-columns: 42px minmax(0, 1fr) 58px !important;
+            grid-template-rows: auto auto !important;
+            column-gap: 10px !important;
+            row-gap: 0 !important;
+            align-items: center !important;
+            padding: 7px 10px !important;
+            min-height: 50px !important;
+        }
+        body .event-item .int-badge {
+            grid-row: 1 / span 2 !important;
+            width: 38px !important;
+            height: 38px !important;
+            border-radius: 7px !important;
+            font-size: 14px !important;
+            font-weight: 700 !important;
+        }
+        body .event-item .info {
+            grid-column: 2 !important;
+            grid-row: 1 / span 2 !important;
+        }
+        body .event-item .mag {
+            grid-column: 3 !important;
+            grid-row: 1 !important;
+            font-size: 15px !important;
+            font-weight: 700 !important;
+            text-align: right !important;
+            align-self: end !important;
+        }
+        body .event-item .agency-tag {
+            /* will also style standalone if we add class on mag column - keep inline in meta */
+            font-size: 8.5px !important;
+            letter-spacing: .05em !important;
+        }
+        body .event-item .place {
+            font-size: 13px !important;
+            font-weight: 600 !important;
+            font-family: 'Akshar', 'BIZ UDPGothic', 'Segoe UI', sans-serif !important;
+        }
+        body .event-item .meta {
+            font-size: 10px !important;
+            font-family: 'Akshar', 'Segoe UI', sans-serif !important;
+        }
+
+        /* Intensity points on map — circular numbered badges (SREV-like presentation) */
+        .leaflet-tooltip.jma-official-intensity-label,
+        .leaflet-tooltip.srev-int-point {
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        .leaflet-tooltip.jma-official-intensity-label:before,
+        .leaflet-tooltip.srev-int-point:before { display: none !important; }
+        .leaflet-tooltip.jma-official-intensity-label span,
+        .leaflet-tooltip.srev-int-point span,
+        .srev-int-dot {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            min-width: 22px !important;
+            height: 22px !important;
+            padding: 0 4px !important;
+            border-radius: 50% !important;
+            font: 700 11px/1 'Akshar', 'Segoe UI', Arial, sans-serif !important;
+            color: #fff !important;
+            text-shadow: 0 1px 1px rgba(0,0,0,.45) !important;
+            border: 1.5px solid rgba(255,255,255,.85) !important;
+            box-shadow: 0 1px 4px rgba(0,0,0,.4) !important;
+            background: #686870;
+        }
+        /* Approximate shindo colors on labels when class present */
+        .srev-int-dot.i0, .srev-int-0 { background:#464646 !important; color:#f5f5f5 !important; }
+        .srev-int-dot.i1, .srev-int-1 { background:#2b8cb3 !important; color:#f5f5f5 !important; }
+        .srev-int-dot.i2, .srev-int-2 { background:#3fa887 !important; color:#1a1a1a !important; }
+        .srev-int-dot.i3, .srev-int-3 { background:#e0b134 !important; color:#1a1a1a !important; }
+        .srev-int-dot.i4, .srev-int-4 { background:#e88527 !important; color:#1a1a1a !important; }
+        .srev-int-dot.i5, .srev-int-5 { background:#c92214 !important; color:#f5f5f5 !important; }
+        .srev-int-dot.i6, .srev-int-6 { background:#b01312 !important; color:#f5f5f5 !important; }
+        .srev-int-dot.i7, .srev-int-7 { background:#7c0b53 !important; color:#f5f5f5 !important; }
+        .srev-int-dot.i8, .srev-int-8 { background:#6d0359 !important; color:#f5f5f5 !important; }
+        .srev-int-dot.i9, .srev-int-9 { background:#440375 !important; color:#f5f5f5 !important; }
+
+        /* Lista compacta estilo app (inspirado visualmente; código propio, no SesnaQuake AGPL) */
+        #eventList.event-list,
+        .event-list#eventList {
+            padding: 0 0 12px 0 !important;
+            background: rgba(12, 14, 18, 0.55) !important;
+            font-family: 'Akshar', 'BIZ UDPGothic', 'Segoe UI', system-ui, Roboto, Arial, sans-serif !important;
+        }
+        body .event-item,
+        .event-item {
+            display: grid !important;
+            grid-template-columns: 44px minmax(0, 1fr) auto !important;
+            align-items: center !important;
+            gap: 10px !important;
+            min-height: 52px !important;
+            padding: 8px 10px !important;
+            margin: 0 !important;
+            border: 0 !important;
+            border-bottom: 1px solid rgba(255,255,255,.06) !important;
+            border-radius: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            cursor: pointer !important;
+            transition: background .12s ease !important;
+            font-family: 'Akshar', 'BIZ UDPGothic', 'Segoe UI', system-ui, Roboto, Arial, sans-serif !important;
+        }
+        body .event-item:hover,
+        .event-item:hover {
+            background: rgba(255,255,255,.05) !important;
+            transform: none !important;
+            border-color: rgba(255,255,255,.06) !important;
+        }
+        body .event-item.active,
+        .event-item.active {
+            background: rgba(110, 70, 200, .18) !important;
+            border-bottom-color: rgba(140, 100, 230, .35) !important;
+            box-shadow: inset 3px 0 0 #8b5cf6 !important;
+        }
+        body .event-item .int-badge,
+        .event-item .int-badge {
+            width: 40px !important;
+            height: 40px !important;
+            border-radius: 6px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 15px !important;
+            font-weight: 700 !important;
+            font-family: 'Akshar', 'Segoe UI', system-ui, sans-serif !important;
+            color: #fff !important;
+            flex-shrink: 0 !important;
+            text-shadow: 0 1px 1px rgba(0,0,0,.35) !important;
+            letter-spacing: -0.02em !important;
+        }
+        body .event-item .info,
+        .event-item .info {
+            min-width: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 2px !important;
+        }
+        body .event-item .place,
+        .event-item .place {
+            font-size: 13.5px !important;
+            line-height: 1.25 !important;
+            font-weight: 600 !important;
+            color: #eef2f7 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            letter-spacing: 0.01em !important;
+            font-family: 'Akshar', 'BIZ UDPGothic', 'Segoe UI', sans-serif !important;
+        }
+        body .event-item .meta,
+        .event-item .meta {
+            font-size: 10.5px !important;
+            color: #8b98a8 !important;
+            margin-top: 0 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            font-weight: 500 !important;
+            font-family: 'Akshar', 'Segoe UI', sans-serif !important;
+        }
+        body .event-item .agency-tag,
+        .event-item .agency-tag {
+            display: inline-block !important;
+            font-size: 9px !important;
+            font-weight: 600 !important;
+            color: #a8b4c2 !important;
+            background: transparent !important;
+            margin-left: 6px !important;
+            padding: 0 !important;
+            border: 0 !important;
+            letter-spacing: 0.04em !important;
+            text-transform: uppercase !important;
+            opacity: 0.9 !important;
+        }
+        body .event-item .mag,
+        .event-item .mag {
+            font-size: 16.5px !important;
+            line-height: 1.1 !important;
+            font-weight: 700 !important;
+            color: #f5f7fa !important;
+            min-width: 52px !important;
+            text-align: right !important;
+            font-variant-numeric: tabular-nums !important;
+            letter-spacing: -0.01em !important;
+            font-family: 'Akshar', 'Segoe UI', system-ui, sans-serif !important;
+        }
+        body .event-item .jma-prelim-intensity {
+            font-size: 9px !important;
+            color: #c4b5fd !important;
+            font-weight: 600 !important;
+        }
+        @media (max-width: 700px) {
+            body .event-item,
+            .event-item {
+                grid-template-columns: 38px minmax(0,1fr) auto !important;
+                gap: 8px !important;
+                min-height: 48px !important;
+                padding: 7px 8px !important;
+            }
+            body .event-item .int-badge,
+            .event-item .int-badge { width: 36px !important; height: 36px !important; font-size: 13px !important; }
+            body .event-item .place,
+            .event-item .place { font-size: 12.5px !important; }
+            body .event-item .mag,
+            .event-item .mag { font-size: 15px !important; min-width: 46px !important; }
+        }
+
+        /* Tarjeta estilo INGV EEW */
+        #ingvEewPanel {
+            display: none;
+            position: absolute;
+            top: 72px;
+            left: 12px;
+            z-index: 2300;
+            width: min(320px, calc(100vw - 24px));
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #e85a2a;
+            background: #2a2e33;
+            box-shadow: 0 10px 28px rgba(0,0,0,.45);
+            font-family: 'Akshar', 'Segoe UI', system-ui, sans-serif;
+            color: #f2f4f6;
+        }
+        #ingvEewPanel.active { display: block; }
+        #ingvEewPanel .ingv-eew-banner {
+            background: #e85a2a;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .02em;
+            padding: 6px 10px;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            align-items: center;
+        }
+        #ingvEewPanel .ingv-eew-body {
+            display: grid;
+            grid-template-columns: 56px 1fr;
+            gap: 10px;
+            padding: 10px 12px 12px;
+            align-items: center;
+            background: #2f343a;
+        }
+        #ingvEewPanel .ingv-eew-mmi {
+            width: 52px;
+            height: 52px;
+            border-radius: 6px;
+            background: #e85a2a;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            line-height: 1;
+        }
+        #ingvEewPanel .ingv-eew-mmi .lbl { font-size: 8px; opacity: .9; margin-bottom: 2px; letter-spacing: .06em; }
+        #ingvEewPanel .ingv-eew-mmi .val { font-size: 22px; }
+        #ingvEewPanel .ingv-eew-meta { min-width: 0; }
+        #ingvEewPanel .ingv-eew-place {
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #ingvEewPanel .ingv-eew-time {
+            margin-top: 2px;
+            font-size: 11px;
+            color: #c5ccd3;
+            font-weight: 500;
+        }
+        #ingvEewPanel .ingv-eew-stats {
+            margin-top: 6px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: .02em;
+        }
+        #ingvEewPanel .ingv-eew-stats span { margin-right: 12px; }
+        #ingvEewPanel .ingv-eew-foot {
+            padding: 0 12px 8px;
+            font-size: 9px;
+            color: #9aa3ad;
+            background: #2f343a;
+        }
+        @media (max-width: 700px) {
+            #ingvEewPanel { top: 100px; left: 8px; width: min(300px, calc(100vw - 16px)); }
+        }
+        #mainLayout.taiwan-focus #ingvEewPanel,
+        #mainLayout.taiwan-motion-focus #ingvEewPanel,
+        #mainLayout.wave-focus #ingvEewPanel,
+        #mainLayout.typhoon-focus #ingvEewPanel,
+        #mainLayout.hurricane-focus #ingvEewPanel,
+        #mainLayout.us-alerts-focus #ingvEewPanel,
+        #mainLayout.jma-volcano-focus #ingvEewPanel,
+        #mainLayout.gdacs-focus #ingvEewPanel,
+        #mainLayout.tsunami-focus #ingvEewPanel,
+        #mainLayout.japan-focus #ingvEewPanel,
+        #mainLayout.siat-focus #ingvEewPanel { display: none !important; }
+
         /* Multi-time clock widget */
         #multiClockPanel {
             position: absolute; bottom: 16px; right: 12px; z-index: 1000;
@@ -2357,7 +3080,7 @@
             color:#eee !important; box-shadow:0 1px 4px rgba(0,0,0,.35) !important;
         }
         #ynEarlyAlert.yn-motion-active.yn-weak { border-left-color:#39d353 !important; }
-        #ynEarlyAlert.yn-motion-active.yn-shaking { border-left-color:#28b9e8 !important; }
+        #ynEarlyAlert.yn-motion-active.yn-shaking { border-left-color:#f1c40f !important; }
         #ynEarlyAlert.yn-motion-active.yn-strong { border-left-color:#ff3b30 !important; }
         #ynEarlyAlert.yn-motion-active .yn-alert-badge {
             border-color:#747a80 !important; border-radius:2px !important;
@@ -3363,16 +4086,16 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
 #mainLayout > .left-panel .event-item:has(> .int-badge.int-XI) { --eq-row-intensity:#800080; }
 #mainLayout > .left-panel .event-item:has(> .int-badge.int-XII) { --eq-row-intensity:#777787; }
 #mainLayout > .left-panel .event-item:has(> .int-badge.int-unknown) { --eq-row-intensity:#7d8794; }
-#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-0) { --eq-row-intensity:#686870; }
-#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-1) { --eq-row-intensity:#3098bd; }
-#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-2) { --eq-row-intensity:#4cd0a7; }
-#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-3) { --eq-row-intensity:#f6cb51; }
-#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-4) { --eq-row-intensity:#ff9939; }
-#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-5) { --eq-row-intensity:#e52a18; }
-#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-6) { --eq-row-intensity:#c31b1b; }
-#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-7) { --eq-row-intensity:#a30a6b; }
-#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-8) { --eq-row-intensity:#86046e; }
-#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-9) { --eq-row-intensity:#54068e; }
+#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-0) { --eq-row-intensity:#464646; }
+#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-1) { --eq-row-intensity:#2b8cb3; }
+#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-2) { --eq-row-intensity:#3fa887; }
+#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-3) { --eq-row-intensity:#e0b134; }
+#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-4) { --eq-row-intensity:#e88527; }
+#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-5) { --eq-row-intensity:#c92214; }
+#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-6) { --eq-row-intensity:#b01312; }
+#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-7) { --eq-row-intensity:#7c0b53; }
+#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-8) { --eq-row-intensity:#6d0359; }
+#mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-shindo-9) { --eq-row-intensity:#440375; }
 #mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-cwa-0) { --eq-row-intensity:#f2f2f2; }
 #mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-cwa-1) { --eq-row-intensity:#747982; }
 #mainLayout > .left-panel .event-item:has(> .int-badge.eq-int-cwa-2) { --eq-row-intensity:#2878d0; }
@@ -3424,6 +4147,15 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
 </style>
 </head>
 <body>
+
+<!--
+  AGPL-3.0 notice: portions of the earthquake list presentation and intensity point styling
+  were adapted from SesnaQuake by Domiko (https://github.com/Domiko7/SesnaQuake), licensed under
+  the GNU Affero General Public License v3.0. If you modify and run this page on a network server
+  (e.g. GitHub Pages), you must offer the corresponding source to users. Full AGPL text:
+  https://www.gnu.org/licenses/agpl-3.0.html
+-->
+
     <div id="jmaJaBanner" aria-live="polite"></div>
     <div id="regionToast"></div>
     <button id="btnFullscreen" title="Pantalla completa" style="
@@ -3450,7 +4182,7 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
 
     <div class="main" id="mainLayout">
         <div class="left-panel">
-            <div class="current-event" id="currentEvent">
+<div class="current-event" id="currentEvent">
                 <div class="intensity-big">
                     <div class="intensity-circle int-1" id="bigInt">1</div>
                     <div>
@@ -3633,6 +4365,25 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
                 <div id="jmaEewMessage" class="eew-message eew-muted">Sin alerta EEW activa</div>
             </div>
 
+            <div id="ingvEewPanel" role="status" aria-live="polite" aria-label="Tarjeta de información sísmica estilo INGV">
+                <div class="ingv-eew-banner">
+                    <span id="ingvEewBannerTitle">INGV Earthquake Early Warning</span>
+                    <span id="ingvEewReport">Report</span>
+                </div>
+                <div class="ingv-eew-body">
+                    <div class="ingv-eew-mmi" title="Intensidad MMI estimada">
+                        <span class="lbl">MMI</span>
+                        <span class="val" id="ingvEewMmi">—</span>
+                    </div>
+                    <div class="ingv-eew-meta">
+                        <div class="ingv-eew-place" id="ingvEewPlace">—</div>
+                        <div class="ingv-eew-time" id="ingvEewTime">—</div>
+                        <div class="ingv-eew-stats"><span id="ingvEewMag">M—</span><span id="ingvEewDepth">— km</span></div>
+                    </div>
+                </div>
+                <div class="ingv-eew-foot">Estilo informativo · no sustituye boletines oficiales INGV/JMA</div>
+            </div>
+
             <div id="yahooNiedLegendPanel" aria-label="Leyenda de intensidad NIED K-NET/KiK-net">
                 <div class="yn-legend-title"><span id="ynMetricLegendTitle">🇯🇵 NIED K-NET/KiK-net · intensidad 0–7</span><span id="ynLegendStatus">Feed: esperando</span></div>
                 <div class="yn-legend-items" id="ynMetricLegendItems">
@@ -3650,7 +4401,28 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
                 <div id="ynLegendNote" class="yn-legend-status">Fuente: NIED Kyoshin Monitor (K-NET + KiK-net). Intensidad estaciones 0–7 (estilo JMA). Estimación en vivo, no boletín oficial.</div>
             </div>
             <div id="jmaWeatherAlertPanel" role="status" aria-live="polite" style="display:none;position:absolute;z-index:2250;"></div>
+                        <div id="sesnaEewBanner" class="idle" role="status" aria-live="polite" aria-label="Estado de alerta temprana">
+                <div class="sesna-eew-header">
+                    <span class="sesna-eew-title" id="sesnaEewTitle">No Earthquake Warning issued</span>
+                    <span class="sesna-eew-report"><span id="sesnaEewReportLabel">Informe</span> <span id="sesnaEewReportValue"></span></span>
+                </div>
+                <div class="sesna-eew-body" id="sesnaEewBody"></div>
+            </div>
             <div id="ynEarlyAlert" role="status" aria-live="polite">Sin Alertas Tempranas de Terremotos</div>
+            <div id="ynLocalEpicenterCard" aria-live="polite" aria-label="Estimación local de epicentro">
+                <div class="eqk-lee-head">
+                    <span id="ynLeeTitle">Local Epicenter Estimation</span>
+                    <span class="eqk-lee-no" id="ynLeeNo">No.—</span>
+                </div>
+                <div class="eqk-lee-body">
+                    <div class="eqk-lee-int" id="ynLeeInt">不明</div>
+                    <div>
+                        <div class="eqk-lee-place notranslate" id="ynLeePlace" translate="no">—</div>
+                        <div class="eqk-lee-meta" id="ynLeeMeta">—</div>
+                        <div class="eqk-lee-stats"><span id="ynLeeMag">M—</span><span id="ynLeeDepth">Depth: —</span></div>
+                    </div>
+                </div>
+            </div>
             <div id="ynDiag" aria-live="polite">NIED K-NET/KiK-net: esperando catálogo…</div>
 
             <div id="kmoniPanel" class="kmoni-hidden" aria-live="polite">
@@ -12784,7 +13556,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         const csisPalette=['#f3f8ff','#d8edfa','#b8e1eb','#8ed5cf','#70c58d','#a6cf4b','#e3d443','#f2b63d','#ed8735','#db5639','#b52d3c','#681628'];
         // Paleta exacta de niveles Shindo usada por SREV (0, 1, 2, 3, 4, 5−, 5+, 6−, 6+, 7).
         // La capa de polígonos JMA usa explícitamente srevShindoPalette; la interfaz comparte la misma tabla.
-        const srevShindoPalette=['#686870','#3098bd','#4cd0a7','#f6cb51','#ff9939','#e52a18','#c31b1b','#a30a6b','#86046e','#54068e'];
+        const srevShindoPalette=['#464646','#2b8cb3','#3fa887','#e0b134','#e88527','#c92214','#b01312','#7c0b53','#6d0359','#440375']; // SesnaQuake transform.ts AGPL-3.0
         const shindoPalette=srevShindoPalette;
         const cwaPalette=['#f2f2f2','#30343b','#2878d0','#31a65c','#9fbd36','#f1d22f','#f08b2c','#e44d3b','#ad3159','#63308d'];
         function colorByEventIntensity(level, scale) {
@@ -14287,8 +15059,15 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 style:f => ({ color:'#e4edf8', weight:1.05, opacity:.9, fillColor:f.properties.jmaIntensityColor, fillOpacity:.82 }),
                 onEachFeature:(feature, layer) => {
                     const p = feature.properties || {}, label = document.createElement('span');
-                    label.textContent = p.jmaIntensityLabel || '';
-                    layer.bindTooltip(label, { permanent:true, direction:'center', opacity:1, pane:'intensityMap', className:`jma-official-intensity-label ${p.jmaIntensityTone || 'jma-light'}` });
+                    const lab = String(p.jmaIntensityLabel || '');
+                    label.textContent = lab;
+                    label.className = 'srev-int-dot';
+                    // Map JMA label to approximate color class for circular SREV-like points
+                    const n = lab.replace(/[^\d]/g,'').charAt(0);
+                    if (n) label.classList.add('i' + n);
+                    if (/5\+|5強/.test(lab)) label.classList.add('i5');
+                    if (/6\+|6強/.test(lab)) label.classList.add('i6');
+                    layer.bindTooltip(label, { permanent:true, direction:'center', opacity:1, pane:'intensityMap', className:`jma-official-intensity-label srev-int-point ${p.jmaIntensityTone || 'jma-light'}` });
                     const popup = document.createElement('span');
                     popup.textContent = `${p.jmaAreaName || 'Área JMA'} · 震度${p.jmaIntensityLabel || '—'} · JMA oficial`;
                     layer.bindPopup(popup);
@@ -24356,18 +25135,24 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             try{if(ynMotionHighlightLayer)ynMotionHighlightLayer.clearLayers();}catch(_){}
             ynLastMotionBoxFitKey='';ynMotionGridOrigin=null;ynFollowLastKey='';ynFollowLastAt=0;
         }
-        function ynShowMotionPanel(alert,stations,maxInstr,updateBoxes=false){
+                function ynShowMotionPanel(alert,stations,maxInstr,updateBoxes=false){
             if(!alert)return;
             const place=ynMotionPlaceLabel(stations),shindo=Math.max(0,Math.min(7,Number(maxInstr)||0));
-            let label='0';
-            if(typeof ynIntensityLabel==='function')label=ynIntensityLabel(Math.round((shindo+3)*2));
-            else if(shindo<4.5)label=String(Math.round(shindo));else if(shindo<5)label='5−';else if(shindo<5.5)label='5+';else if(shindo<6)label='6−';else if(shindo<6.5)label='6+';else label='7';
-            let pgaTxt='—';try{if(typeof ynCodeToApproxPgaPgv==='function'){const code=Math.round((Number(maxInstr)+3)*2),approx=ynCodeToApproxPgaPgv(Math.max(0,code));if(approx&&approx.pga>.05)pgaTxt=(approx.pga>=10?approx.pga.toFixed(1):approx.pga.toFixed(2))+' gal';}}catch(_){}
-            alert.innerHTML='<div class="yn-alert-head"><span>🇯🇵 NIED · detección local</span><span class="yn-alert-badge">EN VIVO</span></div><div class="yn-motion-title">Movimiento instrumental</div><div class="yn-motion-place">'+place+'</div><div class="yn-motion-metrics"><div>Máx. Int.<b>'+label+'</b></div><div>Máx. PGA ≈<b style="font-size:14px">'+pgaTxt+'</b></div><div>Estaciones<b style="font-size:14px">'+(stations?stations.length:0)+'</b></div></div><div class="yn-alert-foot">Vecinos ≤30–40 km · actividad ponderada · 2 lecturas · celdas ~0,99° · sin epicentro oficial</div>';
-            alert.classList.remove('yn-weak','yn-shaking','yn-strong');alert.classList.add('active','yn-motion-active');
+            const tier=ynShakingLevel(shindo);
+            let places=[];
+            try{
+                const groups=window.__ynLastMotionGroups;
+                if(Array.isArray(groups))groups.forEach(g=>{(g.prefectures||[]).forEach(n=>{if(n&&n!=='Japón'&&!places.includes(n))places.push(n);});});
+            }catch(_){}
+            if(!places.length&&place)places=[place];
+            const list=places.length?places.map(x=>'<li>'+String(x)+'</li>').join(''):'<li>Área en detección</li>';
+            alert.innerHTML='<div class="eqk-shake-head">'+tier.title+'</div><div class="eqk-shake-body"><ul class="eqk-pref-list">'+list+'</ul></div>';
+            alert.classList.remove('yn-weak','yn-shaking','yn-strong','eqk-only-shake');
+            alert.classList.add('active','yn-motion-active', 'yn-'+tier.level);
             if(updateBoxes)ynUpdateMotionBoxes(stations);
+            try{ if(typeof ynSyncLocalEpicenterCard==='function') ynSyncLocalEpicenterCard(stations, maxInstr); }catch(_){}
         }
-        function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEarlyAlert')){
+function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEarlyAlert')){
             const valid=(Array.isArray(groups)?groups:[]).filter(g=>Array.isArray(g&&g.stations)&&g.stations.length>=YN_MOTION_QUORUM).slice(0,2);
             if(!valid.length||!primaryAlert)return;
             const stationMap=new Map();valid.forEach(g=>(g.stations||[]).forEach(st=>stationMap.set(st.index??`${st.lat},${st.lon}`,st)));
@@ -24830,7 +25615,85 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 return true;
             } catch (_) { programmaticMapMove=false; ynLastMotionBoxFitKey=''; return false; }
         }
+
+        let ynLocalEstimateSerial = 0;
+        let ynLocalEstimateKey = '';
+        function ynSyncLocalEpicenterCard(stations, maxInstr) {
+            const card = document.getElementById('ynLocalEpicenterCard');
+            const alert = document.getElementById('ynEarlyAlert');
+            if (!card) return;
+            // Prefer live TauP/wave estimated epicenter, else motion cluster centroid
+            let lat = NaN, lon = NaN, place = '', mag = null, depth = null, intLabel = '不明', ts = Date.now(), source = 'NIED';
+            try {
+                const w = (typeof taupEewWaveEvent !== 'undefined' && taupEewWaveEvent && typeof taupEewWaveIsFresh === 'function' && taupEewWaveIsFresh(taupEewWaveEvent))
+                    ? taupEewWaveEvent : null;
+                if (w) {
+                    lat = Number(w.lat); lon = Number(w.lon);
+                    place = String(w.place || w.region || w.location || '');
+                    mag = w.mag ?? w.magnitude;
+                    depth = w.depth ?? w.Depth;
+                    source = String(w.agency || 'EEW');
+                    ts = Number(w.waveOriginTs || w.ts) || Date.parse(w.time) || Date.now();
+                    if (w.intensity != null && w.intensity !== '') intLabel = String(w.intensity);
+                }
+            } catch (_) {}
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+                const list = Array.isArray(stations) ? stations : [];
+                if (list.length) {
+                    let sx=0,sy=0,n=0;
+                    list.forEach(st=>{const a=Number(st.lat),b=Number(st.lon);if(Number.isFinite(a)&&Number.isFinite(b)){sx+=a;sy+=b;n++;}});
+                    if (n) { lat = sx/n; lon = sy/n; }
+                }
+                try {
+                    const g = Array.isArray(window.__ynLastMotionGroups) && window.__ynLastMotionGroups[0];
+                    if (g && Number.isFinite(Number(g.lat)) && Number.isFinite(Number(g.lon))) {
+                        lat = Number(g.lat); lon = Number(g.lon);
+                        if (Array.isArray(g.prefectures) && g.prefectures[0]) place = g.prefectures[0];
+                    }
+                } catch (_) {}
+                if (!place) {
+                    try { place = typeof ynMotionPlaceLabel === 'function' ? ynMotionPlaceLabel(stations || []) : ''; } catch (_) {}
+                }
+                source = 'NIED local';
+            }
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+                card.classList.remove('active');
+                alert?.classList.add('eqk-only-shake');
+                return;
+            }
+            // estimated magnitude from instrumental intensity if missing
+            if (mag == null || mag === '') {
+                const sh = Math.max(0, Math.min(7, Number(maxInstr) || 0));
+                mag = (sh > 0 ? (2.2 + sh * 0.55) : 2.5).toFixed(1);
+            }
+            if (depth == null || depth === '') depth = 10;
+            if (!place) place = lat.toFixed(2) + '°, ' + lon.toFixed(2) + '°';
+            const key = place + '|' + String(mag) + '|' + Math.round(lat*100) + '|' + Math.round(lon*100);
+            if (key !== ynLocalEstimateKey) {
+                ynLocalEstimateKey = key;
+                ynLocalEstimateSerial += 1;
+            }
+            const d = new Date(ts);
+            const pad = n => String(n).padStart(2,'0');
+            const timeStr = Number.isNaN(d.getTime()) ? '—' :
+                `AI ${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} · ${source}`;
+            const set = (id, v) => { const n = document.getElementById(id); if (n) n.textContent = v; };
+            set('ynLeeNo', 'No.' + ynLocalEstimateSerial);
+            set('ynLeeInt', intLabel || '不明');
+            set('ynLeePlace', place);
+            set('ynLeeMeta', timeStr);
+            set('ynLeeMag', 'M' + (Number(mag) == mag || !isNaN(Number(mag)) ? Number(mag).toFixed(1) : mag));
+            set('ynLeeDepth', 'Depth: ' + (Number.isFinite(Number(depth)) ? Math.round(Number(depth)) + 'km' : String(depth)));
+            card.classList.add('active');
+            alert?.classList.remove('eqk-only-shake');
+        }
+        function ynHideLocalEpicenterCard() {
+            document.getElementById('ynLocalEpicenterCard')?.classList.remove('active');
+            document.getElementById('ynEarlyAlert')?.classList.add('eqk-only-shake');
+        }
+
         function ynShowIdlePanel(alert) {
+            try{ynHideLocalEpicenterCard();}catch(_){}
             if (!alert || !(ynMode || yahooNiedModeActive || japanLiveStationsPinned) || !document.getElementById('mainLayout')?.classList.contains('japan-focus')) return;
             alert.classList.remove('yn-motion-active','yn-weak','yn-shaking','yn-strong');
             const forecasts = typeof jmaTsunamiActiveForecasts === 'function' ? jmaTsunamiActiveForecasts() : [];
@@ -25020,20 +25883,24 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             try{return await task;}finally{if(ynPrefectureResolveTasks.get(key)===task)ynPrefectureResolveTasks.delete(key);}
         }
         function ynShakingLevel(intensity) {
+            // 0 = débil (verde), 1–3 = medio (amarillo), 4–7 = fuerte (rojo)
             const value=Number(intensity);
-            if (!Number.isFinite(value) || value < 1) return { level:'weak', title:'Weak Shaking' };
-            if (value < 5) return { level:'shaking', title:'Shaking' };
-            return { level:'strong', title:'Strong Shaking' };
+            if (!Number.isFinite(value) || value < 1) return { level:'weak', title:'Weak shaking detected' };
+            if (value < 4) return { level:'shaking', title:'Shaking detected' };
+            return { level:'strong', title:'Strong shaking detected' };
         }
         function ynMovementAlertHtml(current, mainGroup) {
             const raw = Number(mainGroup?.maxIntensity);
             const tier = ynShakingLevel(raw);
             const level = tier.level;
             const title = tier.title;
-            const places = (mainGroup?.prefectures || []).filter(x=>x&&x!=='Japón').length ? mainGroup.prefectures.filter(x=>x&&x!=='Japón') : [ynMotionPlaceLabel(mainGroup?.stations||[])];
-            return { level, html: `<div class="yn-alert-head"><span>${title}</span><span class="yn-alert-badge">NIED</span></div>`
-                + `<div class="yn-alert-sub">${places.map(x => `<span class="yn-place">${x}</span>`).join(' ')}</div>`
-                + `<div class="yn-alert-foot">Intensidad máxima detectada: ${Number.isFinite(raw) ? raw.toFixed(1).replace(/\.0$/, '') : '0'} · ${current.length} estación${current.length === 1 ? '' : 'es'} · cuadro local de detección</div>` };
+            const places = (mainGroup?.prefectures || []).filter(x=>x&&x!=='Japón').length
+                ? mainGroup.prefectures.filter(x=>x&&x!=='Japón')
+                : [ynMotionPlaceLabel(mainGroup?.stations||[])].filter(Boolean);
+            const list = places.length
+                ? `<ul class="eqk-pref-list">${places.map(x => `<li>${String(x)}</li>`).join('')}</ul>`
+                : `<ul class="eqk-pref-list"><li>Área en detección</li></ul>`;
+            return { level, html: `<div class="eqk-shake-head">${title}</div><div class="eqk-shake-body">${list}</div>` };
         }
         function ynRenderMovementAlert(current, mainGroup, alert) {
             if (!alert) return;
@@ -28201,7 +29068,7 @@ setTimeout(()=>{try{window.__eqApplyFaults?.(!!window.__eqShowFaults);}catch(_){
     tsunamiPanel:['tsunami-active'], gdacsPanel:['gdacs-active'],
     usAlertsPanel:['us-alerts-active'], hurricanePanel:['hurricane-active'],
     typhoonPanel:['typhoon-active'], jmaVolcanoPanel:['jma-volcano-active'],
-    nhkGPanel:['nhk-active'], jmaEewPanel:['active'], taiwanDetectorPanel:['active','taiwan-focus-panel'],
+    nhkGPanel:['nhk-active'], jmaEewPanel:['active'], ingvEewPanel:['active'], taiwanDetectorPanel:['active','taiwan-focus-panel'],
     ynEarlyAlert:['active'], jmaWeatherAlertPanel:[], kmoniPanel:['kmoni-active'],
     mainLayout:['wave-focus'], solarCivilAlertPanel:['active'], siatAlertSection:['active'],
     weatherPanel:['active'], alertCenterPanel:['alert-center-active']
@@ -31808,5 +32675,278 @@ For more information on this, and how to apply and follow the GNU AGPL, see
   setInterval(refresh,120000);
 })();
 </script>
+
+<script id="ingv-eew-card-style">
+(() => {
+  'use strict';
+  function el(id){ return document.getElementById(id); }
+  function romanMmi(n) {
+    const map = {1:'I',2:'II',3:'III',4:'IV',5:'V',6:'VI',7:'VII',8:'VIII',9:'IX',10:'X',11:'XI',12:'XII'};
+    const v = Math.round(Number(n));
+    if (!Number.isFinite(v) || v < 1) return '—';
+    return map[Math.min(12, Math.max(1, v))] || String(v);
+  }
+  function estimateMmiFromMag(mag, depthKm) {
+    const m = Number(mag);
+    const d = Number(depthKm);
+    if (!Number.isFinite(m)) return null;
+    let base = (m - 3.2) * 1.35;
+    if (Number.isFinite(d)) {
+      if (d > 70) base -= 1.2;
+      else if (d > 35) base -= 0.5;
+      else if (d < 15) base += 0.4;
+    }
+    return Math.max(1, Math.min(10, base));
+  }
+  function formatEventTime(ev) {
+    try {
+      const t = ev.time || ev.originTime || ev.OriginTime || ev.date || ev.timestamp || ev.ts;
+      if (!t) return '—';
+      const d = (t instanceof Date) ? t : new Date(t);
+      if (Number.isNaN(d.getTime())) return String(t);
+      const y = d.getFullYear();
+      const mo = String(d.getMonth()+1).padStart(2,'0');
+      const da = String(d.getDate()).padStart(2,'0');
+      const h = String(d.getHours()).padStart(2,'0');
+      const mi = String(d.getMinutes()).padStart(2,'0');
+      const s = String(d.getSeconds()).padStart(2,'0');
+      return `${y}/${mo}/${da} ${h}:${mi}:${s}`;
+    } catch (_) { return '—'; }
+  }
+  function isIngvEvent(ev) {
+    if (!ev) return false;
+    const ag = String(ev.agency || ev.source || ev.Source || ev.network || '').toLowerCase();
+    return /\bingv\b/.test(ag);
+  }
+  function pickCandidate() {
+    try {
+      if (typeof selectedEventId !== 'undefined' && selectedEventId && Array.isArray(events)) {
+        const sel = events.find(e => String(e.id) === String(selectedEventId));
+        if (isIngvEvent(sel) && Number(sel.mag || sel.magnitude) >= 3.5) return sel;
+      }
+    } catch (_) {}
+    try {
+      if (!Array.isArray(events)) return null;
+      const now = Date.now();
+      const list = events.filter(e => isIngvEvent(e) && Number(e.mag || e.magnitude) >= 4.5)
+        .map(e => {
+          const t = Date.parse(e.time || e.originTime || e.timestamp || e.ts || 0) || 0;
+          return { e, t, age: now - t };
+        })
+        .filter(x => x.t && x.age >= 0 && x.age < 6 * 3600 * 1000)
+        .sort((a,b) => b.t - a.t);
+      return list[0]?.e || null;
+    } catch (_) { return null; }
+  }
+  function hide() {
+    const panel = el('ingvEewPanel');
+    if (panel) panel.classList.remove('active');
+  }
+  function show(ev, reportNo) {
+    const panel = el('ingvEewPanel');
+    if (!panel || !ev) return hide();
+    const mag = Number(ev.mag ?? ev.magnitude ?? ev.Magnitude);
+    const depth = Number(ev.depth ?? ev.Depth ?? ev.depthKm);
+    const place = String(ev.place || ev.region || ev.location || ev.Hypocenter || 'Región no especificada');
+    let mmiRaw = ev.mmi ?? ev.MMI ?? ev.maxIntensity ?? ev.intensity ?? ev.MaxIntensity;
+    let mmiNum = Number(mmiRaw);
+    if (!Number.isFinite(mmiNum)) mmiNum = estimateMmiFromMag(mag, depth);
+    const mmi = romanMmi(mmiNum);
+    const title = el('ingvEewBannerTitle');
+    const report = el('ingvEewReport');
+    const mmiEl = el('ingvEewMmi');
+    const placeEl = el('ingvEewPlace');
+    const timeEl = el('ingvEewTime');
+    const magEl = el('ingvEewMag');
+    const depthEl = el('ingvEewDepth');
+    if (title) title.textContent = 'INGV Earthquake Early Warning';
+    if (report) report.textContent = reportNo ? `Report #${reportNo}` : 'Report';
+    if (mmiEl) mmiEl.textContent = mmi;
+    if (placeEl) placeEl.textContent = place;
+    if (timeEl) timeEl.textContent = formatEventTime(ev);
+    if (magEl) magEl.textContent = Number.isFinite(mag) ? `M${mag.toFixed(1)}` : 'M—';
+    if (depthEl) depthEl.textContent = Number.isFinite(depth) ? `${Math.round(depth)}km` : '— km';
+    const box = panel.querySelector('.ingv-eew-mmi');
+    if (box) {
+      const n = Number.isFinite(mmiNum) ? mmiNum : 5;
+      let bg = '#e85a2a';
+      if (n >= 9) bg = '#b71c1c';
+      else if (n >= 7) bg = '#e85a2a';
+      else if (n >= 5) bg = '#f0a000';
+      else bg = '#3d7ea6';
+      box.style.background = bg;
+    }
+    panel.classList.add('active');
+  }
+  let reportCounter = 0;
+  let lastKey = '';
+  function sync() {
+    try {
+      const ev = pickCandidate();
+      if (!ev) { hide(); return; }
+      const key = String(ev.id || '') + '|' + String(ev.mag || '') + '|' + String(ev.time || ev.ts || '');
+      if (key !== lastKey) {
+        lastKey = key;
+        reportCounter += 1;
+      }
+      show(ev, reportCounter);
+    } catch (_) { hide(); }
+  }
+  setInterval(sync, 1500);
+  setTimeout(sync, 800);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
+  try { window.__ingvEewCard = { sync, show, hide }; } catch (_) {}
+})();
+</script>
+
+
+<script id="sesna-eew-inactive-banner">
+(() => {
+  'use strict';
+  // SesnaQuake EventPanel-style banner for ALL EEW sources — AGPL-3.0 adapted from Domiko7/SesnaQuake
+  const IDLE = 'No Earthquake Warning issued';
+  function el(id){ return document.getElementById(id); }
+
+  function agencyLabel(ag) {
+    const a = String(ag || '').trim();
+    if (!a) return 'EEW';
+    if (/jma|wolfx/i.test(a)) return 'JMA EEW';
+    if (/cenc|nowquake|sichuan|fea|ceac|sea-?eew/i.test(a)) return 'CENC EEW';
+    if (/cwa|exptech|taiwan/i.test(a)) return 'CWA EEW';
+    if (/kma|korea|fan/i.test(a)) return 'KMA EEW';
+    if (/shakealert/i.test(a)) return 'ShakeAlert';
+    if (/trem/i.test(a)) return 'TREM';
+    if (/ingv/i.test(a)) return 'INGV EEW';
+    if (/eew/i.test(a)) return a.toUpperCase();
+    return a + ' EEW';
+  }
+
+  function pickActiveEew() {
+    const candidates = [];
+
+    // 1) JMA EEW live object
+    try {
+      const d = (typeof jmaEewData !== 'undefined') ? jmaEewData : null;
+      const fresh = d && typeof jmaEewIsFresh === 'function' ? jmaEewIsFresh(d) : false;
+      if (d && fresh && !d.isFinal && !d.isCancel) {
+        const place = String(d.Hypocenter || d.hypocenter || 'Japón');
+        const mag = d.Magnitude ?? d.Magunitude;
+        const serial = d.Serial || d.serial || d.ReportNumber || d.reportNumber;
+        let intIdx = -1, bg = '', fg = '#f5f5f5';
+        const raw = String(d.MaxIntensity || '').replace(/震度/g,'').trim();
+        if (typeof splitIntensityIndex === 'function' && typeof srevShindoPalette !== 'undefined') {
+          intIdx = splitIntensityIndex(raw);
+          if (intIdx >= 0 && srevShindoPalette[intIdx]) {
+            bg = srevShindoPalette[intIdx];
+            fg = [2,3,4].includes(intIdx) ? '#1a1a1a' : '#f5f5f5';
+          }
+        }
+        candidates.push({
+          score: 100,
+          title: `JMA EEW · ${place}${mag != null && mag !== '' ? ' · M' + mag : ''}`,
+          report: serial != null && serial !== '' ? `#${serial}` : '',
+          bg, fg,
+          ts: Date.parse(d.OriginTime || d.AnnouncedTime || '') || Date.now()
+        });
+      }
+    } catch (_) {}
+
+    // 2) Active TauP EEW wave event
+    try {
+      const w = (typeof taupEewWaveEvent !== 'undefined') ? taupEewWaveEvent : null;
+      if (w && typeof taupEewWaveIsFresh === 'function' && taupEewWaveIsFresh(w)) {
+        const place = String(w.place || w.region || w.location || 'Epicentro');
+        const mag = w.mag ?? w.magnitude;
+        const ag = agencyLabel(w.agency || w.source);
+        candidates.push({
+          score: 90,
+          title: `${ag} · ${place}${mag != null ? ' · M' + mag : ''}`,
+          report: w.reportNumber || w.serial ? `#${w.reportNumber || w.serial}` : '',
+          bg: '', fg: '#ffffff',
+          ts: Number(w.waveOriginTs || w.ts) || Date.now()
+        });
+      }
+    } catch (_) {}
+
+    // 3) Any event in catalog marked as live EEW
+    try {
+      if (Array.isArray(events)) {
+        const now = Date.now();
+        for (const ev of events) {
+          if (!ev) continue;
+          const ag = String(ev.agency || ev.source || '');
+          const isEewFlag = !!(ev.isTaupEew || ev.isEew || ev.eew === true);
+          const looksEew = /\beew\b|shakealert|wolfx|jma[\s_-]*eew|cenc[\s_-]*eew|cwa[\s_-]*eew|kma[\s_-]*eew|sea-?eew|fea|ceac/i.test(ag)
+            || /\beew\b/i.test(String(ev.id || ''))
+            || /\beew\b/i.test(String(ev.type || ev.kind || ''));
+          if (!isEewFlag && !looksEew) continue;
+          if (ev.isFinal || ev.isCancel || ev.cancelled) continue;
+          const t = Date.parse(ev.time || ev.originTime || ev.timestamp || ev.ts || 0) || Number(ev.waveOriginTs) || 0;
+          const age = t ? (now - t) : 0;
+          // live window ~10 min for list EEWs
+          if (t && (age < -120000 || age > 10 * 60 * 1000)) continue;
+          if (isEewFlag && typeof taupEewWaveIsFresh === 'function' && !taupEewWaveIsFresh(ev) && age > 5 * 60 * 1000) continue;
+          const place = String(ev.place || ev.region || ev.location || 'Epicentro');
+          const mag = ev.mag ?? ev.magnitude;
+          const label = agencyLabel(ag);
+          candidates.push({
+            score: isEewFlag ? 80 : 70,
+            title: `${label} · ${place}${mag != null && mag !== '' ? ' · M' + mag : ''}`,
+            report: (ev.reportNumber || ev.serial || ev.Serial) ? `#${ev.reportNumber || ev.serial || ev.Serial}` : '',
+            bg: '', fg: '#ffffff',
+            ts: t || now
+          });
+        }
+      }
+    } catch (_) {}
+
+    // 4) JMA panel visibly active as fallback
+    try {
+      if (document.getElementById('jmaEewPanel')?.classList.contains('active')) {
+        candidates.push({ score: 50, title: 'Alerta temprana activa', report: '', bg: '', fg: '#ffffff', ts: Date.now() });
+      }
+    } catch (_) {}
+
+    if (!candidates.length) return null;
+    candidates.sort((a, b) => (b.score - a.score) || (b.ts - a.ts));
+    return candidates[0];
+  }
+
+  function sync() {
+    const banner = el('sesnaEewBanner');
+    const title = el('sesnaEewTitle');
+    const reportVal = el('sesnaEewReportValue');
+    const head = banner && banner.querySelector('.sesna-eew-header');
+    if (!banner || !title) return;
+    const active = pickActiveEew();
+    if (!active) {
+      title.textContent = IDLE;
+      if (reportVal) reportVal.textContent = '';
+      const body = el('sesnaEewBody');
+      if (body) body.textContent = '';
+      banner.classList.add('idle');
+      banner.classList.remove('active');
+      if (head) { head.style.backgroundColor = ''; head.style.color = ''; }
+      return;
+    }
+    title.textContent = active.title || IDLE;
+    if (reportVal) reportVal.textContent = active.report || '';
+    const body = el('sesnaEewBody');
+    if (body) body.textContent = active.report ? ('Informe ' + active.report) : (active.title || '');
+    banner.classList.remove('idle');
+    banner.classList.add('active');
+    if (head) {
+      head.style.backgroundColor = '';
+      head.style.color = '';
+    }
+  }
+
+  setInterval(sync, 1000);
+  setTimeout(sync, 400);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
+  try { window.__sesnaEewBannerSync = sync; } catch (_) {}
+})();
+</script>
+
 </body>
 </html>
