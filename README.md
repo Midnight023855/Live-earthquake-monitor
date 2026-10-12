@@ -212,18 +212,8 @@ Texto: https://www.gnu.org/licenses/agpl-3.0.html
 Partes de interfaz y presentación adaptadas de:
 • SesnaQuake (Domiko7) — AGPL-3.0 — https://github.com/Domiko7/SesnaQuake
 • Kanameishi (Lipomoea) — AGPL-3.0 — https://github.com/Lipomoea/kanameishi
+
 ```
-
----
-
-## Publicación (GitHub Pages)
-
-1. Sube `index.html` y este `README.md` (y `LICENSE` AGPL si lo tienes).
-2. Activa GitHub Pages sobre la rama/carpeta del sitio.
-3. El repo debe permanecer **público** con el fuente accesible (requisito típico AGPL en red).
-4. No presentes estimaciones NIED/TauP como alertas oficiales.
-
----
 
 ## Créditos
 
