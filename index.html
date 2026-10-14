@@ -4261,6 +4261,7 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
     <div class="main" id="mainLayout">
         <div class="left-panel">
 <div class="current-event" id="currentEvent">
+                <div id="cencAutoHeading" class="cenc-auto-heading" hidden>CENC (Auto) Information</div>
                 <div class="intensity-big">
                     <div class="intensity-circle int-1" id="bigInt">1</div>
                     <div>
@@ -4285,6 +4286,16 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
                    style="display:none;margin-top:8px;font-size:12px;color:#7ec8ff;text-decoration:none;font-weight:600;">
                    📄 Ver boletín oficial →
                 </a>
+                <div id="cencAutoMetrics" class="cenc-auto-metrics" hidden>
+                    <div class="cenc-auto-metric"><span>Máx. Int.</span><b id="cencAutoMaxInt">—</b></div>
+                    <div class="cenc-auto-metric"><span>Máx. PGA</span><b id="cencAutoMaxPga">—</b><small>gal</small></div>
+                    <div class="cenc-auto-metric"><span>Máx. PGV</span><b id="cencAutoMaxPgv">—</b><small>cm/s</small></div>
+                </div>
+                <div id="cencAutoRecent" class="cenc-auto-recent" hidden>
+                    <div class="cenc-auto-recent-title">Otros informes automáticos recientes</div>
+                    <div id="cencAutoRecentRows" class="cenc-auto-recent-rows"></div>
+                    <div id="cencAutoMetricNote" class="cenc-auto-metric-note">PGA/PGV: sin datos en este catálogo CENC.</div>
+                </div>
             </div>
 
             <div class="filter-bar">
@@ -4292,7 +4303,7 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
                     <option value="0">Todas las mag.</option><option value="2.5">M2.5+</option><option value="4.0">M4.0+</option><option value="5.5">M5.5+</option><option value="7.0">M7.0+</option>
                 </select>
                 <select id="filterAgency" title="Filtrar por agencia">
-                    <option value="ALL">Todas las agencias</option><option value="FUNVISIS">FUNVISIS</option><option value="USGS">USGS</option><option value="NEIC">NEIC</option><option value="JMA">JMA</option><option value="CENC">CENC · NowQuake</option><option value="EMSC">EMSC</option><option value="IGN">IGN</option><option value="INETER">INETER</option><option value="GEOFON">GEOFON</option><option value="SSN">SSN</option><option value="AFAD">AFAD</option><option value="BMKG">BMKG</option><option value="GEONET">GeoNet</option><option value="INGV">INGV</option><option value="IPGP">IPGP</option><option value="SED">SED</option><option value="PHIVOLCS">PHIVOLCS</option><option value="CSN">CSN</option><option value="IG-EPN">IG-EPN</option><option value="EARLY-EST">Early-Est</option><option value="HKO">HKO</option><option value="NOA">NOA</option><option value="KOERI">KOERI</option><option value="KMA">KMA</option><option value="BCSF">BCSF</option><option value="NRCAN">NRCan</option><option value="USP">USP</option><option value="MMD">MMD</option><option value="CEA-PR">CEA-PR</option><option value="SHAKEALERT">ShakeAlert</option><option value="GDACS">GDACS</option>
+                    <option value="ALL">Todas las agencias</option><option value="FUNVISIS">FUNVISIS</option><option value="USGS">USGS</option><option value="NEIC">NEIC</option><option value="JMA">JMA</option><option value="CENC">CENC</option><option value="EMSC">EMSC</option><option value="IGN">IGN</option><option value="INETER">INETER</option><option value="GEOFON">GEOFON</option><option value="SSN">SSN</option><option value="AFAD">AFAD</option><option value="BMKG">BMKG</option><option value="GEONET">GeoNet</option><option value="INGV">INGV</option><option value="IPGP">IPGP</option><option value="SED">SED</option><option value="PHIVOLCS">PHIVOLCS</option><option value="CSN">CSN</option><option value="IG-EPN">IG-EPN</option><option value="EARLY-EST">Early-Est</option><option value="HKO">HKO</option><option value="NOA">NOA</option><option value="KOERI">KOERI</option><option value="KMA">KMA</option><option value="BCSF">BCSF</option><option value="NRCAN">NRCan</option><option value="USP">USP</option><option value="MMD">MMD</option><option value="CEA-PR">CEA-PR</option><option value="SHAKEALERT">ShakeAlert</option><option value="GDACS">GDACS</option>
                 </select>
             </div>
 
@@ -4487,20 +4498,6 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
                 <div class="sesna-eew-body" id="sesnaEewBody"></div>
             </div>
             <div id="ynEarlyAlert" role="status" aria-live="polite">Sin Alertas Tempranas de Terremotos</div>
-            <div id="ynLocalEpicenterCard" aria-live="polite" aria-label="Estimación local de epicentro">
-                <div class="eqk-lee-head">
-                    <span id="ynLeeTitle">Estimación local del epicentro</span>
-                    <span class="eqk-lee-no" id="ynLeeNo">No.—</span>
-                </div>
-                <div class="eqk-lee-body">
-                    <div class="eqk-lee-int" id="ynLeeInt">Sin dato</div>
-                    <div>
-                        <div class="eqk-lee-place notranslate" id="ynLeePlace" translate="no">—</div>
-                        <div class="eqk-lee-meta" id="ynLeeMeta">—</div>
-                        <div class="eqk-lee-stats"><span id="ynLeeMag">M—</span><span id="ynLeeDepth">Depth: —</span></div>
-                    </div>
-                </div>
-            </div>
             <div id="ynDiag" aria-live="polite">NIED K-NET/KiK-net: esperando catálogo…</div>
 
             <div id="kmoniPanel" class="kmoni-hidden" aria-live="polite">
@@ -6244,6 +6241,7 @@ global.TauPJS=api;
                     })
                     .filter(Boolean)
                     .filter(ev => !isRetiredBmkgFeedEvent(ev))
+                    .filter(ev => !ev.nowQuakeReference && !/nowquake/i.test(`${ev.agency||''} ${ev.source||''} ${ev.id||''}`))
                     .filter(ev => !isJmaMetadataPlaceholder(ev))
                     .filter(ev => !/JMA[\s_-]*EEW/i.test(String(ev.agency || '')))
                     .filter(ev => !/FAN\s*Studio|FSSN/i.test(`${ev.agency || ''} ${ev.source || ''}`))
@@ -10594,7 +10592,7 @@ global.TauPJS=api;
                 const wavePlace = ev.displayPlace || ev.place || 'Japón';
                 const waveMag = ev.mag != null && String(ev.mag) !== '—' ? `M${String(ev.mag).replace(/^M/i,'')}` : 'M—';
                 const waveDepth = ev.depth != null && String(ev.depth) !== '—' ? `${ev.depth} km` : '— km';
-                const waveAgency = ev.agency || (ev.estimated ? 'TREM' : 'EEW');
+                const waveAgency = eventAgencyDisplayName(ev) || (ev.estimated ? 'TREM' : 'EEW');
                 waveAlert.innerHTML = `<div class="yn-alert-head"><span>🇯🇵 Ondas sísmicas</span><span class="yn-alert-badge">${waveAgency}</span></div><div class="yn-alert-sub">${wavePlace}</div><div class="yn-alert-grid"><div>Magnitud <b>${waveMag}</b></div><div>Profundidad <b>${waveDepth}</b></div><div>Estado <b>${ev.status || 'En vivo'}</b></div><div>Origen <b>${ev.epicenterConfirmed === true ? 'Confirmado' : 'Estimado'}</b></div></div><div class="yn-alert-foot">Ondas P/S estimadas; no reemplazan el boletín oficial.</div>`;
                 waveAlert.classList.remove('yn-motion-active','yn-weak','yn-shaking','yn-strong');
                 waveAlert.classList.add('active');
@@ -10603,7 +10601,7 @@ global.TauPJS=api;
             waveAnimationEventKey=''; waveAnimationMarker=null; wavePCircle=null; waveSCircle=null;
             const origin = [ev.lat, ev.lon];
             const magText = String(ev.mag).replace(/^M/i, '');
-            let agencyLabel = String(ev.agency || (ev.estimated ? 'TREM' : 'EEW'));
+            let agencyLabel = String(eventAgencyDisplayName(ev) || (ev.estimated ? 'TREM' : 'EEW'));
             if (ev.isTaupEew && !/\beew\b/i.test(agencyLabel)) agencyLabel = /shakealert/i.test(agencyLabel) ? 'ShakeAlert EEW' : agencyLabel + ' EEW';
             const isJmaEew = /\bjma\b/i.test(agencyLabel);
             // En eventos EEW el epicentro se representa siempre con la X de
@@ -12182,7 +12180,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             speakAlert(localizedQuakeSpeechText(ev, language), 'quakes', language, `quake:${eventKey}`, expiresAt);
         }
 
-        // Alerta visual + audio para eventos sísmicos del catálogo; NowQuake CENC queda fuera de ese flujo.
+        // Alerta visual + audio para eventos sísmicos del catálogo; los reportes automáticos CENC de referencia no disparan ese flujo.
         function eventAlertKey(ev) {
             const ts = parseTs(ev.ts);
             const originSecond = ts ? Math.floor(ts / 1000) : String(ev.time || '');
@@ -12252,7 +12250,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 const details = [
                     ev.displayPlace || ev.place || ev.country || ev.region || 'Ubicación no disponible',
                     `Profundidad: ${ev.depth || 'no disponible'}`,
-                    `Agencia: ${ev.agency || 'no disponible'}`
+                    `Agencia: ${eventAgencyDisplayName(ev) || 'no disponible'}`
                 ];
                 if (ev.tsunami) details.push('🌊 Aviso oficial de tsunami');
                 const notification = new Notification(`⚠️ Sismo ${magnitudeText}`, {
@@ -12348,7 +12346,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             }
             document.getElementById('bigLabel1').textContent = 'Magnitud';
             document.getElementById('bigLabel2').textContent = 'Profundidad';
-            document.getElementById('bigTime').textContent = `${eventDisplayTime(ev)} · ${ev.agency || 'JMA'}`;
+            document.getElementById('bigTime').textContent = `${eventDisplayTime(ev)} · ${eventAgencyDisplayName(ev) || 'JMA'}`;
             document.getElementById('bigMag').textContent = eventMagnitudeDisplay(ev);
             document.getElementById('bigDepth').textContent = ev.depth || '—';
             updateTsunamiStatus(ev);
@@ -12366,7 +12364,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             const el = document.getElementById('eventList');
             if (!el) return;
             el.innerHTML = list.map(ev => {const iv=eventIntensityDisplay(ev);const place=String(ev.place || ev.hypocenter || ev.epicenter || ev.location || ev.placeName || ev.region || (isJmaSourceName(ev.agency || ev.source) ? 'Japón' : 'Ubicación no informada'));const shown=place;return `<div class="event-item${ev.id === nhkCoverageMainEvent?.id ? ' active' : ''}">
-                <div class="int-badge ${iv.className}" title="${iv.title}">${iv.text || '—'}</div><div class="info"><div class="place notranslate" translate="no">${shown}</div><div class="meta">${eventDisplayTime(ev)} <span class="agency-tag">${ev.agency || '—'}</span>${magnitudeRevisionHtml(ev)}${ev.tsunami ? '<span class="tsunami-mini">🌊</span>' : ''}</div></div><div class="mag">${ev.mag || '—'}</div></div>`}).join('') || '<div style="padding:12px;color:#aaa">Esperando réplicas o sismos recientes de Japón…</div>';
+                <div class="int-badge ${iv.className}" title="${iv.title}">${iv.text || '—'}</div><div class="info"><div class="place notranslate" translate="no">${shown}</div><div class="meta">${eventDisplayTime(ev)} <span class="agency-tag">${eventAgencyDisplayName(ev)}</span>${magnitudeRevisionHtml(ev)}${ev.tsunami ? '<span class="tsunami-mini">🌊</span>' : ''}</div></div><div class="mag">${ev.mag || '—'}</div></div>`}).join('') || '<div style="padding:12px;color:#aaa">Esperando réplicas o sismos recientes de Japón…</div>';
         }
 
         function enterNhkCoverageMode(ev) {
@@ -12556,7 +12554,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             }
             alertedEventKeys.add(key);
             showNhkGForQuake(ev);
-            showRegionToast(`🔔 ${ev.agency || 'Sismo'} · ${ev.mag || '—'} · ${ev.displayPlace || ev.place || 'ubicación desconocida'}`);
+            showRegionToast(`🔔 ${eventAgencyDisplayName(ev) || 'Sismo'} · ${ev.mag || '—'} · ${ev.displayPlace || ev.place || 'ubicación desconocida'}`);
             notifyStrongQuake(ev);
             triggerQuakeAlert(ev);
             // El telop recibe cualquier evento nuevo; el router decide si es JMA reciente,
@@ -15662,6 +15660,28 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             return Number.isFinite(ms) ? ms : 0;
         }
 
+        function isExplicitAutomaticValue(value) {
+            const text=String(value??'').trim().toLowerCase().replace(/[_-]+/g,' ');
+            return /^(?:auto|automatic|automated|automático|automatica|automática|自动|自動)(?:\s+(?:report|solution|event|location))?$/.test(text);
+        }
+        function hasExplicitAutomaticStatus(raw) {
+            if(!raw||typeof raw!=='object')return false;
+            const objects=[raw,raw.data,raw.event,raw.Event,raw.report,raw.Report].filter(x=>x&&typeof x==='object');
+            return objects.some(item=>{
+                const positiveFlag=value=>value===true||value===1||/^(?:true|1|yes)$/i.test(String(value??'').trim());
+                if([item.auto,item.automatic,item.isAuto,item.isAutomatic,item.autoReport].some(positiveFlag))return true;
+                return [item.reportType,item.report_type,item.reportStatus,item.report_status,item.reportConfidence,item.status,item.statusText,item.quality,item.type]
+                    .some(isExplicitAutomaticValue);
+            });
+        }
+        function isAutomaticEvent(ev) {
+            return !!(ev&&(ev.autoReport===true||hasExplicitAutomaticStatus(ev)));
+        }
+        function eventAgencyDisplayName(ev) {
+            const agency=String(ev?.agency||ev?.source||'—').trim();
+            if(!isAutomaticEvent(ev)||/\(\s*auto\s*\)/i.test(agency))return agency;
+            return `${agency} (Auto)`;
+        }
         function reportConfidenceFromRaw(raw) {
             if (!raw || typeof raw !== 'object') return '';
             const value = raw.reportConfidence ?? raw.confidence ?? raw.reportStatus ?? raw.statusText ?? raw.quality;
@@ -15742,6 +15762,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                         colorClass: intensityClass(int),
                         tsunami: Number(p.tsunami) === 1,
                         reportConfidence: reportConfidenceFromRaw(p),
+                        autoReport: hasExplicitAutomaticStatus(p),
                         ts: p.time,
                         url: p.url || (p.id ? ('https://earthquake.usgs.gov/earthquakes/eventpage/' + p.id) : null),
                         usgsDetailUrl: p.detail || null,
@@ -16410,7 +16431,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                     const areaIntensity = info.AreaIntensity ?? item.AreaIntensity;
                     const intensity = areaIntensity === undefined || areaIntensity === null || String(areaIntensity).trim() === '' ? magToMMI(mag) : String(areaIntensity).trim();
                     const place = String(ep.Location ?? item.ReportContent ?? item.Web ?? 'Taiwán').trim() || 'Taiwán';
-                    return { id: 'cwa-' + id, intensity, place, time: formatTime(ts), mag: magnitudeDisplay(mag), depth: Number.isFinite(depth) ? Math.abs(depth).toFixed(1) + ' km' : '—', agency: 'CWA', lat, lon, ts, colorClass: intensityClass(intensity), reportConfidence: 'oficial', magnitudeType: magInfo.MagnitudeType ?? info.MagnitudeType ?? '', reportContent: item.ReportContent ?? item.Web ?? '' };
+                    return { id: 'cwa-' + id, intensity, place, time: formatTime(ts), mag: magnitudeDisplay(mag), depth: Number.isFinite(depth) ? Math.abs(depth).toFixed(1) + ' km' : '—', agency: 'CWA', lat, lon, ts, colorClass: intensityClass(intensity), reportConfidence: 'oficial', autoReport:hasExplicitAutomaticStatus(item), magnitudeType: magInfo.MagnitudeType ?? info.MagnitudeType ?? '', reportContent: item.ReportContent ?? item.Web ?? '' };
                 }).filter(validNormalizedEvent);
                 const deduped = [...new Map(events.map(ev => [ev.id, ev])).values()];
                 if (!deduped.length) throw new Error('CWA sin eventos válidos');
@@ -16436,147 +16457,8 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             return Number.isFinite(ts) ? ts : 0;
         }
 
-        // NowQuake difunde datos de referencia derivados de CENC: se listan como
-        // CENC · NowQuake, pero no disparan alertas/TTS/autoenfoque ni se equipara
-        // su intensidad instrumental con Shindo/MMI.
-        const NOWQUAKE_CENC_DOCS_URL = 'https://doc.nowquake.cn/?url=./docs/cencint.json';
-        const NOWQUAKE_CENC_LIST_URL = 'https://api-cencint-public.nowquake.cn/list?pageNo=0&pageSize=10';
-        const NOWQUAKE_CENC_WS_URL = 'wss://api-cencint-public.nowquake.cn/websocket';
-        let nowQuakeCencSocket = null, nowQuakeCencReconnectTimer = null;
-        let nowQuakeCencReports = [];
-
-        function normalizeNowQuakeCenc(item) {
-            if (!item || typeof item !== 'object') return null;
-            const pick = (...values) => values.find(value => value !== undefined && value !== null && String(value).trim() !== '');
-            const event = item.event && typeof item.event === 'object' ? item.event : {};
-            const location = item.location_name || item.locationName || item.location || event.location_name || event.location || {};
-            const id = String(pick(item.eq_id, item.eqId, item.event_id, item.eventId, item.id, event.eq_id, event.eqId, event.event_id, event.id) || '').trim();
-            const happenValue = pick(item.happen_time, item.happenTime, item.origin_time, item.originTime, item.event_time, item.eventTime, item.time, event.happen_time, event.happenTime, event.origin_time, event.originTime, event.time);
-            const updateValue = pick(item.update_time, item.updateTime, item.modify_time, item.modifyTime, item.updated_at, item.updatedAt, event.update_time, event.updateTime, event.updated_at, event.updatedAt);
-            const happenTs = parseCENCTimestamp(happenValue);
-            if (!id || !happenTs) return null;
-            const numberOrNull = value => value === null || value === undefined || value === '' || !Number.isFinite(Number(value)) ? null : Number(value);
-            const hypocenter = pick(item.hypocenter, item.epicenter, item.place, item.place_name, item.placeName, location.placename, location.placeName, location.county, location.name, event.hypocenter, event.epicenter, event.place);
-            return {
-                id, happenTs, updateTs:parseCENCTimestamp(updateValue),
-                hypocenter:String(hypocenter || 'Epicentro sin nombre').trim(),
-                magnitude:numberOrNull(pick(item.magnitude, item.mag, item.m, event.magnitude, event.mag)),
-                depth:numberOrNull(pick(item.depth, item.depth_km, item.depthKm, event.depth, event.depth_km)),
-                lat:numberOrNull(pick(item.latitude, item.lat, item.y, event.latitude, event.lat)),
-                lon:numberOrNull(pick(item.longitude, item.lon, item.lng, item.x, event.longitude, event.lon)),
-                maxObserved:numberOrNull(pick(item.maxintensity, item.maxIntensity, item.max_intensity, event.maxintensity, event.maxIntensity)),
-                maxForecast:numberOrNull(pick(item.maxforecastintensity, item.maxForecastIntensity, item.max_forecast_intensity, event.maxforecastintensity, event.maxForecastIntensity))
-            };
-        }
-        function extractNowQuakeCencItems(payload) {
-            if (Array.isArray(payload)) return payload;
-            if (!payload || typeof payload !== 'object') return [];
-            const candidates = [payload.data, payload.list, payload.records, payload.rows, payload.items, payload.content, payload.result, payload.results, payload.data?.list, payload.data?.records, payload.data?.rows, payload.data?.items, payload.data?.content];
-            for (const candidate of candidates) if (Array.isArray(candidate)) return candidate;
-            return [payload];
-        }
-        function upsertNowQuakeCenc(item, render=true) {
-            const report = normalizeNowQuakeCenc(item);
-            if (!report) return false;
-            const previous = nowQuakeCencReports.find(x => x.id === report.id);
-            if (previous) nowQuakeCencReports = nowQuakeCencReports.filter(x => x.id !== report.id);
-            const latest = previous && previous.updateTs > (report.updateTs || 0) ? previous : { ...previous, ...report };
-            nowQuakeCencReports.push(latest);
-            nowQuakeCencReports.sort((a,b) => b.happenTs - a.happenTs);
-            nowQuakeCencReports = nowQuakeCencReports.slice(0,10);
-            if (render) syncNowQuakeCencEventsIntoCatalog();
-            return true;
-        }
-        function nowQuakeCencEvent(report) {
-            if (!report || !report.id || !report.happenTs || report.lat === null || report.lon === null || !Number.isFinite(Number(report.lat)) || !Number.isFinite(Number(report.lon))) return null;
-            const lat = Number(report.lat), lon = Number(report.lon), mag = report.magnitude === null ? NaN : Number(report.magnitude);
-            if (Math.abs(lat) > 90 || Math.abs(lon) > 180 || (Number.isFinite(mag) && (mag <= 0 || mag >= 9.8))) return null;
-            const magText = Number.isFinite(mag) ? `M${mag.toFixed(1)}` : 'M—';
-            return {
-                id:`nowquake-cenc-${report.id}`, source:'NowQuake', agency:'CENC · NowQuake',
-                ts:report.happenTs, time:formatTime(report.happenTs), place:report.hypocenter || 'Epicentro sin nombre',
-                mag:magText, magnitudeDisplay:magText, depth:report.depth !== null && Number.isFinite(Number(report.depth)) ? `${Number(report.depth).toFixed(1)} km` : '—',
-                lat, lon, intensity:'', intensityEstimated:true, reportConfidence:'informativo · NowQuake',
-                nowQuakeReference:true
-            };
-        }
-        function syncNowQuakeCencEventsIntoCatalog() {
-            const now = Date.now();
-            for (const report of nowQuakeCencReports) {
-                const event = nowQuakeCencEvent(report);
-                if (!event || event.ts > now + 120000 || now - event.ts > MAX_EVENT_AGE_MS) continue;
-                const index = events.findIndex(x => String(x.id) === String(event.id));
-                if (index >= 0) {
-                    const previous = events[index];
-                    events[index] = { ...previous, ...event, displayPlace:previous.displayPlace || event.displayPlace };
-                } else events.push(event);
-            }
-            events.sort((a,b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0));
-            if (events.length > 300) events = events.slice(0,300);
-            if (apiMetrics.cenc) apiMetrics.cenc.latestEventTs = nowQuakeCencReports[0]?.happenTs || apiMetrics.cenc.latestEventTs || 0;
-            try { saveEventCache(events); } catch (_) {}
-            renderEvents();
-            renderHeatmap();
-        }
-        async function loadNowQuakeCencInitial() {
-            const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 15000);
-            try {
-                const response = await fetch(NOWQUAKE_CENC_LIST_URL, { cache:'no-store', headers:{Accept:'application/json'}, signal:controller.signal });
-                if (!response.ok) throw new Error('NowQuake CENC HTTP');
-                const payload = await response.json();
-                const items = extractNowQuakeCencItems(payload);
-                let accepted = 0;
-                items.forEach(item => { if (upsertNowQuakeCenc(item,false)) accepted++; });
-                if (!accepted && items.length) throw new Error('NowQuake CENC sin eventos normalizables');
-                syncNowQuakeCencEventsIntoCatalog();
-                setApiState('cenc','ok',nowQuakeCencReports.length);
-                recordApiCount('cenc',nowQuakeCencReports.length);
-                apiMetrics.cenc = apiMetrics.cenc || {}; apiMetrics.cenc.latestEventTs = nowQuakeCencReports[0]?.happenTs || 0;
-            } catch (_) {
-                setApiState('cenc','bad');
-            } finally { clearTimeout(timer); }
-        }
-        function connectNowQuakeCenc() {
-            if (!window.WebSocket || (nowQuakeCencSocket && [WebSocket.OPEN,WebSocket.CONNECTING].includes(nowQuakeCencSocket.readyState))) return;
-            try {
-                const socket = new WebSocket(NOWQUAKE_CENC_WS_URL); nowQuakeCencSocket = socket;
-                socket.onopen = () => {
-                    apiMetrics.cenc = apiMetrics.cenc || {}; apiMetrics.cenc.wsState = 'activo'; apiMetrics.cenc.lastSeen = Date.now();
-                    setApiState('cenc','ok',nowQuakeCencReports.length);
-                };
-                socket.onmessage = message => {
-                    try {
-                        const packet = JSON.parse(message.data);
-                        apiMetrics.cenc = apiMetrics.cenc || {}; apiMetrics.cenc.wsState = 'activo'; apiMetrics.cenc.lastSeen = Date.now();
-                        const isHeartbeat = packet?.type === 'heartbeat' || packet?.type === 'ping' || packet?.heartbeat === true;
-                        const data = packet?.type === 'data' ? (packet.data && typeof packet.data === 'object' ? packet.data : packet) : packet;
-                        let accepted = false;
-                        if (!isHeartbeat) {
-                            const items = Array.isArray(data) ? data : [data];
-                            items.forEach(item => { if (upsertNowQuakeCenc(item)) accepted = true; });
-                        }
-                        if (accepted) {
-                            apiMetrics.cenc.latestEventTs = nowQuakeCencReports[0]?.happenTs || 0;
-                            setApiState('cenc','ok',nowQuakeCencReports.length);
-                        } else if (isHeartbeat) setApiState('cenc','ok',nowQuakeCencReports.length);
-                    } catch (_) {}
-                };
-                socket.onclose = () => {
-                    if (nowQuakeCencSocket === socket) nowQuakeCencSocket = null;
-                    apiMetrics.cenc = apiMetrics.cenc || {}; apiMetrics.cenc.wsState = 'reconectando';
-                    setApiState('cenc','bad');
-                    clearTimeout(nowQuakeCencReconnectTimer);
-                    nowQuakeCencReconnectTimer = setTimeout(connectNowQuakeCenc,15000);
-                };
-                socket.onerror = () => { try { socket.close(); } catch (_) {} };
-            } catch (_) {
-                clearTimeout(nowQuakeCencReconnectTimer);
-                nowQuakeCencReconnectTimer = setTimeout(connectNowQuakeCenc,15000);
-            }
-        }
-
         // Catálogo CENC de Wolfx: últimos 50 reportes; GET inicial y WebSocket para cambios.
-        // Fuente retransmitida por Wolfx, separada de CENC · NowQuake y sin alertas automáticas.
+        // Fuente retransmitida por Wolfx; los reportes automáticos se distinguen y no generan alertas por sí solos.
         const WOLFX_CENC_EQLIST_URL = 'https://api.wolfx.jp/cenc_eqlist.json';
         const WOLFX_CENC_EQLIST_WS_URL = 'wss://ws-api.wolfx.jp/cenc_eqlist';
         const WOLFX_CENC_WS_FRESH_MS = 120000;
@@ -16625,12 +16507,12 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             const mag = Number(report.magnitude), lat = Number(report.lat), lon = Number(report.lon);
             if (!Number.isFinite(mag) || mag <= 0 || mag >= 9.8 || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
             return {
-                id:`wolfx-cenc-${report.id}`, source:'Wolfx · catálogo CENC', agency:'CENC · Wolfx',
+                id:`wolfx-cenc-${report.id}`, source:'Wolfx · catálogo CENC', agency:isExplicitAutomaticValue(report.reportType)?'CENC (Auto) · Wolfx':'CENC · Wolfx',
                 ts:report.happenTs, time:formatTime(report.happenTs), place:report.hypocenter || 'Epicentro sin nombre',
                 mag:magnitudeDisplay(mag), magnitudeDisplay:magnitudeDisplay(mag),
                 depth:report.depth !== null && Number.isFinite(Number(report.depth)) ? `${Number(report.depth).toFixed(1)} km` : '—',
                 lat, lon, intensity:report.intensity || '—', intensityScale:'CSIS', intensityEstimated:false,
-                reportConfidence:report.reportType || 'informativo', cencWolfxReference:true
+                reportConfidence:report.reportType || 'informativo', autoReport:isExplicitAutomaticValue(report.reportType), cencWolfxReference:true
             };
         }
         function syncWolfxCencEventsIntoCatalog() {
@@ -16653,6 +16535,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             try { saveEventCache(events); } catch (_) {}
             renderEvents();
             renderHeatmap();
+            try { if(selectedEventId){const selected=events.find(ev=>String(ev.id)===String(selectedEventId));if(selected)renderCencAutoInformation(selected);} } catch (_) {}
         }
         async function loadWolfxCencEqlistInitial() {
             const metrics = apiMetrics.cencWolfx = apiMetrics.cencWolfx || {};
@@ -16960,7 +16843,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                     const mag=Number(p.mag ?? p.magnitude), lat=Number(c[1] ?? p.latitude), lon=Number(c[0] ?? p.longitude), depth=Number(c[2] ?? p.depth);
                     if (!f.id || !Number.isFinite(ts)||!ts||!Number.isFinite(mag)||!Number.isFinite(lat)||!Number.isFinite(lon)) return null;
                     const intensity=magToMMI(mag);
-                    return {id:'emsc-'+f.id,intensity,place:p.flynn_region||p.region||p.place||'EMSC/CSEM',time:formatTime(ts),mag:magnitudeDisplay(mag),depth:Number.isFinite(depth)?Math.abs(depth).toFixed(1)+' km':'—',agency:'EMSC',ts,lat,lon,colorClass:intensityClass(intensity),tsunami:p.tsunami===true||Number(p.tsunami)===1,reportConfidence:p.status||'preliminar'};
+                    return {id:'emsc-'+f.id,intensity,place:p.flynn_region||p.region||p.place||'EMSC/CSEM',time:formatTime(ts),mag:magnitudeDisplay(mag),depth:Number.isFinite(depth)?Math.abs(depth).toFixed(1)+' km':'—',agency:'EMSC',ts,lat,lon,colorClass:intensityClass(intensity),tsunami:p.tsunami===true||Number(p.tsunami)===1,reportConfidence:p.status||'preliminar',autoReport:hasExplicitAutomaticStatus(p)};
                 }).filter(validNormalizedEvent);
                 if (!events.length) throw new Error('EMSC sin eventos válidos');
                 sourceCacheWrite(EMSC_CACHE_KEY,events); setApiState('emsc','ok',events.length); return events;
@@ -19079,7 +18962,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 reportNumber:raw.ReportNum ?? raw.reportNum ?? raw.ReportNumber ?? raw.reportNumber ?? raw.Serial ?? raw.serial ?? '',
                 eewEventId:raw.EventID ?? raw.EventId ?? raw.eventId ?? raw.event_id ?? '',
                 intensity:raw.MaxIntensity ?? raw.maxIntensity ?? raw.intensity ?? '—', colorClass:intensityClass(raw.MaxIntensity ?? raw.maxIntensity ?? raw.intensity ?? 0),
-                reportConfidence:terminal ? 'final' : 'preliminar', isFinal:terminal,
+                reportConfidence:terminal ? 'final' : 'preliminar', autoReport:hasExplicitAutomaticStatus(raw), isFinal:terminal,
                 isCancel:false, isTaupEew:!!waveOriginTs, eewMaxAgeMs
             };
             const duplicateIndex = events.findIndex(x => String(x.id || '') === String(ev.id || ''));
@@ -19287,12 +19170,12 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         const apiState = {};
         const apiMetrics = {};
         const apiNames = [
-            ['USGS','usgs'], ['NEIC','neic'], ['JMA','jma'], ['CENC · NowQuake','cenc'], ['CENC · Wolfx','cencWolfx'],
+            ['USGS','usgs'], ['NEIC','neic'], ['JMA','jma'], ['CENC','cencCombined'],
             ['CSN','csn'], ['IG-EPN','igepn'], ['ISC','isc'], ['IGP','igp'],
             ['EMSC','emsc'], ['IGN','ign'], ['INETER','ineterCatac'], ['FUNVISIS','funvisis'], ['GEOFON','gfz'], ['BREQ','breq'], ['TREM','trem'], ['P-Alert','palert'], ['NIED','yahooNied'],
             ['SSN','ssn'], ['AFAD','afad'],
             ['BMKG','bmkg'], ['GeoNet','geonet'], ['INGV','ingv'], ['IPGP','ipgp'],
-            ['JMA EEW','jmaEew'], ['Wolfx EEW','wolfxAll'], ['CENC EEW (Wolfx)','cencEew'], ['Sichuan EEW (Wolfx)','scEew'], ['Volcanes','volcanoes'], ['SED','sed'],
+            ['JMA EEW','jmaEew'], ['Wolfx EEW','wolfxAll'], ['Sichuan EEW (Wolfx)','scEew'], ['Volcanes','volcanoes'], ['SED','sed'],
             ['PHIVOLCS','phivolcs'], ['CWA','cwa'],
             ['Early-Est','earlyEst'], ['GDACS','gdacs'], ['NHC','nhc'], ['NWS','nws'], ['NOAA','tsunami'], ['NMC · Tifones','nmcTyphoon'], ['HKO','hko'],
             ['NOA','noa'], ['KOERI','koeri'],
@@ -19321,6 +19204,13 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             box.innerHTML = apiNames.map(([name,key]) => {
                 const s = apiState[key] || 'wait';
                 const m = apiMetrics[key] || {};
+                if (key === 'cencCombined') {
+                    const catalog=apiMetrics.cencWolfx||{},eew=apiMetrics.cencEew||{};
+                    const catalogConnected=(catalog.wsState==='activo'&&!!catalog.wsLastSeen&&now-catalog.wsLastSeen<WOLFX_CENC_WS_FRESH_MS)||(catalog.httpOk===true&&!!catalog.httpLastSeen&&now-catalog.httpLastSeen<5*60*1000);
+                    const eewConnected=eew.wsState==='activo'&&!!eew.lastSeen&&now-eew.lastSeen<120000;
+                    const connected=catalogConnected||eewConnected,label=connected?'Conectada':'Desconectada';
+                    return `<div class="conn-row"><span>${name}</span><span class="conn-right"><b class="${connected?'ok':'bad'}">${label}</b></span></div>`;
+                }
                 if (key === 'wolfxAll' || key === 'cencEew' || key === 'scEew') {
                     const connected = m.wsState === 'activo' && !!m.lastSeen && now - m.lastSeen < 120000;
                     const label = connected ? 'Conectada' : 'Desconectada';
@@ -19897,6 +19787,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             try {
             events.sort((a, b) => (parseTs(b.ts) || 0) - (parseTs(a.ts) || 0));
             updateTodayQuakeCount();
+            try { const selected=events.find(ev=>String(ev.id)===String(selectedEventId)),time=document.getElementById('bigTime'); if(selected&&time)time.textContent=`${eventDisplayTime(selected)} · ${eventAgencyDisplayName(selected)}`; } catch (_) {}
 
             const barMinMag = parseFloat(document.getElementById('filterMag')?.value) || 0;
             const settingsMinMag = Number(window.__eqListMinMag) || 0;
@@ -19943,7 +19834,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             const listSignature = [
                 selectedEventId, minMag, agencyFilter, selectedRegion, forcedIntensityOption(), events.length,
                 events.length && events.every(isEewOnlyListEntry) ? 'eew-only' : 'normal',
-                ...filteredEvents.map(e => [e.id,e.ts,e.place,e.agency,e.source,e.mag,e.magnitudeDisplay,e.depth,e.depthKm,e.intensity,e.intensityEstimated,e.colorClass,e.tsunami,e.magnitudeRevision,e.reportConfidence,e.finalIntensityReport,e.intensityReportFinal,e.isIntensityFinal,Array.isArray(e.jmaIntensityAreas)?e.jmaIntensityAreas.map(a=>[a.code,a.prefecture,a.intensity].join(':')).join(','):''].map(v => String(v ?? '')).join('\u001f'))
+                ...filteredEvents.map(e => [e.id,e.ts,e.place,e.agency,e.source,e.mag,e.magnitudeDisplay,e.depth,e.depthKm,e.intensity,e.intensityEstimated,e.colorClass,e.tsunami,e.magnitudeRevision,e.reportConfidence,e.autoReport,e.finalIntensityReport,e.intensityReportFinal,e.isIntensityFinal,Array.isArray(e.jmaIntensityAreas)?e.jmaIntensityAreas.map(a=>[a.code,a.prefecture,a.intensity].join(':')).join(','):''].map(v => String(v ?? '')).join('\u001f'))
             ].join('\u001e');
             const rebuildList = listSignature !== lastEventListRenderSignature;
             if (rebuildList) {
@@ -19961,7 +19852,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                     <div class="int-badge ${intensityView.className}" title="${intensityView.title}">${intensityView.text}</div>
                     <div class="info">
                         <div class="place notranslate" translate="no"></div>
-                        <div class="meta">${eventDisplayTime(ev)} <span class="agency-tag">${ev.agency}</span>${magnitudeRevisionHtml(ev)}${tsunamiTag}</div>
+                        <div class="meta">${eventDisplayTime(ev)} <span class="agency-tag">${eventAgencyDisplayName(ev)}</span>${magnitudeRevisionHtml(ev)}${tsunamiTag}</div>
                         ${jmaPrelimAreas.length ? '<div class="jma-prelim-intensity" aria-label="Intensidades preliminares por prefectura"></div>' : ''}
                     </div>
                     <div class="mag">${eventMagnitudeDisplay(ev)}</div>
@@ -20000,9 +19891,9 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             if (filteredEvents.length > 0) {
                 const currentExists = filteredEvents.some(e => e.id === selectedEventId);
                 if ((!selectedEventId || !currentExists) && !selectedWaveEventIsHidden) {
-                    // NowQuake entra en la lista, pero no debe mover el mapa automáticamente.
+                    // Los reportes CENC de referencia se listan sin recentrar el mapa automáticamente.
                     const firstEvent = filteredEvents[0];
-                    if (firstEvent.nowQuakeReference) selectEvent(firstEvent.id, { noMap:true });
+                    if (firstEvent.cencWolfxReference || firstEvent.nowQuakeReference) selectEvent(firstEvent.id, { noMap:true });
                     else if (typeof isSpecialMapSectionOpen === 'function' && isSpecialMapSectionOpen()) {
                         selectEvent(firstEvent.id, {});
                     } else {
@@ -20096,11 +19987,49 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             );
         }
 
+        function renderCencAutoInformation(ev) {
+            const card=document.getElementById('currentEvent'),heading=document.getElementById('cencAutoHeading');
+            const panel=document.getElementById('cencAutoRecent'),rows=document.getElementById('cencAutoRecentRows');
+            const metrics=document.getElementById('cencAutoMetrics');
+            const isAuto=!!(ev&&((ev.cencWolfxReference&&isAutomaticEvent(ev))||/cenc\s*\(auto\)/i.test(String(ev.agency||''))));
+            card?.classList.toggle('cenc-auto-selected',isAuto);
+            if(heading)heading.hidden=!isAuto;
+            if(panel)panel.hidden=!isAuto;
+            if(metrics)metrics.hidden=!isAuto;
+            if(rows)rows.replaceChildren();
+            if(!isAuto||!rows)return;
+            const rawIntensity=ev.intensity??ev.MaxIntensity??ev.maxIntensity;
+            const pga=ev.maxPga??ev.MaxPGA??ev.pga??ev.PGA,pgv=ev.maxPgv??ev.MaxPGV??ev.pgv??ev.PGV;
+            const maxIntEl=document.getElementById('cencAutoMaxInt'),pgaEl=document.getElementById('cencAutoMaxPga'),pgvEl=document.getElementById('cencAutoMaxPgv');
+            if(maxIntEl)maxIntEl.textContent=rawIntensity!=null&&String(rawIntensity).trim()!==''&&!/^(?:—|-|n\/?a|unknown)$/i.test(String(rawIntensity).trim())?String(rawIntensity):'—';
+            if(pgaEl)pgaEl.textContent=pga!=null&&String(pga).trim()!==''?String(pga):'—';
+            if(pgvEl)pgvEl.textContent=pgv!=null&&String(pgv).trim()!==''?String(pgv):'—';
+            const metricNote=document.getElementById('cencAutoMetricNote');
+            if(metricNote)metricNote.textContent=pga==null&&pgv==null?'PGA/PGV: sin datos en este catálogo; no se interpretan como cero.':'';
+            const now=Date.now(),recent=(Array.isArray(events)?events:[]).filter(item=>{
+                const ts=Number(item?.ts)||parseTs(item?.time)||0,age=now-ts;
+                return item&&item.id!==ev.id&&item.cencWolfxReference&&isAutomaticEvent(item)&&ts>0&&age>=-120000&&age<=2*60*60*1000;
+            }).sort((a,b)=>(Number(b.ts)||0)-(Number(a.ts)||0)).slice(0,4);
+            recent.forEach(item=>{
+                const row=document.createElement('div');row.className='cenc-auto-row';
+                const badge=document.createElement('div');badge.className='cenc-auto-row-badge';
+                try{badge.textContent=eventIntensityDisplay(item).text||'—';}catch(_){badge.textContent=String(item.intensity||'—');}
+                const info=document.createElement('div');
+                const place=document.createElement('div');place.className='cenc-auto-row-place';place.textContent=String(item.displayPlace||item.place||'Ubicación no informada');
+                const time=document.createElement('div');time.className='cenc-auto-row-time';time.textContent=String(item.time||formatTime(item.ts)||'Hora no informada');
+                info.append(place,time);
+                const mag=document.createElement('div');mag.className='cenc-auto-row-mag';mag.textContent=item.mag!=null?'M'+String(item.mag).replace(/^M/i,''):'M—';
+                row.append(badge,info,mag);rows.appendChild(row);
+            });
+            if(!recent.length){const empty=document.createElement('div');empty.className='cenc-auto-row-time';empty.textContent='Sin otros informes automáticos recientes.';rows.appendChild(empty);}
+        }
+
         function selectEvent(id, options = {}) {
             const ev = events.find(e => e.id === id);
             if (!ev) return;
 
             selectedEventId = id;
+            try { renderCencAutoInformation(ev); } catch (_) {}
             try { renderChinaAdminContext(ev); } catch (_) {}
             try { renderIntensityLegend(ev); } catch (_) {}
             // Cargar solo el detalle administrativo del país del evento.
@@ -20129,7 +20058,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 }
                 document.getElementById('bigLabel1').textContent = 'Magnitud';
                 document.getElementById('bigLabel2').textContent = 'Profundidad';
-                document.getElementById('bigTime').textContent = `${eventDisplayTime(ev)} · ${ev.agency || '—'}`;
+                document.getElementById('bigTime').textContent = `${eventDisplayTime(ev)} · ${eventAgencyDisplayName(ev) || '—'}`;
                 document.getElementById('bigMag').textContent = (typeof eventMagnitudeDisplay === 'function' ? eventMagnitudeDisplay(ev) : null) || (ev.mag != null ? 'M' + ev.mag : 'M—');
                 (function () {
                     let d = ev.depth;
@@ -20473,7 +20402,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 setTickerItem('m5', 'Último sismo M5.0 o superior', 'No se ha registrado un sismo M5.0 o superior en los últimos 2 minutos.');
                 return;
             }
-            setTickerItem('m5', 'Último sismo M5.0 o superior', `${ev.mag} · ${ev.displayPlace || ev.place || 'ubicación no disponible'} · ${ev.time || 'hora no disponible'} · ${ev.agency || 'fuente no disponible'}`, false, { event:ev });
+            setTickerItem('m5', 'Último sismo M5.0 o superior', `${ev.mag} · ${ev.displayPlace || ev.place || 'ubicación no disponible'} · ${ev.time || 'hora no disponible'} · ${eventAgencyDisplayName(ev) || 'fuente no disponible'}`, false, { event:ev });
         }
 
         let tickerM5LastId = '';
@@ -22901,8 +22830,6 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         })();
 
 
-        loadNowQuakeCencInitial();
-        connectNowQuakeCenc();
         connectJmaEewWebSocket();
         connectJmaEqlistWebSocket();
         loadJmaEew();
@@ -25068,6 +24995,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         // Detección temprana: dos o más estaciones coherentes con señal Yahoo/NIED
         // >= 0.0 en dos tramas consecutivas; es una detección local estimada.
         let ynEarlyEpisode = false;
+        let ynMotionDetectionEnabled = (()=>{try{const settings=JSON.parse(localStorage.getItem('earthquake.settings.v1')||'{}');if(Object.prototype.hasOwnProperty.call(settings,'niedMotionEnabled'))return settings.niedMotionEnabled!==false;const legacy=JSON.parse(localStorage.getItem('earthquake.kanameishi.motion.v1')||'{}');return legacy.niedEnabled!==false;}catch(_){return true;}})();
         // Evita reabrir Japón/NIED una y otra vez mientras el mismo episodio
         // continúa activo (también respeta los modos de alerta prioritarios).
         let ynAutoActivationAttempted = false;
@@ -25085,6 +25013,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         let ynLastConfirmedMotionAt = 0;
         let ynLastMotionEvidenceAt = 0;
         let ynLastMotionSignalLevels = new Map();
+        let ynPendingMotionEvidenceByStation = new Map();
         let ynMotionGroupLastFrameMs = 0;
         let ynPreviousMotionGroupStates = [];
         let ynConfirmedMotionGroups = [];
@@ -25185,6 +25114,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             ynPreviousActiveStationIndices = new Set();
             ynPreviousStationCodes.clear();
             ynMotionGroupLastFrameMs=0;ynPreviousMotionGroupStates=[];ynConfirmedMotionGroups=[];
+            ynPendingMotionEvidenceByStation.clear();
         }
         
         let ynMotionHighlightLayer = null;
@@ -25292,7 +25222,8 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             // Ocultar EEW idle mientras hay sacudida
             try{ document.getElementById('sesnaEewBanner')?.classList.add('motion-hidden'); }catch(_){}
             if(updateBoxes)ynUpdateMotionBoxes(stations);
-            try{ if(typeof ynSyncLocalEpicenterCard==='function') ynSyncLocalEpicenterCard(stations, maxInstr); }catch(_){}
+            // El centroide local de estaciones no se presenta como sismo/EEW;
+            // la estimación NIED queda reservada al cálculo de ondas P/S estimadas.
             try{ window.__sesnaEewBannerSync?.(); }catch(_){}
         }
 function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEarlyAlert')){
@@ -25387,9 +25318,14 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
             // Solo un aumento medido o la entrada de una estación cuenta como actividad nueva.
             // Un nivel constante no debe perpetuar el apartado en cada sondeo.
             const motionLevelsNow=new Map(frameStations.map(st=>[Number(st.index),Number(st.code)]));
-            const newMotionEvidence=[...motionLevelsNow].some(([id,code])=>!ynLastMotionSignalLevels.has(id)||code>Number(ynLastMotionSignalLevels.get(id)));
-            if(newMotionEvidence)ynLastMotionEvidenceAt=Date.now();
+            const motionObservedAt=Date.now();
+            for(const [id,code] of motionLevelsNow){
+                if(!ynLastMotionSignalLevels.has(id)||code>Number(ynLastMotionSignalLevels.get(id)))ynPendingMotionEvidenceByStation.set(id,motionObservedAt);
+            }
+            // El mapa de lectura se actualiza para detectar bajadas y nuevas subidas,
+            // pero la evidencia solo renueva el cierre cuando pertenece a un grupo confirmado.
             ynLastMotionSignalLevels=motionLevelsNow;
+            for(const [id,at] of ynPendingMotionEvidenceByStation){if(motionObservedAt-at>5000)ynPendingMotionEvidenceByStation.delete(id);}
             // Adaptación Kanameishi AGPL-3.0: reutiliza la misma trama NIED fresca.
             try { window.__eqKanameishiNiedFrame?.(ynSites, intensity, t); } catch (err) { console.warn('[Kanameishi NIED]', err); }
             // Detección estilo SREV: al menos 2 estaciones coherentes con señal de
@@ -25621,13 +25557,22 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
             if (!ynAutoOpened && !ynMotionAutoClosePending) return;
             const layout=document.getElementById('mainLayout');
             const wasJmaPriority=!!(typeof jmaWeatherAlertMode!=='undefined'&&jmaWeatherAlertMode);
-            const otherFocusClasses=['jma-weather-focus','jma-volcano-focus','us-alerts-focus','tsunami-focus','hurricane-focus','typhoon-focus','taiwan-focus','taiwan-motion-focus','wave-focus','gdacs-focus'];
-            const anotherSectionOpen=()=>otherFocusClasses.some(c=>layout?.classList.contains(c));
+            const otherFocusClasses=['jma-weather-focus','jma-volcano-focus','us-alerts-focus','tsunami-focus','hurricane-focus','typhoon-focus','taiwan-focus','taiwan-motion-focus','gdacs-focus'];
+            const waveViewIsLive=()=>!!(layout?.classList.contains('wave-focus')&&((typeof eewWaveCoordinatorActive==='function'&&eewWaveCoordinatorActive())||(typeof ynLiveJmaEvent!=='undefined'&&!!ynLiveJmaEvent)));
+            // Una clase wave-focus vacía no es un apartado activo: liberarla permite
+            // que el cierre de movimiento también quite el zoom retenido en Japón.
+            if(layout?.classList.contains('wave-focus')&&!waveViewIsLive()){
+                try{if(typeof eewWaveCoordinatorEnd==='function')eewWaveCoordinatorEnd();}catch(_){}
+                try{if(typeof deactivateWaveMode==='function'&&waveMode)deactivateWaveMode();}catch(_){}
+                layout.classList.remove('wave-focus');
+            }
+            const anotherSectionOpen=()=>otherFocusClasses.some(c=>layout?.classList.contains(c))||waveViewIsLive();
             // Desarmar antes de redibujar evita una llamada recursiva desde el feed.
             ynAutoOpened=false;ynMotionAutoClosePending=false;ynClearMotionIdleCloseTimer();ynEarlyEpisode=false;
             ynRequireFreshMotionAfterIdle();ynAutoActivationAttempted=false;
             ynLastMotionIntLevel=-1;ynGroups=[];ynWaveStartedAt=0;ynActiveSignature='';ynInitialViewDone=false;
             try{ynClearMotionBoxes();}catch(_){}
+            try{window.__eqKanameishiClearMotionVisual?.();}catch(_){}
             try{ynStopWaveAnimation();}catch(_){}
             const motionAlert=document.getElementById('ynEarlyAlert');
             motionAlert?.classList.remove('active','yn-motion-active','yn-weak','yn-shaking','yn-strong','eqk-only-shake','yn-tsunami-forecast');
@@ -25672,6 +25617,30 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
             if(events.length)setTimeout(()=>focusLastQuakeAfterSectionClose(),0);
             else setProgrammaticMapView([20,140],3);
         }
+
+        function ynSetMotionDetectionEnabled(enabled){
+            const next=enabled!==false;
+            if(next===ynMotionDetectionEnabled)return;
+            ynMotionDetectionEnabled=next;
+            if(next){
+                ynRequireFreshMotionAfterIdle();ynAutoActivationAttempted=false;
+                ynActiveFrameStreak=0;ynAutoActivationReady=false;ynInactiveSinceBaseline=true;
+                try{ynUpdateEarlyAlert();}catch(_){}
+                return;
+            }
+            const shouldClose=!japanLiveStationsPinned&&(ynAutoOpened||ynMotionAutoClosePending||ynMode||yahooNiedModeActive);
+            const keepOfficialWave=!!(waveMode&&(ynLiveJmaEvent||(typeof eewWaveCoordinatorActive==='function'&&eewWaveCoordinatorActive())));
+            ynEarlyEpisode=false;ynClearMotionIdleCloseTimer();ynRequireFreshMotionAfterIdle();
+            ynGroups=[];ynWaveStartedAt=0;ynActiveSignature='';ynAutoActivationAttempted=false;
+            try{ynClearMotionBoxes();}catch(_){}
+            try{window.__eqKanameishiClearMotionVisual?.();}catch(_){}
+            try{ynStopWaveAnimation();}catch(_){}
+            const alert=document.getElementById('ynEarlyAlert');
+            if(alert){alert.classList.remove('yn-motion-active','yn-weak','yn-shaking','yn-strong','eqk-only-shake','yn-tsunami-forecast');if(!keepOfficialWave){alert.classList.remove('active');alert.textContent='';alert.style.removeProperty('display');}}
+            if(shouldClose){ynMotionAutoClosePending=true;try{ynCloseAutomatically();}catch(_){} }
+            if(keepOfficialWave)try{renderWaveMode();}catch(_){}
+        }
+        window.__ynSetMotionDetectionEnabled=ynSetMotionDetectionEnabled;
 
         function ynClusterActiveStations(stations) {
             const quorum=YN_MOTION_QUORUM;
@@ -25774,76 +25743,10 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
 
         let ynLocalEstimateSerial = 0;
         let ynLocalEstimateKey = '';
-        function ynSyncLocalEpicenterCard(stations, maxInstr) {
-            const card = document.getElementById('ynLocalEpicenterCard');
-            const alert = document.getElementById('ynEarlyAlert');
-            if (!card) return;
-            // Preferir un EEW vigente; sin EEW, el centroide describe un área aproximada de estaciones.
-            let lat = NaN, lon = NaN, place = '', mag = null, depth = null, intLabel = 'Sin dato', ts = Date.now(), source = 'NIED local', hasLiveEew = false;
-            try {
-                const w = (typeof taupEewWaveEvent !== 'undefined' && taupEewWaveEvent && typeof taupEewWaveIsFresh === 'function' && taupEewWaveIsFresh(taupEewWaveEvent))
-                    ? taupEewWaveEvent : null;
-                if (w) {
-                    hasLiveEew = true;
-                    lat = Number(w.lat); lon = Number(w.lon);
-                    place = String(w.place || w.region || w.location || '');
-                    mag = w.mag ?? w.magnitude;
-                    depth = w.depth ?? w.Depth;
-                    source = String(w.agency || 'EEW');
-                    ts = Number(w.waveOriginTs || w.ts) || Date.parse(w.time) || Date.now();
-                    if (w.intensity != null && w.intensity !== '') intLabel = String(w.intensity);
-                }
-            } catch (_) {}
-            if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-                const list = Array.isArray(stations) ? stations : [];
-                if (list.length) {
-                    let sx=0,sy=0,n=0;
-                    list.forEach(st=>{const a=Number(st.lat),b=Number(st.lon);if(Number.isFinite(a)&&Number.isFinite(b)){sx+=a;sy+=b;n++;}});
-                    if (n) { lat = sx/n; lon = sy/n; }
-                }
-                try {
-                    const g = Array.isArray(window.__ynLastMotionGroups) && window.__ynLastMotionGroups[0];
-                    if (g && Number.isFinite(Number(g.lat)) && Number.isFinite(Number(g.lon))) {
-                        lat = Number(g.lat); lon = Number(g.lon);
-                        if (Array.isArray(g.prefectures) && g.prefectures[0]) place = g.prefectures[0];
-                    }
-                } catch (_) {}
-                if (!place) {
-                    try { place = typeof ynMotionPlaceLabel === 'function' ? ynMotionPlaceLabel(stations || []) : ''; } catch (_) {}
-                }
-                source = 'NIED local';
-                const localIntensity = maxInstr == null || String(maxInstr).trim() === '' ? NaN : Number(maxInstr);
-                intLabel = Number.isFinite(localIntensity) ? '≈' + localIntensity.toFixed(1) : 'Sin dato';
-            }
-            if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-                card.classList.remove('active');
-                window.__ynLocalEpicenterEstimate = null;
-                alert?.classList.add('eqk-only-shake');
-                return;
-            }
-            if (!place) place = 'Área aprox. ' + lat.toFixed(2) + '°, ' + lon.toFixed(2) + '°';
-            const key = place + '|' + String(mag ?? '') + '|' + Math.round(lat*100) + '|' + Math.round(lon*100);
-            if (key !== ynLocalEstimateKey) {
-                ynLocalEstimateKey = key;
-                ynLocalEstimateSerial += 1;
-            }
-            const d = new Date(ts);
-            const pad = n => String(n).padStart(2,'0');
-            const timeStr = Number.isNaN(d.getTime()) ? '—' :
-                `${hasLiveEew ? 'EEW' : 'Estimación local'} ${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} · ${source}`;
-            const set = (id, v) => { const n = document.getElementById(id); if (n) n.textContent = v; };
-            const magNumber = Number(String(mag ?? '').replace(/^M/i,''));
-            const magLabel = mag == null || String(mag).trim() === '' ? 'M—' : 'M' + (Number.isFinite(magNumber) ? magNumber.toFixed(1) : String(mag).replace(/^M/i,''));
-            const depthText = depth == null || String(depth).trim() === '' ? 'sin dato' : (Number.isFinite(Number(depth)) ? Math.round(Number(depth)) + ' km' : String(depth));
-            set('ynLeeNo', 'No.' + ynLocalEstimateSerial);
-            set('ynLeeInt', intLabel || 'Sin dato');
-            set('ynLeePlace', place);
-            set('ynLeeMeta', timeStr);
-            set('ynLeeMag', magLabel);
-            set('ynLeeDepth', 'Profundidad: ' + depthText);
-            window.__ynLocalEpicenterEstimate = { lat, lon, place, mag:magLabel === 'M—' ? null : magLabel, depth:depthText === 'sin dato' ? null : depthText, intensity:intLabel || 'Sin dato', ts, source, local:!hasLiveEew };
-            card.classList.add('active');
-            alert?.classList.remove('eqk-only-shake');
+        function ynSyncLocalEpicenterCard() {
+            // La estimación local no se presenta como evento: se reserva a ondas P/S estimadas.
+            document.getElementById('ynLocalEpicenterCard')?.classList.remove('active');
+            window.__ynLocalEpicenterEstimate = null;
         }
         function ynHideLocalEpicenterCard() {
             document.getElementById('ynLocalEpicenterCard')?.classList.remove('active');
@@ -25920,6 +25823,7 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
             ynClearMotionIdleCloseTimer();
             ynLastMotionEpisodeClosedStamp=Number(ynLastObservedMs)||ynLastMotionEpisodeClosedStamp;
             ynLastConfirmedMotionStamp=0;ynLastConfirmedMotionAt=ynLastMotionEvidenceAt;
+            ynPendingMotionEvidenceByStation.clear();
             ynActiveFrameStreak=0;ynAutoActivationReady=false;ynPreviousFrameActive=false;ynInactiveSinceBaseline=true;ynPreviousActiveStationIndices=new Set();
             ynMotionGroupLastFrameMs=Number(ynLastObservedMs)||0;ynPreviousMotionGroupStates=[];ynConfirmedMotionGroups=[];
         }
@@ -25930,6 +25834,7 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
             ynAutoActivationAttempted=false;
             ynLastMotionIntLevel=-1;ynGroups=[];ynWaveStartedAt=0;ynActiveSignature='';ynInitialViewDone=false;
             try{ynClearMotionBoxes();}catch(_){}
+            try{window.__eqKanameishiClearMotionVisual?.();}catch(_){}
             try{ynStopWaveAnimation();}catch(_){}
             try{ynHideLocalEpicenterCard();}catch(_){}
             const alert=document.getElementById('ynEarlyAlert');
@@ -25938,7 +25843,8 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
                 // No dejar un cuadro vacío debajo del EEW: volver a idle o limpiar
                 try{ynShowIdlePanel(alert);}catch(_){ alert.innerHTML=''; }
             }
-            if(ynLiveJmaEvent)return false;
+            // Cerrar solo la vista local de estaciones aunque siga vigente un EEW;
+            // ynCloseAutomatically conserva wave-focus y el panel del aviso activo.
             ynMotionAutoClosePending=true;
             try{ynCloseAutomatically();}catch(err){console.warn('[motion-idle-close]',err);}
             return true;
@@ -25958,9 +25864,20 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
                 ynFinishMotionEpisodeAfterIdle();
             },delay);
         }
-        function ynRecordConfirmedMotionFrame() {
+        function ynPromoteConfirmedMotionEvidence(groups) {
+            const now=Date.now(),ids=new Set((Array.isArray(groups)?groups:[]).flatMap(g=>(g?.stations||[]).map(st=>Number(st.index))));
+            let latest=0;
+            ids.forEach(id=>{const at=Number(ynPendingMotionEvidenceByStation.get(id)||0);if(at>ynLastConfirmedMotionAt&&now-at<=5000)latest=Math.max(latest,at);});
+            if(!latest)return false;
+            ynLastMotionEvidenceAt=latest;
+            ids.forEach(id=>{const at=Number(ynPendingMotionEvidenceByStation.get(id)||0);if(at&&at<=latest)ynPendingMotionEvidenceByStation.delete(id);});
+            return true;
+        }
+        function ynRecordConfirmedMotionFrame(groups) {
             const stamp=Number(ynLastObservedMs)||0;
-            if(!ynEarlyEpisode||!stamp||!ynFeedIsFresh()||stamp<=ynLastMotionEpisodeClosedStamp||stamp===ynLastConfirmedMotionStamp||ynLastMotionEvidenceAt<=ynLastConfirmedMotionAt||Date.now()-ynLastMotionEvidenceAt>5000)return false;
+            if(!ynEarlyEpisode||!stamp||!ynFeedIsFresh()||stamp<=ynLastMotionEpisodeClosedStamp||stamp===ynLastConfirmedMotionStamp)return false;
+            ynPromoteConfirmedMotionEvidence(groups);
+            if(!ynLastMotionEvidenceAt||ynLastMotionEvidenceAt<=ynLastConfirmedMotionAt||Date.now()-ynLastMotionEvidenceAt>5000)return false;
             ynLastConfirmedMotionStamp=stamp;
             ynLastConfirmedMotionAt=ynLastMotionEvidenceAt;
             ynClearMotionIdleCloseTimer();
@@ -26061,11 +25978,20 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
             alert.innerHTML = view.html;
             alert.style.display='block';
             try{ document.getElementById('sesnaEewBanner')?.classList.add('motion-hidden'); }catch(_){}
-            try{ if(typeof ynSyncLocalEpicenterCard==='function') ynSyncLocalEpicenterCard(current, mainGroup?.maxIntensity); }catch(_){}
         }
         function ynUpdateEarlyAlert() {
             const alert = document.getElementById('ynEarlyAlert');
             if (!alert) return;
+            if(!ynMotionDetectionEnabled){
+                ynEarlyEpisode=false;ynGroups=[];ynWaveStartedAt=0;ynActiveSignature='';
+                try{ynClearMotionBoxes();}catch(_){}
+                try{ynStopWaveAnimation();}catch(_){}
+                const keepOfficialWave=!!(waveMode&&(ynLiveJmaEvent||(typeof eewWaveCoordinatorActive==='function'&&eewWaveCoordinatorActive())));
+                alert.classList.remove('yn-motion-active','yn-weak','yn-shaking','yn-strong','eqk-only-shake','yn-tsunami-forecast');
+                if(keepOfficialWave){try{renderWaveMode();}catch(_){}}
+                else{alert.classList.remove('active');alert.textContent='';alert.style.removeProperty('display');}
+                return;
+            }
             alert.classList.remove('yn-tsunami-forecast');
 
             if (ynRealEventOverride) {
@@ -26091,9 +26017,10 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
             if (ynLiveJmaEvent) {
                 const localStations = ynCoherentActiveStations(ynActiveStations());
                 const localGroups = ynUpdateMotionGroupConfirmation(ynClusterActiveStations(localStations));
+                ynPromoteConfirmedMotionEvidence(localGroups);
                 const localConfirmed = ynFeedIsFresh() && ynLastMotionEvidenceAt>0 && Date.now()-ynLastMotionEvidenceAt<=5000 && ynAutoActivationReady && ynActiveFrameStreak >= 2 && localGroups.length>0;
                 if (localConfirmed && !ynStartupLocked() && Number(ynLastObservedMs)>ynLastMotionEpisodeClosedStamp) {
-                    ynEarlyEpisode=true;ynRecordConfirmedMotionFrame();
+                    ynEarlyEpisode=true;ynRecordConfirmedMotionFrame(localGroups);
                     ynGroups=localGroups;
                     const maxCode = Math.max(...localStations.map(st => st.code));
                     const maxInstr = ynShindoFromCode(maxCode);
@@ -26126,6 +26053,7 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
             // consecutivas, evitando que C0 o una estación aislada abran la detección.
             const current = ynCoherentActiveStations(ynActiveStations());
             const groups = ynUpdateMotionGroupConfirmation(ynClusterActiveStations(current));
+            ynPromoteConfirmedMotionEvidence(groups);
             const confirmed = ynFeedIsFresh() && ynLastMotionEvidenceAt>0 && Date.now()-ynLastMotionEvidenceAt<=5000 && Number(ynLastObservedMs)>ynLastMotionEpisodeClosedStamp && ynAutoActivationReady && ynActiveFrameStreak >= 2 && current.length >= YN_MOTION_QUORUM && groups.length>0;
             if (!confirmed || ynStartupLocked()) {
                 if (ynEarlyEpisode && !confirmed) {
@@ -26196,7 +26124,7 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
                     try { speakAlert(`Yahoo/NIED, Japón. Detección local en ${count} estaciones. ${stationText} ${levelText} El recuadro marca el grupo de estaciones activas y no representa un epicentro oficial.${firstSeen ? ` Primera lectura del episodio: ${firstSeen}.` : ''}`, 'quakes', 'es-US', `yahoo-motion:${signature}`); } catch (_) {}
                 }
             }
-            ynRecordConfirmedMotionFrame();
+            ynRecordConfirmedMotionFrame(groups);
             ynGroups = groups;
             ynActiveSignature = signature;
             if (!ynWaveStartedAt) ynWaveStartedAt = Date.now();
@@ -27512,8 +27440,8 @@ function ynBuildLeafletMarkers() {
             clearTimeout(ynLiveJmaCloseTimer);
             ynLiveJmaCloseTimer = null;
             ynLiveJmaTimerEventId = null;
-            // Quitar ondas / wave-focus, pero VOLVER al overview de estaciones Japón
-            // (estilo EQuake en reposo), no al mapa mundial.
+            // Retirar ondas y cerrar la vista automática de estaciones al terminar;
+            // si Japón está fijado manualmente, conservar el overview.
             try { if (typeof deactivateWaveMode === 'function') deactivateWaveMode(); } catch (_) {}
             const layout = document.getElementById('mainLayout');
             layout?.classList.remove('wave-focus');
@@ -27538,6 +27466,10 @@ function ynBuildLeafletMarkers() {
             }
             try { map.invalidateSize({ pan: false }); } catch (_) {}
             try { ynDraw({ stations: true, waves: false, force: true }); } catch (_) {}
+            if(!japanLiveStationsPinned&&!ynEarlyEpisode){
+                ynMotionAutoClosePending=true;
+                try{ynCloseAutomatically();}catch(err){console.warn('[jma-japan-auto-close]',err);}
+            }
             if (wasOpen) {
                 try { showRegionToast(reason || 'Sismo finalizado · estaciones Japón'); } catch (_) {}
             }
@@ -27761,8 +27693,13 @@ function ynBuildLeafletMarkers() {
         (function ynMotionEndController(){
             const POLL_MS=250;
             let wasActive=false,pendingEnd=false,closedForCurrentIdle=false;
-            const kmdActive=()=>{try{return !!window.__eqKanameishiMotionActive?.();}catch(_){return false;}};
-            const motionActive=()=>!!ynEarlyEpisode||kmdActive();
+            // La salida del apartado depende solo de evidencia nueva confirmada por Yahoo/NIED.
+            // El detector Kanameishi paralelo no puede mantener Japón abierto por su cuenta.
+            const motionActive=()=>{
+                if(!ynEarlyEpisode)return false;
+                const last=Number(ynLastConfirmedMotionAt||ynLastMotionEvidenceAt||0);
+                return last>0&&Date.now()-last<5000;
+            };
             function detectorNoticeOpen(){
                 const alert=document.getElementById('ynEarlyAlert');
                 const panel=document.getElementById('kanameishiMotionPanel');
@@ -27770,7 +27707,7 @@ function ynBuildLeafletMarkers() {
                     !!alert?.classList.contains('yn-motion-active')||!!panel?.classList.contains('active');
             }
             function closeIfIdle(){
-                if(motionActive()||ynLiveJmaEvent)return false;
+                if(motionActive())return false;
                 if(!detectorNoticeOpen())return true;
                 ynMotionAutoClosePending=true;
                 try{ynCloseAutomatically();}catch(err){console.warn('[motion-end]',err);return false;}
@@ -27783,6 +27720,8 @@ function ynBuildLeafletMarkers() {
                         return;
                     }
                     if(wasActive){wasActive=false;pendingEnd=true;}
+                    // Watchdog: también cierra si otro flujo limpió ynEarlyEpisode y dejó el apartado automático abierto.
+                    if(!japanLiveStationsPinned&&(ynAutoOpened||ynMotionAutoClosePending)&&!motionActive())pendingEnd=true;
                     if(pendingEnd&&!closedForCurrentIdle&&closeIfIdle()){
                         pendingEnd=false;closedForCurrentIdle=true;
                     }
@@ -28109,6 +28048,10 @@ function ynBuildLeafletMarkers() {
   function renderNetwork(network,stations){
     if(!ensureLayers())return;
     const layer=niedLayers;layer.clearLayers();
+    // El detector principal Yahoo/NIED ya dibuja las celdas del grupo confirmado.
+    // Ocultar aquí la cuadrícula paralela de Kanameishi evita cuadros duplicados encima.
+    const mainJapanView=document.getElementById('mainLayout')?.classList.contains('japan-focus')||document.getElementById('mainLayout')?.classList.contains('yahoo-nied-active');
+    if(mainJapanView){lastDraw=Date.now();return;}
     if(!stations.length)return;
     const offset=stations.reduce((a,s)=>a+(s.lat||0),0)/stations.length;
     const anchor=stations.reduce((a,s)=>a+(s.lon||0),0)/stations.length;
@@ -28145,13 +28088,13 @@ function ynBuildLeafletMarkers() {
   function installSettings(){
     installStyles();const dialog=document.getElementById('eqSettingsDialog');if(!dialog||document.getElementById('kmdSettingsSection'))return;
     const sec=document.createElement('div');sec.className='eqs-section';sec.id='kmdSettingsSection';
-    sec.innerHTML=`<div class="eqs-title">Detección de movimiento · Kanameishi</div><div class="eqs-muted">NIED reutiliza el feed Yahoo/Kyoshin que ya carga el monitor. Incluye el hipocentro estimado de Kanameishi (se oculta si la JMA ya emitió un EEW que coincide). KMA-PEWS no está integrado en esta edición.</div><div class="kmd-grid"><label class="kmd-field">Detector NIED <input id="kmdNiedEnabled" type="checkbox"></label><label class="kmd-field">Sensibilidad NIED <select id="kmdNiedSensitivity"><option value="1">1 · estricta</option><option value="2">2 · media</option><option value="3">3 · sensible</option></select></label><label class="kmd-field">Hipocentro estimado NIED <input id="kmdHypoEnabled" type="checkbox"></label><label class="kmd-field">Mostrar aunque haya EEW de la JMA <input id="kmdHypoAlways" type="checkbox"></label><label class="kmd-field">Texto del hipocentro <select id="kmdHypoDetail"><option value="0">0 · sin texto</option><option value="1">1 · normal</option><option value="2">2 · detallado</option></select></label></div><div class="kmd-license">Adaptación del proyecto <a href="https://github.com/Lipomoea/kanameishi" target="_blank" rel="noopener">Kanameishi</a>, de Lipomoea, bajo <a href="https://github.com/Lipomoea/kanameishi/blob/main/LICENSE" target="_blank" rel="noopener">AGPL-3.0</a>. El código fuente de esta adaptación (detector, localizador de hipocentro y worker, con sus cambios) está incluido en este HTML y se ofrece bajo la misma licencia.</div><details><summary>Leer copia de la licencia AGPL-3.0</summary><div id="kmdLicenseCopy"></div></details>`;
+    sec.innerHTML=`<div class="eqs-title">Ajustes del detector Kanameishi</div><div class="eqs-muted">La activación general se controla en «Detección local de movimiento Yahoo/NIED (Japón)». NIED reutiliza el feed Yahoo/Kyoshin; el hipocentro estimado y sus ondas P/S dependen de este detector, no son EEW oficiales.</div><div class="kmd-grid"><label class="kmd-field">Sensibilidad NIED <select id="kmdNiedSensitivity"><option value="1">1 · estricta</option><option value="2">2 · media</option><option value="3">3 · sensible</option></select></label><label class="kmd-field">Hipocentro estimado NIED <input id="kmdHypoEnabled" type="checkbox"></label><label class="kmd-field">Mostrar aunque haya EEW de la JMA <input id="kmdHypoAlways" type="checkbox"></label><label class="kmd-field">Texto del hipocentro <select id="kmdHypoDetail"><option value="0">0 · sin texto</option><option value="1">1 · normal</option><option value="2">2 · detallado</option></select></label></div><div class="kmd-license">Adaptación del proyecto <a href="https://github.com/Lipomoea/kanameishi" target="_blank" rel="noopener">Kanameishi</a>, de Lipomoea, bajo <a href="https://github.com/Lipomoea/kanameishi/blob/main/LICENSE" target="_blank" rel="noopener">AGPL-3.0</a>. El código fuente de esta adaptación (detector, localizador de hipocentro y worker, con sus cambios) está incluido en este HTML y se ofrece bajo la misma licencia.</div><details><summary>Leer copia de la licencia AGPL-3.0</summary><div id="kmdLicenseCopy"></div></details>`;
     const actions=dialog.querySelector('.eqs-actions');dialog.insertBefore(sec,actions||null);
-    const nied=document.getElementById('kmdNiedEnabled'),ns=document.getElementById('kmdNiedSensitivity'),he=document.getElementById('kmdHypoEnabled'),ha=document.getElementById('kmdHypoAlways'),hd=document.getElementById('kmdHypoDetail');
+    const ns=document.getElementById('kmdNiedSensitivity'),he=document.getElementById('kmdHypoEnabled'),ha=document.getElementById('kmdHypoAlways'),hd=document.getElementById('kmdHypoDetail');
     const licenseTpl=document.getElementById('kmdAgplLicenseTemplate');if(licenseTpl)document.getElementById('kmdLicenseCopy').appendChild(licenseTpl.content.cloneNode(true));
-    const paint=()=>{nied.checked=cfg.niedEnabled!==false;ns.value=String(cfg.niedSensitivity||1);he.checked=cfg.hypoEnabled!==false;ha.checked=cfg.hypoAlwaysOn===true;hd.value=String(cfg.hypoDetail);};
-    function changed(){cfg.niedEnabled=nied.checked;cfg.niedSensitivity=Number(ns.value)||1;cfg.hypoEnabled=he.checked;cfg.hypoAlwaysOn=ha.checked;cfg.hypoDetail=[0,1,2].includes(Number(hd.value))?Number(hd.value):1;saveConfig();applyConfig();paint();if(hypoLastResults.length&&hypoWorker)renderHypo(hypoLastResults);}
-    [nied,ns,he,ha,hd].forEach(x=>x.addEventListener('change',changed));paint();applyConfig();
+    const paint=()=>{ns.value=String(cfg.niedSensitivity||1);he.checked=cfg.hypoEnabled!==false;ha.checked=cfg.hypoAlwaysOn===true;hd.value=String(cfg.hypoDetail);};
+    function changed(){cfg.niedSensitivity=Number(ns.value)||1;cfg.hypoEnabled=he.checked;cfg.hypoAlwaysOn=ha.checked;cfg.hypoDetail=[0,1,2].includes(Number(hd.value))?Number(hd.value):1;saveConfig();applyConfig();paint();if(hypoLastResults.length&&hypoWorker)renderHypo(hypoLastResults);}
+    [ns,he,ha,hd].forEach(x=>x.addEventListener('change',changed));paint();applyConfig();
   }
   function applyConfig(){
     if(!cfg.niedEnabled){niedStates.forEach(st=>{st.activeUntil=0;});if(niedLayers)niedLayers.clearLayers();}
@@ -28165,9 +28108,10 @@ function ynBuildLeafletMarkers() {
   function init(){
     installStyles();ensureLayers();ensurePanel();
     window.__eqKanameishiNiedFrame=(sites,intensity,stamp)=>processNiedFrame(sites,intensity,stamp);
+    window.__eqKanameishiClearMotionVisual=()=>{if(niedLayers)niedLayers.clearLayers();niedStates.forEach(st=>{st.activeUntil=0;});niedLastDetectedAt=0;updateMotionPanel();};
     window.__eqKanameishiMotionActive=()=>{if(!cfg.niedEnabled||!(niedLastFrame>0)||Date.now()-niedLastFrame>FRESH_MS)return false;return niedLastDetectedAt>0&&Date.now()-niedLastDetectedAt<=MOTION_UI_IDLE_MS;};
     window.__eqKanameishiMotionConfigure=(next={})=>{cfg=Object.assign({},cfg,next);saveConfig();applyConfig();};
-    window.__eqKanameishiHypoDebug=()=>({enabled:cfg.hypoEnabled,workerReady:hypoReady,failed:hypoWorkerFailed,refinedSites:hypoRefined,sites:niedSites.length,shown:hypoLastResults.length,lastError:hypoLastError});
+    window.__eqKanameishiHypoDebug=()=>({enabled:cfg.hypoEnabled,niedEnabled:cfg.niedEnabled,workerReady:hypoReady,failed:hypoWorkerFailed,refinedSites:hypoRefined,sites:niedSites.length,shown:hypoLastResults.length,lastError:hypoLastError});
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installSettings,{once:true});else installSettings();
     if(!motionStatusTimer)motionStatusTimer=setInterval(tick,1000);
     applyConfig();
@@ -29123,6 +29067,7 @@ function ynBuildLeafletMarkers() {
 <label class="eqs-row eqs-intensity-row">Color del mar (mapa) <select id="eqsMapSea"><option value="dark">Oscuro (predeterminado)</option><option value="ocean">Azul océano</option><option value="deep">Azul profundo</option><option value="black">Negro</option><option value="slate">Gris pizarra</option><option value="teal">Verde azulado</option><option value="indigo">Índigo</option></select></label>
 <label class="eqs-row eqs-intensity-row">Estaciones Japón <select id="eqsJapanStations"><option value="yahoo">Yahoo (Kyoshin CDN)</option><option value="nied">NIED oficial (K-NET + KiK-net)</option><option value="knet">Solo K-NET</option><option value="kiknet">Solo KiK-net</option><option value="both">Yahoo + NIED</option><option value="hinet">Hi-net · catálogo (sin telemetría)</option><option value="fnet">F-net · catálogo (sin telemetría)</option><option value="vnet">V-net · sin catálogo/flujo público verificado</option></select></label>
 <div class="eqs-muted eqs-intensity-note">Solo K-NET/KiK-net tienen feed Kyoshin consultado cada 1 s. Hi-net y F-net muestran catálogo sin telemetría. Las estaciones oceánicas S-net, DONET y N-net se retiraron del mapa porque esta vista no recibe sus señales en vivo.</div>
+<label class="eqs-row">Detección local de movimiento Yahoo/NIED (Japón) <input class="eqs-switch" id="eqsMotionDetectionEnabled" type="checkbox"></label><div class="eqs-muted">Activa o pausa cuadros y estimaciones locales basadas en estaciones. No desactiva EEW oficiales.</div>
 <div class="eqs-section" style="margin-top:8px"><div class="eqs-title">Cuadros Máx. Int. / PGA / PGV</div>
 <div class="eqs-muted">Elige qué paneles laterales se muestran.</div>
 <label class="eqs-row">TREM (Taiwán) <input class="eqs-switch" id="eqsShowTremMetrics" type="checkbox"></label>
@@ -29131,7 +29076,7 @@ function ynBuildLeafletMarkers() {
 <label class="eqs-row">Vista de estaciones NIED <select id="eqsNiedMetric"><option value="intensity">Intensidad</option><option value="pga">PGA ≈ (gal)</option><option value="pgv">PGV ≈ (cm/s)</option><option value="both">PGA + PGV ≈</option></select></label><div class="eqs-muted">PGA/PGV se estiman leyendo los colores del GIF NIED; no son mediciones crudas.</div>
 </div>
 <button class="eqs-control" id="eqsTestColombiaGoalRain" type="button" style="margin-top:8px;width:100%">⚽ Probar lluvia de balones</button><div class="eqs-muted">Vista previa: no cambia si la celebración está activada o desactivada.</div>
-<div class="eqs-muted eqs-intensity-note">Solo cambia el color del agua. Países, límites administrativos, estaciones y sismos se mantienen.</div><div class="eqs-muted eqs-intensity-note">La selección ajusta lista, ficha, telop y mapa. Las equivalencias entre escalas se marcan con ≈ y son estimadas, no oficiales.</div><div class="eqs-section"><div class="eqs-title">Probar sonidos del monitor</div><div class="eqs-muted">Pulsa cada botón para escucharlo. Los sonidos SREV son los avisos incorporados.</div><div class="eqs-muted">Marcador PLUM adaptado del punto de SREV · Kotoho7 · CC BY-SA 2.0. <a href="https://github.com/kotoho7/scratch-realtime-earthquake-viewer-page" target="_blank" rel="noopener">Fuente</a>.</div><div class="eqs-sound-group"><b>Interfaz</b><div class="eqs-sound-grid" id="eqsUiSounds"></div></div><div class="eqs-sound-group"><b>Alertas SREV</b><div class="eqs-sound-grid" id="eqsSrevSounds"></div></div><div class="eqs-sound-group"><b>Voz</b><button class="eqs-control" id="eqsTestTts" type="button">Probar TTS</button></div></div></div><div class="eqs-section"><div class="eqs-title">Voz de alertas en español</div><div class="eqs-muted">Elige y prueba la voz utilizada para los avisos hablados.</div><select id="ttsVoiceSelect"></select><div style="display:flex;gap:8px;margin-top:8px"><button class="eqs-control" id="btnTtsVoiceTest" type="button">Probar voz</button><button class="eqs-control" id="btnTtsVoiceReset" type="button">Usar automática</button></div></div><div class="eqs-muted">Las preferencias se guardan en este navegador.</div></div><div class="eqs-section"><div class="eqs-title">Agencias visibles en la lista</div><div class="eqs-agencies" id="eqsAgencies"></div><div class="eqs-muted">Desactivarlas las oculta de la lista, pero no elimina su conexión.</div></div><div class="eqs-actions"><button class="eqs-control" id="eqsReset" type="button">Restablecer</button><button class="eqs-save" id="eqsSave" type="button">Guardar</button></div></div></div><script id="eq-settings-module">(function(){'use strict';const modal=document.getElementById('eqSettingsModal'),open=document.getElementById('btnSettings');if(!modal||!open)return;const agencies=['USGS','NEIC','JMA','CENC','CEA','CEIC','EMSC','IGN','INETER','GEOFON','SSN','AFAD','BMKG','GEONET','INGV','IPGP','SED','PHIVOLCS','CSN','IG-EPN','EARLY-EST','HKO','NOA','KOERI','KMA','BCSF','NRCan','USP','MMD' ,'CEA-PR'],key='earthquake.settings.v1',defaults={tts:true,audio:true,masterVolume:1,taup:'precise',intensityScale:'source',mapSea:'dark',japanStations:'nied',showTremMetrics:true,showPalertMetrics:true,showNiedMetrics:true,niedMetric:'intensity',colombiaGoalRain:true,colombiaMatchAlerts:true,showFaults:false,browserNotify:false,minTickerMag:0,listMinMag:0,listFeltOnly:false,listRegion:'ALL',listFocusZoom:5,disabled:{}};const read=()=>{try{const saved=JSON.parse(localStorage.getItem(key)||'{}'),out=Object.assign({},defaults,saved);if(!Object.prototype.hasOwnProperty.call(saved,'masterVolume')){const v=Number(localStorage.getItem('earthquake.masterVolume'));if(Number.isFinite(v))out.masterVolume=Math.max(0,Math.min(1,v))}return out}catch(_){return Object.assign({},defaults)}};let state=read();delete state.uiLanguage;window.__eqListFocusZoom=Math.max(3,Math.min(8,Number(state.listFocusZoom)||5));const tts=document.getElementById('eqsTts'),audio=document.getElementById('eqsAudio'),masterVolumeSlider=document.getElementById('eqsMasterVolume'),masterVolumeValue=document.getElementById('eqsMasterVolumeValue'),taup=document.getElementById('eqsTaup'),intensityScale=document.getElementById('eqsIntensityScale'),mapSea=document.getElementById('eqsMapSea'),japanStations=document.getElementById('eqsJapanStations'),showTremMetrics=document.getElementById('eqsShowTremMetrics'),showPalertMetrics=document.getElementById('eqsShowPalertMetrics'),showNiedMetrics=document.getElementById('eqsShowNiedMetrics'),niedMetric=document.getElementById('eqsNiedMetric'),colombiaGoalRain=document.getElementById('eqsColombiaGoalRain'),colombiaMatchAlerts=document.getElementById('eqsColombiaMatchAlerts'),goalRainTest=document.getElementById('eqsTestColombiaGoalRain'),showFaults=document.getElementById('eqsShowFaults'),browserNotify=document.getElementById('eqsBrowserNotify'),minTickerMag=document.getElementById('eqsMinTickerMag'),listMinMag=document.getElementById('eqsListMinMag'),listRegion=document.getElementById('eqsListRegion'),listFeltOnly=document.getElementById('eqsListFeltOnly'),listFocusZoom=document.getElementById('eqsListFocusZoom'),listFocusZoomValue=document.getElementById('eqsListFocusZoomValue'),list=document.getElementById('eqsAgencies');const uiSounds=document.getElementById('eqsUiSounds'),srevSounds=document.getElementById('eqsSrevSounds'),jmaToggle=document.getElementById('eqsJmaWeatherToggle');function syncJmaToggle(){const api=window.__eqJmaWeatherView;const active=!!(api&&typeof api.isActive==='function'&&api.isActive());if(jmaToggle){jmaToggle.textContent=active?'↩️ Volver a la vista normal':'🇯🇵 Alertas meteorológicas de Japón';jmaToggle.setAttribute('aria-pressed',String(active));jmaToggle.style.borderColor=active?'#ffb300':'';jmaToggle.style.color=active?'#ffd873':''}}const uiSoundNames=[['click','Clic'],['select','Selección'],['refresh','Actualizar'],['success','Correcto'],['home','Inicio'],['alert','Alerta'],['ynWave','Onda NIED'],['motion','Movimiento']];const srevSoundNames=[['eew0','EEW débil'],['eew3','EEW intensidad 3'],['eew5','EEW intensidad 5'],['eewC','EEW cancelación'],['koushin','Actualización'],['koushinE','Actualización EEW'],['VXSE51','VXSE51 información'],['VXSE52','VXSE52 epicentro'],['VXSE53','VXSE53 detalle'],['VXSE5C','VXSE5C'],['VTSE5','VTSE5 tsunami'],['tsa01','Tsunami tsa01'],['tsa02','Tsunami tsa02'],['tsa03','Tsunami tsa03'],['tsa04','Tsunami tsa04'],['tsa12','Tsunami tsa12'],['tsa13','Tsunami tsa13'],['tsa14','Tsunami tsa14'],['tsa21','Tsunami tsa21'],['tsa22','Tsunami tsa22'],['tsa23','Tsunami tsa23'],['tsa24','Tsunami tsa24'],['tsa32','Tsunami tsa32'],['tsa33','Tsunami tsa33'],['p1024','p1024'],['NewInt0','Movimiento int. 0'],['NewInt1','Movimiento int. 1'],['NewInt2','Movimiento int. 2'],['NewInt3','Movimiento int. 3'],['NewInt4','Movimiento int. 4'],['NewInt5','Movimiento int. 5'],['NewInt6','Movimiento int. 6–7']];function render(){const a=window.__eqAudioSettings;tts.checked=a?a.ttsEnabled:state.tts;audio.checked=a?a.audioEnabled:state.audio;if(masterVolumeSlider){const n=Math.max(0,Math.min(1,Number(state.masterVolume??1)));masterVolumeSlider.value=String(Math.round(n*100));if(masterVolumeValue)masterVolumeValue.textContent=Math.round(n*100)+'%'}taup.value=(window.__eqTaupSettings&&window.__eqTaupSettings.mode)||state.taup;intensityScale.value=state.intensityScale||'source';if(mapSea)mapSea.value=state.mapSea||'dark';if(japanStations)japanStations.value=state.japanStations||'nied';if(showTremMetrics)showTremMetrics.checked=state.showTremMetrics!==false;if(showPalertMetrics)showPalertMetrics.checked=state.showPalertMetrics!==false;if(showNiedMetrics)showNiedMetrics.checked=state.showNiedMetrics!==false;if(niedMetric)niedMetric.value=state.niedMetric||'intensity';if(colombiaGoalRain)colombiaGoalRain.checked=state.colombiaGoalRain!==false;if(colombiaMatchAlerts)colombiaMatchAlerts.checked=state.colombiaMatchAlerts!==false;if(showFaults)showFaults.checked=state.showFaults===true;if(browserNotify)browserNotify.checked=state.browserNotify===true;if(minTickerMag)minTickerMag.value=String(state.minTickerMag!=null?state.minTickerMag:0);if(listMinMag)listMinMag.value=String(state.listMinMag!=null?state.listMinMag:0);if(listRegion)listRegion.value=String(state.listRegion||'ALL');if(listFeltOnly)listFeltOnly.checked=state.listFeltOnly===true;if(listFocusZoom){const n=Math.max(3,Math.min(8,Number(state.listFocusZoom)||5));listFocusZoom.value=String(n);if(listFocusZoomValue)listFocusZoomValue.textContent=String(n);window.__eqListFocusZoom=n}uiSounds.innerHTML=uiSoundNames.map(x=>'<button class="eqs-control" type="button" data-ui-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');srevSounds.innerHTML=srevSoundNames.map(x=>'<button class="eqs-control" type="button" data-srev-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');list.innerHTML=agencies.map(x=>'<label class="eqs-agency"><input type="checkbox" data-agency="'+x+'" '+(!(state.disabled&&state.disabled[x])?'checked':'')+'> '+x+'</label>').join('')}
+<div class="eqs-muted eqs-intensity-note">Solo cambia el color del agua. Países, límites administrativos, estaciones y sismos se mantienen.</div><div class="eqs-muted eqs-intensity-note">La selección ajusta lista, ficha, telop y mapa. Las equivalencias entre escalas se marcan con ≈ y son estimadas, no oficiales.</div><div class="eqs-section"><div class="eqs-title">Probar sonidos del monitor</div><div class="eqs-muted">Pulsa cada botón para escucharlo. Los sonidos SREV son los avisos incorporados.</div><div class="eqs-muted">Marcador PLUM adaptado del punto de SREV · Kotoho7 · CC BY-SA 2.0. <a href="https://github.com/kotoho7/scratch-realtime-earthquake-viewer-page" target="_blank" rel="noopener">Fuente</a>.</div><div class="eqs-sound-group"><b>Interfaz</b><div class="eqs-sound-grid" id="eqsUiSounds"></div></div><div class="eqs-sound-group"><b>Alertas SREV</b><div class="eqs-sound-grid" id="eqsSrevSounds"></div></div><div class="eqs-sound-group"><b>Voz</b><button class="eqs-control" id="eqsTestTts" type="button">Probar TTS</button></div></div></div><div class="eqs-section"><div class="eqs-title">Voz de alertas en español</div><div class="eqs-muted">Elige y prueba la voz utilizada para los avisos hablados.</div><select id="ttsVoiceSelect"></select><div style="display:flex;gap:8px;margin-top:8px"><button class="eqs-control" id="btnTtsVoiceTest" type="button">Probar voz</button><button class="eqs-control" id="btnTtsVoiceReset" type="button">Usar automática</button></div></div><div class="eqs-muted">Las preferencias se guardan en este navegador.</div></div><div class="eqs-section"><div class="eqs-title">Agencias visibles en la lista</div><div class="eqs-agencies" id="eqsAgencies"></div><div class="eqs-muted">Desactivarlas las oculta de la lista, pero no elimina su conexión.</div></div><div class="eqs-actions"><button class="eqs-control" id="eqsReset" type="button">Restablecer</button><button class="eqs-save" id="eqsSave" type="button">Guardar</button></div></div></div><script id="eq-settings-module">(function(){'use strict';const modal=document.getElementById('eqSettingsModal'),open=document.getElementById('btnSettings');if(!modal||!open)return;const agencies=['USGS','NEIC','JMA','CENC','CEA','CEIC','EMSC','IGN','INETER','GEOFON','SSN','AFAD','BMKG','GEONET','INGV','IPGP','SED','PHIVOLCS','CSN','IG-EPN','EARLY-EST','HKO','NOA','KOERI','KMA','BCSF','NRCan','USP','MMD' ,'CEA-PR'],key='earthquake.settings.v1',defaults={tts:true,audio:true,masterVolume:1,taup:'precise',intensityScale:'source',mapSea:'dark',japanStations:'nied',niedMotionEnabled:true,showTremMetrics:true,showPalertMetrics:true,showNiedMetrics:true,niedMetric:'intensity',colombiaGoalRain:true,colombiaMatchAlerts:true,showFaults:false,browserNotify:false,minTickerMag:0,listMinMag:0,listFeltOnly:false,listRegion:'ALL',listFocusZoom:5,disabled:{}};const read=()=>{try{const saved=JSON.parse(localStorage.getItem(key)||'{}'),out=Object.assign({},defaults,saved);if(!Object.prototype.hasOwnProperty.call(saved,'niedMotionEnabled')){const legacy=window.__eqKanameishiHypoDebug?.().niedEnabled;if(typeof legacy==='boolean')out.niedMotionEnabled=legacy}if(!Object.prototype.hasOwnProperty.call(saved,'masterVolume')){const v=Number(localStorage.getItem('earthquake.masterVolume'));if(Number.isFinite(v))out.masterVolume=Math.max(0,Math.min(1,v))}return out}catch(_){return Object.assign({},defaults)}};let state=read();delete state.uiLanguage;window.__eqListFocusZoom=Math.max(3,Math.min(8,Number(state.listFocusZoom)||5));const tts=document.getElementById('eqsTts'),audio=document.getElementById('eqsAudio'),masterVolumeSlider=document.getElementById('eqsMasterVolume'),masterVolumeValue=document.getElementById('eqsMasterVolumeValue'),taup=document.getElementById('eqsTaup'),intensityScale=document.getElementById('eqsIntensityScale'),mapSea=document.getElementById('eqsMapSea'),japanStations=document.getElementById('eqsJapanStations'),motionDetection=document.getElementById('eqsMotionDetectionEnabled'),showTremMetrics=document.getElementById('eqsShowTremMetrics'),showPalertMetrics=document.getElementById('eqsShowPalertMetrics'),showNiedMetrics=document.getElementById('eqsShowNiedMetrics'),niedMetric=document.getElementById('eqsNiedMetric'),colombiaGoalRain=document.getElementById('eqsColombiaGoalRain'),colombiaMatchAlerts=document.getElementById('eqsColombiaMatchAlerts'),goalRainTest=document.getElementById('eqsTestColombiaGoalRain'),showFaults=document.getElementById('eqsShowFaults'),browserNotify=document.getElementById('eqsBrowserNotify'),minTickerMag=document.getElementById('eqsMinTickerMag'),listMinMag=document.getElementById('eqsListMinMag'),listRegion=document.getElementById('eqsListRegion'),listFeltOnly=document.getElementById('eqsListFeltOnly'),listFocusZoom=document.getElementById('eqsListFocusZoom'),listFocusZoomValue=document.getElementById('eqsListFocusZoomValue'),list=document.getElementById('eqsAgencies');const uiSounds=document.getElementById('eqsUiSounds'),srevSounds=document.getElementById('eqsSrevSounds'),jmaToggle=document.getElementById('eqsJmaWeatherToggle');function syncJmaToggle(){const api=window.__eqJmaWeatherView;const active=!!(api&&typeof api.isActive==='function'&&api.isActive());if(jmaToggle){jmaToggle.textContent=active?'↩️ Volver a la vista normal':'🇯🇵 Alertas meteorológicas de Japón';jmaToggle.setAttribute('aria-pressed',String(active));jmaToggle.style.borderColor=active?'#ffb300':'';jmaToggle.style.color=active?'#ffd873':''}}const uiSoundNames=[['click','Clic'],['select','Selección'],['refresh','Actualizar'],['success','Correcto'],['home','Inicio'],['alert','Alerta'],['ynWave','Onda NIED'],['motion','Movimiento']];const srevSoundNames=[['eew0','EEW débil'],['eew3','EEW intensidad 3'],['eew5','EEW intensidad 5'],['eewC','EEW cancelación'],['koushin','Actualización'],['koushinE','Actualización EEW'],['VXSE51','VXSE51 información'],['VXSE52','VXSE52 epicentro'],['VXSE53','VXSE53 detalle'],['VXSE5C','VXSE5C'],['VTSE5','VTSE5 tsunami'],['tsa01','Tsunami tsa01'],['tsa02','Tsunami tsa02'],['tsa03','Tsunami tsa03'],['tsa04','Tsunami tsa04'],['tsa12','Tsunami tsa12'],['tsa13','Tsunami tsa13'],['tsa14','Tsunami tsa14'],['tsa21','Tsunami tsa21'],['tsa22','Tsunami tsa22'],['tsa23','Tsunami tsa23'],['tsa24','Tsunami tsa24'],['tsa32','Tsunami tsa32'],['tsa33','Tsunami tsa33'],['p1024','p1024'],['NewInt0','Movimiento int. 0'],['NewInt1','Movimiento int. 1'],['NewInt2','Movimiento int. 2'],['NewInt3','Movimiento int. 3'],['NewInt4','Movimiento int. 4'],['NewInt5','Movimiento int. 5'],['NewInt6','Movimiento int. 6–7']];function render(){const a=window.__eqAudioSettings;tts.checked=a?a.ttsEnabled:state.tts;audio.checked=a?a.audioEnabled:state.audio;if(masterVolumeSlider){const n=Math.max(0,Math.min(1,Number(state.masterVolume??1)));masterVolumeSlider.value=String(Math.round(n*100));if(masterVolumeValue)masterVolumeValue.textContent=Math.round(n*100)+'%'}taup.value=(window.__eqTaupSettings&&window.__eqTaupSettings.mode)||state.taup;intensityScale.value=state.intensityScale||'source';if(mapSea)mapSea.value=state.mapSea||'dark';if(japanStations)japanStations.value=state.japanStations||'nied';if(motionDetection)motionDetection.checked=state.niedMotionEnabled!==false;if(showTremMetrics)showTremMetrics.checked=state.showTremMetrics!==false;if(showPalertMetrics)showPalertMetrics.checked=state.showPalertMetrics!==false;if(showNiedMetrics)showNiedMetrics.checked=state.showNiedMetrics!==false;if(niedMetric)niedMetric.value=state.niedMetric||'intensity';if(colombiaGoalRain)colombiaGoalRain.checked=state.colombiaGoalRain!==false;if(colombiaMatchAlerts)colombiaMatchAlerts.checked=state.colombiaMatchAlerts!==false;if(showFaults)showFaults.checked=state.showFaults===true;if(browserNotify)browserNotify.checked=state.browserNotify===true;if(minTickerMag)minTickerMag.value=String(state.minTickerMag!=null?state.minTickerMag:0);if(listMinMag)listMinMag.value=String(state.listMinMag!=null?state.listMinMag:0);if(listRegion)listRegion.value=String(state.listRegion||'ALL');if(listFeltOnly)listFeltOnly.checked=state.listFeltOnly===true;if(listFocusZoom){const n=Math.max(3,Math.min(8,Number(state.listFocusZoom)||5));listFocusZoom.value=String(n);if(listFocusZoomValue)listFocusZoomValue.textContent=String(n);window.__eqListFocusZoom=n}uiSounds.innerHTML=uiSoundNames.map(x=>'<button class="eqs-control" type="button" data-ui-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');srevSounds.innerHTML=srevSoundNames.map(x=>'<button class="eqs-control" type="button" data-srev-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');list.innerHTML=agencies.map(x=>'<label class="eqs-agency"><input type="checkbox" data-agency="'+x+'" '+(!(state.disabled&&state.disabled[x])?'checked':'')+'> '+x+'</label>').join('')}
 function applyMetricsPanelsVisibility(st){
   const s=st||state||{};
   document.body.classList.toggle('hide-trem-metrics',s.showTremMetrics===false);
@@ -29146,7 +29091,7 @@ function applyMetricsPanelsVisibility(st){
   window.__eqNiedMetric=niedMetricMode;
   try{window.__eqApplyNiedMetricView?.(niedMetricMode);}catch(_){}
 }
-function apply(save){const previousIntensityScale=window.__eqForcedIntensityScale||'source';state.tts=tts.checked;state.audio=audio.checked;state.masterVolume=masterVolumeSlider?Math.max(0,Math.min(1,Number(masterVolumeSlider.value)/100)):Number(state.masterVolume??1);window.__eqAudioSettings?.setVolume(state.masterVolume);state.taup=taup.value;state.intensityScale=intensityScale.value||'source';state.mapSea=(mapSea&&mapSea.value)||'dark';state.japanStations=(japanStations&&japanStations.value)||'nied';window.__eqJapanStationsSource=state.japanStations;state.showTremMetrics=showTremMetrics?showTremMetrics.checked:state.showTremMetrics!==false;state.showPalertMetrics=showPalertMetrics?showPalertMetrics.checked:state.showPalertMetrics!==false;state.showNiedMetrics=showNiedMetrics?showNiedMetrics.checked:state.showNiedMetrics!==false;state.niedMetric=(niedMetric&&niedMetric.value)||state.niedMetric||'intensity';try{applyMetricsPanelsVisibility(state);}catch(_){}try{if(typeof window.__eqApplyJapanStationsSource==='function')window.__eqApplyJapanStationsSource(state.japanStations);}catch(_){}state.colombiaGoalRain=colombiaGoalRain?colombiaGoalRain.checked:state.colombiaGoalRain!==false;window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain;if(!state.colombiaGoalRain)window.__eqStopColombiaGoalRain?.();state.colombiaMatchAlerts=colombiaMatchAlerts?colombiaMatchAlerts.checked:state.colombiaMatchAlerts!==false;window.__eqColombiaMatchAlertsEnabled=state.colombiaMatchAlerts;
+function apply(save){const previousIntensityScale=window.__eqForcedIntensityScale||'source';state.tts=tts.checked;state.audio=audio.checked;state.masterVolume=masterVolumeSlider?Math.max(0,Math.min(1,Number(masterVolumeSlider.value)/100)):Number(state.masterVolume??1);window.__eqAudioSettings?.setVolume(state.masterVolume);state.taup=taup.value;state.intensityScale=intensityScale.value||'source';state.mapSea=(mapSea&&mapSea.value)||'dark';state.japanStations=(japanStations&&japanStations.value)||'nied';window.__eqJapanStationsSource=state.japanStations;state.niedMotionEnabled=motionDetection?motionDetection.checked:state.niedMotionEnabled!==false;window.__ynSetMotionDetectionEnabled?.(state.niedMotionEnabled);const kmdMotionState=window.__eqKanameishiHypoDebug?.();if(kmdMotionState&&kmdMotionState.niedEnabled!==state.niedMotionEnabled)window.__eqKanameishiMotionConfigure?.({niedEnabled:state.niedMotionEnabled});state.showTremMetrics=showTremMetrics?showTremMetrics.checked:state.showTremMetrics!==false;state.showPalertMetrics=showPalertMetrics?showPalertMetrics.checked:state.showPalertMetrics!==false;state.showNiedMetrics=showNiedMetrics?showNiedMetrics.checked:state.showNiedMetrics!==false;state.niedMetric=(niedMetric&&niedMetric.value)||state.niedMetric||'intensity';try{applyMetricsPanelsVisibility(state);}catch(_){}try{if(typeof window.__eqApplyJapanStationsSource==='function')window.__eqApplyJapanStationsSource(state.japanStations);}catch(_){}state.colombiaGoalRain=colombiaGoalRain?colombiaGoalRain.checked:state.colombiaGoalRain!==false;window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain;if(!state.colombiaGoalRain)window.__eqStopColombiaGoalRain?.();state.colombiaMatchAlerts=colombiaMatchAlerts?colombiaMatchAlerts.checked:state.colombiaMatchAlerts!==false;window.__eqColombiaMatchAlertsEnabled=state.colombiaMatchAlerts;
 state.showFaults=showFaults?showFaults.checked:false;window.__eqShowFaults=state.showFaults;try{window.__eqApplyFaults?.(state.showFaults);}catch(_){}
 state.browserNotify=browserNotify?browserNotify.checked:false;window.__eqBrowserNotify=state.browserNotify;try{window.__eqApplyBrowserNotify?.(state.browserNotify);}catch(_){}
 state.minTickerMag=minTickerMag?parseFloat(minTickerMag.value)||0:0;window.__eqMinTickerMag=state.minTickerMag;
@@ -29154,7 +29099,7 @@ state.listMinMag=listMinMag?parseFloat(listMinMag.value)||0:0;window.__eqListMin
 state.listRegion=listRegion?listRegion.value:'ALL';window.__eqListRegion=state.listRegion;
 state.listFeltOnly=listFeltOnly?listFeltOnly.checked:false;window.__eqListFeltOnly=state.listFeltOnly;state.listFocusZoom=listFocusZoom?Math.max(3,Math.min(8,Number(listFocusZoom.value)||5)):Math.max(3,Math.min(8,Number(state.listFocusZoom)||5));window.__eqListFocusZoom=state.listFocusZoom;
 
-try{window.__eqSyncListFilters?.();}catch(_){}if(!state.colombiaMatchAlerts)window.__eqStopColombiaMatchAlert?.();state.disabled={};list.querySelectorAll('input[data-agency]').forEach(x=>{if(!x.checked)state.disabled[x.dataset.agency]=true});window.__eqDisabledAgencies=state.disabled;if(window.__eqAudioSettings){window.__eqAudioSettings.setAudio(state.audio);window.__eqAudioSettings.setTts(state.tts)}if(window.__eqTaupSettings)window.__eqTaupSettings.mode=state.taup;window.__eqForcedIntensityScale=state.intensityScale;try{if(typeof window.__eqApplyMapSeaTheme==='function')window.__eqApplyMapSeaTheme(state.mapSea||'dark');}catch(_){};try{localStorage.setItem(key,JSON.stringify(state))}catch(_){}document.getElementById('filterAgency')?.dispatchEvent(new Event('change'));if(previousIntensityScale!==state.intensityScale)window.__eqRefreshIntensityScale?.();if(save)modal.classList.remove('active')}function show(){state=read();render();window.__eqAudioSettings?.refreshVoiceSelect?.();syncJmaToggle();syncJapanSeaToggle();modal.classList.add('active')}open.addEventListener('click',show);jmaToggle?.addEventListener('click',()=>{const api=window.__eqJmaWeatherView;if(api&&typeof api.toggle==='function'){const pending=api.toggle();modal.classList.remove('active');syncJmaToggle();Promise.resolve(pending).then(syncJmaToggle).catch(syncJmaToggle)}else{document.getElementById('btnJmaWeatherAlerts')?.click();modal.classList.remove('active');setTimeout(syncJmaToggle,250)}});const japanSeaToggle=document.getElementById('eqsJapanSeaStationsToggle');function syncJapanSeaToggle(){const active=!!japanSeaStationsMode;if(japanSeaToggle){japanSeaToggle.textContent=active?'↩️ Volver a Japón · estaciones en vivo':'🌊 Mar de Japón · estaciones en vivo';japanSeaToggle.setAttribute('aria-pressed',String(active));japanSeaToggle.style.borderColor=active?'#35d5dd':'';japanSeaToggle.style.color=active?'#8ff7ff':''}}japanSeaToggle?.addEventListener('click',()=>{try{toggleJapanSeaStations();syncJapanSeaToggle()}catch(_){}});document.getElementById('eqSettingsClose').addEventListener('click',()=>modal.classList.remove('active'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('active')});document.getElementById('eqsSave').addEventListener('click',()=>apply(true));document.getElementById('eqsReset').addEventListener('click',()=>{state=Object.assign({},defaults,{disabled:{}});render();apply(false)});tts.addEventListener('change',()=>apply(false));audio.addEventListener('change',()=>apply(false));masterVolumeSlider?.addEventListener('input',()=>{const n=Math.max(0,Math.min(1,Number(masterVolumeSlider.value)/100));state.masterVolume=n;if(masterVolumeValue)masterVolumeValue.textContent=Math.round(n*100)+'%';window.__eqAudioSettings?.setVolume(n);try{localStorage.setItem(key,JSON.stringify(state))}catch(_){}});taup.addEventListener('change',()=>apply(false));intensityScale.addEventListener('change',()=>apply(false));mapSea?.addEventListener('change',()=>apply(false));japanStations?.addEventListener('change',()=>apply(false));showTremMetrics?.addEventListener('change',()=>apply(false));showPalertMetrics?.addEventListener('change',()=>apply(false));showNiedMetrics?.addEventListener('change',()=>apply(false));niedMetric?.addEventListener('change',()=>apply(false));colombiaGoalRain?.addEventListener('change',()=>apply(false));colombiaMatchAlerts?.addEventListener('change',()=>apply(false));showFaults?.addEventListener('change',()=>apply(false));browserNotify?.addEventListener('change',()=>apply(false));minTickerMag?.addEventListener('change',()=>apply(false));listMinMag?.addEventListener('change',()=>apply(false));listRegion?.addEventListener('change',()=>apply(false));listFeltOnly?.addEventListener('change',()=>apply(false));listFocusZoom?.addEventListener('input',()=>{if(listFocusZoomValue)listFocusZoomValue.textContent=String(Math.max(3,Math.min(8,Number(listFocusZoom.value)||5)))});listFocusZoom?.addEventListener('change',()=>apply(false));goalRainTest?.addEventListener('click',()=>window.__eqTestColombiaGoalRain?.());uiSounds.addEventListener('click',e=>{const b=e.target.closest('[data-ui-sound]');if(b)window.__eqAudioSettings?.testUi(b.dataset.uiSound)});srevSounds.addEventListener('click',e=>{const b=e.target.closest('[data-srev-sound]');if(b)window.__eqAudioSettings?.testSrev(b.dataset.srevSound)});document.getElementById('ttsVoiceSelect')?.addEventListener('change',e=>window.__eqAudioSettings?.setPreferredVoice(e.target.value));document.getElementById('btnTtsVoiceTest')?.addEventListener('click',()=>window.__eqAudioSettings?.testPreferredVoice());document.getElementById('btnTtsVoiceReset')?.addEventListener('click',()=>window.__eqAudioSettings?.resetPreferredVoice());document.getElementById('eqsTestTts').addEventListener('click',()=>window.__eqAudioSettings?.testTts());window.__eqAudioSettings?.setVolume(state.masterVolume);window.__eqDisabledAgencies=state.disabled||{};window.__eqForcedIntensityScale=state.intensityScale||'source';window.__eqJapanStationsSource=state.japanStations||'nied';try{applyMetricsPanelsVisibility(state);}catch(_){};window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain!==false;window.__eqColombiaMatchAlertsEnabled=state.colombiaMatchAlerts!==false;
+try{window.__eqSyncListFilters?.();}catch(_){}if(!state.colombiaMatchAlerts)window.__eqStopColombiaMatchAlert?.();state.disabled={};list.querySelectorAll('input[data-agency]').forEach(x=>{if(!x.checked)state.disabled[x.dataset.agency]=true});window.__eqDisabledAgencies=state.disabled;if(window.__eqAudioSettings){window.__eqAudioSettings.setAudio(state.audio);window.__eqAudioSettings.setTts(state.tts)}if(window.__eqTaupSettings)window.__eqTaupSettings.mode=state.taup;window.__eqForcedIntensityScale=state.intensityScale;try{if(typeof window.__eqApplyMapSeaTheme==='function')window.__eqApplyMapSeaTheme(state.mapSea||'dark');}catch(_){};try{localStorage.setItem(key,JSON.stringify(state))}catch(_){}document.getElementById('filterAgency')?.dispatchEvent(new Event('change'));if(previousIntensityScale!==state.intensityScale)window.__eqRefreshIntensityScale?.();if(save)modal.classList.remove('active')}function show(){state=read();render();window.__eqAudioSettings?.refreshVoiceSelect?.();syncJmaToggle();syncJapanSeaToggle();modal.classList.add('active')}open.addEventListener('click',show);jmaToggle?.addEventListener('click',()=>{const api=window.__eqJmaWeatherView;if(api&&typeof api.toggle==='function'){const pending=api.toggle();modal.classList.remove('active');syncJmaToggle();Promise.resolve(pending).then(syncJmaToggle).catch(syncJmaToggle)}else{document.getElementById('btnJmaWeatherAlerts')?.click();modal.classList.remove('active');setTimeout(syncJmaToggle,250)}});const japanSeaToggle=document.getElementById('eqsJapanSeaStationsToggle');function syncJapanSeaToggle(){const active=!!japanSeaStationsMode;if(japanSeaToggle){japanSeaToggle.textContent=active?'↩️ Volver a Japón · estaciones en vivo':'🌊 Mar de Japón · estaciones en vivo';japanSeaToggle.setAttribute('aria-pressed',String(active));japanSeaToggle.style.borderColor=active?'#35d5dd':'';japanSeaToggle.style.color=active?'#8ff7ff':''}}japanSeaToggle?.addEventListener('click',()=>{try{toggleJapanSeaStations();syncJapanSeaToggle()}catch(_){}});document.getElementById('eqSettingsClose').addEventListener('click',()=>modal.classList.remove('active'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('active')});document.getElementById('eqsSave').addEventListener('click',()=>apply(true));document.getElementById('eqsReset').addEventListener('click',()=>{state=Object.assign({},defaults,{disabled:{}});render();apply(false)});tts.addEventListener('change',()=>apply(false));audio.addEventListener('change',()=>apply(false));masterVolumeSlider?.addEventListener('input',()=>{const n=Math.max(0,Math.min(1,Number(masterVolumeSlider.value)/100));state.masterVolume=n;if(masterVolumeValue)masterVolumeValue.textContent=Math.round(n*100)+'%';window.__eqAudioSettings?.setVolume(n);try{localStorage.setItem(key,JSON.stringify(state))}catch(_){}});taup.addEventListener('change',()=>apply(false));intensityScale.addEventListener('change',()=>apply(false));mapSea?.addEventListener('change',()=>apply(false));japanStations?.addEventListener('change',()=>apply(false));motionDetection?.addEventListener('change',()=>apply(false));showTremMetrics?.addEventListener('change',()=>apply(false));showPalertMetrics?.addEventListener('change',()=>apply(false));showNiedMetrics?.addEventListener('change',()=>apply(false));niedMetric?.addEventListener('change',()=>apply(false));colombiaGoalRain?.addEventListener('change',()=>apply(false));colombiaMatchAlerts?.addEventListener('change',()=>apply(false));showFaults?.addEventListener('change',()=>apply(false));browserNotify?.addEventListener('change',()=>apply(false));minTickerMag?.addEventListener('change',()=>apply(false));listMinMag?.addEventListener('change',()=>apply(false));listRegion?.addEventListener('change',()=>apply(false));listFeltOnly?.addEventListener('change',()=>apply(false));listFocusZoom?.addEventListener('input',()=>{if(listFocusZoomValue)listFocusZoomValue.textContent=String(Math.max(3,Math.min(8,Number(listFocusZoom.value)||5)))});listFocusZoom?.addEventListener('change',()=>apply(false));goalRainTest?.addEventListener('click',()=>window.__eqTestColombiaGoalRain?.());uiSounds.addEventListener('click',e=>{const b=e.target.closest('[data-ui-sound]');if(b)window.__eqAudioSettings?.testUi(b.dataset.uiSound)});srevSounds.addEventListener('click',e=>{const b=e.target.closest('[data-srev-sound]');if(b)window.__eqAudioSettings?.testSrev(b.dataset.srevSound)});document.getElementById('ttsVoiceSelect')?.addEventListener('change',e=>window.__eqAudioSettings?.setPreferredVoice(e.target.value));document.getElementById('btnTtsVoiceTest')?.addEventListener('click',()=>window.__eqAudioSettings?.testPreferredVoice());document.getElementById('btnTtsVoiceReset')?.addEventListener('click',()=>window.__eqAudioSettings?.resetPreferredVoice());document.getElementById('eqsTestTts').addEventListener('click',()=>window.__eqAudioSettings?.testTts());window.__eqAudioSettings?.setVolume(state.masterVolume);window.__eqDisabledAgencies=state.disabled||{};window.__eqForcedIntensityScale=state.intensityScale||'source';window.__eqJapanStationsSource=state.japanStations||'nied';window.__ynSetMotionDetectionEnabled?.(state.niedMotionEnabled!==false);const initialKmdMotion=window.__eqKanameishiHypoDebug?.();if(initialKmdMotion&&initialKmdMotion.niedEnabled!==(state.niedMotionEnabled!==false))window.__eqKanameishiMotionConfigure?.({niedEnabled:state.niedMotionEnabled!==false});try{applyMetricsPanelsVisibility(state);}catch(_){};window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain!==false;window.__eqColombiaMatchAlertsEnabled=state.colombiaMatchAlerts!==false;
 window.__eqShowFaults=state.showFaults===true;window.__eqBrowserNotify=state.browserNotify===true;window.__eqMinTickerMag=Number(state.minTickerMag)||0;window.__eqListMinMag=Number(state.listMinMag)||0;window.__eqListRegion=state.listRegion||'ALL';window.__eqListFeltOnly=state.listFeltOnly===true;
 setTimeout(()=>{try{window.__eqApplyFaults?.(!!window.__eqShowFaults);}catch(_){}try{window.__eqApplyBrowserNotify?.(!!window.__eqBrowserNotify);}catch(_){}},1200);setTimeout(()=>{render();syncJmaToggle();window.__eqRefreshIntensityScale?.()},0)})();</script>
 
@@ -32957,6 +32902,7 @@ For more information on this, and how to apply and follow the GNU AGPL, see
     if (/\bjma\b|jma[-_ ]?eew/i.test(a)) return 'JMA EEW';
     if (/cea\s*\(?\s*gz\s*\)?|gz[-_ ]?eew/i.test(a)) return 'CEA (GZ) EEW';
     if (/cea\s*\(?\s*gs\s*\)?|gs[-_ ]?eew/i.test(a)) return 'CEA (GS) EEW';
+    if (/cenc/i.test(a) && /auto(?:matic)?/i.test(a)) return 'CENC (Auto)';
     if (/cenc|nowquake|sichuan|fea|ceac|sea-?eew/i.test(a)) return 'CENC EEW';
     if (/cwa|exptech|taiwan/i.test(a)) return 'CWA EEW';
     if (/kma|korea|fan/i.test(a)) return 'KMA EEW';
@@ -33135,28 +33081,7 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       }
     } catch (_) {}
 
-    // 5) Estimación local por estaciones, cuando no hay EEW oficial vigente.
-    try {
-      const card=el('ynLocalEpicenterCard');
-      const estimate=window.__ynLocalEpicenterEstimate;
-      const now=Date.now(), ts=Number(estimate?.ts)||0;
-      const lat=Number(estimate?.lat), lon=Number(estimate?.lon);
-      const recent=ts>0&&now-ts>=-120000&&now-ts<=30000;
-      if(card?.classList.contains('active')&&estimate?.local===true&&recent&&Number.isFinite(lat)&&Number.isFinite(lon)){
-        const place=String(estimate.place||'área no localizada');
-        const intensity=String(estimate.intensity||'Sin dato');
-        const magnitude=estimate.mag==null||String(estimate.mag).trim()===''?'Sin dato':String(estimate.mag);
-        const depth=estimate.depth==null||String(estimate.depth).trim()===''?'Sin dato':String(estimate.depth);
-        const body=[
-          `Epicentro local estimado: ${place}`,
-          `Coordenadas aprox.: ${lat.toFixed(2)}°, ${lon.toFixed(2)}°`,
-          `Intensidad local estimada: ${intensity}`,
-          `Magnitud: ${magnitude} · Profundidad: ${depth}`,
-          'Estimación por movimiento de estaciones; no es un aviso oficial.'
-        ].join('\n');
-        candidates.push({score:60,title:'Estimación local del epicentro',report:'',body,local:true,bg:'',fg:'#ffffff',ts});
-      }
-    } catch (_) {}
+    // La estimación local por estaciones no se publica como alerta/EEW.
 
     // 5) JMA panel visibly active as fallback
     try {
@@ -33225,5 +33150,36 @@ For more information on this, and how to apply and follow the GNU AGPL, see
 })();
 </script>
 
+<style id="cenc-auto-card-style">
+#mainLayout > .left-panel > .current-event.cenc-auto-selected {
+  border: 1px solid rgba(255,67,88,.9) !important;
+  background: linear-gradient(145deg,#242637 0%,#171a29 100%) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.04),0 5px 18px rgba(0,0,0,.32) !important;
+}
+#mainLayout > .left-panel > .current-event.cenc-auto-selected::before { display:none !important; content:none !important; }
+#currentEvent.cenc-auto-selected .cenc-auto-heading {
+  display:block !important; margin:-8px -9px 8px !important; padding:8px 10px !important;
+  border-radius:8px 8px 3px 3px; background:#d92e43; color:#fff;
+  font-size:clamp(15px,3.2vw,20px); line-height:1.15; font-weight:900; letter-spacing:.01em;
+}
+#currentEvent.cenc-auto-selected .intensity-circle { border-radius:8px !important; }
+#currentEvent .cenc-auto-recent { display:none; }
+#currentEvent.cenc-auto-selected .cenc-auto-recent {
+  display:block !important; margin-top:8px; padding-top:6px; border-top:1px solid rgba(255,74,94,.42);
+}
+.cenc-auto-recent-title { margin:0 0 5px; color:#c7cad8; font-size:9px; line-height:1.2; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+.cenc-auto-recent-rows { display:grid; gap:3px; max-height:112px; overflow:auto; }
+.cenc-auto-row { display:grid; grid-template-columns:29px minmax(0,1fr) auto; align-items:center; gap:6px; padding:4px 5px; border-radius:5px; background:rgba(255,255,255,.045); color:#e8eaf2; }
+.cenc-auto-row-badge { display:flex; align-items:center; justify-content:center; width:27px; height:27px; border-radius:6px; background:#263246; color:#dce9ff; font-size:11px; font-weight:900; }
+.cenc-auto-row-place { overflow:hidden; color:#f1f2f6; font-size:9px; line-height:1.2; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
+.cenc-auto-row-time { margin-top:2px; color:#9da6b9; font-size:8px; line-height:1.1; font-variant-numeric:tabular-nums; }
+.cenc-auto-row-mag { color:#f0f1f5; font-size:13px; font-weight:900; white-space:nowrap; }
+#currentEvent .cenc-auto-metrics { display:none; }
+#currentEvent.cenc-auto-selected .cenc-auto-metrics { display:grid !important; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; margin-top:7px; }
+.cenc-auto-metric { min-width:0; padding:5px 4px; border-radius:5px; background:rgba(10,14,22,.55); text-align:center; }
+.cenc-auto-metric span,.cenc-auto-metric small { display:block; color:#9ba3b6; font-size:8px; line-height:1.15; }
+.cenc-auto-metric b { display:block; margin:2px 0; color:#fff; font-size:14px; line-height:1; font-variant-numeric:tabular-nums; }
+.cenc-auto-metric-note { margin-top:5px; color:#8c94a7; font-size:8px; line-height:1.2; }
+</style>
 </body>
 </html>
