@@ -4369,7 +4369,7 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
             </div>
 
             <div id="typhoonPanel">
-                <div class="typhoon-title"><span>🌀 Tifones activos</span><span id="typhoonStatus">● Consultando</span></div>
+                <div class="typhoon-title"><span>🌀 Ciclones tropicales</span><span id="typhoonStatus">● Consultando</span></div>
                 <div id="typhoonInfo">Cargando datos de JMA / NMC / CMA…</div>
             </div>
 
@@ -7023,6 +7023,7 @@ global.TauPJS=api;
         let jmaTyphoonData = [];
         let jmaTyphoonInitialized = false;
         let jmaTyphoonAlertSignature = '';
+        let jmaTyphoonAutoCloseTimer = null;
         const typhoonSpeechSignatures = new Map();
 
         function jmaTyphoonTime(value) {
@@ -7152,7 +7153,7 @@ global.TauPJS=api;
         }
         function jmaCategoryLabel(value) {
             const c = String(value || '').toUpperCase();
-            return c === 'TD' ? 'Depresión tropical' : c === 'TS' ? 'Tormenta tropical' : c === 'STS' ? 'Tormenta tropical severa' : c === 'TY' ? 'Tifón' : (c === 'STY' || c === 'SUPERTY') ? 'Super tifón' : (value || 'Ciclón tropical');
+            return c === 'TD' ? 'Depresión tropical' : c === 'TS' ? 'Tormenta tropical' : c === 'STS' ? 'Tormenta tropical severa' : c === 'TY' ? 'Tifón' : (c === 'STY' || c === 'SUPERTY') ? 'Super tifón' : c === 'LOW' ? 'Baja extratropical' : (value || 'Ciclón tropical');
         }
         function jmaTyphoonDetails(t) {
             const s = t.latestSpec || {}, pos = t.position || [];
@@ -7307,14 +7308,15 @@ global.TauPJS=api;
             const status = document.getElementById('typhoonStatus');
             const topTitle = document.getElementById('typhoonTopTitle');
             if (!info || !status) return;
-            if (topTitle) topTitle.textContent = active.length ? `Información de tifón ${typhoonDisplayName(active[0])}` : 'Información de tifones';
-            if (!active.length) {
-                status.textContent = '● Sin tifones activos';
+            const totalSystems=active.length+jmaTyphoonData.length;
+            if (topTitle) topTitle.textContent = totalSystems ? `Información de ciclones tropicales (${totalSystems})` : 'Información de ciclones tropicales';
+            if (!totalSystems) {
+                status.textContent = '● Sin sistemas reportados';
                 status.style.color = '#8bd8ff';
-                info.innerHTML = 'No hay sistemas tropicales activos reportados por JMA o NMC / CMA.';
+                info.innerHTML = 'No hay sistemas reportados ahora por JMA o NMC / CMA.';
                 return;
             }
-            status.textContent = `● ${active.length} activo${active.length > 1 ? 's' : ''}`;
+            status.textContent = `● ${totalSystems} sistema${totalSystems > 1 ? 's' : ''} en seguimiento`;
             status.style.color = '#ffb347';
             info.innerHTML = active.map(t => {
                 const pts = activeTyphoonPoints(t);
@@ -7457,7 +7459,8 @@ global.TauPJS=api;
                     typhoonSpeechSignatures.set(entry.key, speechSignature);
                 });
                 setApiState('typhoon', (nmcResult.status === 'fulfilled' || jmaResult.status === 'fulfilled') ? 'ok' : 'bad', active.length + jmaActive.length);
-                setApiState('nmcTyphoon', nmcResult.status === 'fulfilled' ? 'ok' : 'bad', nmcTyphoonData.length);
+                setApiState('jmaTyphoon', jmaResult.status === 'fulfilled' ? 'ok' : (jmaTyphoonData.length ? 'stale' : 'bad'), jmaActive.length);
+                setApiState('nmcTyphoon', nmcResult.status === 'fulfilled' ? 'ok' : (nmcTyphoonData.length ? 'stale' : 'bad'), nmcTyphoonData.length);
                 const nmcSignature = nmcTyphoonData.map(t => { const last = t.points?.[t.points.length - 1] || {}; return `${t.tfid}:${last.time || ''}:${forecastTyphoonPoints(t).map(p => p.time).join(',')}`; }).join('|');
                 const jmaSignature = jmaActive.map(t => `${t.id}:${t.issue || ''}:${t.points.map(p => p.time).join(',')}`).join('|');
                 const signature = `NMC|${nmcSignature}||JMA|${jmaSignature}`;
@@ -7499,7 +7502,8 @@ global.TauPJS=api;
                     clearMarkers(); if (intensityZonesLayer) { map.removeLayer(intensityZonesLayer); intensityZonesLayer = null; } lastIntensityEventId = null;
                     layout.classList.add('typhoon-focus'); panel.classList.add('typhoon-active'); topbar.classList.add('typhoon-top-active'); syncSpecialViewVisibility(); map.invalidateSize({ pan:false });
                     typhoonFocusId = String(updated?.tfid || updated?.id || '');
-                    renderTyphoonMap(active); renderJmaTyphoonMap(); centerTyphoonView(updated); scheduleReturnToLastQuake();
+                    renderTyphoonMap(active); renderJmaTyphoonMap(); centerTyphoonView(updated);
+                    if(updatedJma)scheduleJmaTyphoonAutoClose();else scheduleReturnToLastQuake();
                 }
                 typhoonAlertSignature = signature; typhoonInitialized = true;
                 nmcTyphoonAlertSignature = nmcSignature; nmcTyphoonInitialized = true;
@@ -7508,8 +7512,7 @@ global.TauPJS=api;
                 if (typhoonMode && !updateDetected) { renderTyphoonMap(active); renderJmaTyphoonMap(); }
                 scheduleStartupActiveAlert();
             } catch (_) {
-                setApiState('typhoon', 'bad');
-                setApiState('nmcTyphoon', 'bad');
+                setApiState('typhoon', (jmaTyphoonData.length || nmcTyphoonData.length) ? 'stale' : 'bad');
                 const status = document.getElementById('typhoonStatus');
                 if (status) { status.textContent = '● Sin conexión'; status.style.color = '#ff6b6b'; }
             }
@@ -7527,6 +7530,16 @@ global.TauPJS=api;
             if (points.length === 1) return setProgrammaticMapView([points[0].lat, points[0].lon], 7);
             const bounds = L.latLngBounds(points.map(p => [p.lat, p.lon]));
             if (bounds.isValid()) setProgrammaticMapBounds(bounds,{force:true,padding:[30,30],maxZoom:9,animate:true,duration:0.7});
+        }
+
+        function scheduleJmaTyphoonAutoClose(){
+            clearTimeout(jmaTyphoonAutoCloseTimer);
+            jmaTyphoonAutoCloseTimer=setTimeout(()=>{
+                jmaTyphoonAutoCloseTimer=null;
+                const layout=document.getElementById('mainLayout');
+                if(!typhoonMode||!layout?.classList.contains('typhoon-focus'))return;
+                scheduleReturnToLastQuake(1);
+            },10000);
         }
 
         let hurricaneMode = false;
@@ -7827,9 +7840,11 @@ global.TauPJS=api;
                 // por CORS, por eso se prueban varios accesos en cascada.
                 const targets = [
                     officialUrl,
+                    // NHC no publica ACAO en CurrentStorms.json; el proxy Jina sí
+                    // expone CORS y se valida antes que los respaldos inestables.
+                    'https://r.jina.ai/https://www.nhc.noaa.gov/CurrentStorms.json?_=' + cacheBust,
                     'https://corsproxy.io/?url=' + encodeURIComponent(officialUrl),
                     'https://api.allorigins.win/raw?url=' + encodeURIComponent(officialUrl),
-                    'https://r.jina.ai/https://www.nhc.noaa.gov/CurrentStorms.json?_=' + cacheBust,
                     'https://r.jina.ai/http://www.nhc.noaa.gov/CurrentStorms.json?_=' + cacheBust
                 ];
                 let data = null;
@@ -8097,7 +8112,7 @@ global.TauPJS=api;
                 if(status){status.textContent='Condados: '+features.length+(limited?' (límite 200)':'')+suffix;status.classList.toggle('error',hasForecastZones&&!zoneCountyAvailable);}
                 if(focusFeature){
                     const boundsList=focusFips.map(f=>usCountyBoundsByFips.get(f)).filter(bounds=>bounds&&bounds.isValid());
-                    if(!focusFeature.geometry&&boundsList.length){let bounds=boundsList[0];for(let i=1;i<boundsList.length;i++)bounds.extend(boundsList[i]);setProgrammaticMapBounds(bounds,{force:true,padding:[28,28],maxZoom:8,animate:true,duration:.7});}
+                    if(!focusFeature.geometry&&boundsList.length){let bounds=boundsList[0];for(let i=1;i<boundsList.length;i++)bounds.extend(boundsList[i]);setProgrammaticMapBounds(bounds,{force:true,padding:[40,40],maxZoom:7,animate:true,duration:.7});}
                     const note=document.getElementById('usAlertCountyNote'),hasZone=usAlertForecastZoneKeys(focusFeature).length>0;
                     if(note)note.textContent=focusFeature.geometry?(boundsList.length?'Polígono oficial resaltado; además se sombrearon '+boundsList.length+' condados.':(hasZone&&!zoneCountyAvailable?'Polígono resaltado; no se pudo descargar la correlación zona-condado.':'Polígono oficial resaltado; no hay condados oficiales que sombrear.')):(boundsList.length?'Se resaltaron los condados identificados por la correlación oficial NWS.':(hasZone&&!zoneCountyAvailable?'No se pudo cargar la correlación zona-condado; no se inventó la ubicación.':'El boletín no trae condados oficiales que permitan enfocar el mapa.'));
                 }
@@ -8177,7 +8192,7 @@ global.TauPJS=api;
                 if (!feature?.geometry) return false;
                 const bounds = L.geoJSON(feature).getBounds();
                 if (!bounds.isValid()) return false;
-                const moved=setProgrammaticMapBounds(bounds,{force:true,padding:[30,30],maxZoom:10,animate:true,duration:0.7});
+                const moved=setProgrammaticMapBounds(bounds,{force:true,padding:[48,48],maxZoom:7,animate:true,duration:0.7});
                 if(!moved)return false;
                 setTimeout(() => { if (usAlertsMode) map.invalidateSize({ pan:false }); }, 250);
                 return true;
@@ -19177,7 +19192,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             ['BMKG','bmkg'], ['GeoNet','geonet'], ['INGV','ingv'], ['IPGP','ipgp'],
             ['JMA EEW','jmaEew'], ['Wolfx EEW','wolfxAll'], ['Sichuan EEW (Wolfx)','scEew'], ['Volcanes','volcanoes'], ['SED','sed'],
             ['PHIVOLCS','phivolcs'], ['CWA','cwa'],
-            ['Early-Est','earlyEst'], ['GDACS','gdacs'], ['NHC','nhc'], ['NWS','nws'], ['NOAA','tsunami'], ['NMC · Tifones','nmcTyphoon'], ['HKO','hko'],
+            ['Early-Est','earlyEst'], ['GDACS','gdacs'], ['NHC','nhc'], ['NWS','nws'], ['NOAA','tsunami'], ['JMA · Tifones','jmaTyphoon'], ['NMC · Tifones','nmcTyphoon'], ['HKO','hko'],
             ['NOA','noa'], ['KOERI','koeri'],
 ['IDEAM','ideam'], ['UNGRD','ungrd']
         ];
@@ -24587,6 +24602,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         document.addEventListener('webkitfullscreenchange', () => { try { map.invalidateSize({ pan: false }); } catch (_) {} });
 
         document.getElementById('btnTyphoon').addEventListener('click', () => {
+            clearTimeout(jmaTyphoonAutoCloseTimer);jmaTyphoonAutoCloseTimer=null;
             if (!suppressNextModeSound) playUiSound('success');
             suppressNextModeSound = false;
             typhoonMode = !typhoonMode;
