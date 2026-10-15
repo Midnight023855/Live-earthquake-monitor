@@ -2170,22 +2170,8 @@
 
         
         /* Multi-source strong motion + ShakeMap contours controls */
-        #smLayerControls {
-            position: fixed;
-            right: 12px;
-            top: max(56px, env(safe-area-inset-top, 0px));
-            z-index: 10020;
-            width: min(240px, calc(100vw - 24px));
-            padding: 8px 10px;
-            border-radius: 10px;
-            background: rgba(12,16,22,.92);
-            border: 1px solid rgba(255,255,255,.14);
-            color: #e8eef5;
-            font: 600 11px/1.35 Akshar, Roboto, system-ui, sans-serif;
-            box-shadow: 0 6px 18px rgba(0,0,0,.4);
-            max-height: min(70vh, 520px);
-            overflow: auto;
-        }
+        /* Panel flotante retirado: controles en Ajustes */
+        #smLayerControls { display: none !important; }
         #smLayerControls .sm-title { font-size: 12px; font-weight: 800; margin-bottom: 6px; color: #9fd0ff; }
         #smLayerControls label { display: flex; align-items: center; gap: 6px; margin: 3px 0; cursor: pointer; }
         #smLayerControls input { accent-color: #4aa3ff; }
@@ -4495,20 +4481,6 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
 
         <div class="map-container">
             <div id="map"></div>
-
-            <div id="smLayerControls" aria-label="Capas de intensidad y strong motion">
-                <div class="sm-title">Intensidad / Strong Motion</div>
-                <label><input type="checkbox" id="smToggleGeoNet" checked> 🇳🇿 GeoNet estaciones</label>
-                <label><input type="checkbox" id="smToggleUsgsSt" checked> 🇺🇸 USGS estaciones</label>
-                <label><input type="checkbox" id="smToggleUsgsMacro"> 🇺🇸 USGS macrosísmico (DYFI)</label>
-                <label><input type="checkbox" id="smToggleUsgsMmi"> 🇺🇸 Contornos MMI</label>
-                <label><input type="checkbox" id="smToggleUsgsPga"> 🇺🇸 Contornos PGA</label>
-                <label><input type="checkbox" id="smToggleUsgsPgv"> 🇺🇸 Contornos PGV</label>
-                <label><input type="checkbox" id="smToggleCwa" checked> 🇹🇼 CWA estaciones</label>
-                <label><input type="checkbox" id="smToggleIngv" checked> 🇮🇹 INGV shakedata</label>
-                <div class="sm-note">GeoNet se conserva. CWA usa el Worker del monitor (cwa-worker.terremotis123) con la clave del servidor.</div>
-                <div class="sm-status" id="smLayerStatus">—</div>
-            </div>
 
             <section id="siatAlertSection" role="region" aria-label="Nueva alerta SIAT-CT" aria-live="assertive" aria-hidden="true">
                 <div class="siat-alert-head"><span>🌪️ SIAT-CT · Nueva alerta</span><button id="siatAlertClose" class="siat-alert-close" type="button" aria-label="Cerrar alerta SIAT-CT">×</button></div>
@@ -29282,7 +29254,7 @@ function ynBuildLeafletMarkers() {
 </div>
 
 <div id="eqSettingsModal" role="dialog" aria-modal="true" aria-labelledby="eqSettingsTitle"><div id="eqSettingsDialog"><div class="eqs-head"><span id="eqSettingsTitle">Ajustes</span><button class="eqs-close" id="eqSettingsClose" type="button" aria-label="Cerrar ajustes">×</button></div>
-<div class="eqs-searchbar"><input id="eqsSearch" type="search" placeholder="Buscar ajuste…" autocomplete="off" aria-label="Buscar ajuste"><nav class="eqs-chips" aria-label="Secciones"><a href="#eqsSecApartados">Apartados</a><a href="#eqsSecLista">Lista</a><a href="#eqsSecMapa">Mapa</a><a href="#eqsSecSonido">Sonido</a><a href="#eqsSecJapon">Japón</a><a href="#eqsSecColombia">Colombia</a><a href="#eqsSecAgencias">Agencias</a></nav></div>
+<div class="eqs-searchbar"><input id="eqsSearch" type="search" placeholder="Buscar ajuste…" autocomplete="off" aria-label="Buscar ajuste"><nav class="eqs-chips" aria-label="Secciones"><a href="#eqsSecApartados">Apartados</a><a href="#eqsSecLista">Lista</a><a href="#eqsSecMapa">Mapa</a><a href="#eqsSecSonido">Sonido</a><a href="#eqsSecStrongMotion">Strong Motion</a><a href="#eqsSecJapon">Japón</a><a href="#eqsSecColombia">Colombia</a><a href="#eqsSecAgencias">Agencias</a></nav></div>
 
 <div class="eqs-section" id="eqsSectionsButtons">
 <div class="eqs-title" id="eqsSecApartados">🧭 Apartados</div>
@@ -29305,6 +29277,23 @@ function ynBuildLeafletMarkers() {
 <button class="eqs-control" id="eqsAutoExploreToggle" type="button" aria-pressed="false" style="width:100%;text-align:left;padding:9px">🔄 Modo automático: desactivado</button>
 <div class="sismos-auto-status">Sin tocar la pantalla durante 30 s, SISMOS LIVE puede rotar apartados. Una alerta prioritaria interrumpe la rotación y después continúa.</div>
 </div>
+</div>
+
+
+<div class="eqs-section" id="eqsSecStrongMotionSection">
+<div class="eqs-title" id="eqsSecStrongMotion">📡 Intensidad / Strong Motion</div>
+<div class="eqs-muted">Capas de estaciones y contornos sobre el mapa. Se actualizan al seleccionar un sismo compatible.</div>
+<div class="eqs-grid">
+<label class="eqs-row"><span>🇳🇿 GeoNet estaciones</span><input class="eqs-switch" type="checkbox" id="smToggleGeoNet" checked></label>
+<label class="eqs-row"><span>🇺🇸 USGS estaciones</span><input class="eqs-switch" type="checkbox" id="smToggleUsgsSt" checked></label>
+<label class="eqs-row"><span>🇺🇸 USGS macrosísmico (DYFI)</span><input class="eqs-switch" type="checkbox" id="smToggleUsgsMacro"></label>
+<label class="eqs-row"><span>🇺🇸 Contornos MMI</span><input class="eqs-switch" type="checkbox" id="smToggleUsgsMmi"></label>
+<label class="eqs-row"><span>🇺🇸 Contornos PGA</span><input class="eqs-switch" type="checkbox" id="smToggleUsgsPga"></label>
+<label class="eqs-row"><span>🇺🇸 Contornos PGV</span><input class="eqs-switch" type="checkbox" id="smToggleUsgsPgv"></label>
+<label class="eqs-row"><span>🇹🇼 CWA estaciones</span><input class="eqs-switch" type="checkbox" id="smToggleCwa" checked></label>
+<label class="eqs-row"><span>🇮🇹 INGV shakedata</span><input class="eqs-switch" type="checkbox" id="smToggleIngv" checked></label>
+</div>
+<div class="eqs-muted" id="smLayerStatus">—</div>
 </div>
 
 <div class="eqs-section">
