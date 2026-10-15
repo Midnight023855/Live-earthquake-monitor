@@ -6639,7 +6639,7 @@ global.TauPJS=api;
             try {
                 selectEvent(ev.id, { autoFocus:true, forceMap:true, alertInterrupt:true, overrideManual:true, overrideKmoniMap:true, listFocusZoom:eventListFocusZoom });
             } catch (e) {
-                try { setProgrammaticMapView([lat, lon], eventListFocusZoom, { force:true, autoFocus:true }); } catch (_) {}
+                try { setProgrammaticMapView([lat, lon], eventListFocusZoom, { force:true, forceAlertZoom:true, overrideJapanPin:true, autoFocus:true, animate:true }); } catch (_) {}
             }
             return true;
         }
@@ -7057,10 +7057,15 @@ global.TauPJS=api;
         }
 
         function setProgrammaticMapBounds(bounds, options = {}) {
-            const force = options?.force === true;
-            const overrideJapanPin = options?.overrideJapanPin === true && japanLiveStationsPinned;
+            const force = options?.force === true || options?.forceAlertZoom === true;
+            const overrideJapanPin = (options?.overrideJapanPin === true || options?.forceAlertZoom === true) && japanLiveStationsPinned;
             if (manualMapControlActive() && !force) return false;
             if (japanLiveStationsPinned && !japanPinnedInternalMove && !overrideJapanPin) return false;
+            if (force) {
+                try { mapUserHasControl = false; } catch (_) {}
+                try { if (typeof ynUserMapControl !== 'undefined') ynUserMapControl = false; } catch (_) {}
+                try { sectionMapFocusLock = false; } catch (_) {}
+            }
             if (!bounds || !bounds.isValid?.()) return false;
             if (mapUserHasControl && !force) return false;
             if (yahooNiedModeActive && !yahooNiedInternalView && typeof ynUserMapControl !== 'undefined' && ynUserMapControl && !force) return false;
@@ -7664,10 +7669,10 @@ global.TauPJS=api;
             let points = [];
             if (target?.tfid) points = [...activeTyphoonPoints(target), ...forecastTyphoonPoints(target)];
             else if (Array.isArray(target?.points)) points = target.points.map(p => ({lat:Number(p.lat),lon:Number(p.lon)})).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon));
-            if (!points.length) return setProgrammaticMapView([20, 140], 3);
-            if (points.length === 1) return setProgrammaticMapView([points[0].lat, points[0].lon], 7);
+            if (!points.length) return setProgrammaticMapView([20, 140], 3, { force:true, forceAlertZoom:true, overrideJapanPin:true });
+            if (points.length === 1) return setProgrammaticMapView([points[0].lat, points[0].lon], 7, { force:true, forceAlertZoom:true, overrideJapanPin:true, animate:true });
             const bounds = L.latLngBounds(points.map(p => [p.lat, p.lon]));
-            if (bounds.isValid()) setProgrammaticMapBounds(bounds,{force:true,padding:[30,30],maxZoom:9,animate:true,duration:0.7});
+            if (bounds.isValid()) setProgrammaticMapBounds(bounds,{force:true,padding:[30,30],maxZoom:9,animate:true,duration:0.7,forceAlertZoom:true,overrideJapanPin:true});
         }
 
         function scheduleJmaTyphoonAutoClose(){
@@ -7918,7 +7923,7 @@ global.TauPJS=api;
 
         async function centerHurricaneView(focusStorm = null) {
             const target = focusStorm || hurricaneData.find(s => String(s.id || '') === String(hurricaneFocusId || '')) || hurricaneData[0] || null;
-            if (!target) return setProgrammaticMapView([25, -85], 4);
+            if (!target) return setProgrammaticMapView([25, -85], 4, { force:true, forceAlertZoom:true, overrideJapanPin:true });
             try {
                 const gis = await loadNhcConeTrack();
                 const features = [...(gis?.cone?.features || []), ...(gis?.track?.features || []), ...(gis?.points?.features || [])]
@@ -8330,9 +8335,9 @@ global.TauPJS=api;
                 if (!feature?.geometry) return false;
                 const bounds = L.geoJSON(feature).getBounds();
                 if (!bounds.isValid()) return false;
-                const moved=setProgrammaticMapBounds(bounds,{force:true,padding:[48,48],maxZoom:7,animate:true,duration:0.7});
+                const moved=setProgrammaticMapBounds(bounds,{force:true,forceAlertZoom:true,overrideJapanPin:true,padding:[48,48],maxZoom:7,animate:true,duration:0.7});
                 if(!moved)return false;
-                setTimeout(() => { if (usAlertsMode) map.invalidateSize({ pan:false }); }, 250);
+                setTimeout(() => { if (usAlertsMode) { map.invalidateSize({ pan:false }); try{zoomToUsAlert(feature);}catch(_){} } }, 280);
                 return true;
             } catch (_) { return false; }
         }
@@ -8731,6 +8736,23 @@ global.TauPJS=api;
             });
         }
 
+        
+        // Reintento de encuadre al abrir apartados: Leaflet a veces ignora el primer
+        // setView/fitBounds si el layout aún no terminó (lista oculta, topbar, etc.).
+        function retrySectionAlertZoom(fn, delays) {
+            if (typeof fn !== 'function') return;
+            const times = Array.isArray(delays) && delays.length ? delays : [0, 180, 520];
+            times.forEach((ms, i) => setTimeout(() => {
+                try {
+                    map.invalidateSize({ pan:false });
+                    sectionMapFocusLock = false;
+                    mapUserHasControl = false;
+                    if (typeof ynUserMapControl !== 'undefined') ynUserMapControl = false;
+                    fn(i);
+                } catch (_) {}
+            }, Math.max(0, Number(ms) || 0)));
+        }
+
         async function centerTsunamiView(preferredReport = null) {
             try {
                 const candidates = [...(Array.isArray(jmaTsunamiReports) ? jmaTsunamiReports : []), ...(Array.isArray(tsunamiData) ? tsunamiData : [])]
@@ -8756,7 +8778,7 @@ global.TauPJS=api;
                 // Con foco manual se encuadra una zona; automáticamente se encuadran
                 // todas las zonas activas, no solo la primera del boletín.
                 if (bounds && bounds.isValid()) {
-                    setProgrammaticMapBounds(bounds,{force:true,padding:[34,34],maxZoom:preferredReport?9:7,animate:true,duration:0.7});
+                    setProgrammaticMapBounds(bounds,{force:true,forceAlertZoom:true,overrideJapanPin:true,padding:[48,48],maxZoom:preferredReport?9:7.5,animate:true,duration:0.75});
                     return true;
                 }
             } catch (_) { return false; }
@@ -9269,7 +9291,7 @@ global.TauPJS=api;
                 await renderJmaTsunamiZones();
                 ensureJmaTsunamiLayerVisible();
                 map.invalidateSize({pan:false});
-                centerTsunamiView();
+                retrySectionAlertZoom(() => { try { centerTsunamiView(); } catch (_) {} }, [0, 200, 600]);
                 showRegionToast(reason === 'earthquake'
                     ? '🌊 Tsunami activo · regresando a la zona de alerta'
                     : '🌊 Tsunami Forecast · zona de alerta centrada');
@@ -10601,18 +10623,18 @@ global.TauPJS=api;
                     document.getElementById('typhoonTopbar')?.classList.add('typhoon-top-active');
                     renderTyphoonMap(typhoonData);
                     renderJmaTyphoonMap();
-                    centerTyphoonView();
+                    retrySectionAlertZoom(() => { try { centerTyphoonView(); } catch (_) {} }, [0, 220, 650]);
                 } else if (state.modes.hurricane && hurricaneMode) {
                     document.getElementById('hurricanePanel')?.classList.add('hurricane-active');
                     document.getElementById('hurricaneTopbar')?.classList.add('hurricane-top-active');
                     renderHurricaneMap(hurricaneData || []);
-                    centerHurricaneView();
+                    retrySectionAlertZoom(() => { try { centerHurricaneView(); } catch (_) {} }, [0, 220, 650]);
                 } else if (state.modes.us && usAlertsMode) {
                     document.getElementById('usAlertsPanel')?.classList.add('us-alerts-active');
                     document.getElementById('usAlertsTopbar')?.classList.add('us-alerts-top-active');
                     renderUsAlertsMap(usAlertsData || []);
                     renderUsAlertCounties(usAlertsData || []);
-                    centerUsAlertsView();
+                    retrySectionAlertZoom(() => { try { centerUsAlertsView(); } catch (_) {} }, [0, 220, 650]);
                 } else if (state.modes.volcano && jmaVolcanoMode) {
                     document.getElementById('jmaVolcanoPanel')?.classList.add('jma-volcano-active');
                     document.getElementById('jmaVolcanoTopbar')?.classList.add('jma-volcano-top-active');
@@ -10623,7 +10645,7 @@ global.TauPJS=api;
                     document.getElementById('tsunamiPanel')?.classList.add('tsunami-active');
                     document.getElementById('tsunamiTopbar')?.classList.add('tsunami-top-active');
                     renderTsunamiMap(tsunamiData || []);
-                    centerTsunamiView();
+                    retrySectionAlertZoom(() => { try { centerTsunamiView(); } catch (_) {} }, [0, 220, 650]);
                 } else if (state.modes.wave && waveMode) {
                     const activeWave = getCurrentWaveEvent();
                     if (/\bjma\b/i.test(String(activeWave?.agency || activeWave?.source || ''))) layout.classList.add('japan-focus'); else layout.classList.remove('japan-focus');
@@ -24694,17 +24716,17 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 return;
             }
             if (typhoonMode) {
-                centerTyphoonView();
+                retrySectionAlertZoom(() => { try { centerTyphoonView(); } catch (_) {} }, [0, 220, 650]);
                 showRegionToast('🌀 Tifones fijados en el mapa');
                 return;
             }
             if (hurricaneMode) {
-                centerHurricaneView();
+                retrySectionAlertZoom(() => { try { centerHurricaneView(); } catch (_) {} }, [0, 220, 650]);
                 showRegionToast('🌀 Huracanes NOAA/NHC fijados en el mapa');
                 return;
             }
             if (usAlertsMode) {
-                centerUsAlertsView();
+                retrySectionAlertZoom(() => { try { centerUsAlertsView(); } catch (_) {} }, [0, 220, 650]);
                 showRegionToast('⚠️ Alertas NWS fijadas en el mapa');
                 return;
             }
@@ -24714,7 +24736,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 return;
             }
             if (tsunamiMode) {
-                centerTsunamiView();
+                retrySectionAlertZoom(() => { try { centerTsunamiView(); } catch (_) {} }, [0, 220, 650]);
                 showRegionToast('🌊 Boletines de tsunami fijados en el mapa');
                 return;
             }
@@ -24787,7 +24809,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 topbar.classList.add('typhoon-top-active');
                 renderTyphoonMap(typhoonData.filter(t => String(t.isactive) === '1'));
                 renderJmaTyphoonMap();
-                centerTyphoonView();
+                retrySectionAlertZoom(() => { try { centerTyphoonView(); } catch (_) {} }, [0, 220, 650]);
                 showRegionToast('🌀 Tifones activos centrados en el mapa');
             } else {
                 layout.classList.remove('typhoon-focus');
@@ -24836,7 +24858,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 if (intensityZonesLayer) { map.removeLayer(intensityZonesLayer); intensityZonesLayer = null; }
                 map.invalidateSize({ pan:false });
                 renderHurricaneMap(hurricaneData);
-                centerHurricaneView();
+                retrySectionAlertZoom(() => { try { centerHurricaneView(); } catch (_) {} }, [0, 220, 650]);
                 showRegionToast('🌀 Alertas NOAA/NHC centradas en el mapa');
             } else {
                 layout.classList.remove('hurricane-focus');
@@ -24883,7 +24905,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 map.invalidateSize({ pan:false });
                 renderUsAlertsMap(usAlertsData);
                 renderUsAlertCounties(usAlertsData);
-                centerUsAlertsView();
+                retrySectionAlertZoom(() => { try { centerUsAlertsView(); } catch (_) {} }, [0, 220, 650]);
                 showRegionToast('⚠️ Alertas NWS de EE. UU. centradas en el mapa');
                 // Al abrir manualmente, refrescar el feed para mostrar el estado actual.
                 try { loadUsAlerts(); } catch (_) {}
@@ -24933,7 +24955,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 panel.classList.add('tsunami-active'); topbar.classList.add('tsunami-top-active');
                 hurricaneLayer.clearLayers(); usAlertsLayer.clearLayers(); clearMarkers();
                 if (intensityZonesLayer) { map.removeLayer(intensityZonesLayer); intensityZonesLayer = null; }
-                map.invalidateSize({ pan:false }); renderTsunamiMap(tsunamiData); centerTsunamiView();
+                map.invalidateSize({ pan:false }); renderTsunamiMap(tsunamiData); retrySectionAlertZoom(() => { try { centerTsunamiView(); } catch (_) {} }, [0, 220, 650]);
                 showRegionToast('🌊 Boletines de tsunami centrados en el mapa');
             } else {
                 layout.classList.remove('tsunami-focus'); panel.classList.remove('tsunami-active'); topbar.classList.remove('tsunami-top-active');
@@ -24997,7 +25019,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 document.getElementById('twStatusDot').textContent = '● En Vivo';
                 document.getElementById('twStatusDot').style.color = '#4caf50';
                 info.textContent = 'Sin Alertas Tempranas de Terremotos';
-                centerTaiwanView();
+                retrySectionAlertZoom(() => { try { centerTaiwanView(); } catch (_) {} }, [0, 220, 650]);
                 showRegionToast('🇹🇼 Taiwán centrado · solo alerta temprana');
             } else {
                 
