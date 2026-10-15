@@ -1898,6 +1898,26 @@
 
 
 
+
+        /* Tarjetas EEW estilo EQuake (agencias con ondas) */
+        #sesnaEewBanner.eew-live { padding:0; background:transparent; box-shadow:none; max-height:calc(100% - 24px); overflow:hidden; }
+        #sesnaEewBanner.eew-live .sesna-eew-header { display:none; }
+        #sesnaEewBanner.eew-live .sesna-eew-body { min-height:0; background:transparent; border:0; padding:0; }
+        #mainLayout.japan-focus:has(#ynEarlyAlert.active.yn-motion-active) #sesnaEewBanner.eew-live,
+        #mainLayout.japan-focus:has(#ynEarlyAlert.active.yn-weak) #sesnaEewBanner.eew-live,
+        #mainLayout.japan-focus:has(#ynEarlyAlert.active.yn-shaking) #sesnaEewBanner.eew-live,
+        #mainLayout.japan-focus:has(#ynEarlyAlert.active.yn-strong) #sesnaEewBanner.eew-live,
+        #mainLayout.wave-focus:has(#ynEarlyAlert.active.yn-motion-active) #sesnaEewBanner.eew-live { display:block !important; }
+        .eqc { border-radius:10px; overflow:hidden; background:rgba(32,38,46,.94); box-shadow:0 8px 24px rgba(0,0,0,.45); margin-bottom:8px; font-family:'Akshar',Roboto,'Segoe UI',system-ui,sans-serif; white-space:normal; }
+        .eqc-h { display:flex; justify-content:space-between; align-items:center; padding:7px 12px; color:#fff; font-weight:700; font-size:16px; }
+        .eqc-b { display:flex; gap:10px; align-items:center; padding:10px 12px 6px; }
+        .eqc-int { flex:0 0 auto; min-width:40px; height:40px; padding:0 6px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:800; box-sizing:border-box; }
+        .eqc-i { min-width:0; color:#f2f4f6; }
+        .eqc-place { font-size:17px; font-weight:700; line-height:1.15; overflow-wrap:anywhere; }
+        .eqc-time { font-size:12px; color:#aeb7c2; font-weight:600; }
+        .eqc-m { padding:0 12px 10px 62px; color:#e6eaee; font-size:15px; font-weight:700; display:flex; gap:14px; flex-wrap:wrap; }
+        .eqc-f { padding:6px 12px 8px; background:rgba(18,22,28,.95); color:#c9d1da; font-size:12px; font-weight:600; display:flex; justify-content:space-between; gap:8px; }
+
         /* La estimación local reutiliza el panel EEW sin solaparse con la tarjeta de movimiento. */
         #mainLayout.japan-focus:has(#sesnaEewBanner.local-estimate) #sesnaEewBanner,
         #mainLayout.wave-focus:has(#sesnaEewBanner.local-estimate) #sesnaEewBanner,
@@ -3859,6 +3879,46 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
   #mainLayout.typhoon-focus #typhoonTopbar.typhoon-top-active { gap:9px; font-size:13px; }
 }
 </style>
+<style id="bogota-movilidad-style">
+#bogMovSection,#colVolcSection{display:none;position:absolute;z-index:4600;top:12px;left:12px;width:min(420px,calc(100% - 24px));max-height:calc(100% - 24px);box-sizing:border-box;color:#eef6ff;background:rgba(7,17,29,.97);border:1px solid #46c7ff;border-left:4px solid #ffb020;border-radius:8px;box-shadow:0 8px 24px #000a;font:12px/1.4 system-ui;flex-direction:column;overflow:hidden;}
+#bogMovSection.active,#colVolcSection.active{display:flex;}
+#colVolcSection .col-volc-list{overflow:auto;flex:1 1 auto;min-height:0;padding:4px 6px 6px;}
+#bogMovSection .bogmov-head,#colVolcSection .bogmov-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;background:#10243a;border-bottom:1px solid #2f4c67;font-weight:800;}
+#bogMovSection .bogmov-head small,#colVolcSection .bogmov-head small{display:block;font-weight:600;color:#b9c8d6;font-size:10px;}
+#bogMovSection .bogmov-btns,#colVolcSection .bogmov-btns{display:flex;gap:5px;flex:0 0 auto;}
+#bogMovSection .bogmov-btns button,#colVolcSection .bogmov-btns button{border:1px solid #7890a8;border-radius:5px;background:#1a3550;color:#fff;font-size:12px;line-height:18px;padding:3px 8px;cursor:pointer;}
+#bogMovSection .bogmov-timer{height:3px;background:#1a3550;flex:0 0 3px;}
+#bogMovSection .bogmov-timer i{display:block;height:100%;width:100%;background:#ffb020;transform-origin:left center;}
+@keyframes bogmovCountdown{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+#bogMovSection .bogmov-legend{display:flex;flex-wrap:wrap;gap:4px 10px;padding:6px 11px;border-bottom:1px solid #1d3248;font-size:10px;color:#c4d3e1;}
+#bogMovList{overflow:auto;flex:1 1 auto;min-height:0;padding:4px 6px 6px;-webkit-overflow-scrolling:touch;}
+.bogmov-row{display:flex;gap:8px;padding:7px 6px;border-left:3px solid var(--c);margin:5px 0;background:rgba(255,255,255,.04);border-radius:4px;cursor:pointer;}
+.bogmov-row.done{opacity:.6;}
+.bogmov-row.new{background:rgba(255,176,32,.16);}
+.bogmov-ico{font-size:20px;line-height:24px;flex:0 0 26px;text-align:center;}
+.bogmov-meta{font-size:10px;color:#c4d3e1;}
+.bogmov-msg{font-size:12px;color:#eef6ff;overflow-wrap:anywhere;}
+.bogmov-new{background:#ff4d4f;color:#fff;border-radius:3px;padding:0 4px;font-weight:800;font-size:9px;}
+.bogmov-empty{padding:18px 10px;text-align:center;color:#b9c8d6;}
+#bogMovSection .bogmov-foot,#colVolcSection .bogmov-foot{padding:5px 11px;font-size:10px;color:#9db2c8;background:#10243a;}
+.bogmov-pin{background:transparent;border:0;}
+.bogmov-pin-i{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;background:#0b1a2b;border:2px solid var(--c);box-shadow:0 2px 8px #000a;}
+.bogmov-pin-i.done{opacity:.55;filter:grayscale(.6);}
+.bogmov-pin-i.new{animation:bogmovPulse 1s ease-in-out 4;}
+@keyframes bogmovPulse{50%{transform:scale(1.35);box-shadow:0 0 0 6px rgba(255,176,32,.35);}}
+#bogWazeOverlay{display:none;position:fixed;inset:0;z-index:100001;background:#07111d;color:#eef6ff;flex-direction:column;}
+#bogWazeOverlay.active{display:flex;}
+#bogWazeOverlay .bogmov-whead{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;background:#10243a;border-bottom:1px solid #2f4c67;font:700 13px system-ui;}
+#bogWazeOverlay a,#bogWazeOverlay button{border:1px solid #56718b;border-radius:6px;background:#1a3550;color:#fff;padding:6px 9px;font:600 11px system-ui;text-decoration:none;cursor:pointer;}
+#invOverlay{display:none;position:fixed;inset:0;z-index:100001;background:#07111d;color:#eef6ff;flex-direction:column;}
+#invOverlay.active{display:flex;}
+#invOverlay a,#invOverlay button{border:1px solid #56718b;border-radius:6px;background:#1a3550;color:#fff;padding:6px 9px;font:600 11px system-ui;text-decoration:none;cursor:pointer;}
+#invFrame{flex:1 1 auto;width:100%;border:0;background:#fff;}
+#bogWazeFrame{flex:1 1 auto;width:100%;border:0;background:#fff;}
+#mainLayout.bog-focus .left-panel,#mainLayout.bog-focus .trem-side-panel,#mainLayout.bog-focus #connectionPanel,#mainLayout.bog-focus #intensityLegendPanel,#mainLayout.bog-focus #jmaEewPanel,#mainLayout.bog-focus #taiwanDetectorPanel,#mainLayout.bog-focus #weatherPanel,#mainLayout.bog-focus #hurricanePanel,#mainLayout.bog-focus #usAlertsPanel,#mainLayout.bog-focus #typhoonPanel,#mainLayout.bog-focus #tsunamiPanel,#mainLayout.bog-focus #gdacsPanel,#mainLayout.bog-focus #ingvEewPanel{display:none !important;}
+#mainLayout.bog-focus .map-container{position:absolute;inset:0;width:100%;height:100%;}
+@media(max-width:640px){#bogMovSection{left:8px;right:8px;top:8px;width:auto;max-height:46vh;}}
+</style>
 <style id="siat-ct-panel-style">
 #siatCtOverlay{display:none;position:fixed;inset:0;z-index:100000;background:#07111d;color:#eef6ff;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);}
 #siatCtOverlay.active{display:flex;}
@@ -4362,6 +4422,19 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
                 <div class="siat-alert-timer" aria-hidden="true"><i></i></div>
                 <div class="siat-alert-body"><div id="siatAlertName" class="siat-alert-name"></div><div id="siatAlertMeta" class="siat-alert-meta"></div><div id="siatAlertLevels" class="siat-alert-levels"></div><div id="siatAlertComment" class="siat-alert-comment"></div><a class="siat-alert-source" href="https://preparados.gob.mx/SIAT-CT/consulta.php?evento=actual" target="_blank" rel="noopener noreferrer">Abrir boletín oficial ↗</a></div>
             </section>
+                        <section id="colVolcSection" class="bog-like" role="region" aria-label="Volcanes de Colombia" aria-hidden="true">
+                <div class="bogmov-head"><div>🌋 Volcanes de Colombia<small>Vigilados por el Servicio Geológico Colombiano</small></div><div class="bogmov-btns"><button id="colVolcClose" type="button" aria-label="Cerrar">×</button></div></div>
+                <div id="colVolcList" class="col-volc-list"></div>
+                <div class="bogmov-foot">El nivel de actividad vigente (verde, amarillo, naranja o rojo) lo publica el SGC: abre el boletín de cada volcán. <a href="https://www2.sgc.gov.co/sgc/volcanes/Paginas/inicio.aspx" target="_blank" rel="noopener noreferrer" style="color:#8fe6ff">SGC ↗</a></div>
+            </section>
+            <section id="bogMovSection" role="region" aria-label="Movilidad Bogotá" aria-live="polite" aria-hidden="true">
+                <div class="bogmov-head"><div>🚦 Movilidad Bogotá<small id="bogMovCount"></small></div><div class="bogmov-btns"><button id="bogMovWaze" type="button" title="Tráfico en vivo de Waze">Waze</button><button id="bogMovInvias" type="button" title="Estado de vías nacionales (INVÍAS)">INVÍAS</button><button id="bogMovRefresh" type="button" title="Actualizar">↻</button><button id="bogMovClose" type="button" aria-label="Cerrar Movilidad Bogotá">×</button></div></div>
+                <div class="bogmov-timer" aria-hidden="true"><i></i></div>
+                <div class="bogmov-legend"><span>💥 Accidente</span><span>📢 Manifestación</span><span>🚧 Cierre</span><span>🚌 TransMilenio</span><span>⛈️ Clima</span><span>🚦 Tráfico</span></div>
+                <div id="bogMovList"></div>
+                <div class="bogmov-foot" id="bogMovSub">Fuente: Secretaría de Movilidad (bogota.gov.co)</div>
+            </section>
+
 
             <div id="typhoonTopbar">
                 <span id="typhoonTopTitle">Información de tifones</span>
@@ -6780,7 +6853,7 @@ global.TauPJS=api;
                 try {
                     protectedView = (typeof protectedAutomaticViewOpen === 'function' && protectedAutomaticViewOpen()) ||
                         (typeof isSpecialMapSectionOpen === 'function' && isSpecialMapSectionOpen()) ||
-                        !!document.querySelector('#solarCivilAlertPanel.active, #alertCenterPanel.alert-center-active, #weatherPanel.active, #siatAlertSection.active, #nhkGPanel.nhk-active, #jmaEewPanel.active, #ynEarlyAlert.active, #kmoniPanel.kmoni-active');
+                        !!document.querySelector('#solarCivilAlertPanel.active, #alertCenterPanel.alert-center-active, #weatherPanel.active, #siatAlertSection.active, #bogMovSection.active, #nhkGPanel.nhk-active, #jmaEewPanel.active, #ynEarlyAlert.active, #kmoniPanel.kmoni-active');
                 } catch (_) {}
                 // Si el cierre visual aún está terminando, reintentar brevemente;
                 // nunca desplazar una alerta prioritaria que siga realmente activa.
@@ -12986,8 +13059,8 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         let palertNextStationsRetryAt = 0;
         let palertRealtimeFailures = 0;
         let palertNextRealtimeRetryAt = 0;
-        const PALERT_RETRY_BASE_MS = 15000;
-        const PALERT_RETRY_MAX_MS = 300000;
+        const PALERT_RETRY_BASE_MS = 5000;
+        const PALERT_RETRY_MAX_MS = 30000;
         function palertRetryDelay(failures) { return Math.min(PALERT_RETRY_MAX_MS, PALERT_RETRY_BASE_MS * Math.pow(2, Math.max(0, Number(failures || 1) - 1))); }
         let palertLastFrameStamp = '';
         let palertBaselineCaptured = false;
@@ -18612,6 +18685,15 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                     // de sismo confirmado: evita duplicarlo con el reporte final JMA.
                     notifyRealEarthquakePriority(eewEvent);
                     showEarthquakeTicker(eewEvent, 'JMA EEW', { liveUpdate:true });
+                    // Lista: el aviso JMA también se muestra como fila (se oculta solo cuando
+                    // llega el reporte JMA confirmado del mismo sismo).
+                    try {
+                        const listId = 'jma-eewlist-' + (data.EventID || eewTs || 'active');
+                        const listEv = { ...eewEvent, id:listId, agency:'JMA', source:'JMA · aviso temprano (preliminar)', isTaupEew:false, listFromEew:true, estimated:false, reportNumber:data.Serial || '' };
+                        const li = events.findIndex(x => x && x.id === listId);
+                        if (li >= 0) events[li] = { ...events[li], ...listEv }; else events.unshift(listEv);
+                        renderEvents();
+                    } catch (_) {}
                 }
                 renderJmaEew();
                 /* Wolfx recibe los reportes JMA por WebSocket; al llegar un reporte
@@ -19824,6 +19906,8 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
 
             const filteredEvents = events.filter(e => {
                 if (!e || isEewOnlyListEntry(e)) return false;
+                // Fila nacida de un aviso JMA: se oculta cuando existe el reporte JMA confirmado del mismo sismo.
+                if (e.listFromEew && events.some(o => o && o !== e && !o.listFromEew && !isEewOnlyListEntry(o) && /jma/i.test(String(o.agency || o.source || '')) && Math.abs((parseTs(o.ts) || 0) - (parseTs(e.ts) || 0)) <= 180000 && Math.abs(Number(o.lat) - Number(e.lat)) <= 0.7 && Math.abs(Number(o.lon) - Number(e.lon)) <= 0.7)) return false;
                 const m = parseFloat(String(e.mag ?? '').replace(/[^\d.]/g, '')) || 0;
                 const preliminaryJmaIntensity = isJmaPreliminaryIntensityReport(e);
                 if (m < minMag && !preliminaryJmaIntensity) return false;
@@ -19889,7 +19973,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                     const specialSectionOpen = !!(
                         (typeof isSpecialMapSectionOpen === 'function' && isSpecialMapSectionOpen()) ||
                         (typeof protectedAutomaticViewOpen === 'function' && protectedAutomaticViewOpen()) ||
-                        document.querySelector('#solarCivilAlertPanel.active, #alertCenterPanel.alert-center-active, #weatherPanel.active, #siatAlertSection.active, #nhkGPanel.nhk-active, #jmaEewPanel.active, #ynEarlyAlert.active, #kmoniPanel.kmoni-active')
+                        document.querySelector('#solarCivilAlertPanel.active, #alertCenterPanel.alert-center-active, #weatherPanel.active, #siatAlertSection.active, #bogMovSection.active, #nhkGPanel.nhk-active, #jmaEewPanel.active, #ynEarlyAlert.active, #kmoniPanel.kmoni-active')
                     );
                     if (specialSectionOpen) {
                         selectEvent(ev.id, { noMap:true });
@@ -25875,10 +25959,43 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
                 if(!ynEarlyEpisode)return;
                 const idleMs=Date.now()-ynLastConfirmedMotionAt;
                 if(idleMs<5000){ynScheduleMotionIdleClose();return;}
+                // Sin movimiento: se fija Japón 5 s y después el apartado se cierra solo.
+                // Una trama nueva confirmada cancela esta espera (ynRecordConfirmedMotionFrame
+                // limpia el temporizador) y el episodio continúa.
+                if(ynFixJapanDuringIdle()){
+                    ynMotionIdleCloseTimer=setTimeout(()=>{
+                        ynMotionIdleCloseTimer=null;
+                        if(!ynEarlyEpisode)return;
+                        ynFinishMotionEpisodeAfterIdle();
+                    },YN_IDLE_JAPAN_HOLD_MS);
+                    return;
+                }
                 // No revalidar con la última trama cacheada: solo una trama nueva
                 // y confirmada puede reiniciar la cuenta de inactividad.
                 ynFinishMotionEpisodeAfterIdle();
             },delay);
+        }
+        const YN_IDLE_JAPAN_HOLD_MS = 5000;
+        // Encuadra todo Japón al terminar el movimiento. Devuelve true si el mapa quedó fijado
+        // (entonces se espera 5 s antes de cerrar); false si no corresponde moverlo
+        // (evento JMA/ondas en curso, usuario con el mapa en control o apartado distinto).
+        function ynFixJapanDuringIdle() {
+            try {
+                if (typeof map === 'undefined' || !map) return false;
+                if (ynLiveJmaEvent || (typeof waveMode !== 'undefined' && waveMode)) return false;
+                if (ynUserMapControl || mapUserHasControl || (typeof manualMapControlActive === 'function' && manualMapControlActive())) return false;
+                const layout = document.getElementById('mainLayout');
+                if (!layout || !layout.classList.contains('japan-focus')) return false;
+                if (typeof yahooNiedInternalView !== 'undefined') yahooNiedInternalView = true;
+                if (typeof japanPinnedInternalMove !== 'undefined') japanPinnedInternalMove = true;
+                map.invalidateSize({ pan:false });
+                setProgrammaticMapView(YAHOO_NIED_JAPAN_CENTER, YAHOO_NIED_JAPAN_ZOOM, { animate:true, duration:.8, force:true });
+                setTimeout(() => {
+                    if (typeof yahooNiedInternalView !== 'undefined') yahooNiedInternalView = false;
+                    if (typeof japanPinnedInternalMove !== 'undefined') japanPinnedInternalMove = false;
+                }, 1200);
+                return true;
+            } catch (_) { return false; }
         }
         function ynPromoteConfirmedMotionEvidence(groups) {
             const now=Date.now(),ids=new Set((Array.isArray(groups)?groups:[]).flatMap(g=>(g?.stations||[]).map(st=>Number(st.index))));
@@ -27540,6 +27657,19 @@ function ynBuildLeafletMarkers() {
             return false;
         }
 
+        // Tiempo máximo que el apartado de Japón espera tras un EEW JMA: los sismos pequeños
+        // ya no tienen movimiento ni ondas útiles al cabo de unos minutos, así que se cierran antes
+        // (+5 s de margen) en vez de esperar los 7 minutos del reporte final de intensidad.
+        function jmaEewHoldMs(ev) {
+            const m = parseFloat(String(ev?.mag ?? ev?.Magnitude ?? '').replace(/[^\d.]/g, ''));
+            const sevenMin = 7 * 60 * 1000;
+            if (!Number.isFinite(m)) return sevenMin;
+            if (m < 3) return 90 * 1000 + 5000;
+            if (m < 4) return 150 * 1000 + 5000;
+            if (m < 5) return 4 * 60 * 1000 + 5000;
+            return sevenMin;
+        }
+
         function openJapanForRealJmaQuake(ev, options = {}) {
             if (!ev || typeof isJmaRealEarthquakeEvent !== 'function' || !isJmaRealEarthquakeEvent(ev)) return false;
             // No abrir con el histórico al cargar la página. Un JMA EEW
@@ -27572,11 +27702,12 @@ function ynBuildLeafletMarkers() {
                 clearTimeout(ynLiveJmaCloseTimer);
                 ynLiveJmaTimerEventId = nextWaveEventId;
                 const originForDeadline = Number(ev.waveOriginTs) || parseTs(ev.ts) || parseTs(ev.time);
-                const deadline = originForDeadline > 0 ? originForDeadline + 7 * 60 * 1000 : Date.now() + 7 * 60 * 1000;
+                const holdMs = jmaEewHoldMs(ev);
+                const deadline = originForDeadline > 0 ? originForDeadline + holdMs : Date.now() + holdMs;
                 const remaining = deadline - Date.now();
                 if (remaining <= 0) {
                     jmaWaveSuppressedEventId = nextWaveEventId;
-                    returnToNormalAfterMissingJmaIntensity('Sin reporte final de intensidad JMA a los 7 minutos');
+                    returnToNormalAfterMissingJmaIntensity('Sismo pequeño sin movimiento · vista normal');
                     return false;
                 }
                 ynLiveJmaCloseTimer = setTimeout(() => {
@@ -27587,7 +27718,7 @@ function ynBuildLeafletMarkers() {
                         closeJapanAfterJmaQuake('JMA publicó la intensidad final en la lista');
                     } else {
                         jmaWaveSuppressedEventId = nextWaveEventId;
-                        returnToNormalAfterMissingJmaIntensity('Sin reporte final de intensidad JMA a los 7 minutos');
+                        returnToNormalAfterMissingJmaIntensity(holdMs < 7 * 60 * 1000 ? 'Sismo pequeño sin movimiento · vista normal' : 'Sin reporte final de intensidad JMA a los 7 minutos');
                     }
                 }, remaining);
             }
@@ -27716,7 +27847,22 @@ function ynBuildLeafletMarkers() {
                 const last=Number(ynLastConfirmedMotionAt||ynLastMotionEvidenceAt||0);
                 return last>0&&Date.now()-last<5000;
             };
+            // Japón abierto por el detector sin que ninguna bandera lo marque como automático
+            // (p. ej. episodio reiniciado o limpiado por otro flujo): también se cierra sin movimiento.
+            function strayJapanViewOpen(){
+                try{
+                    const layout=document.getElementById('mainLayout');
+                    if(!layout||!layout.classList.contains('japan-focus'))return false;
+                    if(japanLiveStationsPinned||ynLiveJmaEvent||ynRealEventOverride)return false;
+                    if(typeof waveMode!=='undefined'&&waveMode)return false;
+                    if(typeof japanSeaStationsMode!=='undefined'&&japanSeaStationsMode)return false;
+                    if(typeof jmaWeatherAlertMode!=='undefined'&&jmaWeatherAlertMode)return false;
+                    if(layout.classList.contains('wave-focus'))return false;
+                    return true;
+                }catch(_){return false;}
+            }
             function detectorNoticeOpen(){
+                if(strayJapanViewOpen())return true;
                 const alert=document.getElementById('ynEarlyAlert');
                 const panel=document.getElementById('kanameishiMotionPanel');
                 return !!ynEarlyEpisode||!!ynAutoOpened||!!ynMotionAutoClosePending||
@@ -27729,15 +27875,29 @@ function ynBuildLeafletMarkers() {
                 try{ynCloseAutomatically();}catch(err){console.warn('[motion-end]',err);return false;}
                 return true;
             }
+            // Episodio estancado: si el episodio lleva más de 3 min y las estaciones solo muestran ruido
+            // (intensidad < 1) durante los últimos 90 s, se da por terminado aunque siga llegando "movimiento".
+            let epStart=0,lastSignal=0;
+            const groupsMax=()=>{try{return Math.max(0,...(Array.isArray(ynGroups)?ynGroups:[]).map(g=>Number(g&&g.maxIntensity)||0));}catch(_){return 0;}};
+            function staleEpisodeCheck(){
+                if(!ynEarlyEpisode){epStart=0;return;}
+                const now=Date.now();
+                if(!epStart){epStart=now;lastSignal=now;}
+                if(groupsMax()>=1)lastSignal=now;
+                if(!japanLiveStationsPinned&&now-epStart>180000&&now-lastSignal>90000){
+                    ynLastConfirmedMotionAt=1;ynLastMotionEvidenceAt=1;epStart=0;
+                }
+            }
             setInterval(()=>{
                 try{
+                    staleEpisodeCheck();
                     if(motionActive()){
                         wasActive=true;pendingEnd=false;closedForCurrentIdle=false;
                         return;
                     }
                     if(wasActive){wasActive=false;pendingEnd=true;}
                     // Watchdog: también cierra si otro flujo limpió ynEarlyEpisode y dejó el apartado automático abierto.
-                    if(!japanLiveStationsPinned&&(ynAutoOpened||ynMotionAutoClosePending)&&!motionActive())pendingEnd=true;
+                    if(!japanLiveStationsPinned&&(ynAutoOpened||ynMotionAutoClosePending||strayJapanViewOpen())&&!motionActive())pendingEnd=true;
                     if(pendingEnd&&!closedForCurrentIdle&&closeIfIdle()){
                         pendingEnd=false;closedForCurrentIdle=true;
                     }
@@ -29028,71 +29188,216 @@ function ynBuildLeafletMarkers() {
   <div id="sismosMeteoFallback"><div><div style="font-size:18px;font-weight:800">🌦️ Centro Meteorológico LIVE</div><div style="margin-top:8px;color:#9db2c8">Si Meteo365 no permite mostrarse dentro del monitor, puedes abrirlo directamente.</div><button type="button" id="sismosMeteoFallbackOpen" style="margin-top:12px;border:1px solid #4da3ff;border-radius:8px;background:#163a5b;color:#fff;padding:9px 14px">Abrir Meteo365</button></div></div>
 </div>
 
-<div id="eqSettingsModal" role="dialog" aria-modal="true" aria-labelledby="eqSettingsTitle"><div id="eqSettingsDialog"><div class="eqs-head"><span id="eqSettingsTitle">Ajustes</span><button class="eqs-close" id="eqSettingsClose" type="button">×</button></div><div class="eqs-section" id="eqsSectionsButtons" hidden aria-hidden="true"><div class="eqs-title">Apartados</div><div class="eqs-muted">Abre las alertas meteorológicas oficiales de Japón. Pulsa de nuevo para volver a la vista normal.</div><button class="eqs-control" id="eqsJmaWeatherToggle" type="button" aria-pressed="false" style="width:100%;margin-top:8px;text-align:left;padding:9px">🇯🇵 Alertas meteorológicas de Japón</button><button class="eqs-control" id="eqsJapanSeaStationsToggle" type="button" aria-pressed="false" style="width:100%;margin-top:8px;text-align:left;padding:9px">🌊 Mar de Japón · estaciones en vivo</button>
-<button class="eqs-control" id="eqsOpenSiatCt" type="button" style="width:100%;margin-top:8px;text-align:left;padding:9px">🌪️ SIAT-CT México · Ciclones tropicales</button><div class="eqs-muted">Las zonas oficiales permanecen en el mapa; el apartado SIAT se abre solo ante un boletín nuevo y se cierra a los 15 segundos.</div>
+<div id="eqSettingsModal" role="dialog" aria-modal="true" aria-labelledby="eqSettingsTitle"><div id="eqSettingsDialog"><div class="eqs-head"><span id="eqSettingsTitle">Ajustes</span><button class="eqs-close" id="eqSettingsClose" type="button" aria-label="Cerrar ajustes">×</button></div>
+<div class="eqs-searchbar"><input id="eqsSearch" type="search" placeholder="Buscar ajuste…" autocomplete="off" aria-label="Buscar ajuste"><nav class="eqs-chips" aria-label="Secciones"><a href="#eqsSecApartados">Apartados</a><a href="#eqsSecLista">Lista</a><a href="#eqsSecMapa">Mapa</a><a href="#eqsSecSonido">Sonido</a><a href="#eqsSecJapon">Japón</a><a href="#eqsSecColombia">Colombia</a><a href="#eqsSecAgencias">Agencias</a></nav></div>
+
+<div class="eqs-section" id="eqsSectionsButtons">
+<div class="eqs-title" id="eqsSecApartados">🧭 Apartados</div>
+<div class="eqs-sub">Meteorología y estaciones</div>
+<div class="eqs-tiles">
+<button class="eqs-control eqs-tile" id="eqsJmaWeatherToggle" type="button" aria-pressed="false">🇯🇵 Alertas meteorológicas de Japón</button>
+<button class="eqs-control eqs-tile" id="eqsJapanSeaStationsToggle" type="button" aria-pressed="false">🌊 Mar de Japón · estaciones en vivo</button>
+<button class="eqs-control eqs-tile" id="eqsMeteoCenterToggle" type="button" aria-pressed="false">🌦️ Abrir Centro Meteorológico LIVE</button>
+</div>
+<div class="eqs-sub">Regionales (se abren solos ante un aviso nuevo)</div>
+<div class="eqs-tiles">
+<button class="eqs-control eqs-tile" id="eqsOpenSiatCt" type="button">🌪️ SIAT-CT México · Ciclones</button>
+<button class="eqs-control eqs-tile" id="eqsOpenBogMov" type="button">🚦 Movilidad Bogotá · Avisos</button>
+<button class="eqs-control eqs-tile" id="eqsOpenInvias" type="button">🛣️ INVÍAS · Vías nacionales</button>
+<button class="eqs-control eqs-tile" id="eqsOpenColVolc" type="button">🌋 Volcanes de Colombia · SGC</button>
+</div>
+<div class="eqs-muted">SIAT se cierra a los 15 s. Movilidad Bogotá fija Bogotá en el mapa y no interrumpe alertas sísmicas.</div>
+<div class="eqs-sub">Rotación automática</div>
 <div class="sismos-auto-box">
-<button class="eqs-control" id="eqsMeteoCenterToggle" type="button" aria-pressed="false" style="width:100%;text-align:left;padding:9px">🌦️ Abrir Centro Meteorológico LIVE</button>
-<button class="eqs-control" id="eqsAutoExploreToggle" type="button" aria-pressed="false" style="width:100%;margin-top:8px;text-align:left;padding:9px">🔄 Modo automático: desactivado</button>
+<button class="eqs-control" id="eqsAutoExploreToggle" type="button" aria-pressed="false" style="width:100%;text-align:left;padding:9px">🔄 Modo automático: desactivado</button>
 <div class="sismos-auto-status">Sin tocar la pantalla durante 30 s, SISMOS LIVE puede rotar apartados. Una alerta prioritaria interrumpe la rotación y después continúa.</div>
-</div></div><div class="eqs-section"><div class="eqs-title">Lista de sismos</div><div class="eqs-grid">
+</div>
+</div>
+
+<div class="eqs-section">
+<div class="eqs-title" id="eqsSecLista">📋 Lista de sismos</div>
+<div class="eqs-grid">
 <label class="eqs-row">Magnitud mínima en lista
-<select id="eqsListMinMag" class="eqs-select">
-<option value="0">Todas</option>
-<option value="2">M2.0+</option>
-<option value="2.5">M2.5+</option>
-<option value="3">M3.0+</option>
-<option value="4">M4.0+</option>
-<option value="4.5">M4.5+</option>
-<option value="5">M5.0+</option>
-<option value="6">M6.0+</option>
-</select>
-</label>
+<select id="eqsListMinMag" class="eqs-select"><option value="0">Todas</option><option value="2">M2.0+</option><option value="2.5">M2.5+</option><option value="3">M3.0+</option><option value="4">M4.0+</option><option value="4.5">M4.5+</option><option value="5">M5.0+</option><option value="6">M6.0+</option></select></label>
 <label class="eqs-row">Región de la lista
-<select id="eqsListRegion" class="eqs-select">
-<option value="ALL">Todas</option>
-<option value="CO">Colombia</option>
-<option value="VE">Venezuela</option>
-<option value="CARIBE">Caribe / frontera</option>
-<option value="JP">Japón</option>
-<option value="TW">Taiwán</option>
-</select>
-</label>
+<select id="eqsListRegion" class="eqs-select"><option value="ALL">Todas</option><option value="CO">Colombia</option><option value="VE">Venezuela</option><option value="CARIBE">Caribe / frontera</option><option value="JP">Japón</option><option value="TW">Taiwán</option></select></label>
 <label class="eqs-row">Solo sismos sentidos <input class="eqs-switch" id="eqsListFeltOnly" type="checkbox"></label>
 <label class="eqs-row" style="grid-column:1/-1">Zoom de los sismos de la lista <span style="display:flex;align-items:center;gap:9px;min-width:150px;flex:1"><input id="eqsListFocusZoom" type="range" min="3" max="8" step="1" value="5" style="width:100%;accent-color:#13a9c4"><output id="eqsListFocusZoomValue" style="min-width:18px;text-align:right;color:#fff;font-variant-numeric:tabular-nums">5</output></span></label>
-<div class="eqs-muted" style="grid-column:1/-1">3 = vista más alejada · 8 = más cerca. Controla la selección y el autozoom de sismos del catálogo; las alertas especiales conservan su encuadre.</div>
-<div class="eqs-muted" style="grid-column:1/-1">Filtra la lista lateral. Los EEW y alertas prioritarias no se ocultan.</div>
+<div class="eqs-muted" style="grid-column:1/-1">3 = vista más alejada · 8 = más cerca. Controla la selección y el autozoom de sismos del catálogo; las alertas especiales conservan su encuadre. Filtra la lista lateral: los EEW y alertas prioritarias no se ocultan.</div>
 </div>
-<div class="eqs-title">Mapa, texto TV y avisos</div><div class="eqs-grid">
+</div>
+
+<div class="eqs-section">
+<div class="eqs-title" id="eqsSecMapa">🗺️ Mapa, texto TV y avisos</div>
+<div class="eqs-grid">
 <label class="eqs-row">Líneas de fallas tectónicas <input class="eqs-switch" id="eqsShowFaults" type="checkbox"></label>
 <div class="eqs-muted" style="grid-column:1/-1">Activa o desactiva las fallas (PB2002) sobre el mapa.</div>
 <label class="eqs-row">Notificaciones del navegador <input class="eqs-switch" id="eqsBrowserNotify" type="checkbox"></label>
 <div class="eqs-muted" style="grid-column:1/-1">Avisos del sistema al detectar sismos fuertes (pide permiso al activar).</div>
 <label class="eqs-row">Magnitud mínima texto TV
-<select id="eqsMinTickerMag" class="eqs-select">
-<option value="0">Todas</option>
-<option value="3">M3.0+</option>
-<option value="4">M4.0+</option>
-<option value="4.5">M4.5+</option>
-<option value="5">M5.0+</option>
-<option value="6">M6.0+</option>
-</select>
-</label>
+<select id="eqsMinTickerMag" class="eqs-select"><option value="0">Todas</option><option value="3">M3.0+</option><option value="4">M4.0+</option><option value="4.5">M4.5+</option><option value="5">M5.0+</option><option value="6">M6.0+</option></select></label>
 <div class="eqs-muted" style="grid-column:1/-1">El texto inferior (estilo TV) solo anuncia sismos desde esa magnitud. EEW y alertas prioritarias siguen saliendo.</div>
+<label class="eqs-row">Color del mar (mapa)
+<select id="eqsMapSea"><option value="dark">Oscuro (predeterminado)</option><option value="ocean">Azul océano</option><option value="deep">Azul profundo</option><option value="black">Negro</option><option value="slate">Gris pizarra</option><option value="teal">Verde azulado</option><option value="indigo">Índigo</option></select></label>
+<div class="eqs-muted" style="grid-column:1/-1">Solo cambia el color del agua. Países, límites administrativos, estaciones y sismos se mantienen.</div>
+<label class="eqs-row">Forzar escala de intensidad
+<select id="eqsIntensityScale"><option value="source">Desactivado (usar escala de la agencia)</option><option value="shindo">Shindo (JMA)</option><option value="mmi">MMI</option><option value="csis">CSIS (China)</option><option value="cwa">CWA (Taiwán)</option><option value="geonet">GeoNet MMI (NZ)</option></select></label>
+<div class="eqs-muted" style="grid-column:1/-1">La selección ajusta lista, ficha, telop y mapa. Las equivalencias entre escalas se marcan con ≈ y son estimadas, no oficiales.</div>
+<label class="eqs-row">Modelo TauP
+<select id="eqsTaup"><option value="precise">Preciso</option><option value="fast">Rápido</option><option value="fallback">Respaldo</option></select></label>
 </div>
-<div class="eqs-title">General</div><div class="eqs-grid"><label class="eqs-row">Lluvia de balones por gol de Colombia <input class="eqs-switch" id="eqsColombiaGoalRain" type="checkbox"></label><label class="eqs-row">Avisos de goles, descanso y final <input class="eqs-switch" id="eqsColombiaMatchAlerts" type="checkbox"></label><label class="eqs-row">Voz TTS <input class="eqs-switch" id="eqsTts" type="checkbox"></label><label class="eqs-row">Sonidos y alertas <input class="eqs-switch" id="eqsAudio" type="checkbox"></label><label class="eqs-row eqs-volume-row" style="grid-column:1/-1"><span>Volumen general</span><span class="eqs-volume-control"><input id="eqsMasterVolume" type="range" min="0" max="100" step="1" value="100" aria-label="Volumen general de sonidos y voz"><output id="eqsMasterVolumeValue">100%</output></span></label><div class="eqs-muted" style="grid-column:1/-1">Ajusta los sonidos de alerta y la voz TTS.</div><label class="eqs-row">Modelo TauP <select id="eqsTaup"><option value="precise">Preciso</option><option value="fast">Rápido</option><option value="fallback">Respaldo</option></select></label><label class="eqs-row eqs-intensity-row">Forzar escala de intensidad <select id="eqsIntensityScale"><option value="source">Desactivado (usar escala de la agencia)</option><option value="shindo">Shindo (JMA)</option><option value="mmi">MMI</option><option value="csis">CSIS (China)</option><option value="cwa">CWA (Taiwán)</option><option value="geonet">GeoNet MMI (NZ)</option></select></label>
-<label class="eqs-row eqs-intensity-row">Color del mar (mapa) <select id="eqsMapSea"><option value="dark">Oscuro (predeterminado)</option><option value="ocean">Azul océano</option><option value="deep">Azul profundo</option><option value="black">Negro</option><option value="slate">Gris pizarra</option><option value="teal">Verde azulado</option><option value="indigo">Índigo</option></select></label>
-<label class="eqs-row eqs-intensity-row">Estaciones Japón <select id="eqsJapanStations"><option value="yahoo">Yahoo (Kyoshin CDN)</option><option value="nied">NIED oficial (K-NET + KiK-net)</option><option value="knet">Solo K-NET</option><option value="kiknet">Solo KiK-net</option><option value="both">Yahoo + NIED</option><option value="hinet">Hi-net · catálogo (sin telemetría)</option><option value="fnet">F-net · catálogo (sin telemetría)</option><option value="vnet">V-net · sin catálogo/flujo público verificado</option></select></label>
+</div>
+
+<div class="eqs-section">
+<div class="eqs-title" id="eqsSecSonido">🔊 Sonido y voz</div>
+<div class="eqs-grid">
+<label class="eqs-row">Voz TTS <input class="eqs-switch" id="eqsTts" type="checkbox"></label>
+<label class="eqs-row">Sonidos y alertas <input class="eqs-switch" id="eqsAudio" type="checkbox"></label>
+<label class="eqs-row eqs-volume-row" style="grid-column:1/-1"><span>Volumen general</span><span class="eqs-volume-control"><input id="eqsMasterVolume" type="range" min="0" max="100" step="1" value="100" aria-label="Volumen general de sonidos y voz"><output id="eqsMasterVolumeValue">100%</output></span></label>
+<div class="eqs-muted" style="grid-column:1/-1">Ajusta los sonidos de alerta y la voz TTS.</div>
+</div>
+<div class="eqs-sub">Voz de alertas en español</div>
+<div class="eqs-muted">Elige y prueba la voz utilizada para los avisos hablados.</div>
+<select id="ttsVoiceSelect"></select>
+<div style="display:flex;gap:8px;margin-top:8px">
+<button class="eqs-control" id="btnTtsVoiceTest" type="button">Probar voz</button>
+<button class="eqs-control" id="btnTtsVoiceReset" type="button">Usar automática</button>
+</div>
+<details class="eqs-more"><summary>Probar sonidos del monitor</summary>
+<div class="eqs-muted">Pulsa cada botón para escucharlo. Los sonidos SREV son los avisos incorporados.</div>
+<div class="eqs-muted">Marcador PLUM adaptado del punto de SREV · Kotoho7 · CC BY-SA 2.0. <a href="https://github.com/kotoho7/scratch-realtime-earthquake-viewer-page" target="_blank" rel="noopener">Fuente</a>.</div>
+<div class="eqs-sound-group"><b>Interfaz</b><div class="eqs-sound-grid" id="eqsUiSounds"></div></div>
+<div class="eqs-sound-group"><b>Alertas SREV</b><div class="eqs-sound-grid" id="eqsSrevSounds"></div></div>
+<div class="eqs-sound-group"><b>Voz</b><button class="eqs-control" id="eqsTestTts" type="button">Probar TTS</button></div>
+</details>
+</div>
+
+<div class="eqs-section">
+<div class="eqs-title" id="eqsSecJapon">🇯🇵 Japón y estaciones</div>
+<div class="eqs-grid">
+<label class="eqs-row eqs-intensity-row">Estaciones Japón
+<select id="eqsJapanStations"><option value="yahoo">Yahoo (Kyoshin CDN)</option><option value="nied">NIED oficial (K-NET + KiK-net)</option><option value="knet">Solo K-NET</option><option value="kiknet">Solo KiK-net</option><option value="both">Yahoo + NIED</option><option value="hinet">Hi-net · catálogo (sin telemetría)</option><option value="fnet">F-net · catálogo (sin telemetría)</option><option value="vnet">V-net · sin catálogo/flujo público verificado</option></select></label>
 <div class="eqs-muted eqs-intensity-note">Solo K-NET/KiK-net tienen feed Kyoshin consultado cada 1 s. Hi-net y F-net muestran catálogo sin telemetría. Las estaciones oceánicas S-net, DONET y N-net se retiraron del mapa porque esta vista no recibe sus señales en vivo.</div>
-<label class="eqs-row">Detección local de movimiento Yahoo/NIED (Japón) <input class="eqs-switch" id="eqsMotionDetectionEnabled" type="checkbox"></label><div class="eqs-muted">Activa o pausa cuadros y estimaciones locales basadas en estaciones. No desactiva EEW oficiales.</div>
-<div class="eqs-section" style="margin-top:8px"><div class="eqs-title">Cuadros Máx. Int. / PGA / PGV</div>
+<label class="eqs-row">Detección local de movimiento Yahoo/NIED <input class="eqs-switch" id="eqsMotionDetectionEnabled" type="checkbox"></label>
+<div class="eqs-muted">Activa o pausa cuadros y estimaciones locales basadas en estaciones. No desactiva EEW oficiales.</div>
+<label class="eqs-row">Vista de estaciones NIED
+<select id="eqsNiedMetric"><option value="intensity">Intensidad</option><option value="pga">PGA ≈ (gal)</option><option value="pgv">PGV ≈ (cm/s)</option><option value="both">PGA + PGV ≈</option></select></label>
+<div class="eqs-muted">PGA/PGV se estiman leyendo los colores del GIF NIED; no son mediciones crudas.</div>
+</div>
+<div class="eqs-sub">Cuadros Máx. Int. / PGA / PGV</div>
 <div class="eqs-muted">Elige qué paneles laterales se muestran.</div>
+<div class="eqs-grid">
 <label class="eqs-row">TREM (Taiwán) <input class="eqs-switch" id="eqsShowTremMetrics" type="checkbox"></label>
 <label class="eqs-row">P-Alert (Taiwán) <input class="eqs-switch" id="eqsShowPalertMetrics" type="checkbox"></label>
 <label class="eqs-row">NIED (Japón) <input class="eqs-switch" id="eqsShowNiedMetrics" type="checkbox"></label>
-<label class="eqs-row">Vista de estaciones NIED <select id="eqsNiedMetric"><option value="intensity">Intensidad</option><option value="pga">PGA ≈ (gal)</option><option value="pgv">PGV ≈ (cm/s)</option><option value="both">PGA + PGV ≈</option></select></label><div class="eqs-muted">PGA/PGV se estiman leyendo los colores del GIF NIED; no son mediciones crudas.</div>
 </div>
-<button class="eqs-control" id="eqsTestColombiaGoalRain" type="button" style="margin-top:8px;width:100%">⚽ Probar lluvia de balones</button><div class="eqs-muted">Vista previa: no cambia si la celebración está activada o desactivada.</div>
-<div class="eqs-muted eqs-intensity-note">Solo cambia el color del agua. Países, límites administrativos, estaciones y sismos se mantienen.</div><div class="eqs-muted eqs-intensity-note">La selección ajusta lista, ficha, telop y mapa. Las equivalencias entre escalas se marcan con ≈ y son estimadas, no oficiales.</div><div class="eqs-section"><div class="eqs-title">Probar sonidos del monitor</div><div class="eqs-muted">Pulsa cada botón para escucharlo. Los sonidos SREV son los avisos incorporados.</div><div class="eqs-muted">Marcador PLUM adaptado del punto de SREV · Kotoho7 · CC BY-SA 2.0. <a href="https://github.com/kotoho7/scratch-realtime-earthquake-viewer-page" target="_blank" rel="noopener">Fuente</a>.</div><div class="eqs-sound-group"><b>Interfaz</b><div class="eqs-sound-grid" id="eqsUiSounds"></div></div><div class="eqs-sound-group"><b>Alertas SREV</b><div class="eqs-sound-grid" id="eqsSrevSounds"></div></div><div class="eqs-sound-group"><b>Voz</b><button class="eqs-control" id="eqsTestTts" type="button">Probar TTS</button></div></div></div><div class="eqs-section"><div class="eqs-title">Voz de alertas en español</div><div class="eqs-muted">Elige y prueba la voz utilizada para los avisos hablados.</div><select id="ttsVoiceSelect"></select><div style="display:flex;gap:8px;margin-top:8px"><button class="eqs-control" id="btnTtsVoiceTest" type="button">Probar voz</button><button class="eqs-control" id="btnTtsVoiceReset" type="button">Usar automática</button></div></div><div class="eqs-muted">Las preferencias se guardan en este navegador.</div></div><div class="eqs-section"><div class="eqs-title">Agencias visibles en la lista</div><div class="eqs-agencies" id="eqsAgencies"></div><div class="eqs-muted">Desactivarlas las oculta de la lista, pero no elimina su conexión.</div></div><div class="eqs-actions"><button class="eqs-control" id="eqsReset" type="button">Restablecer</button><button class="eqs-save" id="eqsSave" type="button">Guardar</button></div></div></div><script id="eq-settings-module">(function(){'use strict';const modal=document.getElementById('eqSettingsModal'),open=document.getElementById('btnSettings');if(!modal||!open)return;const agencies=['USGS','NEIC','JMA','CENC','CEA','CEIC','EMSC','IGN','INETER','GEOFON','SSN','AFAD','BMKG','GEONET','INGV','IPGP','SED','PHIVOLCS','CSN','IG-EPN','EARLY-EST','HKO','NOA','KOERI','KMA','BCSF','NRCan','USP','MMD' ,'CEA-PR'],key='earthquake.settings.v1',defaults={tts:true,audio:true,masterVolume:1,taup:'precise',intensityScale:'source',mapSea:'dark',japanStations:'nied',niedMotionEnabled:true,showTremMetrics:true,showPalertMetrics:true,showNiedMetrics:true,niedMetric:'intensity',colombiaGoalRain:true,colombiaMatchAlerts:true,showFaults:false,browserNotify:false,minTickerMag:0,listMinMag:0,listFeltOnly:false,listRegion:'ALL',listFocusZoom:5,disabled:{}};const read=()=>{try{const saved=JSON.parse(localStorage.getItem(key)||'{}'),out=Object.assign({},defaults,saved);if(!Object.prototype.hasOwnProperty.call(saved,'niedMotionEnabled')){const legacy=window.__eqKanameishiHypoDebug?.().niedEnabled;if(typeof legacy==='boolean')out.niedMotionEnabled=legacy}if(!Object.prototype.hasOwnProperty.call(saved,'masterVolume')){const v=Number(localStorage.getItem('earthquake.masterVolume'));if(Number.isFinite(v))out.masterVolume=Math.max(0,Math.min(1,v))}return out}catch(_){return Object.assign({},defaults)}};let state=read();delete state.uiLanguage;window.__eqListFocusZoom=Math.max(3,Math.min(8,Number(state.listFocusZoom)||5));const tts=document.getElementById('eqsTts'),audio=document.getElementById('eqsAudio'),masterVolumeSlider=document.getElementById('eqsMasterVolume'),masterVolumeValue=document.getElementById('eqsMasterVolumeValue'),taup=document.getElementById('eqsTaup'),intensityScale=document.getElementById('eqsIntensityScale'),mapSea=document.getElementById('eqsMapSea'),japanStations=document.getElementById('eqsJapanStations'),motionDetection=document.getElementById('eqsMotionDetectionEnabled'),showTremMetrics=document.getElementById('eqsShowTremMetrics'),showPalertMetrics=document.getElementById('eqsShowPalertMetrics'),showNiedMetrics=document.getElementById('eqsShowNiedMetrics'),niedMetric=document.getElementById('eqsNiedMetric'),colombiaGoalRain=document.getElementById('eqsColombiaGoalRain'),colombiaMatchAlerts=document.getElementById('eqsColombiaMatchAlerts'),goalRainTest=document.getElementById('eqsTestColombiaGoalRain'),showFaults=document.getElementById('eqsShowFaults'),browserNotify=document.getElementById('eqsBrowserNotify'),minTickerMag=document.getElementById('eqsMinTickerMag'),listMinMag=document.getElementById('eqsListMinMag'),listRegion=document.getElementById('eqsListRegion'),listFeltOnly=document.getElementById('eqsListFeltOnly'),listFocusZoom=document.getElementById('eqsListFocusZoom'),listFocusZoomValue=document.getElementById('eqsListFocusZoomValue'),list=document.getElementById('eqsAgencies');const uiSounds=document.getElementById('eqsUiSounds'),srevSounds=document.getElementById('eqsSrevSounds'),jmaToggle=document.getElementById('eqsJmaWeatherToggle');function syncJmaToggle(){const api=window.__eqJmaWeatherView;const active=!!(api&&typeof api.isActive==='function'&&api.isActive());if(jmaToggle){jmaToggle.textContent=active?'↩️ Volver a la vista normal':'🇯🇵 Alertas meteorológicas de Japón';jmaToggle.setAttribute('aria-pressed',String(active));jmaToggle.style.borderColor=active?'#ffb300':'';jmaToggle.style.color=active?'#ffd873':''}}const uiSoundNames=[['click','Clic'],['select','Selección'],['refresh','Actualizar'],['success','Correcto'],['home','Inicio'],['alert','Alerta'],['ynWave','Onda NIED'],['motion','Movimiento']];const srevSoundNames=[['eew0','EEW débil'],['eew3','EEW intensidad 3'],['eew5','EEW intensidad 5'],['eewC','EEW cancelación'],['koushin','Actualización'],['koushinE','Actualización EEW'],['VXSE51','VXSE51 información'],['VXSE52','VXSE52 epicentro'],['VXSE53','VXSE53 detalle'],['VXSE5C','VXSE5C'],['VTSE5','VTSE5 tsunami'],['tsa01','Tsunami tsa01'],['tsa02','Tsunami tsa02'],['tsa03','Tsunami tsa03'],['tsa04','Tsunami tsa04'],['tsa12','Tsunami tsa12'],['tsa13','Tsunami tsa13'],['tsa14','Tsunami tsa14'],['tsa21','Tsunami tsa21'],['tsa22','Tsunami tsa22'],['tsa23','Tsunami tsa23'],['tsa24','Tsunami tsa24'],['tsa32','Tsunami tsa32'],['tsa33','Tsunami tsa33'],['p1024','p1024'],['NewInt0','Movimiento int. 0'],['NewInt1','Movimiento int. 1'],['NewInt2','Movimiento int. 2'],['NewInt3','Movimiento int. 3'],['NewInt4','Movimiento int. 4'],['NewInt5','Movimiento int. 5'],['NewInt6','Movimiento int. 6–7']];function render(){const a=window.__eqAudioSettings;tts.checked=a?a.ttsEnabled:state.tts;audio.checked=a?a.audioEnabled:state.audio;if(masterVolumeSlider){const n=Math.max(0,Math.min(1,Number(state.masterVolume??1)));masterVolumeSlider.value=String(Math.round(n*100));if(masterVolumeValue)masterVolumeValue.textContent=Math.round(n*100)+'%'}taup.value=(window.__eqTaupSettings&&window.__eqTaupSettings.mode)||state.taup;intensityScale.value=state.intensityScale||'source';if(mapSea)mapSea.value=state.mapSea||'dark';if(japanStations)japanStations.value=state.japanStations||'nied';if(motionDetection)motionDetection.checked=state.niedMotionEnabled!==false;if(showTremMetrics)showTremMetrics.checked=state.showTremMetrics!==false;if(showPalertMetrics)showPalertMetrics.checked=state.showPalertMetrics!==false;if(showNiedMetrics)showNiedMetrics.checked=state.showNiedMetrics!==false;if(niedMetric)niedMetric.value=state.niedMetric||'intensity';if(colombiaGoalRain)colombiaGoalRain.checked=state.colombiaGoalRain!==false;if(colombiaMatchAlerts)colombiaMatchAlerts.checked=state.colombiaMatchAlerts!==false;if(showFaults)showFaults.checked=state.showFaults===true;if(browserNotify)browserNotify.checked=state.browserNotify===true;if(minTickerMag)minTickerMag.value=String(state.minTickerMag!=null?state.minTickerMag:0);if(listMinMag)listMinMag.value=String(state.listMinMag!=null?state.listMinMag:0);if(listRegion)listRegion.value=String(state.listRegion||'ALL');if(listFeltOnly)listFeltOnly.checked=state.listFeltOnly===true;if(listFocusZoom){const n=Math.max(3,Math.min(8,Number(state.listFocusZoom)||5));listFocusZoom.value=String(n);if(listFocusZoomValue)listFocusZoomValue.textContent=String(n);window.__eqListFocusZoom=n}uiSounds.innerHTML=uiSoundNames.map(x=>'<button class="eqs-control" type="button" data-ui-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');srevSounds.innerHTML=srevSoundNames.map(x=>'<button class="eqs-control" type="button" data-srev-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');list.innerHTML=agencies.map(x=>'<label class="eqs-agency"><input type="checkbox" data-agency="'+x+'" '+(!(state.disabled&&state.disabled[x])?'checked':'')+'> '+x+'</label>').join('')}
+</div>
+
+<div class="eqs-section">
+<div class="eqs-title" id="eqsSecColombia">⚽ Colombia</div>
+<div class="eqs-grid">
+<label class="eqs-row">Lluvia de balones por gol de Colombia <input class="eqs-switch" id="eqsColombiaGoalRain" type="checkbox"></label>
+<label class="eqs-row">Avisos de goles, descanso y final <input class="eqs-switch" id="eqsColombiaMatchAlerts" type="checkbox"></label>
+</div>
+<button class="eqs-control" id="eqsTestColombiaGoalRain" type="button" style="margin-top:8px;width:100%">⚽ Probar lluvia de balones</button>
+<div class="eqs-muted">Vista previa: no cambia si la celebración está activada o desactivada.</div>
+</div>
+
+<div class="eqs-section">
+<div class="eqs-title" id="eqsSecAgencias">🏢 Agencias visibles en la lista</div>
+<div class="eqs-agencies" id="eqsAgencies"></div>
+<div class="eqs-muted">Desactivarlas las oculta de la lista, pero no elimina su conexión.</div>
+</div>
+<div class="eqs-muted eqs-foot">Las preferencias se guardan en este navegador.</div>
+<div class="eqs-actions"><button class="eqs-control" id="eqsReset" type="button">Restablecer</button><button class="eqs-save" id="eqsSave" type="button">Guardar</button></div>
+</div></div>
+<style id="eqs-redesign">
+/* Rediseño de Ajustes · centro de monitoreo oscuro. Solo apariencia y orden; los ids y controles no cambian. */
+#eqSettingsModal{background:rgba(3,8,16,.72);backdrop-filter:blur(6px);}
+#eqSettingsModal #eqSettingsDialog{width:min(720px,96vw);max-height:min(92vh,860px);padding:0 16px 0;background:linear-gradient(170deg,#0f1b2d,#0a1220) !important;border:1px solid rgba(98,217,255,.28) !important;border-radius:16px !important;box-shadow:0 18px 60px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.05) !important;color:#e6f1fb;font-size:13px;scroll-behavior:smooth;overscroll-behavior:contain;}
+#eqSettingsDialog .eqs-head{position:sticky;top:0;z-index:5;margin:0 -16px;padding:14px 16px 10px;background:rgba(10,18,32,.96);backdrop-filter:blur(8px);border-radius:16px 16px 0 0;font-size:17px;letter-spacing:.02em;color:#eef7ff !important;}
+#eqSettingsDialog .eqs-close{width:34px;height:34px;border-radius:50% !important;background:rgba(255,255,255,.06) !important;border:1px solid rgba(255,255,255,.12) !important;color:#cfe3f5 !important;font-size:20px;line-height:1;padding:0;}
+#eqSettingsDialog .eqs-searchbar{position:sticky;top:55px;z-index:4;margin:0 -16px 6px;padding:2px 16px 10px;background:rgba(10,18,32,.96);border-bottom:1px solid rgba(98,217,255,.14);}
+#eqSettingsDialog #eqsSearch{width:100%;box-sizing:border-box;background:#08111e;color:#eef7ff;border:1px solid rgba(98,217,255,.25);border-radius:10px;padding:9px 12px;font-size:13px;outline:none;}
+#eqSettingsDialog #eqsSearch:focus{border-color:#62d9ff;box-shadow:0 0 0 3px rgba(98,217,255,.15);}
+#eqSettingsDialog .eqs-chips{display:flex;gap:6px;overflow-x:auto;padding-top:8px;scrollbar-width:none;}
+#eqSettingsDialog .eqs-chips::-webkit-scrollbar{display:none;}
+#eqSettingsDialog .eqs-chips a{flex:0 0 auto;padding:5px 11px;border-radius:999px;background:rgba(98,217,255,.08);border:1px solid rgba(98,217,255,.22);color:#9fe3ff;font-size:12px;font-weight:600;text-decoration:none;}
+#eqSettingsDialog .eqs-chips a:active{background:rgba(98,217,255,.22);}
+#eqSettingsDialog .eqs-section{margin:12px 0 0;padding:14px;border:1px solid rgba(137,190,255,.16) !important;border-radius:14px;background:rgba(255,255,255,.03);}
+#eqSettingsDialog .eqs-section:first-of-type{padding:14px;margin-top:12px;border-top:1px solid rgba(137,190,255,.16) !important;}
+#eqSettingsDialog .eqs-title{margin:0 0 10px !important;padding:0;font-size:14px;font-weight:800;letter-spacing:.03em;color:#8fe6ff !important;scroll-margin-top:118px;}
+#eqSettingsDialog .eqs-sub{margin:14px 0 7px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#ffcf6b;}
+#eqSettingsDialog .eqs-grid{gap:8px 12px;}
+#eqSettingsDialog .eqs-row{min-height:38px;padding:4px 10px;border-radius:10px;background:rgba(255,255,255,.035);color:#dbe8f4;}
+#eqSettingsDialog .eqs-row:hover{background:rgba(98,217,255,.07);}
+#eqSettingsDialog .eqs-muted{color:#8ea6bd;font-size:11px;line-height:1.4;margin-top:6px;}
+#eqSettingsDialog select{background:#08111e !important;color:#eef7ff !important;border:1px solid rgba(137,190,255,.28) !important;border-radius:8px !important;padding:7px 9px;}
+#eqSettingsDialog .eqs-row select,#eqSettingsDialog .eqs-select{max-width:200px;}
+#eqSettingsDialog #ttsVoiceSelect{margin-top:8px;}
+#eqSettingsDialog .eqs-switch{width:42px;height:24px;background:#3a4656;flex:0 0 auto;}
+#eqSettingsDialog .eqs-switch:before{width:20px;height:20px;top:2px;left:2px;}
+#eqSettingsDialog .eqs-switch:checked{background:#12b5d6;}
+#eqSettingsDialog .eqs-switch:checked:before{left:20px;}
+#eqSettingsDialog .eqs-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;}
+#eqSettingsDialog .eqs-tile{width:100%;text-align:left;padding:11px 12px !important;min-height:46px;border-radius:12px !important;font-size:13px;font-weight:600;line-height:1.25;}
+#eqSettingsDialog .eqs-tile[aria-pressed="true"]{border-color:#ffbf47 !important;color:#ffe0a0 !important;}
+#eqSettingsDialog .eqs-control{background:rgba(24,40,62,.9) !important;border:1px solid rgba(137,190,255,.26) !important;color:#e6f1fb !important;border-radius:10px !important;padding:8px 11px;cursor:pointer;}
+#eqSettingsDialog .sismos-auto-box{margin-top:0;}
+#eqSettingsDialog .eqs-more{margin-top:14px;border:1px solid rgba(137,190,255,.16);border-radius:12px;padding:0 12px 10px;background:rgba(0,0,0,.14);}
+#eqSettingsDialog .eqs-more summary{cursor:pointer;padding:11px 0;font-weight:700;color:#cfe3f5;list-style:none;}
+#eqSettingsDialog .eqs-more summary::before{content:'▸';display:inline-block;margin-right:8px;color:#62d9ff;transition:transform .15s;}
+#eqSettingsDialog .eqs-more[open] summary::before{transform:rotate(90deg);}
+#eqSettingsDialog .eqs-sound-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));}
+#eqSettingsDialog .eqs-agencies{grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:6px 10px;}
+#eqSettingsDialog .eqs-agency{padding:5px 8px;border-radius:8px;background:rgba(255,255,255,.035);color:#dbe8f4;}
+#eqSettingsDialog .eqs-foot{text-align:center;margin:14px 0 4px;}
+#eqSettingsDialog .eqs-actions{position:sticky;bottom:0;z-index:5;margin:14px -16px 0;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:rgba(10,18,32,.97);border-top:1px solid rgba(98,217,255,.18);border-radius:0 0 16px 16px;}
+#eqSettingsDialog .eqs-save{background:linear-gradient(135deg,#17b6d8,#0f7fa6) !important;border:0 !important;color:#04202a !important;border-radius:10px !important;padding:10px 22px;font-weight:800;}
+@media(max-width:560px){
+  #eqSettingsModal{padding:0;align-items:flex-end;}
+  #eqSettingsModal #eqSettingsDialog{width:100vw;max-height:calc(100vh - 56px);border-radius:18px 18px 0 0 !important;}
+  #eqSettingsDialog .eqs-row select,#eqSettingsDialog .eqs-select{max-width:150px;}
+  #eqSettingsDialog .eqs-tiles{grid-template-columns:1fr;}
+}
+/* Móvil: usar la altura visible real (dvh) para que Restablecer/Guardar no queden bajo la barra del navegador. */
+@supports (height:100dvh){
+  #eqSettingsModal{height:100dvh;}
+  #eqSettingsModal #eqSettingsDialog{max-height:min(92dvh,860px);}
+  @media(max-width:560px){#eqSettingsModal #eqSettingsDialog{max-height:calc(100dvh - 56px);}}
+}
+#eqSettingsDialog .eqs-actions{box-shadow:0 -8px 18px rgba(0,0,0,.45);}
+@media(max-width:560px){#eqSettingsDialog .eqs-searchbar{position:static;top:auto;}#eqSettingsDialog .eqs-title{scroll-margin-top:70px;}}
+</style>
+<script id="eqs-search-module">
+(function(){'use strict';
+  const dlg=document.getElementById('eqSettingsDialog'),inp=document.getElementById('eqsSearch');
+  if(!dlg||!inp)return;
+  function apply(){
+    const q=inp.value.trim().toLowerCase();
+    dlg.querySelectorAll('.eqs-section').forEach(sec=>{
+      const rows=sec.querySelectorAll('.eqs-row,.eqs-tile,.eqs-agency,.eqs-control:not(.eqs-tile)');
+      const notes=sec.querySelectorAll('.eqs-muted,.eqs-sub,.sismos-auto-box,.eqs-more');
+      if(!q){rows.forEach(r=>{r.style.display='';});notes.forEach(n=>{n.style.display='';});sec.style.display='';return;}
+      let hits=0;
+      rows.forEach(r=>{const ok=(r.textContent||'').toLowerCase().includes(q);r.style.display=ok?'':'none';if(ok)hits++;});
+      notes.forEach(n=>{n.style.display='none';});
+      const title=(sec.querySelector('.eqs-title')?.textContent||'').toLowerCase();
+      if(title.includes(q)){rows.forEach(r=>{r.style.display='';});hits=hits||1;}
+      sec.style.display=hits?'':'none';
+    });
+  }
+  inp.addEventListener('input',apply);
+  dlg.querySelectorAll('.eqs-chips a').forEach(a=>a.addEventListener('click',e=>{
+    e.preventDefault();inp.value='';apply();
+    const t=document.getElementById(a.getAttribute('href').slice(1));
+    if(t)setTimeout(()=>t.scrollIntoView({block:'start',behavior:'smooth'}),30);
+  }));
+  const modal=document.getElementById('eqSettingsModal');
+  if(modal&&window.MutationObserver)new MutationObserver(()=>{if(modal.classList.contains('active')){inp.value='';apply();}}).observe(modal,{attributes:true,attributeFilter:['class']});
+})();
+</script>
+<script id="eq-settings-module">(function(){'use strict';const modal=document.getElementById('eqSettingsModal'),open=document.getElementById('btnSettings');if(!modal||!open)return;const agencies=['USGS','NEIC','JMA','CENC','CEA','CEIC','EMSC','IGN','INETER','GEOFON','SSN','AFAD','BMKG','GEONET','INGV','IPGP','SED','PHIVOLCS','CSN','IG-EPN','EARLY-EST','HKO','NOA','KOERI','KMA','BCSF','NRCan','USP','MMD' ,'CEA-PR'],key='earthquake.settings.v1',defaults={tts:true,audio:true,masterVolume:1,taup:'precise',intensityScale:'source',mapSea:'dark',japanStations:'nied',niedMotionEnabled:true,showTremMetrics:true,showPalertMetrics:true,showNiedMetrics:true,niedMetric:'intensity',colombiaGoalRain:true,colombiaMatchAlerts:true,showFaults:false,browserNotify:false,minTickerMag:0,listMinMag:0,listFeltOnly:false,listRegion:'ALL',listFocusZoom:5,disabled:{}};const read=()=>{try{const saved=JSON.parse(localStorage.getItem(key)||'{}'),out=Object.assign({},defaults,saved);if(!Object.prototype.hasOwnProperty.call(saved,'niedMotionEnabled')){const legacy=window.__eqKanameishiHypoDebug?.().niedEnabled;if(typeof legacy==='boolean')out.niedMotionEnabled=legacy}if(!Object.prototype.hasOwnProperty.call(saved,'masterVolume')){const v=Number(localStorage.getItem('earthquake.masterVolume'));if(Number.isFinite(v))out.masterVolume=Math.max(0,Math.min(1,v))}return out}catch(_){return Object.assign({},defaults)}};let state=read();delete state.uiLanguage;window.__eqListFocusZoom=Math.max(3,Math.min(8,Number(state.listFocusZoom)||5));const tts=document.getElementById('eqsTts'),audio=document.getElementById('eqsAudio'),masterVolumeSlider=document.getElementById('eqsMasterVolume'),masterVolumeValue=document.getElementById('eqsMasterVolumeValue'),taup=document.getElementById('eqsTaup'),intensityScale=document.getElementById('eqsIntensityScale'),mapSea=document.getElementById('eqsMapSea'),japanStations=document.getElementById('eqsJapanStations'),motionDetection=document.getElementById('eqsMotionDetectionEnabled'),showTremMetrics=document.getElementById('eqsShowTremMetrics'),showPalertMetrics=document.getElementById('eqsShowPalertMetrics'),showNiedMetrics=document.getElementById('eqsShowNiedMetrics'),niedMetric=document.getElementById('eqsNiedMetric'),colombiaGoalRain=document.getElementById('eqsColombiaGoalRain'),colombiaMatchAlerts=document.getElementById('eqsColombiaMatchAlerts'),goalRainTest=document.getElementById('eqsTestColombiaGoalRain'),showFaults=document.getElementById('eqsShowFaults'),browserNotify=document.getElementById('eqsBrowserNotify'),minTickerMag=document.getElementById('eqsMinTickerMag'),listMinMag=document.getElementById('eqsListMinMag'),listRegion=document.getElementById('eqsListRegion'),listFeltOnly=document.getElementById('eqsListFeltOnly'),listFocusZoom=document.getElementById('eqsListFocusZoom'),listFocusZoomValue=document.getElementById('eqsListFocusZoomValue'),list=document.getElementById('eqsAgencies');const uiSounds=document.getElementById('eqsUiSounds'),srevSounds=document.getElementById('eqsSrevSounds'),jmaToggle=document.getElementById('eqsJmaWeatherToggle');function syncJmaToggle(){const api=window.__eqJmaWeatherView;const active=!!(api&&typeof api.isActive==='function'&&api.isActive());if(jmaToggle){jmaToggle.textContent=active?'↩️ Volver a la vista normal':'🇯🇵 Alertas meteorológicas de Japón';jmaToggle.setAttribute('aria-pressed',String(active));jmaToggle.style.borderColor=active?'#ffb300':'';jmaToggle.style.color=active?'#ffd873':''}}const uiSoundNames=[['click','Clic'],['select','Selección'],['refresh','Actualizar'],['success','Correcto'],['home','Inicio'],['alert','Alerta'],['ynWave','Onda NIED'],['motion','Movimiento']];const srevSoundNames=[['eew0','EEW débil'],['eew3','EEW intensidad 3'],['eew5','EEW intensidad 5'],['eewC','EEW cancelación'],['koushin','Actualización'],['koushinE','Actualización EEW'],['VXSE51','VXSE51 información'],['VXSE52','VXSE52 epicentro'],['VXSE53','VXSE53 detalle'],['VXSE5C','VXSE5C'],['VTSE5','VTSE5 tsunami'],['tsa01','Tsunami tsa01'],['tsa02','Tsunami tsa02'],['tsa03','Tsunami tsa03'],['tsa04','Tsunami tsa04'],['tsa12','Tsunami tsa12'],['tsa13','Tsunami tsa13'],['tsa14','Tsunami tsa14'],['tsa21','Tsunami tsa21'],['tsa22','Tsunami tsa22'],['tsa23','Tsunami tsa23'],['tsa24','Tsunami tsa24'],['tsa32','Tsunami tsa32'],['tsa33','Tsunami tsa33'],['p1024','p1024'],['NewInt0','Movimiento int. 0'],['NewInt1','Movimiento int. 1'],['NewInt2','Movimiento int. 2'],['NewInt3','Movimiento int. 3'],['NewInt4','Movimiento int. 4'],['NewInt5','Movimiento int. 5'],['NewInt6','Movimiento int. 6–7']];function render(){const a=window.__eqAudioSettings;tts.checked=a?a.ttsEnabled:state.tts;audio.checked=a?a.audioEnabled:state.audio;if(masterVolumeSlider){const n=Math.max(0,Math.min(1,Number(state.masterVolume??1)));masterVolumeSlider.value=String(Math.round(n*100));if(masterVolumeValue)masterVolumeValue.textContent=Math.round(n*100)+'%'}taup.value=(window.__eqTaupSettings&&window.__eqTaupSettings.mode)||state.taup;intensityScale.value=state.intensityScale||'source';if(mapSea)mapSea.value=state.mapSea||'dark';if(japanStations)japanStations.value=state.japanStations||'nied';if(motionDetection)motionDetection.checked=state.niedMotionEnabled!==false;if(showTremMetrics)showTremMetrics.checked=state.showTremMetrics!==false;if(showPalertMetrics)showPalertMetrics.checked=state.showPalertMetrics!==false;if(showNiedMetrics)showNiedMetrics.checked=state.showNiedMetrics!==false;if(niedMetric)niedMetric.value=state.niedMetric||'intensity';if(colombiaGoalRain)colombiaGoalRain.checked=state.colombiaGoalRain!==false;if(colombiaMatchAlerts)colombiaMatchAlerts.checked=state.colombiaMatchAlerts!==false;if(showFaults)showFaults.checked=state.showFaults===true;if(browserNotify)browserNotify.checked=state.browserNotify===true;if(minTickerMag)minTickerMag.value=String(state.minTickerMag!=null?state.minTickerMag:0);if(listMinMag)listMinMag.value=String(state.listMinMag!=null?state.listMinMag:0);if(listRegion)listRegion.value=String(state.listRegion||'ALL');if(listFeltOnly)listFeltOnly.checked=state.listFeltOnly===true;if(listFocusZoom){const n=Math.max(3,Math.min(8,Number(state.listFocusZoom)||5));listFocusZoom.value=String(n);if(listFocusZoomValue)listFocusZoomValue.textContent=String(n);window.__eqListFocusZoom=n}uiSounds.innerHTML=uiSoundNames.map(x=>'<button class="eqs-control" type="button" data-ui-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');srevSounds.innerHTML=srevSoundNames.map(x=>'<button class="eqs-control" type="button" data-srev-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');list.innerHTML=agencies.map(x=>'<label class="eqs-agency"><input type="checkbox" data-agency="'+x+'" '+(!(state.disabled&&state.disabled[x])?'checked':'')+'> '+x+'</label>').join('')}
 function applyMetricsPanelsVisibility(st){
   const s=st||state||{};
   document.body.classList.toggle('hide-trem-metrics',s.showTremMetrics===false);
@@ -29144,7 +29449,7 @@ setTimeout(()=>{try{window.__eqApplyFaults?.(!!window.__eqShowFaults);}catch(_){
     'tsunamiPanel','gdacsPanel','usAlertsPanel','hurricanePanel','typhoonPanel',
     'jmaVolcanoPanel','nhkGPanel','jmaEewPanel','taiwanDetectorPanel',
     'ynEarlyAlert','jmaWeatherAlertPanel','kmoniPanel',
-    'solarCivilAlertPanel','siatAlertSection','mainLayout'
+    'solarCivilAlertPanel','siatAlertSection','bogMovSection','colVolcSection','mainLayout'
   ];
   const FOCUS_TRACK_IDS = [...new Set([...PANEL_IDS,'weatherPanel','alertCenterPanel'])];
   const ACTIVE_CLASSES = {
@@ -29153,7 +29458,7 @@ setTimeout(()=>{try{window.__eqApplyFaults?.(!!window.__eqShowFaults);}catch(_){
     typhoonPanel:['typhoon-active'], jmaVolcanoPanel:['jma-volcano-active'],
     nhkGPanel:['nhk-active'], jmaEewPanel:['active'], ingvEewPanel:['active'], taiwanDetectorPanel:['active','taiwan-focus-panel'],
     ynEarlyAlert:['active'], jmaWeatherAlertPanel:[], kmoniPanel:['kmoni-active'],
-    mainLayout:['wave-focus'], solarCivilAlertPanel:['active'], siatAlertSection:['active'],
+    mainLayout:['wave-focus'], solarCivilAlertPanel:['active'], siatAlertSection:['active'], bogMovSection:['active'], colVolcSection:['active'],
     weatherPanel:['active'], alertCenterPanel:['alert-center-active']
   };
   const focusPanelStates=new Map();
@@ -29179,6 +29484,8 @@ setTimeout(()=>{try{window.__eqApplyFaults?.(!!window.__eqShowFaults);}catch(_){
       if(id==='jmaWeatherAlertPanel' && typeof jmaWeatherDeactivate==='function'){ jmaWeatherDeactivate(); return; }
       if(id==='kmoniPanel' && typeof removeKmoniLiveOverlay==='function'){ removeKmoniLiveOverlay(); }
       if(id==='siatAlertSection' && typeof window.__siatCloseApartment==='function'){ window.__siatCloseApartment(); return; }
+      if(id==='bogMovSection' && typeof window.__bogMovClose==='function'){ window.__bogMovClose({restore:false}); return; }
+      if(id==='colVolcSection' && typeof window.__colVolcClose==='function'){ window.__colVolcClose({restore:false}); return; }
     } catch(_) {}
     (ACTIVE_CLASSES[id]||[]).forEach(c=>el.classList.remove(c));
     if(id==='jmaWeatherAlertPanel') el.style.display='none';
@@ -32781,6 +33088,519 @@ For more information on this, and how to apply and follow the GNU AGPL, see
 })();
 </script>
 
+<div id="invOverlay" role="dialog" aria-modal="true" aria-label="INVÍAS · Estado de las vías">
+  <div class="bogmov-whead"><span>🛣️ INVÍAS · Vías nacionales</span><span><button id="invTabSiv" type="button">Estado (SIV)</button> <button id="invTabCierres" type="button">Cierres</button> <a id="invExternal" href="https://hermes2.invias.gov.co/SIV/" target="_blank" rel="noopener noreferrer">Abrir ↗</a> <button id="invClose" type="button">Cerrar</button></span></div>
+  <iframe id="invFrame" title="INVÍAS" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" src="about:blank"></iframe>
+  <div class="bogmov-foot">Visor oficial de INVÍAS incrustado. Si no carga dentro del HTML, usa «Abrir ↗». Línea 24 h: 601 427 9500.</div>
+</div>
+<div id="bogWazeOverlay" role="dialog" aria-modal="true" aria-label="Tráfico en vivo Waze Bogotá">
+  <div class="bogmov-whead"><span>🚗 Tráfico en vivo · Waze Bogotá</span><span><a href="https://www.waze.com/live-map/?zoom=12&lat=4.652&lon=-74.105" target="_blank" rel="noopener noreferrer">Abrir en Waze ↗</a> <button id="bogWazeClose" type="button">Cerrar</button></span></div>
+  <iframe id="bogWazeFrame" title="Waze Live Map Bogotá" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" src="about:blank"></iframe>
+</div>
+<script id="bogota-movilidad-module">
+(function(){'use strict';
+  /* Movilidad Bogotá — avisos en vivo de la Secretaría Distrital de Movilidad (reporte "En vivo" de bogota.gov.co).
+     Apartado propio: se abre solo ante un aviso nuevo, fija Bogotá y lista los avisos con íconos. */
+  if(typeof map==='undefined'||typeof L==='undefined')return;
+  const CFG={
+    // Opcional: URL de tu Cloudflare Worker (ver movilidad_worker.js). Si se deja vacío se usan proxies públicos.
+    worker:'',
+    pollMs:120000, openMs:45000, retryMs:3000, maxWaitMs:180000,
+    center:[4.652,-74.105], zoom:11.4, maxList:30, maxMarkers:40
+  };
+  const SEEN_KEY='earthquake.bogMov.seen.v1', GEO_KEY='earthquake.bogMov.geo.v1';
+  const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const TYPES={
+    accidente:{icon:'💥',label:'Accidente',color:'#ff4d4f'},
+    manifestacion:{icon:'📢',label:'Manifestación',color:'#ff9f1a'},
+    cierre:{icon:'🚧',label:'Cierre / obra',color:'#ffd33d'},
+    transmilenio:{icon:'🚌',label:'TransMilenio',color:'#3ba4ff'},
+    clima:{icon:'⛈️',label:'Clima',color:'#9b87ff'},
+    trafico:{icon:'🚦',label:'Tráfico',color:'#ffb020'},
+    aviso:{icon:'ℹ️',label:'Aviso',color:'#9aa7b5'}
+  };
+  const LOCALIDADES={
+    'usaquén':[4.7105,-74.0300],'usaquen':[4.7105,-74.0300],'chapinero':[4.6486,-74.0630],'santa fe':[4.6066,-74.0650],
+    'san cristóbal':[4.5560,-74.0820],'san cristobal':[4.5560,-74.0820],'usme':[4.4750,-74.1230],'tunjuelito':[4.5760,-74.1290],
+    'bosa':[4.6050,-74.1900],'kennedy':[4.6290,-74.1500],'fontibón':[4.6700,-74.1450],'fontibon':[4.6700,-74.1450],
+    'engativá':[4.7000,-74.1100],'engativa':[4.7000,-74.1100],'suba':[4.7400,-74.0900],'barrios unidos':[4.6700,-74.0750],
+    'teusaquillo':[4.6410,-74.0900],'los mártires':[4.6050,-74.0870],'los martires':[4.6050,-74.0870],
+    'antonio nariño':[4.5900,-74.1000],'antonio narino':[4.5900,-74.1000],'puente aranda':[4.6150,-74.1100],
+    'la candelaria':[4.5960,-74.0730],'rafael uribe uribe':[4.5600,-74.1100],'ciudad bolívar':[4.5400,-74.1600],
+    'ciudad bolivar':[4.5400,-74.1600],'sumapaz':[4.2900,-74.2500]
+  };
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function lsGet(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(_){return d;}}
+  function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(_){}}
+
+  /* ---------- Parser del reporte ---------- */
+  function decodeEntities(s){
+    return String(s).replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#0?39;|&apos;/g,"'")
+      .replace(/&#(\d+);/g,(m,n)=>String.fromCodePoint(+n)).replace(/&#x([0-9a-f]+);/gi,(m,h)=>String.fromCodePoint(parseInt(h,16)))
+      .replace(/&aacute;/g,'á').replace(/&eacute;/g,'é').replace(/&iacute;/g,'í').replace(/&oacute;/g,'ó').replace(/&uacute;/g,'ú').replace(/&ntilde;/g,'ñ').replace(/&Aacute;/g,'Á').replace(/&Eacute;/g,'É').replace(/&Iacute;/g,'Í').replace(/&Oacute;/g,'Ó').replace(/&Uacute;/g,'Ú').replace(/&Ntilde;/g,'Ñ');
+  }
+  /* HTML -> tokens {h:boolean,t:string}. Los encabezados h1–h4 se marcan. */
+  function htmlToTokens(html){
+    let s=String(html||'');
+    s=s.replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<!--[\s\S]*?-->/g,' ');
+    const m=s.match(/<h1[\s\S]*?<\/h1>([\s\S]*)$/i); if(m)s=m[1];
+    const rel=s.search(/Temas relacionados|Contenidos Relacionados/i); if(rel>0)s=s.slice(0,rel);
+    s=s.replace(/<h([1-4])[^>]*>/gi,'\n\u0001').replace(/<\/h[1-4]>/gi,'\n')
+       .replace(/<\/?(?:p|div|li|ul|ol|br|tr|table|section|article|strong|b)\b[^>]*>/gi,m=>/^<\/?(?:strong|b)\b/i.test(m)?' ':'\n')
+       .replace(/<[^>]+>/g,' ');
+    return decodeEntities(s).split('\n').map(x=>x.replace(/[ \t ]+/g,' ').trim()).filter(Boolean).map(x=>x[0]==='\u0001'?{h:true,t:x.slice(1).trim()}:{h:false,t:x}).filter(x=>x.t);
+  }
+  const TIME_RE=/(\d{1,2})\s*[:.]\s*(\d{2})\s*([ap])\.?\s*m\b\.?/i;
+  function minutesOf(m){let h=+m[1]%12;if(/p/i.test(m[3]))h+=12;return h*60+(+m[2]);}
+  function fmtMin(n){return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');}
+  function parseEntries(html,dayKey){
+    const toks=htmlToTokens(html), blocks=[]; let cur=null;
+    const flush=()=>{if(cur&&cur.time!=null&&cur.text.length)blocks.push(cur);cur=null;};
+    for(const tk of toks){
+      const isCorte=/\bcorte\b/i.test(tk.t)&&TIME_RE.test(tk.t);
+      if(tk.h){
+        if(isCorte){flush();const m=tk.t.match(TIME_RE);cur={time:minutesOf(m),title:'',text:[]};continue;}
+        const prevHadText=cur&&cur.text.length;
+        if(cur&&!cur.text.length&&cur.time==null){cur.title=cur.title?cur.title+' · '+tk.t:tk.t;continue;}
+        flush();cur={time:null,title:tk.t,text:[]};continue;
+      }
+      if(isCorte){
+        const m=tk.t.match(TIME_RE);
+        const rest=tk.t.slice(m.index+m[0].length).replace(/^[\s:.\-–—]+/,'').trim();
+        if(cur&&cur.time==null&&!cur.text.length){cur.time=minutesOf(m);}
+        else{const title=cur&&cur.time==null&&cur.title?cur.title:'';if(!(cur&&cur.time==null))flush();cur={time:minutesOf(m),title,text:[]};}
+        if(rest)cur.text.push(rest);
+        continue;
+      }
+      if(!cur)continue;
+      cur.text.push(tk.t);
+    }
+    flush();
+    return blocks.map(b=>{
+      const text=b.text.join(' ');
+      const clean=text.replace(/\s+/g,' ').replace(/^(?:📍|⚠️)\s*/,'').trim();
+      const type=classify((b.title?b.title+'. ':'')+clean);
+      return {id:dayKey+'|'+b.time+'|'+hash(clean.slice(0,90)),day:dayKey,min:b.time,time:fmtMin(b.time),text:clean,title:b.title||'',type:type,resolved:isResolved(clean),loc:extractLoc(clean)};
+    });
+  }
+  function hash(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36);}
+  function classify(t){
+    const s=t.toLowerCase();
+    if(/manifest(?:aci|ante)|protesta|plant[oó]n|marcha\b|marchas|bloqueo|disturbio|asonada/.test(s))return 'manifestacion';
+    if(/choque|colisi[oó]n|accidente|volcamiento|atropell|siniestro|incendio/.test(s))return 'accidente';
+    if(/transmicable|transmilenio|troncal|alimentador|transmizonal/.test(s)&&/suspend|evacu|falla|cierr|cerrad|operaci|desv[ií]o/.test(s))return 'transmilenio';
+    if(/tormenta|lluvia|granizo|inundaci|encharcamiento|vendaval/.test(s))return 'clima';
+    if(/cierre|cerrad|obra|trabajos|intervenci[oó]n|desv[ií]o/.test(s))return 'cierre';
+    if(/tr[aá]fico|trancón|trancon|congesti|afectaci|lentitud|carril/.test(s))return 'trafico';
+    if(/transmi|transmilenio|ruta/.test(s))return 'transmilenio';
+    return 'aviso';
+  }
+  function isResolved(t){
+    const first=t.split(/(?<=[.!?])\s/)[0]||t;
+    return /finaliz|termin[oó]|se dispers|dispers[oó]|reanud|nuevamente operaci|inicia nuevamente|despej|normalidad|se retir|restablec|ya no se present|sin afectaci/i.test(first);
+  }
+  const STREET_START='(?:avenida|autopista|calle|carrera|diagonal|transversal|av\\.|kr|cl)';
+  function extractLoc(t){
+    const out={q:[],localidad:''};
+    const mLoc=t.match(/\(([^()]{3,30})\)\s*(?:[.,;]|$|\s)/g);
+    const all=[...t.matchAll(/\(([^()]{3,30})\)/g)].map(m=>m[1].trim().toLowerCase());
+    for(const a of all){if(LOCALIDADES[a]){out.localidad=a;break;}}
+    if(!out.localidad){const low=t.toLowerCase();for(const k of Object.keys(LOCALIDADES)){if(new RegExp('\\b'+k+'\\b').test(low)){out.localidad=k;break;}}}
+    const re=new RegExp('('+STREET_START+'\\s+[^,.;()\\n]{1,40}?)\\s+con\\s+('+STREET_START+'\\s+[^,.;()\\n]{1,30}?)(?=\\s*(?:\\(|,|\\.|;|\\sy\\s|\\ssentido|\\sen\\s|\\spor\\s|\\shacia|\\sde\\s(?:norte|sur|oriente|occidente)|$))','i');
+    const m=t.match(re);
+    const m2=!m&&t.match(new RegExp('\\b([A-ZÁÉÍÓÚÑ][\\wáéíóúñ]+(?:\\s+[A-ZÁÉÍÓÚÑ][\\wáéíóúñ]+)?)\\s+con\\s+('+STREET_START+'\\s+\\d+[a-zA-Z]?(?:\\s*(?:sur|bis))?)'));
+    if(m){out.q.push(m[1].trim(),m[2].trim());out.pair=true;}
+    else if(m2&&!/^(?:La|El|Los|Las|En|Por|Con)$/.test(m2[1])){out.q.push(m2[1].trim(),m2[2].trim());out.pair=true;}
+    else{
+      const one=t.match(new RegExp(STREET_START+'\\s+(?:\\d+[a-z]?(?:\\s*(?:sur|bis))?|[A-ZÁÉÍÓÚÑ][\\wáéíóúñ]+(?:\\s+(?:de|del|la)\\s+[A-ZÁÉÍÓÚÑ][\\wáéíóúñ]+)?)','i'));
+      if(one)out.q.push(one[0].trim());
+    }
+    return out;
+  }
+
+  /* ---------- Descarga ---------- */
+  function bogotaToday(){
+    const p=new Intl.DateTimeFormat('es-CO',{timeZone:'America/Bogota',year:'numeric',month:'numeric',day:'numeric'}).formatToParts(new Date());
+    const g=t=>+p.find(x=>x.type===t).value;return {d:g('day'),m:g('month'),y:g('year')};
+  }
+  function articleUrl(dt){return 'https://bogota.gov.co/mi-ciudad/movilidad/en-vivo-movilidad-bogota-y-transmilenio-para-hoy-'+dt.d+'-de-'+MESES[dt.m-1]+'-'+dt.y;}
+  async function fetchWithTimeout(url,ms){
+    const ctl=typeof AbortController!=='undefined'?new AbortController():null;
+    const timer=ctl?setTimeout(()=>ctl.abort(),ms||12000):null;
+    try{const r=await fetch(url,{cache:'no-store',signal:ctl?ctl.signal:undefined});if(!r.ok)throw new Error('HTTP '+r.status);return await r.text();}
+    finally{if(timer)clearTimeout(timer);}
+  }
+  async function fetchArticle(url){
+    const enc=encodeURIComponent(url);
+    const tries=[];
+    if(CFG.worker)tries.push(CFG.worker.replace(/\/$/,'')+'/movilidad?url='+enc);
+    tries.push(url,'https://corsproxy.io/?url='+enc,'https://api.allorigins.win/raw?url='+enc);
+    let lastErr=null;
+    for(const u of tries){
+      try{const t=await fetchWithTimeout(u,12000);if(t&&t.length>1500&&/corte/i.test(t))return t;lastErr=new Error('respuesta sin reporte');}
+      catch(e){lastErr=e;}
+    }
+    throw lastErr||new Error('sin respuesta');
+  }
+
+  /* ---------- Geocodificación (Nominatim + localidad) ---------- */
+  const geo=lsGet(GEO_KEY,{}); let geoChain=Promise.resolve();
+  function dist(a,b){const dx=(a[0]-b[0])*111,dy=(a[1]-b[1])*111*Math.cos(a[0]*Math.PI/180);return Math.hypot(dx,dy);}
+  function nominatim(q){
+    const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=co&viewbox=-74.25,4.84,-73.99,4.45&bounded=1&q='+encodeURIComponent(q+', Bogotá');
+    return fetchWithTimeout(url,10000).then(t=>{const j=JSON.parse(t);return j&&j[0]?[+j[0].lat,+j[0].lon]:null;}).catch(()=>null);
+  }
+  function geocode(loc){
+    const key=(loc.q.join('|')+'@'+loc.localidad).toLowerCase();
+    if(geo[key])return Promise.resolve(geo[key]);
+    geoChain=geoChain.then(async()=>{
+      if(geo[key])return;
+      const lc=loc.localidad?LOCALIDADES[loc.localidad]:null;
+      let best=null,prec='ciudad';
+      for(const q of loc.q.slice(0,2)){
+        const p=await nominatim(q);
+        await new Promise(r=>setTimeout(r,1100));
+        if(!p)continue;
+        if(lc&&dist(p,lc)>7)continue;
+        best=p;prec='calle';break;
+      }
+      if(!best&&lc){best=lc.slice();prec='localidad';}
+      if(!best){best=CFG.center.slice();prec='ciudad';}
+      geo[key]={lat:best[0],lon:best[1],prec};
+      lsSet(GEO_KEY,geo);
+    });
+    return geoChain.then(()=>geo[key]);
+  }
+
+  /* ---------- Estado y UI ---------- */
+  const section=document.getElementById('bogMovSection');
+  if(!section)return;
+  const el=id=>document.getElementById(id);
+  let entries=[],layer=null,markers=new Map(),loaded=false,busy=false,openTimer=null,pending=null,retryTimer=null;
+  let prevView=null,manualRev=0,revAtOpen=0,progUntil=0,userPinned=false,newIds=new Set(),lastUpdate=0,lastError='';
+  map.on('movestart zoomstart',()=>{if(Date.now()>progUntil)manualRev++;});
+  let seen=new Set(lsGet(SEEN_KEY,[]));
+  function saveSeen(){lsSet(SEEN_KEY,[...seen].slice(-300));}
+  function otherApartmentOpen(){
+    try{return !!document.querySelector('#tsunamiPanel.tsunami-active,#gdacsPanel.gdacs-active,#usAlertsPanel.us-alerts-active,#hurricanePanel.hurricane-active,#typhoonPanel.typhoon-active,#jmaVolcanoPanel.jma-volcano-active,#nhkGPanel.nhk-active,#jmaEewPanel.active,#taiwanDetectorPanel.active,#ynEarlyAlert.active,#kmoniPanel.kmoni-active,#solarCivilAlertPanel.active,#siatAlertSection.active,#weatherPanel.active,#alertCenterPanel.alert-center-active,#mainLayout.wave-focus,#mainLayout.japan-focus');}catch(_){return false;}
+  }
+  function iconFor(e){
+    const t=TYPES[e.type]||TYPES.aviso;
+    return L.divIcon({className:'bogmov-pin',html:'<div class="bogmov-pin-i'+(e.resolved?' done':'')+(newIds.has(e.id)?' new':'')+'" style="--c:'+t.color+'">'+t.icon+'</div>',iconSize:[34,34],iconAnchor:[17,17],popupAnchor:[0,-16]});
+  }
+  function popupHtml(e){
+    const t=TYPES[e.type]||TYPES.aviso;
+    return '<b>'+t.icon+' '+esc(t.label)+(e.resolved?' · ✅ finalizado':'')+'</b><br><span style="opacity:.75">Corte '+esc(e.time)+'</span><br>'+esc(e.text)+(e.prec&&e.prec!=='calle'?'<br><i style="opacity:.7">Ubicación aproximada ('+esc(e.prec)+')</i>':'');
+  }
+  async function placeMarkers(){
+    const list=entries.slice(0,CFG.maxMarkers);
+    for(const e of list){
+      if(e.lat!=null)continue;
+      if(!e.loc||(!e.loc.q.length&&!e.loc.localidad))continue;
+      try{const g=await geocode(e.loc);if(g){e.lat=g.lat;e.lon=g.lon;e.prec=g.prec;}}catch(_){}
+      renderMarkers();renderList();
+    }
+  }
+  function jitter(e,i){const a=(i*137.5)*Math.PI/180,r=e.prec==='calle'?0.0004:0.0025;return [e.lat+Math.sin(a)*r*((i%3)+1)/2,e.lon+Math.cos(a)*r*((i%3)+1)/2];}
+  function renderMarkers(){
+    if(!layer)layer=L.layerGroup();
+    layer.clearLayers();markers.clear();
+    let i=0;
+    for(const e of entries.slice(0,CFG.maxMarkers)){
+      if(e.lat==null)continue;
+      const dup=entries.slice(0,CFG.maxMarkers).filter(o=>o.lat!=null&&o.lat===e.lat&&o.lon===e.lon);
+      const idx=dup.indexOf(e);
+      const pos=idx>0?jitter(e,idx):[e.lat,e.lon];
+      const m=L.marker(pos,{icon:iconFor(e),title:e.time+' '+(TYPES[e.type]||TYPES.aviso).label,zIndexOffset:e.resolved?0:500}).bindPopup(popupHtml(e),{maxWidth:280});
+      m.addTo(layer);markers.set(e.id,m);i++;
+    }
+    syncLayer();
+  }
+  function syncLayer(){
+    if(!layer)return;
+    const show=section.classList.contains('active');
+    try{if(show){if(!map.hasLayer(layer))layer.addTo(map);}else if(map.hasLayer(layer))map.removeLayer(layer);}catch(_){}
+  }
+  function renderList(){
+    const body=el('bogMovList');if(!body)return;
+    const active=entries.filter(e=>!e.resolved).length;
+    const cnt=el('bogMovCount');if(cnt)cnt.textContent=entries.length?(active+' activos · '+entries.length+' avisos'):'';
+    const sub=el('bogMovSub');
+    if(sub){
+      const hh=lastUpdate?new Date(lastUpdate).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false,timeZone:'America/Bogota'}):'';
+      sub.textContent=lastError&&!entries.length?'No se pudo leer el reporte ('+lastError+').':'Fuente: Secretaría de Movilidad (bogota.gov.co)'+(hh?' · actualizado '+hh:'');
+    }
+    if(!entries.length){body.innerHTML='<div class="bogmov-empty">'+(lastError?'Sin datos por ahora.':'Aún no hay avisos publicados hoy.')+'</div>';return;}
+    body.innerHTML=entries.slice(0,CFG.maxList).map(e=>{
+      const t=TYPES[e.type]||TYPES.aviso;
+      return '<div class="bogmov-row'+(e.resolved?' done':'')+(newIds.has(e.id)?' new':'')+'" data-id="'+esc(e.id)+'" style="--c:'+t.color+'"><div class="bogmov-ico">'+t.icon+'</div><div class="bogmov-txt"><div class="bogmov-meta"><b>'+esc(e.time)+'</b> · '+esc(t.label)+(e.resolved?' · ✅':'')+(newIds.has(e.id)?' <span class="bogmov-new">NUEVO</span>':'')+(e.lat!=null?' · 📍'+(e.prec==='calle'?'':' aprox.'):'')+'</div><div class="bogmov-msg">'+esc(e.text)+'</div></div></div>';
+    }).join('');
+  }
+  function cancelAutoClose(){if(openTimer){clearTimeout(openTimer);openTimer=null;}const bar=section.querySelector('.bogmov-timer i');if(bar)bar.style.animation='none';userPinned=true;}
+  function setView(center,zoom){
+    progUntil=Date.now()+2500;
+    try{if(typeof setProgrammaticMapView==='function')setProgrammaticMapView(center,zoom,{force:true,animate:true,duration:1});else map.setView(center,zoom);}catch(_){try{map.setView(center,zoom);}catch(__){}}
+  }
+  function openSection(opts){
+    const manual=!!(opts&&opts.manual);
+    prevView={center:map.getCenter(),zoom:map.getZoom()};revAtOpen=manualRev;userPinned=false;
+    document.getElementById('mainLayout')?.classList.add('bog-focus');
+    section.classList.add('active');section.setAttribute('aria-hidden','false');
+    renderList();renderMarkers();
+    try{map.invalidateSize({pan:false});}catch(_){}
+    setView(CFG.center,CFG.zoom);
+    const bar=section.querySelector('.bogmov-timer i');
+    if(openTimer){clearTimeout(openTimer);openTimer=null;}
+    if(!manual){
+      try{if(bar){bar.style.animation='none';void bar.offsetWidth;bar.style.animation='bogmovCountdown '+(CFG.openMs/1000)+'s linear forwards';}}catch(_){}
+      openTimer=setTimeout(()=>closeSection(),CFG.openMs);
+    }else if(bar)bar.style.animation='none';
+  }
+  function closeSection(opts){
+    const restore=!(opts&&opts.restore===false);
+    if(openTimer){clearTimeout(openTimer);openTimer=null;}
+    const was=section.classList.contains('active');
+    section.classList.remove('active');section.setAttribute('aria-hidden','true');
+    document.getElementById('mainLayout')?.classList.remove('bog-focus');
+    try{map.closePopup();}catch(_){}
+    syncLayer();newIds=new Set();
+    if(was){try{map.invalidateSize({pan:false});}catch(_){}}
+    const v=prevView;prevView=null;
+    if(restore&&was&&v&&manualRev===revAtOpen){progUntil=Date.now()+2500;setTimeout(()=>{try{if(typeof setProgrammaticMapView==='function')setProgrammaticMapView(v.center,v.zoom,{force:true,animate:true,duration:.9});else map.setView(v.center,v.zoom);}catch(_){}},150);}
+  }
+  function tryOpen(){
+    clearTimeout(retryTimer);retryTimer=null;
+    if(!pending)return;
+    if(Date.now()-pending.since>CFG.maxWaitMs){pending=null;return;}
+    if(section.classList.contains('active')){pending=null;renderList();renderMarkers();if(!userPinned&&openTimer){clearTimeout(openTimer);openTimer=setTimeout(()=>closeSection(),CFG.openMs);}return;}
+    if(otherApartmentOpen()){retryTimer=setTimeout(tryOpen,CFG.retryMs);return;}
+    pending=null;openSection();
+  }
+  window.__bogMovClose=closeSection;
+  window.__bogMov={parseEntries,classify,extractLoc,isResolved,htmlToTokens,articleUrl,bogotaToday,state:()=>({entries,seen:[...seen]}),ingest:ingest,CFG,openSection,closeSection};
+
+  async function ingest(html,dayKey){
+    const parsed=parseEntries(html,dayKey);
+    parsed.sort((a,b)=>b.min-a.min);
+    const prev=new Map(entries.map(e=>[e.id,e]));
+    parsed.forEach(e=>{const o=prev.get(e.id);if(o&&o.lat!=null){e.lat=o.lat;e.lon=o.lon;e.prec=o.prec;}});
+    const fresh=parsed.filter(e=>!seen.has(e.id));
+    entries=parsed;
+    const firstRun=!loaded&&seen.size===0;
+    parsed.forEach(e=>seen.add(e.id));saveSeen();
+    loaded=true;lastUpdate=Date.now();lastError='';
+    const reallyNew=firstRun?[]:fresh.filter(e=>!e.resolved||true);
+    if(reallyNew.length){newIds=new Set(reallyNew.map(e=>e.id));}
+    renderList();
+    await Promise.resolve();
+    if(reallyNew.length){pending={since:Date.now()};tryOpen();}
+    placeMarkers();
+    return {parsed:parsed.length,fresh:reallyNew.length};
+  }
+  async function refresh(manual){
+    if(busy||(document.hidden&&!manual))return;busy=true;
+    try{
+      const dt=bogotaToday(),url=articleUrl(dt),key=dt.y+'-'+dt.m+'-'+dt.d;
+      const html=await fetchArticle(url);
+      await ingest(html,key);
+    }catch(e){lastError=(e&&e.message)||'error';renderList();}
+    finally{busy=false;}
+  }
+  window.__bogMov.refresh=refresh;
+  section.addEventListener('click',e=>{
+    const row=e.target.closest&&e.target.closest('.bogmov-row');
+    if(e.target.closest&&e.target.closest('#bogMovClose')){closeSection();return;}
+    if(e.target.closest&&e.target.closest('#bogMovWaze')){const o=el('bogWazeOverlay');if(o){cancelAutoClose();o.classList.add('active');const f=el('bogWazeFrame');if(f&&(!f.src||f.src==='about:blank'))f.src='https://embed.waze.com/iframe?zoom=12&lat=4.652&lon=-74.105&ct=livemap';}return;}
+    if(e.target.closest&&e.target.closest('#bogMovInvias')){cancelAutoClose();openInvias('siv');return;}
+    if(e.target.closest&&e.target.closest('#bogMovRefresh')){cancelAutoClose();refresh(true);return;}
+    cancelAutoClose();
+    if(row){const id=row.getAttribute('data-id'),m=markers.get(id),en=entries.find(x=>x.id===id);if(m&&en){progUntil=Date.now()+2500;try{map.setView(m.getLatLng(),Math.max(map.getZoom(),13));}catch(_){}m.openPopup();}}
+  });
+  const INV={siv:'https://hermes2.invias.gov.co/SIV/',cierres:'https://hermes2.invias.gov.co/767/Consulta/'};
+  function openInvias(tab){const o=el('invOverlay'),f=el('invFrame'),a=el('invExternal');if(!o||!f)return;el('eqSettingsModal')?.classList.remove('active');o.classList.add('active');const u=INV[tab]||INV.siv;if(f.getAttribute('data-tab')!==tab){f.src=u;f.setAttribute('data-tab',tab);}if(a)a.href=u;}
+  el('invTabSiv')?.addEventListener('click',()=>openInvias('siv'));
+  el('invTabCierres')?.addEventListener('click',()=>openInvias('cierres'));
+  el('invClose')?.addEventListener('click',()=>el('invOverlay')?.classList.remove('active'));
+  el('eqsOpenInvias')?.addEventListener('click',()=>openInvias('siv'));
+  el('bogMovWaze')&&0;
+  el('bogWazeClose')?.addEventListener('click',()=>el('bogWazeOverlay')?.classList.remove('active'));
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(el('invOverlay')?.classList.contains('active')){el('invOverlay').classList.remove('active');return;}if(el('bogWazeOverlay')?.classList.contains('active'))el('bogWazeOverlay').classList.remove('active');else if(section.classList.contains('active'))closeSection();}});
+  const btn=el('eqsOpenBogMov');
+  btn&&btn.addEventListener('click',()=>{
+    el('eqSettingsModal')?.classList.remove('active');
+    if(section.classList.contains('active')){closeSection();return;}
+    openSection({manual:true});refresh(true);
+  });
+  setTimeout(refresh,3500);
+  setInterval(refresh,CFG.pollMs);
+})();
+</script>
+
+<style id="ui-monitor-skin">
+/* Capa visual unificada (solo color/sombras; no toca layout) */
+.left-panel{background:linear-gradient(180deg,#0b1118,#070b10)!important;border-right:1px solid #1b2a38!important}
+.event-item{background:linear-gradient(135deg,#0f1722,#0a1018)!important;border-color:#1c2b3a!important;border-radius:10px!important;box-shadow:0 2px 10px rgba(0,0,0,.35)!important}
+.event-item:hover{background:#142030!important;border-color:#2f5878!important}
+.event-item.active{background:linear-gradient(135deg,#12304a,#0d1c2b)!important;border-color:#37b6ff!important;box-shadow:0 0 0 1px rgba(55,182,255,.28),0 0 14px rgba(55,182,255,.12)!important}
+#mapActionToolbar{background:rgba(8,14,21,.88)!important;border:1px solid #1f3346!important;border-radius:12px!important;box-shadow:0 6px 18px rgba(0,0,0,.5)!important;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+#mapActionToolbar button{background:#0e1a27!important;color:#d6e6f5!important;border:1px solid #243a50!important}
+#mapActionToolbar button:hover,#mapActionToolbar button:active{background:#173049!important;border-color:#37b6ff!important}
+.leaflet-control-zoom a,.leaflet-bar a{background:#0e1a27!important;color:#d6e6f5!important;border-color:#243a50!important}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#0e1a27!important;color:#e4eef8!important;border:1px solid #243a50}
+.leaflet-popup-content a{color:#8fe6ff}
+</style>
+<script id="share-quake-module">
+(function(){'use strict';
+  /* Compartir sismo: genera una imagen (canvas) con la tarjeta del sismo seleccionado y la comparte o la descarga. */
+  const BTN_ID='btnShareQuake';
+  const $=id=>document.getElementById(id);
+  const txt=id=>String($(id)?.textContent||'').replace(/\s+/g,' ').trim();
+  function ensureButton(){
+    if($(BTN_ID))return;
+    const anchor=$('tsunamiStatus');if(!anchor)return;
+    const b=document.createElement('button');
+    b.id=BTN_ID;b.type='button';b.textContent='📤 Compartir imagen';
+    b.style.cssText='margin-top:8px;width:100%;padding:9px 12px;border-radius:10px;border:1px solid rgba(98,217,255,.35);background:linear-gradient(180deg,rgba(22,60,92,.9),rgba(12,30,52,.95));color:#eaf7ff;font:700 13px system-ui;cursor:pointer;';
+    b.addEventListener('click',share);
+    anchor.insertAdjacentElement('afterend',b);
+  }
+  function wrap(ctx,text,x,y,maxW,lh,maxLines){
+    const words=String(text).split(/\s+/),lines=[];let line='';
+    for(const w of words){const t=line?line+' '+w:w;if(ctx.measureText(t).width>maxW&&line){lines.push(line);line=w;}else line=t;}
+    if(line)lines.push(line);
+    lines.slice(0,maxLines).forEach((l,i)=>ctx.fillText(i===maxLines-1&&lines.length>maxLines?l.replace(/.{0,3}$/,'…'):l,x,y+i*lh));
+    return Math.min(lines.length,maxLines)*lh;
+  }
+  function currentEvent(){
+    try{if(typeof events!=='undefined'&&typeof selectedEventId!=='undefined')return events.find(e=>e&&e.id===selectedEventId)||null;}catch(_){}
+    return null;
+  }
+  function draw(){
+    const W=1080,H=1350,c=document.createElement('canvas');c.width=W;c.height=H;
+    const ctx=c.getContext('2d'),ev=currentEvent()||{};
+    const place=txt('bigLoc')||'Sismo',time=txt('bigTime'),mag=txt('bigMag'),depth=txt('bigDepth'),inti=txt('bigInt');
+    const agency=String(ev.agency||ev.source||'').trim();
+    let intColor='#2f81f7';try{const bg=getComputedStyle($('bigInt')).backgroundColor;if(bg&&bg!=='rgba(0, 0, 0, 0)')intColor=bg;}catch(_){}
+    const g=ctx.createLinearGradient(0,0,W,H);g.addColorStop(0,'#0b1626');g.addColorStop(1,'#050b14');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='rgba(98,217,255,.35)';ctx.lineWidth=3;ctx.strokeRect(24,24,W-48,H-48);
+    ctx.fillStyle='#62d9ff';ctx.font='700 34px system-ui,sans-serif';ctx.fillText('SISMOS LIVE · RED MULTI-AGENCIA',70,110);
+    ctx.fillStyle='rgba(255,255,255,.18)';ctx.fillRect(70,134,W-140,2);
+    // Intensidad
+    ctx.fillStyle=intColor;ctx.beginPath();ctx.roundRect?ctx.roundRect(70,190,230,230,36):ctx.rect(70,190,230,230);ctx.fill();
+    ctx.fillStyle='#ffffff';ctx.font='800 130px system-ui,sans-serif';ctx.textAlign='center';ctx.fillText(inti||'—',185,345);
+    ctx.font='600 26px system-ui,sans-serif';ctx.fillStyle='rgba(255,255,255,.85)';ctx.fillText('Intensidad',185,392);ctx.textAlign='left';
+    // Lugar
+    ctx.fillStyle='#f4f9ff';ctx.font='800 64px system-ui,sans-serif';
+    const used=wrap(ctx,place,340,255,W-410,76,3);
+    ctx.fillStyle='#9db2c8';ctx.font='600 34px system-ui,sans-serif';ctx.fillText(time,340,255+used+20);
+    // Magnitud / profundidad
+    ctx.fillStyle='#ffcf6b';ctx.font='800 210px system-ui,sans-serif';ctx.fillText(mag.replace(/^M\s*/,'M')||'M—',70,760);
+    ctx.fillStyle='#9db2c8';ctx.font='600 34px system-ui,sans-serif';ctx.fillText('Magnitud',74,810);
+    ctx.fillStyle='#f4f9ff';ctx.font='800 92px system-ui,sans-serif';ctx.fillText(depth||'— km',70,960);
+    ctx.fillStyle='#9db2c8';ctx.font='600 34px system-ui,sans-serif';ctx.fillText('Profundidad',74,1010);
+    const lat=Number(ev.lat),lon=Number(ev.lon);
+    if(Number.isFinite(lat)&&Number.isFinite(lon)){ctx.fillStyle='#c6d5e4';ctx.font='600 36px system-ui,sans-serif';ctx.fillText(lat.toFixed(2)+'°, '+lon.toFixed(2)+'°',70,1090);}
+    ctx.fillStyle='#8fe6ff';ctx.font='700 38px system-ui,sans-serif';ctx.fillText(agency?'Fuente: '+agency:'Fuente: agencias sísmicas',70,1160);
+    ctx.fillStyle='rgba(255,255,255,.18)';ctx.fillRect(70,1210,W-140,2);
+    ctx.fillStyle='#8296ab';ctx.font='500 28px system-ui,sans-serif';
+    ctx.fillText('Datos preliminares; pueden cambiar.',70,1262);
+    ctx.fillText('Generado '+new Date().toLocaleString('es-CO',{hour12:false}),70,1304);
+    return {canvas:c,place,mag,agency};
+  }
+  function toast(msg){try{if(typeof showRegionToast==='function')showRegionToast(msg);}catch(_){}}
+  async function share(){
+    try{
+      const {canvas,place,mag}=draw();
+      const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
+      if(!blob){toast('No se pudo crear la imagen');return;}
+      const file=new File([blob],'sismo-'+Date.now()+'.png',{type:'image/png'});
+      const text=(mag?mag+' · ':'')+place+' — SISMOS LIVE';
+      if(navigator.canShare&&navigator.canShare({files:[file]})){
+        try{await navigator.share({files:[file],title:'Sismo · SISMOS LIVE',text});return;}catch(e){if(e&&e.name==='AbortError')return;}
+      }
+      const url=URL.createObjectURL(blob),a=document.createElement('a');
+      a.href=url;a.download=file.name;document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),4000);
+      toast('Imagen descargada');
+    }catch(err){console.warn('[share-quake]',err);toast('No se pudo compartir');}
+  }
+  window.__shareQuakeImage=share;window.__shareQuakeDraw=draw;
+  ensureButton();
+  const host=document.getElementById('currentEvent');
+  if(host&&window.MutationObserver)new MutationObserver(()=>{if(!$(BTN_ID))ensureButton();}).observe(host,{childList:true,subtree:true});
+  setTimeout(ensureButton,1500);
+})();
+</script>
+<script id="col-volcanes-module">
+(function(){'use strict';
+  /* Volcanes de Colombia: apartado manual con los volcanes vigilados por el SGC y enlaces a sus boletines oficiales.
+     No inventa niveles de actividad: el estado vigente se consulta en el boletín del SGC. */
+  if(typeof map==='undefined'||typeof L==='undefined')return;
+  const section=document.getElementById('colVolcSection');if(!section)return;
+  const SGC='https://www2.sgc.gov.co/sgc/volcanes/Paginas/inicio.aspx';
+  const V=[
+    {n:'Nevado del Ruiz',lat:4.895,lon:-75.322,u:'https://www2.sgc.gov.co/sgc/volcanes/VolcanNevadoRuiz/Paginas/boletines-volcan-nevado-del-ruiz.aspx'},
+    {n:'Nevado de Santa Isabel',lat:4.82,lon:-75.37},
+    {n:'Nevado del Tolima',lat:4.66,lon:-75.33},
+    {n:'Cerro Machín',lat:4.488,lon:-75.368},
+    {n:'Cerro Bravo',lat:5.10,lon:-75.28},
+    {n:'Nevado del Huila',lat:2.93,lon:-76.03},
+    {n:'Puracé',lat:2.32,lon:-76.40},
+    {n:'Sotará',lat:2.11,lon:-76.59},
+    {n:'Doña Juana',lat:1.50,lon:-76.94},
+    {n:'Galeras',lat:1.22,lon:-77.36,u:'https://www2.sgc.gov.co/sgc/volcanes/VolcanGaleras/Paginas/Boletines-Volcan-Galeras.aspx'},
+    {n:'Azufral',lat:1.08,lon:-77.72},
+    {n:'Cumbal',lat:0.95,lon:-77.88},
+    {n:'Chiles · Cerro Negro',lat:0.82,lon:-77.94}
+  ];
+  const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let layer=null,prevView=null,markers=[];
+  function build(){
+    if(layer)return;
+    layer=L.layerGroup();
+    V.forEach((v,i)=>{
+      const icon=L.divIcon({className:'bogmov-pin',html:'<div class="bogmov-pin-i" style="--c:#ff7a3d">🌋</div>',iconSize:[34,34],iconAnchor:[17,17],popupAnchor:[0,-16]});
+      const link=v.u||SGC;
+      const m=L.marker([v.lat,v.lon],{icon,title:v.n}).bindPopup('<b>🌋 '+esc(v.n)+'</b><br>Vigilado por el SGC.<br><a href="'+esc(link)+'" target="_blank" rel="noopener noreferrer">Boletín oficial del SGC ↗</a>',{maxWidth:260});
+      m.addTo(layer);markers[i]=m;
+    });
+    const list=document.getElementById('colVolcList');
+    if(list)list.innerHTML=V.map((v,i)=>'<div class="bogmov-row" data-i="'+i+'" style="--c:#ff7a3d"><div class="bogmov-ico">🌋</div><div class="bogmov-txt"><div class="bogmov-meta"><b>'+esc(v.n)+'</b></div><div class="bogmov-msg"><a href="'+esc(v.u||SGC)+'" target="_blank" rel="noopener noreferrer" style="color:#8fe6ff">Boletín SGC ↗</a></div></div></div>').join('');
+  }
+  function setView(c,z){try{if(typeof setProgrammaticMapView==='function')setProgrammaticMapView(c,z,{force:true,animate:true,duration:1});else map.setView(c,z);}catch(_){try{map.setView(c,z);}catch(__){}}}
+  function open(){
+    build();
+    prevView={center:map.getCenter(),zoom:map.getZoom()};
+    document.getElementById('mainLayout')?.classList.add('bog-focus');
+    section.classList.add('active');section.setAttribute('aria-hidden','false');
+    try{layer.addTo(map);}catch(_){}
+    try{map.invalidateSize({pan:false});}catch(_){}
+    setView([2.9,-76.0],6.2);
+  }
+  function close(opts){
+    const restore=!(opts&&opts.restore===false),was=section.classList.contains('active');
+    section.classList.remove('active');section.setAttribute('aria-hidden','true');
+    document.getElementById('mainLayout')?.classList.remove('bog-focus');
+    try{map.closePopup();if(layer&&map.hasLayer(layer))map.removeLayer(layer);}catch(_){}
+    try{map.invalidateSize({pan:false});}catch(_){}
+    const v=prevView;prevView=null;
+    if(restore&&was&&v)setTimeout(()=>setView(v.center,v.zoom),150);
+  }
+  window.__colVolcClose=close;
+  section.addEventListener('click',e=>{
+    if(e.target.closest('#colVolcClose')){close();return;}
+    if(e.target.closest('a'))return;
+    const row=e.target.closest('.bogmov-row');
+    if(row){const i=+row.getAttribute('data-i'),v=V[i];if(v){try{map.setView([v.lat,v.lon],10);}catch(_){}markers[i]?.openPopup();}}
+  });
+  document.getElementById('eqsOpenColVolc')?.addEventListener('click',()=>{
+    document.getElementById('eqSettingsModal')?.classList.remove('active');
+    if(section.classList.contains('active'))close();else open();
+  });
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&section.classList.contains('active'))close();});
+})();
+</script>
+
 <script id="ingv-eew-card-style">
 (() => {
   'use strict';
@@ -32916,10 +33736,12 @@ For more information on this, and how to apply and follow the GNU AGPL, see
     const a = String(ag || '').trim();
     if (!a) return 'EEW';
     if (/\bjma\b|jma[-_ ]?eew/i.test(a)) return 'JMA EEW';
-    if (/cea\s*\(?\s*gz\s*\)?|gz[-_ ]?eew/i.test(a)) return 'CEA (GZ) EEW';
-    if (/cea\s*\(?\s*gs\s*\)?|gs[-_ ]?eew/i.test(a)) return 'CEA (GS) EEW';
-    if (/cenc/i.test(a) && /auto(?:matic)?/i.test(a)) return 'CENC (Auto)';
-    if (/cenc|nowquake|sichuan|fea|ceac|sea-?eew/i.test(a)) return 'CENC EEW';
+    if (/cea\s*\(?\s*gz\s*\)?|gz[-_ ]?eew/i.test(a)) return 'CEA(GZ) EEW';
+    if (/cea\s*\(?\s*gs\s*\)?|gs[-_ ]?eew/i.test(a)) return 'CEA(GS) EEW';
+    if (/sichuan|\bsc[-_ ]?eew|cea\s*\(?\s*sc\s*\)?/i.test(a)) return 'CEA(SC) EEW';
+    if (/chongqing|\bcq[-_ ]?eew|cea\s*\(?\s*cq\s*\)?/i.test(a)) return 'CEA(CQ) EEW';
+    if (/fujian|fea|\bfj[-_ ]?eew/i.test(a)) return 'FEA(FJ) EEW';
+    if (/cenc|nowquake|ceac|sea-?eew/i.test(a)) return 'CENC EEW';
     if (/cwa|exptech|taiwan/i.test(a)) return 'CWA EEW';
     if (/kma|korea|fan/i.test(a)) return 'KMA EEW';
     if (/shakealert/i.test(a)) return 'ShakeAlert';
@@ -32929,6 +33751,75 @@ For more information on this, and how to apply and follow the GNU AGPL, see
     return a + ' EEW';
   }
 
+  // ---- Datos de la tarjeta estilo EQuake
+  const ROMAN=['0','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+  const CSIS_COL=['#c8d2dc','#c8d2dc','#7fd0ff','#5b8cff','#b6f08a','#fff08a','#ffc24a','#ff8a3a','#ff4a3a','#c8102e','#8a0030','#6a0030','#4a0030'];
+  const HDR_COL=[[/jma/i,'#c0392b'],[/cwa|trem/i,'#1e8f6a'],[/kma/i,'#2f6fb0'],[/shakealert/i,'#b8512a'],[/ingv/i,'#3a6ea5']];
+  function clean(t){
+    return String(t==null?'':t).replace(/\\u([0-9a-fA-F]{4})/g,(m,h)=>String.fromCharCode(parseInt(h,16))).replace(/[\u00ad\u200b]/g,'').replace(/\s+/g,' ').trim();
+  }
+  function tzOffsetH(label){
+    if(/CEA|CENC|FEA|CWA/.test(label)) return 8;
+    if(/JMA|KMA/.test(label)) return 9;
+    return null;
+  }
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function fmtOrigin(ev, ts, label){
+    const raw=String(ev.originTime||ev.time||'');
+    const m=raw.match(/(\d{4})[-\/](\d{2})[-\/](\d{2})[ T](\d{2}:\d{2}:\d{2})/);
+    if(m) return `${m[1]}/${m[2]}/${m[3]} ${m[4]}`;
+    if(!ts) return '';
+    const off=tzOffsetH(label);
+    const d=new Date(ts+(off==null?-new Date().getTimezoneOffset()/60:off)*3600e3);
+    return `${d.getUTCFullYear()}/${pad(d.getUTCMonth()+1)}/${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+  }
+  function intBadge(raw){
+    let v=clean(raw).replace(/震度/g,'');
+    if(!v) return null;
+    if(/^\d+(\.\d+)?$/.test(v)){
+      const n=Math.max(0,Math.min(12,Math.round(parseFloat(v))));
+      return {text:ROMAN[n]||v,bg:CSIS_COL[n],fg:(n>=1&&n<=6)?'#1a1a1a':'#fff'};
+    }
+    let bg='#6b7480',fg='#fff';
+    try{
+      if(typeof splitIntensityIndex==='function'&&typeof srevShindoPalette!=='undefined'){
+        const i=splitIntensityIndex(v);
+        if(i>=0&&srevShindoPalette[i]){ bg=srevShindoPalette[i]; fg=[2,3,4].includes(i)?'#1a1a1a':'#f5f5f5'; }
+      }
+    }catch(_){}
+    return {text:v.replace(/弱/g,'−').replace(/強/g,'+'),bg,fg};
+  }
+  function mkCard(label, ev, o){
+    const place=clean(o.place)||'Epicentro';
+    const mag=o.mag!=null&&String(o.mag).trim()!==''?String(o.mag).replace(/^M/i,''):'';
+    let depth=o.depth!=null&&String(o.depth).trim()!==''?String(o.depth):'';
+    if(depth&&!/km/i.test(depth)) depth+=' km'; depth=depth.replace(/\s*km/i,'km');
+    const ts=o.ts||0;
+    return {
+      label, no:o.report!=null&&String(o.report).trim()!==''?String(o.report).replace(/^#/,''):'',
+      place, time:fmtOrigin(ev,ts,label), mag, depth, badge:intBadge(o.intensity), ts,
+      hdr:(HDR_COL.find(x=>x[0].test(label))||[0,'#e8821e'])[1],
+      key:label+'|'+String(o.id||place+'|'+ts)
+    };
+  }
+  function esc(t){ return String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function renderCard(c){
+    const b=c.badge;
+    const age=c.ts?Math.max(0,Math.round((Date.now()-c.ts)/1000)):null;
+    return `<div class="eqc"><div class="eqc-h" style="background:${c.hdr}"><span>${esc(c.label)}</span><span>${c.no?'No.'+esc(c.no):''}</span></div>`+
+      `<div class="eqc-b">${b?`<div class="eqc-int" style="background:${b.bg};color:${b.fg}">${esc(b.text)}</div>`:''}<div class="eqc-i"><div class="eqc-place">${esc(c.place)}</div>${c.time?`<div class="eqc-time">At ${esc(c.time)}</div>`:''}</div></div>`+
+      `<div class="eqc-m">${c.mag?`<span>M${esc(c.mag)}</span>`:''}${c.depth?`<span>Depth: ${esc(c.depth)}</span>`:''}</div>`+
+      `<div class="eqc-f"><span>Max. Int.${b?' '+esc(b.text):''}</span><span>${age!=null&&age<3600?'+'+age+' s':''}</span></div></div>`;
+  }
+
+  // Ventana en la que las ondas P/S siguen viajando (según magnitud). Fuera de ella no se muestra el aviso.
+  function waveWindowMs(mag){
+    const m=Number(String(mag==null?'':mag).replace(/^M/i,''));
+    if(!Number.isFinite(m)) return 3*60e3;
+    if(m<3) return 60e3; if(m<4) return 90e3; if(m<5) return 150e3; if(m<6) return 4*60e3; return 6*60e3;
+  }
+  function wavesActive(ts,mag){ const t=Number(ts); if(!t) return true; return Date.now()-t<=waveWindowMs(mag); }
+
   function pickActiveEew() {
     const candidates = [];
 
@@ -32936,7 +33827,8 @@ For more information on this, and how to apply and follow the GNU AGPL, see
     try {
       const d = (typeof jmaEewData !== 'undefined') ? jmaEewData : null;
       const fresh = d && typeof jmaEewIsFresh === 'function' ? jmaEewIsFresh(d) : false;
-      if (d && fresh && !d.isFinal && !d.isCancel) {
+      const jmaOrigin=(d&&typeof parseJmaEewTime==='function')?(parseJmaEewTime(d.OriginTime||d.originTime||d.AnnouncedTime)||0):0;
+      if (d && fresh && !d.isFinal && !d.isCancel && wavesActive(jmaOrigin,d.Magnitude??d.Magunitude)) {
         const place = String(d.Hypocenter || d.hypocenter || 'Japón');
         const mag = d.Magnitude ?? d.Magunitude;
         const depth=d.Depth ?? d.depth;
@@ -32971,7 +33863,8 @@ For more information on this, and how to apply and follow the GNU AGPL, see
           title: `JMA EEW · ${place}${mag != null && mag !== '' ? ' · M' + mag : ''}`,
           report: serial != null && serial !== '' ? `#${serial}` : '',
           body,bg, fg,
-          ts: reportTs || Date.now()
+          ts: reportTs || Date.now(),
+          card: mkCard('JMA EEW',d,{place,mag,depth,intensity,report:serial,ts:Date.parse(d.OriginTime||'')||reportTs||Date.now(),id:d.EventID||serial})
         });
       }
     } catch (_) {}
@@ -32979,7 +33872,7 @@ For more information on this, and how to apply and follow the GNU AGPL, see
     // 2) Active TauP EEW wave event
     try {
       const w = (typeof taupEewWaveEvent !== 'undefined') ? taupEewWaveEvent : null;
-      if (w && typeof taupEewWaveIsFresh === 'function' && taupEewWaveIsFresh(w)) {
+      if (w && typeof taupEewWaveIsFresh === 'function' && taupEewWaveIsFresh(w) && wavesActive(Number(w.waveOriginTs||w.ts),w.mag??w.magnitude)) {
         const place = String(w.place || w.region || w.location || 'Epicentro');
         const mag = w.mag ?? w.magnitude;
         const depth = w.depth ?? w.Depth;
@@ -33001,7 +33894,8 @@ For more information on this, and how to apply and follow the GNU AGPL, see
           report: w.reportNumber || w.serial ? `#${w.reportNumber || w.serial}` : '',
           body:waveDetails,
           bg: '', fg: '#ffffff',
-          ts: Number(w.waveOriginTs || w.ts) || Date.now()
+          ts: Number(w.waveOriginTs || w.ts) || Date.now(),
+          card: mkCard(ag,w,{place,mag,depth,intensity,report:w.reportNumber||w.serial,ts:Number(w.waveOriginTs||w.ts)||Date.now(),id:w.eewEventId||w.id})
         });
       }
     } catch (_) {}
@@ -33027,6 +33921,7 @@ For more information on this, and how to apply and follow the GNU AGPL, see
           // live window ~10 min for list EEWs
           if (t && (age < -120000 || age > 10 * 60 * 1000)) continue;
           if (isEewFlag && typeof taupEewWaveIsFresh === 'function' && !taupEewWaveIsFresh(ev) && age > 5 * 60 * 1000) continue;
+          if (isEewFlag && !wavesActive(Number(ev.waveOriginTs)||t,ev.mag??ev.magnitude)) continue;
           const place = String(ev.place || ev.region || ev.location || 'Epicentro');
           const mag = ev.mag ?? ev.magnitude;
           const depth=ev.depth ?? ev.Depth;
@@ -33047,7 +33942,8 @@ For more information on this, and how to apply and follow the GNU AGPL, see
             report: (ev.reportNumber || ev.serial || ev.Serial) ? `#${ev.reportNumber || ev.serial || ev.Serial}` : '',
             body:details,
             bg: '', fg: '#ffffff',
-            ts: t || now
+            ts: t || now,
+            card: (isEewFlag||looksEew)?mkCard(label,ev,{place,mag,depth,intensity,report:ev.reportNumber||ev.serial||ev.Serial,ts:t||now,id:ev.eewEventId||ev.id}):null
           });
         }
       }
@@ -33106,8 +34002,9 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       }
     } catch (_) {}
 
-    if (!candidates.length) return null;
+    if (!candidates.length) { pickActiveEew.all = []; return null; }
     candidates.sort((a, b) => (b.score - a.score) || (b.ts - a.ts));
+    pickActiveEew.all = candidates;
     return candidates[0];
   }
 
@@ -33120,6 +34017,23 @@ For more information on this, and how to apply and follow the GNU AGPL, see
     const head = banner && banner.querySelector('.sesna-eew-header');
     if (!banner || !title) return;
     const active = pickActiveEew();
+    const seen=new Set(), live=[];
+    (pickActiveEew.all||[]).forEach(c=>{ if(c.card&&c.score>=80&&!seen.has(c.card.key)){ seen.add(c.card.key); live.push(c.card); } });
+    live.sort((a,b)=>(b.ts||0)-(a.ts||0));
+    if (active && live.length) {
+      const body=el('sesnaEewBody');
+      body.innerHTML=live.slice(0,3).map(renderCard).join('');
+      body.style.whiteSpace='';
+      banner.classList.remove('idle','local-estimate','motion-hidden');
+      banner.classList.add('active','eew-live');
+      const motion=el('ynEarlyAlert'), parent=banner.offsetParent;
+      if (motion?.classList.contains('active') && parent) {
+        const mr=motion.getBoundingClientRect(), pr=parent.getBoundingClientRect();
+        banner.style.top=Math.max(12,mr.bottom-pr.top+10)+'px';
+      } else banner.style.top='12px';
+      return;
+    }
+    banner.classList.remove('eew-live');
     if (!active) {
       title.textContent = IDLE;
       if (reportVal) reportVal.textContent = '';
