@@ -107,7 +107,7 @@ Capas independientes (panel **Intensidad / Strong Motion**):
 | 🇺🇸 **USGS estaciones** | ShakeMap `stationlist.json` | `station_type: seismic` |
 | 🇺🇸 **USGS macrosísmico** | Mismo producto | DYFI / `macroseismic` (no instrumental) |
 | 🇺🇸 **Contornos MMI / PGA / PGV** | `cont_mmi.json`, `cont_pga.json`, `cont_pgv.json` | Geometrías oficiales del modelo ShakeMap |
-| 🇹🇼 **CWA estaciones** | Worker `cwa-worker.terremotis123.workers.dev/cwa` | Intensidad, PGA (gal), PGV (kine), coordenadas |
+| 🇹🇼 **CWA estaciones** | Uso de worker para funcionamiento | Intensidad, PGA (gal), PGV (kine), coordenadas |
 | 🇮🇹 **INGV shakedata** | `webservices.ingv.it/ingvws/shakedata` `format=event_dat` | PGA/PGV (acc/vel API) por estación |
 
 - Colores según intensidad cuando hay MMI
