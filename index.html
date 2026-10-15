@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Akshar:wght@400;500;600;700&family=BIZ+UDPGothic:wght@400;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <title>Monitor Sísmico Multi-Agencia | EQuake Style</title>
     <meta name="license" content="AGPL-3.0-or-later">
-    <meta name="license-notes" content="UI list/intensity presentation adapted from SesnaQuake (Domiko7), AGPL-3.0: https://github.com/Domiko7/SesnaQuake. Other components remain under their original terms. Full source of this page should be provided when distributed over a network.">
+    <meta name="license-notes" content="UI list/intensity presentation adapted from SesnaQuake (Domiko7), AGPL-3.0: https://github.com/Domiko7/SesnaQuake. Other components remain under their original terms. GeoNet strong-motion station points use api.geonet.org.nz (GNS Science / GeoNet data policy). Full source of this page should be provided when distributed over a network.">
 
     <meta name="srev-audio-attribution" content="SREV sound assets by kotoho7, CC BY-SA 2.0; source: https://github.com/kotoho7/scratch-realtime-earthquake-viewer-page">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -2167,6 +2167,84 @@
         .srev-int-dot.i7, .srev-int-7 { background:#7c0b53 !important; color:#f5f5f5 !important; }
         .srev-int-dot.i8, .srev-int-8 { background:#6d0359 !important; color:#f5f5f5 !important; }
         .srev-int-dot.i9, .srev-int-9 { background:#440375 !important; color:#f5f5f5 !important; }
+
+        
+        /* Multi-source strong motion + ShakeMap contours controls */
+        #smLayerControls {
+            position: fixed;
+            right: 12px;
+            top: max(56px, env(safe-area-inset-top, 0px));
+            z-index: 10020;
+            width: min(240px, calc(100vw - 24px));
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: rgba(12,16,22,.92);
+            border: 1px solid rgba(255,255,255,.14);
+            color: #e8eef5;
+            font: 600 11px/1.35 Akshar, Roboto, system-ui, sans-serif;
+            box-shadow: 0 6px 18px rgba(0,0,0,.4);
+            max-height: min(70vh, 520px);
+            overflow: auto;
+        }
+        #smLayerControls .sm-title { font-size: 12px; font-weight: 800; margin-bottom: 6px; color: #9fd0ff; }
+        #smLayerControls label { display: flex; align-items: center; gap: 6px; margin: 3px 0; cursor: pointer; }
+        #smLayerControls input { accent-color: #4aa3ff; }
+        #smLayerControls .sm-note { margin-top: 6px; color: #9aa7b5; font-size: 10px; font-weight: 500; }
+        #smLayerControls .sm-status { margin-top: 4px; color: #c5d4e3; font-size: 10px; white-space: pre-wrap; }
+        .sm-src-dot {
+            width: 22px !important; height: 22px !important; border-radius: 50% !important;
+            display:flex !important; align-items:center !important; justify-content:center !important;
+            font: 800 10px/1 Akshar, Roboto, Arial, sans-serif !important;
+            border: 1.5px solid rgba(255,255,255,.9) !important;
+            box-shadow: 0 1px 4px rgba(0,0,0,.55) !important; box-sizing: border-box !important;
+        }
+        .sm-src-dot.macro { border-style: dashed !important; opacity: .92; }
+        .sm-src-dot.mmi-0 { background:#464646; color:#f5f5f5; }
+        .sm-src-dot.mmi-1 { background:#2b8cb3; color:#f5f5f5; }
+        .sm-src-dot.mmi-2 { background:#3fa887; color:#1a1a1a; }
+        .sm-src-dot.mmi-3 { background:#e0b134; color:#1a1a1a; }
+        .sm-src-dot.mmi-4 { background:#e88527; color:#1a1a1a; }
+        .sm-src-dot.mmi-5 { background:#c92214; color:#f5f5f5; }
+        .sm-src-dot.mmi-6 { background:#b01312; color:#f5f5f5; }
+        .sm-src-dot.mmi-7 { background:#7c0b53; color:#f5f5f5; }
+        .sm-src-dot.mmi-8 { background:#6d0359; color:#f5f5f5; }
+        .sm-src-dot.mmi-9, .sm-src-dot.mmi-10, .sm-src-dot.mmi-11, .sm-src-dot.mmi-12 { background:#440375; color:#f5f5f5; }
+        .sm-src-popup { font: 500 12px/1.35 Akshar, Roboto, system-ui, sans-serif; color:#111; min-width:170px; }
+        .sm-src-popup .tag { display:inline-block; margin-top:4px; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700; }
+        .sm-src-popup .tag.meas { background:#e8f5e9; color:#1b5e20; }
+        .sm-src-popup .tag.macro { background:#fff3e0; color:#e65100; }
+        .sm-src-popup .tag.est { background:#e3f2fd; color:#0d47a1; }
+
+        /* GeoNet Strong Motion station points (measured MMI / PGA / PGV) */
+        .geonet-sm-dot {
+            width: 22px !important;
+            height: 22px !important;
+            border-radius: 50% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font: 800 11px/1 Akshar, Roboto, Arial, sans-serif !important;
+            border: 1.5px solid rgba(255,255,255,.85) !important;
+            box-shadow: 0 1px 4px rgba(0,0,0,.55) !important;
+            box-sizing: border-box !important;
+        }
+        .geonet-sm-dot.mmi-0 { background:#464646; color:#f5f5f5; }
+        .geonet-sm-dot.mmi-1 { background:#2b8cb3; color:#f5f5f5; }
+        .geonet-sm-dot.mmi-2 { background:#3fa887; color:#1a1a1a; }
+        .geonet-sm-dot.mmi-3 { background:#e0b134; color:#1a1a1a; }
+        .geonet-sm-dot.mmi-4 { background:#e88527; color:#1a1a1a; }
+        .geonet-sm-dot.mmi-5 { background:#c92214; color:#f5f5f5; }
+        .geonet-sm-dot.mmi-6 { background:#b01312; color:#f5f5f5; }
+        .geonet-sm-dot.mmi-7 { background:#7c0b53; color:#f5f5f5; }
+        .geonet-sm-dot.mmi-8 { background:#6d0359; color:#f5f5f5; }
+        .geonet-sm-dot.mmi-9,
+        .geonet-sm-dot.mmi-10,
+        .geonet-sm-dot.mmi-11,
+        .geonet-sm-dot.mmi-12 { background:#440375; color:#f5f5f5; }
+        .geonet-sm-popup { font: 500 12px/1.35 Akshar, Roboto, system-ui, sans-serif; color:#1a1a1a; min-width: 160px; }
+        .geonet-sm-popup b { font-weight: 700; }
+        .geonet-sm-popup .tag { display:inline-block; margin-top:4px; padding:2px 6px; border-radius:4px; background:#e8f5e9; color:#1b5e20; font-size:10px; font-weight:700; }
+
 
         /* Lista compacta estilo app (inspirado visualmente; código propio, no SesnaQuake AGPL) */
         #eventList.event-list,
@@ -4417,6 +4495,21 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
 
         <div class="map-container">
             <div id="map"></div>
+
+            <div id="smLayerControls" aria-label="Capas de intensidad y strong motion">
+                <div class="sm-title">Intensidad / Strong Motion</div>
+                <label><input type="checkbox" id="smToggleGeoNet" checked> 🇳🇿 GeoNet estaciones</label>
+                <label><input type="checkbox" id="smToggleUsgsSt" checked> 🇺🇸 USGS estaciones</label>
+                <label><input type="checkbox" id="smToggleUsgsMacro"> 🇺🇸 USGS macrosísmico (DYFI)</label>
+                <label><input type="checkbox" id="smToggleUsgsMmi"> 🇺🇸 Contornos MMI</label>
+                <label><input type="checkbox" id="smToggleUsgsPga"> 🇺🇸 Contornos PGA</label>
+                <label><input type="checkbox" id="smToggleUsgsPgv"> 🇺🇸 Contornos PGV</label>
+                <label><input type="checkbox" id="smToggleCwa" checked> 🇹🇼 CWA estaciones</label>
+                <label><input type="checkbox" id="smToggleIngv" checked> 🇮🇹 INGV shakedata</label>
+                <div class="sm-note">GeoNet se conserva. CWA usa el Worker del monitor (cwa-worker.terremotis123) con la clave del servidor.</div>
+                <div class="sm-status" id="smLayerStatus">—</div>
+            </div>
+
             <section id="siatAlertSection" role="region" aria-label="Nueva alerta SIAT-CT" aria-live="assertive" aria-hidden="true">
                 <div class="siat-alert-head"><span>🌪️ SIAT-CT · Nueva alerta</span><button id="siatAlertClose" class="siat-alert-close" type="button" aria-label="Cerrar alerta SIAT-CT">×</button></div>
                 <div class="siat-alert-timer" aria-hidden="true"><i></i></div>
@@ -34111,5 +34204,553 @@ For more information on this, and how to apply and follow the GNU AGPL, see
 .cenc-auto-metric b { display:block; margin:2px 0; color:#fff; font-size:14px; line-height:1; font-variant-numeric:tabular-nums; }
 .cenc-auto-metric-note { margin-top:5px; color:#8c94a7; font-size:8px; line-height:1.2; }
 </style>
+
+<script id="geonet-strong-motion-module">
+(() => {
+  'use strict';
+  // GeoNet Strong Motion Information — official API https://api.geonet.org.nz/
+  // Endpoints used (public, CORS *, no proxy required):
+  //   GET /intensity/strong/processed/{publicID}  → station MMI, PGA (%g), PGV (cm/s)
+  //   GET /intensity?type=measured               → recent measured MMI points (no station code)
+  // Data policy: https://www.geonet.org.nz/data/policy  (free use with attribution)
+  // Units (API docs): PGA %g · PGV cm/s · MMI measured at stations
+
+  const API = 'https://api.geonet.org.nz';
+  const POLL_MS = 45000;
+  const CACHE_TTL_MS = 60000;
+  const cache = new Map(); // publicID → { ts, features, meta }
+  let layer = null;
+  let lastKey = '';
+  let fetchSeq = 0;
+
+  function ensureLayer() {
+    if (typeof L === 'undefined' || typeof map === 'undefined' || !map) return null;
+    if (!layer) {
+      layer = L.layerGroup();
+      try { layer.addTo(map); } catch (_) {}
+    }
+    return layer;
+  }
+
+  function clearLayer() {
+    try { layer?.clearLayers(); } catch (_) {}
+    lastKey = '';
+  }
+
+  function geonetPublicId(ev) {
+    if (!ev) return '';
+    const ag = String(ev.agency || ev.source || '').toLowerCase();
+    const id = String(ev.id || '');
+    // id forms: geonet-2026p776286 | 2026p776286
+    let pid = '';
+    if (/geonet/.test(ag) || /^geonet[-_]/i.test(id)) {
+      pid = id.replace(/^geonet[-_]?/i, '');
+    } else if (/^\d{4}p\d+$/i.test(id)) {
+      pid = id;
+    } else if (ev.publicID || ev.publicId) {
+      pid = String(ev.publicID || ev.publicId);
+    }
+    pid = String(pid || '').trim();
+    return /^\d{4}p\d+$/i.test(pid) ? pid : '';
+  }
+
+  function isGeoNetEvent(ev) {
+    if (!ev) return false;
+    if (geonetPublicId(ev)) return true;
+    return /geonet/i.test(String(ev.agency || '') + ' ' + String(ev.source || ''));
+  }
+
+  function mmiClass(mmi) {
+    const n = Math.max(0, Math.min(12, Math.round(Number(mmi) || 0)));
+    return 'mmi-' + n;
+  }
+
+  function mmiLabel(mmi) {
+    const n = Number(mmi);
+    if (!Number.isFinite(n)) return '—';
+    return String(Math.round(n));
+  }
+
+  function fmtNum(v, digits) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return '—';
+    return n.toFixed(digits);
+  }
+
+  function stationIcon(mmi) {
+    const label = mmiLabel(mmi);
+    return L.divIcon({
+      className: '',
+      html: `<div class="geonet-sm-dot ${mmiClass(mmi)}" title="MMI ${label}">${label}</div>`,
+      iconSize: [22, 22],
+      iconAnchor: [11, 11]
+    });
+  }
+
+  function popupHtml(p, meta) {
+    const code = p.station || p.code || '—';
+    const name = p.name || p.location || '';
+    const net = p.network || 'NZ';
+    const mmi = mmiLabel(p.mmi);
+    const pgaH = p.pga_h != null ? fmtNum(p.pga_h, 3) + ' %g' : '—';
+    const pgaV = p.pga_v != null ? fmtNum(p.pga_v, 3) + ' %g' : '—';
+    const pgvH = p.pgv_h != null ? fmtNum(p.pgv_h, 3) + ' cm/s' : '—';
+    const pgvV = p.pgv_v != null ? fmtNum(p.pgv_v, 3) + ' cm/s' : '—';
+    const dist = p.distance != null ? fmtNum(p.distance, 1) + ' km' : '—';
+    const qid = meta?.event_id || meta?.publicID || '';
+    return `<div class="geonet-sm-popup">
+      <b>${net} ${code}</b>${name ? '<br>' + name : ''}
+      <br>MMI medido: <b>${mmi}</b>
+      <br>PGA H/V: ${pgaH} / ${pgaV}
+      <br>PGV H/V: ${pgvH} / ${pgvV}
+      <br>Dist. epicentro: ${dist}
+      ${qid ? '<br>Evento: ' + qid : ''}
+      <div class="tag">GeoNet · medido (no estimado)</div>
+    </div>`;
+  }
+
+  async function fetchStrongProcessed(publicID, force) {
+    const key = String(publicID);
+    const hit = cache.get(key);
+    if (!force && hit && Date.now() - hit.ts < CACHE_TTL_MS) return hit;
+    const url = `${API}/intensity/strong/processed/${encodeURIComponent(key)}`;
+    const r = await fetch(url, {
+      cache: 'no-store',
+      headers: { Accept: 'application/json' }
+    });
+    if (r.status === 204 || r.status === 404) {
+      const empty = { ts: Date.now(), features: [], meta: { event_id: key } };
+      cache.set(key, empty);
+      return empty;
+    }
+    if (!r.ok) throw new Error('GeoNet strong motion HTTP ' + r.status);
+    const data = await r.json();
+    const features = Array.isArray(data.features) ? data.features : [];
+    const meta = data.metadata || { event_id: key };
+    const entry = { ts: Date.now(), features, meta };
+    cache.set(key, entry);
+    return entry;
+  }
+
+  function drawStations(entry, publicID) {
+    const lg = ensureLayer();
+    if (!lg) return;
+    lg.clearLayers();
+    lastKey = publicID || '';
+    const feats = entry?.features || [];
+    const meta = entry?.meta || {};
+    for (const f of feats) {
+      const g = f.geometry;
+      const p = f.properties || {};
+      if (!g || g.type !== 'Point' || !Array.isArray(g.coordinates)) continue;
+      const lon = Number(g.coordinates[0]), lat = Number(g.coordinates[1]);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+      const mmi = Number(p.mmi);
+      if (!Number.isFinite(mmi) || mmi < 0) continue;
+      try {
+        const m = L.marker([lat, lon], {
+          icon: stationIcon(mmi),
+          interactive: true,
+          keyboard: false,
+          zIndexOffset: 400
+        });
+        m.bindPopup(popupHtml(p, meta), { maxWidth: 280 });
+        m.addTo(lg);
+      } catch (_) {}
+    }
+  }
+
+  async function showForEvent(ev, force) {
+    const pid = geonetPublicId(ev);
+    if (!pid) {
+      if (lastKey) clearLayer();
+      return;
+    }
+    const seq = ++fetchSeq;
+    try {
+      const entry = await fetchStrongProcessed(pid, force);
+      if (seq !== fetchSeq) return;
+      // Only draw if still the selected GeoNet event
+      const cur = (typeof events !== 'undefined' && Array.isArray(events) && typeof selectedEventId !== 'undefined')
+        ? events.find(e => String(e.id) === String(selectedEventId))
+        : ev;
+      if (!cur || geonetPublicId(cur) !== pid) return;
+      drawStations(entry, pid);
+    } catch (err) {
+      console.warn('[GeoNet SM]', err);
+    }
+  }
+
+  function selectedEvent() {
+    try {
+      if (typeof events === 'undefined' || !Array.isArray(events)) return null;
+      if (typeof selectedEventId === 'undefined' || selectedEventId == null) return null;
+      return events.find(e => String(e.id) === String(selectedEventId)) || null;
+    } catch (_) { return null; }
+  }
+
+  function tick(force) {
+    const ev = selectedEvent();
+    if (ev && isGeoNetEvent(ev)) showForEvent(ev, force);
+    else if (lastKey) clearLayer();
+  }
+
+  // Wrap selectEvent without replacing other behaviour
+  function wrapSelectEvent() {
+    if (typeof window.selectEvent !== 'function' && typeof selectEvent !== 'function') return false;
+    const orig = typeof selectEvent === 'function' ? selectEvent : window.selectEvent;
+    if (orig.__geonetSmWrapped) return true;
+    const wrapped = function (id, options) {
+      const ret = orig.apply(this, arguments);
+      try {
+        setTimeout(() => {
+          const ev = (typeof events !== 'undefined' && Array.isArray(events))
+            ? events.find(e => String(e.id) === String(id))
+            : null;
+          if (ev && isGeoNetEvent(ev)) showForEvent(ev, true);
+          else clearLayer();
+        }, 0);
+      } catch (_) {}
+      return ret;
+    };
+    wrapped.__geonetSmWrapped = true;
+    try { selectEvent = wrapped; } catch (_) {}
+    try { window.selectEvent = wrapped; } catch (_) {}
+    return true;
+  }
+
+  function boot() {
+    ensureLayer();
+    wrapSelectEvent();
+    setTimeout(() => wrapSelectEvent(), 1500);
+    setTimeout(() => tick(true), 800);
+    setInterval(() => tick(false), POLL_MS);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+  try { window.__geonetStrongMotion = { tick, clearLayer, fetchStrongProcessed, geonetPublicId }; } catch (_) {}
+})();
+</script>
+
+
+<script id="sm-multi-source-module">
+(() => {
+  'use strict';
+  // Strong-motion / intensity layers: USGS ShakeMap, CWA, INGV (+ controls).
+  // GeoNet module remains independent; this only toggles its layer visibility when possible.
+
+  const USGS_DETAIL = (id) => `https://earthquake.usgs.gov/fdsnws/event/1/query?eventid=${encodeURIComponent(id)}&format=geojson`;
+  // Misma ruta que fetchCWATaiwan() — la clave va en el Worker, no en el cliente.
+  const CWA_WORKER = 'https://cwa-worker.terremotis123.workers.dev/cwa';
+  const INGV_SD = (id) => `https://webservices.ingv.it/ingvws/shakedata/1/query?format=event_dat&eventid=${encodeURIComponent(id)}`;
+
+  const state = {
+    usgsSt: null, usgsMacro: null, usgsMmi: null, usgsPga: null, usgsPgv: null,
+    cwa: null, ingv: null,
+    cache: {}, status: ''
+  };
+
+  function $(id){ return document.getElementById(id); }
+  function setStatus(t){ const el=$('smLayerStatus'); if(el) el.textContent=t; state.status=t; }
+  function mmiClass(n){ n=Math.max(0,Math.min(12,Math.round(Number(n)||0))); return 'mmi-'+n; }
+  function mmiText(n){ return Number.isFinite(Number(n))?String(Math.round(Number(n))):'—'; }
+  function fmt(v,d){ const n=Number(v); return Number.isFinite(n)?n.toFixed(d):'—'; }
+
+  function ensureGroup(key){
+    if(typeof L==='undefined'||typeof map==='undefined'||!map) return null;
+    if(!state[key]){ state[key]=L.layerGroup(); try{ state[key].addTo(map);}catch(_){} }
+    return state[key];
+  }
+  function clearGroup(key){ try{ state[key]?.clearLayers(); }catch(_){} }
+
+  function selectedEvent(){
+    try{
+      if(typeof events==='undefined'||!Array.isArray(events)||selectedEventId==null) return null;
+      return events.find(e=>String(e.id)===String(selectedEventId))||null;
+    }catch(_){ return null; }
+  }
+
+  function usgsComcatId(ev){
+    if(!ev) return '';
+    const id=String(ev.id||'');
+    const ag=String(ev.agency||ev.source||'');
+    let pid=id.replace(/^usgs[-_]?/i,'').replace(/^neic[-_]?/i,'');
+    if(/^(us|nn|ci|nc|uw|ak|hv|ok|tx|pr|se|nm|mb|uu)/i.test(pid)) return pid;
+    if(/usgs|neic/i.test(ag) && /^[a-z]{2}\d/i.test(pid)) return pid;
+    if(ev.comcatId) return String(ev.comcatId);
+    return '';
+  }
+
+  function geonetPublicId(ev){
+    try{ return window.__geonetStrongMotion?.geonetPublicId?.(ev)||''; }catch(_){ return ''; }
+  }
+
+  function cwaWorkerUrl(){
+    try{ if(typeof CWA_WORKER_URL==='string'&&CWA_WORKER_URL) return CWA_WORKER_URL; }catch(_){}
+    return CWA_WORKER;
+  }
+
+  function icon(mmi, macro){
+    return L.divIcon({
+      className:'',
+      html:`<div class="sm-src-dot ${mmiClass(mmi)}${macro?' macro':''}">${mmiText(mmi)}</div>`,
+      iconSize:[22,22], iconAnchor:[11,11]
+    });
+  }
+
+  function popup(html){ return `<div class="sm-src-popup">${html}</div>`; }
+
+  // ——— USGS ShakeMap ———
+  async function loadUsgs(ev){
+    const id=usgsComcatId(ev);
+    if(!id){
+      ['usgsSt','usgsMacro','usgsMmi','usgsPga','usgsPgv'].forEach(clearGroup);
+      return 'USGS: evento sin id ComCat';
+    }
+    const detail=await fetch(USGS_DETAIL(id),{cache:'no-store'}).then(r=>{
+      if(!r.ok) throw new Error('detail HTTP '+r.status);
+      return r.json();
+    });
+    const sm=(detail.properties?.products?.shakemap||[])[0];
+    if(!sm){
+      ['usgsSt','usgsMacro','usgsMmi','usgsPga','usgsPgv'].forEach(clearGroup);
+      return 'USGS: sin producto ShakeMap';
+    }
+    const contents=sm.contents||{};
+    const stUrl=contents['download/stationlist.json']?.url;
+    const notes=[];
+
+    if(stUrl && ($('smToggleUsgsSt')?.checked || $('smToggleUsgsMacro')?.checked)){
+      const st=await fetch(stUrl,{cache:'no-store'}).then(r=>r.ok?r.json():null);
+      clearGroup('usgsSt'); clearGroup('usgsMacro');
+      const gSt=ensureGroup('usgsSt'), gMa=ensureGroup('usgsMacro');
+      let nS=0,nM=0;
+      for(const f of (st?.features||[])){
+        const p=f.properties||{}, g=f.geometry;
+        if(!g||g.type!=='Point') continue;
+        const lon=+g.coordinates[0], lat=+g.coordinates[1];
+        if(!Number.isFinite(lat)||!Number.isFinite(lon)) continue;
+        const type=String(p.station_type||'');
+        const mmi=Number(p.intensity);
+        const isMacro=type==='macroseismic';
+        const isSeismic=type==='seismic';
+        if(isSeismic && !$('smToggleUsgsSt')?.checked) continue;
+        if(isMacro && !$('smToggleUsgsMacro')?.checked) continue;
+        if(!isSeismic && !isMacro) continue;
+        // intensity may be derived from PGM for seismic — still station measurement path
+        const tag=isMacro
+          ? '<span class="tag macro">macrosísmico / DYFI (no instrumental)</span>'
+          : '<span class="tag meas">estación sísmica · observación ShakeMap</span>';
+        const html=popup(
+          `<b>USGS ${p.network||''} ${p.code||''}</b>${p.name?'<br>'+p.name:''}`+
+          `<br>Tipo: ${type}`+
+          `<br>MMI: <b>${mmiText(mmi)}</b>${p.intensity_flag?` (${p.intensity_flag})`:''}`+
+          `<br>PGA: ${p.pga!=null?fmt(p.pga,3)+' %g':'—'}`+
+          `<br>PGV: ${p.pgv!=null?fmt(p.pgv,3)+' cm/s':'—'}`+
+          `<br>Evento: ${id}`+tag
+        );
+        const m=L.marker([lat,lon],{icon:icon(mmi,isMacro),zIndexOffset:isMacro?200:450});
+        m.bindPopup(html,{maxWidth:300});
+        m.addTo(isMacro?gMa:gSt);
+        if(isMacro) nM++; else nS++;
+      }
+      notes.push(`USGS estaciones: ${nS} sísmicas, ${nM} macrosísmicas`);
+    } else {
+      clearGroup('usgsSt'); clearGroup('usgsMacro');
+    }
+
+    async function loadContour(fileKey, groupKey, toggleId, label){
+      clearGroup(groupKey);
+      if(!$(toggleId)?.checked) return;
+      const url=contents[fileKey]?.url;
+      if(!url){ notes.push(label+': no disponible'); return; }
+      const gj=await fetch(url,{cache:'no-store'}).then(r=>r.ok?r.json():null);
+      if(!gj){ notes.push(label+': error descarga'); return; }
+      const group=ensureGroup(groupKey);
+      L.geoJSON(gj,{
+        style:(feat)=>{
+          const col=feat.properties?.color||'#888';
+          const w=Number(feat.properties?.weight)||2;
+          return {color:col, weight:Math.max(1,w/2), opacity:0.85, fill:false};
+        },
+        onEachFeature:(feat,layer)=>{
+          const v=feat.properties?.value, u=feat.properties?.units||'';
+          layer.bindPopup(popup(`<b>USGS contorno ${label}</b><br>Valor: ${v} ${u}<br>Evento: ${id}<br><span class="tag est">modelo ShakeMap (contorno)</span>`));
+        }
+      }).addTo(group);
+      notes.push(label+`: ${(gj.features||[]).length} trazas`);
+    }
+    await loadContour('download/cont_mmi.json','usgsMmi','smToggleUsgsMmi','MMI');
+    await loadContour('download/cont_pga.json','usgsPga','smToggleUsgsPga','PGA');
+    await loadContour('download/cont_pgv.json','usgsPgv','smToggleUsgsPgv','PGV');
+    return notes.join('\n')||'USGS OK';
+  }
+
+  // ——— CWA ———
+  function parseCwaIntensity(s){
+    const t=String(s||'');
+    const m=t.match(/(\d+)/);
+    return m?Number(m[1]):NaN;
+  }
+  async function loadCwa(ev){
+    clearGroup('cwa');
+    if(!$('smToggleCwa')?.checked) return 'CWA: desactivado';
+    // Usar el Worker del HTML (cwa-worker.terremotis123) que ya lleva la Authorization.
+    const url=cwaWorkerUrl();
+    const data=await fetch(url,{cache:'no-store',headers:{Accept:'application/json'}}).then(async r=>{
+      if(r.status===401) throw new Error('CWA Worker 401');
+      if(!r.ok) throw new Error('CWA Worker HTTP '+r.status);
+      return r.json();
+    });
+    const list=data?.records?.Earthquake||[];
+    if(!list.length) return 'CWA: sin reportes';
+    // Match selected event if CWA/Taiwan-ish, else use latest
+    let target=list[0];
+    if(ev){
+      const t=Date.parse(ev.time||ev.originTime||0);
+      const lat=Number(ev.lat), lon=Number(ev.lon);
+      let best=null, bestScore=1e99;
+      for(const e of list){
+        const ot=Date.parse(e.EarthquakeInfo?.OriginTime||0);
+        const elat=Number(e.EarthquakeInfo?.Epicenter?.EpicenterLatitude);
+        const elon=Number(e.EarthquakeInfo?.Epicenter?.EpicenterLongitude);
+        let score=0;
+        if(Number.isFinite(t)&&Number.isFinite(ot)) score+=Math.abs(t-ot)/60000;
+        if(Number.isFinite(lat)&&Number.isFinite(elat)) score+=Math.abs(lat-elat)*20;
+        if(Number.isFinite(lon)&&Number.isFinite(elon)) score+=Math.abs(lon-elon)*20;
+        if(score<bestScore){ bestScore=score; best=e; }
+      }
+      if(best && bestScore<180) target=best; // within ~3h / ~9°
+      else if(!/cwa|taiwan|trem|palert/i.test(String(ev.agency||'')+String(ev.place||''))) {
+        return 'CWA: evento seleccionado no coincide con reportes CWA';
+      }
+    }
+    const group=ensureGroup('cwa');
+    let n=0;
+    for(const area of (target.Intensity?.ShakingArea||[])){
+      for(const st of (area.EqStation||[])){
+        const lat=Number(st.StationLatitude), lon=Number(st.StationLongitude);
+        if(!Number.isFinite(lat)||!Number.isFinite(lon)) continue;
+        const mmi=parseCwaIntensity(st.SeismicIntensity);
+        const pga=st.pga?.IntScaleValue ?? st.pga?.NSComponent;
+        const pgv=st.pgv?.IntScaleValue ?? st.pgv?.NSComponent;
+        const html=popup(
+          `<b>CWA ${st.StationID||''}</b> ${st.StationName||''}`+
+          `<br>Intensidad: <b>${st.SeismicIntensity||mmiText(mmi)}</b>`+
+          `<br>PGA: ${pga!=null?fmt(pga,2)+' '+(st.pga?.unit||'gal'):'—'}`+
+          `<br>PGV: ${pgv!=null?fmt(pgv,2)+' '+(st.pgv?.unit||'kine'):'—'}`+
+          `<br>Dist: ${st.EpicenterDistance!=null?fmt(st.EpicenterDistance,1)+' km':'—'}`+
+          `<br>Estado: ${st.InfoStatus||'—'}`+
+          `<br>Evento CWA: ${target.EarthquakeNo||'—'}`+
+          `<span class="tag meas">estación CWA · observe</span>`
+        );
+        L.marker([lat,lon],{icon:icon(mmi,false),zIndexOffset:440}).bindPopup(html,{maxWidth:300}).addTo(group);
+        n++;
+      }
+    }
+    return `CWA: ${n} estaciones (reporte ${target.EarthquakeNo||'—'})`;
+  }
+
+  // ——— INGV ———
+  function ingvEventId(ev){
+    if(!ev) return '';
+    const id=String(ev.id||'');
+    const m=id.match(/(?:ingv[-_])?(\d{6,})/i);
+    if(m) return m[1];
+    if(/^\d{6,}$/.test(id)) return id;
+    return '';
+  }
+  async function loadIngv(ev){
+    clearGroup('ingv');
+    if(!$('smToggleIngv')?.checked) return 'INGV: desactivado';
+    let eid=ingvEventId(ev);
+    if(!eid && /ingv/i.test(String(ev?.agency||''))){
+      // try match by time via fdsn
+      return 'INGV: sin event id numérico en el sismo seleccionado';
+    }
+    if(!eid) return 'INGV: selecciona un evento INGV';
+    const xml=await fetch(INGV_SD(eid),{cache:'no-store'}).then(async r=>{
+      if(!r.ok) throw new Error('INGV HTTP '+r.status);
+      return r.text();
+    });
+    const doc=new DOMParser().parseFromString(xml,'application/xml');
+    const stations=[...doc.querySelectorAll('station')];
+    const group=ensureGroup('ingv');
+    let n=0;
+    for(const st of stations){
+      const lat=Number(st.getAttribute('lat')), lon=Number(st.getAttribute('lon'));
+      if(!Number.isFinite(lat)||!Number.isFinite(lon)) continue;
+      const code=st.getAttribute('code')||'';
+      const name=st.getAttribute('name')||'';
+      const net=st.getAttribute('netid')||'';
+      let maxAcc=0, maxVel=0;
+      st.querySelectorAll('comp').forEach(comp=>{
+        const a=Number(comp.querySelector('acc')?.getAttribute('value'));
+        const v=Number(comp.querySelector('vel')?.getAttribute('value'));
+        if(Number.isFinite(a)) maxAcc=Math.max(maxAcc,Math.abs(a));
+        if(Number.isFinite(v)) maxVel=Math.max(maxVel,Math.abs(v));
+      });
+      // Rough MMI display proxy only for icon color from PGA if no MMI — label clearly as derived display
+      let mmiIcon=1;
+      if(maxAcc>0.1) mmiIcon=5; else if(maxAcc>0.03) mmiIcon=4; else if(maxAcc>0.01) mmiIcon=3; else if(maxAcc>0.003) mmiIcon=2;
+      const html=popup(
+        `<b>INGV ${net} ${code}</b> ${name}`+
+        `<br>PGA (acc API): <b>${fmt(maxAcc,6)}</b>`+
+        `<br>PGV (vel API): <b>${fmt(maxVel,6)}</b>`+
+        `<br>Evento: ${eid}`+
+        `<br><span class="tag meas">INGV shakedata · PGM de forma de onda</span>`+
+        `<br><small>Unidades según servicio INGV shakedata (no reinterpretadas).</small>`
+      );
+      L.marker([lat,lon],{icon:icon(mmiIcon,false),zIndexOffset:430}).bindPopup(html,{maxWidth:300}).addTo(group);
+      n++;
+    }
+    return `INGV: ${n} estaciones (event ${eid})`;
+  }
+
+  function applyGeoNetVisibility(){
+    try{
+      const on=$('smToggleGeoNet')?.checked!==false;
+      // GeoNet module layer is internal; attempt via map eachLayer heuristic
+      if(window.__geonetStrongMotion){
+        if(!on) window.__geonetStrongMotion.clearLayer?.();
+        else window.__geonetStrongMotion.tick?.(true);
+      }
+    }catch(_){}
+  }
+
+  async function refresh(){
+    const ev=selectedEvent();
+    const parts=[];
+    try{ parts.push(await loadUsgs(ev)); }catch(e){ parts.push('USGS: '+e.message); ['usgsSt','usgsMacro','usgsMmi','usgsPga','usgsPgv'].forEach(clearGroup); }
+    try{ parts.push(await loadCwa(ev)); }catch(e){ parts.push('CWA: '+e.message); clearGroup('cwa'); }
+    try{ parts.push(await loadIngv(ev)); }catch(e){ parts.push('INGV: '+e.message); clearGroup('ingv'); }
+    applyGeoNetVisibility();
+    setStatus(parts.filter(Boolean).join('\n'));
+  }
+
+  function bind(){
+    ['smToggleGeoNet','smToggleUsgsSt','smToggleUsgsMacro','smToggleUsgsMmi','smToggleUsgsPga','smToggleUsgsPgv','smToggleCwa','smToggleIngv']
+      .forEach(id=>$ (id)?.addEventListener('change', ()=>refresh()));
+    // wrap selectEvent
+    const hook=()=>{
+      const orig=typeof selectEvent==='function'?selectEvent:window.selectEvent;
+      if(typeof orig!=='function'||orig.__smMultiWrapped) return;
+      const w=function(){ const r=orig.apply(this,arguments); setTimeout(refresh,50); return r; };
+      w.__smMultiWrapped=true;
+      try{ selectEvent=w; }catch(_){}
+      try{ window.selectEvent=w; }catch(_){}
+    };
+    hook(); setTimeout(hook,1500); setTimeout(hook,4000);
+    setTimeout(refresh,1200);
+    setInterval(()=>{ if(document.hidden) return; refresh(); }, 120000);
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', bind);
+  else bind();
+  try{ window.__smMultiSources={refresh,state}; }catch(_){}
+})();
+</script>
+
 </body>
 </html>

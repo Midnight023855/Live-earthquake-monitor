@@ -1,225 +1,232 @@
-# Monitor Sísmico Multi-Agencia (EarthQuake / Live Earthquake Monitor)
+# Monitor Sísmico Multi-Agencia (EarthQuake)
 
-Monitor sísmico en un solo `index.html` (mapa Leaflet, alertas, estaciones, ondas y más).
+Monitor sísmico en un solo `index.html` (mapa Leaflet, alertas, estaciones, ondas, strong motion y más).
 
-- **Archivo principal:** `index.html`
-- **Idioma de interfaz:** español (con textos mixtos EN/JA según fuente)
-- **Licencia del proyecto (derivados):** **AGPL-3.0** (ver sección de licencias)
+| | |
+|--|--|
+| **Archivo principal** | `index.html` (o el build más reciente entregado) |
+| **Tamaño aproximado** | ~2,8–2,9 MB (HTML monolítico) |
+| **Interfaz** | Español (textos mixtos EN/JA según fuente) |
+| **Licencia del proyecto (derivados)** | **AGPL-3.0** (ver `LICENSE` y atribuciones) |
 
-> **Aviso:** no sustituye boletines oficiales (JMA, USGS, PTWC, SINAPROC, etc.). Es una herramienta de visualización y agregación.
+> **Aviso:** no sustituye boletines oficiales (JMA, USGS, PTWC, CWA, INGV, SINAPROC, etc.). Es una herramienta de visualización y agregación.
 
 ---
 
 ## Índice
 
-1. [Funciones principales](#funciones-principales)
-2. [Fuentes de datos / agencias](#fuentes-de-datos--agencias)
-3. [Apartados y modos de mapa](#apartados-y-modos-de-mapa)
-4. [Detección y ondas](#detección-y-ondas)
-5. [Interfaz y UX](#interfaz-y-ux)
-6. [Licencias y atribuciones](#licencias-y-atribuciones)
-7. [Créditos](#créditos)
+1. [Mapa y sismos](#1-mapa-y-sismos)
+2. [Fuentes / agencias](#2-fuentes--agencias)
+3. [Alertas tempranas (EEW)](#3-alertas-tempranas-eew)
+4. [Ondas P/S (TauP)](#4-ondas-ps-taup)
+5. [Japón · NIED / movimiento](#5-japón--nied--movimiento)
+6. [Strong motion e intensidad en mapa](#6-strong-motion-e-intensidad-en-mapa)
+7. [Tsunami](#7-tsunami)
+8. [Meteorología y otros peligros](#8-meteorología-y-otros-peligros)
+9. [Taiwán](#9-taiwán)
+10. [Audio, TTS y ticker](#10-audio-tts-y-ticker)
+11. [Configuración e interfaz](#11-configuración-e-interfaz)
+12. [Modos de mapa](#12-modos-de-mapa)
+13. [Licencias y atribuciones](#13-licencias-y-atribuciones)
+14. [Publicación (GitHub Pages)](#14-publicación-github-pages)
 
 ---
 
-## Funciones principales
+## 1. Mapa y sismos
 
-### Mapa y sismos
-- Mapa interactivo **Leaflet** a pantalla completa
-- Lista de sismos recientes multiagencia (filtro por magnitud, región, agencia)
-- Tarjeta del sismo seleccionado (lugar, magnitud, profundidad, tiempo, intensidad)
-- Marcador de epicentro (icono en X)
-- Zoom automático al último sismo / alerta (con overrides de control manual del usuario)
-- Capas de intensidad (zonas JMA oficiales, estimaciones, ShakeMap USGS cuando aplica)
-- Leyenda de intensidad configurable (Shindo, MMI, CSIS, CWA, etc.)
-- Paleta de colores de intensidad tipo **SesnaQuake / SREV** (Shindo y MMI)
-
-### Alertas tempranas (EEW)
-- Panel **JMA EEW** (alerta temprana Japón)
-- Integración de EEW de otras vías cuando el evento viene marcado como EEW (p. ej. Wolfx, CENC, CWA, KMA, ShakeAlert, TREM, etc.)
-- Cuadro de estado EEW en el **mapa de Japón** (estilo EQuake):
-  - Inactivo: *No Earthquake Warning issued*
-  - Activo: título del alerta + informe
-- Tarjeta estilo **INGV EEW** (MMI, lugar, hora, M, profundidad) cuando hay evento INGV relevante
-- Coordinación con vista de **ondas TauP** (no pierde el EEW al abrir otros apartados un momento)
-
-### Ondas sísmicas (TauP)
-- Propagación estimada de ondas **P/S** sobre el mapa
-- Modo ondas asociado a EEW y a sismos con datos suficientes
-- No depende del panel antiguo “Fuentes Ondas P/S” si fue retirado de la UI; la lógica de ondas se conserva
-
-### Japón · estaciones NIED / movimiento
-- Estaciones **NIED K-NET / KiK-net** (feed / visualización)
-- Métricas NIED (intensidad instrumental, PGA/PGV aproximados según configuración)
-- Detección local de movimiento (quórum de estaciones, grupos, prefecturas)
-- Cuadros tipo EQuake al detectar movimiento:
-  - **Weak shaking detected** (intensidad ~0) — verde
-  - **Shaking detected** (1–3) — amarillo
-  - **Strong shaking detected** (4–7) — rojo
-  - Lista de **prefecturas** afectadas
-- **Local Epicenter Estimation** (estimación local No.N, intensidad, M, profundidad, hora)
-- Panel / capas asociadas a Yahoo·NIED y modo “Japón en vivo”
-- Visor **KMONI** (si está habilitado en la build; puede estar oculto en UI)
-
-### Tsunami
-- Panel de avisos / forecast de tsunami (p. ej. JMA)
-- Líneas de costa / regiones de forecast cuando hay datos
-- Integración con cobertura tipo NHK en escenarios de Japón de alta intensidad
-
-### Meteorología y otros peligros
-- **Tifones** (datos JMA / NMC / CMA según la build)
-- **Huracanes EE. UU.** (NOAA / NHC)
-- **Alertas meteorológicas EE. UU.**
-- **Clima JMA** / alertas meteorológicas Japón
-- **Volcanes JMA**
-- **GDACS** (desastres globales, panel dedicado)
-- **SIAT-CT México** (ciclones tropicales): overlay / consulta de boletín oficial
-
-### Taiwán
-- Detector / movimiento Taiwán
-- Métricas **TREM** y **P-Alert** (según disponibilidad; P-Alert puede figurar desconectado)
-
-### Audio y accesibilidad
-- **TTS** (lectura de alertas; voces configurables)
-- Sonidos de interfaz y de intensidad (recursos SREV / kotoho7 según atribución del HTML)
-- Barra informativa inferior (**ticker**) con mensajes rotativos
-- Preferencia `prefers-reduced-motion` en varias animaciones
-
-### Configuración
-- Modal de ajustes (magnitud mínima de lista/ticker, métricas NIED/P-Alert, coincidencias Colombia, etc.)
-- Conexiones por fuente (panel de estado: conectada / desconectada)
-- Pantalla completa
-- Reloj local (estilo SesnaQuake) + contador de sismos del día
-
-### Presentación / estilo
-- Tema de interfaz inspirado en **SesnaQuake** (grises, paneles, reloj)
-- Lista de sismos compacta (badge de intensidad, lugar, hora, agencia, magnitud)
-- Tipografía **Akshar** + **BIZ UDPGothic** + Roboto
-- Banner telop JMA (japonés + español) en escenarios correspondientes
+- Mapa **Leaflet** a pantalla completa
+- Lista multiagencia (filtro por magnitud, región, agencia)
+- Tarjeta del sismo seleccionado (lugar, M, profundidad, tiempo, intensidad)
+- Marcador de epicentro y zoom al evento (con control manual del usuario)
+- Capas de intensidad (JMA, estimaciones, ShakeMap cuando aplica)
+- Leyenda de intensidad configurable (Shindo, MMI, CSIS, CWA, GeoNet MMI…)
+- Paleta de colores tipo **SesnaQuake / SREV** (Shindo y MMI)
+- Búsqueda de sismos y ajustes de lista
 
 ---
 
-## Fuentes de datos / agencias
+## 2. Fuentes / agencias
 
-El HTML agrega o muestra datos de (entre otras, según feed activo):
+El monitor agrega o muestra datos de (según feed activo), entre otras:
 
-| Código | Notas típicas |
-|--------|----------------|
-| **USGS / NEIC** | Sismos globales, ShakeMap |
+| Código | Notas |
+|--------|--------|
+| **USGS / NEIC** | Global, ShakeMap, productos ComCat |
 | **JMA** | Japón: reportes, EEW, intensidad, tsunami, clima, volcanes |
 | **NIED** | Estaciones Kyoshin / movimiento Japón |
 | **EMSC** | Europa / global |
-| **CENC / Wolfx / NowQuake** | China y EEW asociados |
-| **CWA / TREM / P-Alert** | Taiwán |
-| **KMA** | Corea (si feed activo) |
-| **ShakeAlert** | EE. UU. (EEW) |
-| **INGV** | Italia / EEW estilo tarjeta |
-| **BMKG** | Indonesia |
-| **GeoNet** | Nueva Zelanda |
-| **GFZ / GEOFON, ISC, IPGP, IGN, INETER, FUNVISIS, CSN, SSN, AFAD, BREQ, IGP, HKO, NOA, CEA…** | Otras redes regionales |
+| **CENC / Wolfx** | China y EEW asociados |
+| **CWA** | Taiwán (vía Worker del proyecto) |
+| **GeoNet** | Nueva Zelanda + strong motion |
+| **INGV** | Italia / EEW y shakedata |
+| **BMKG, GFZ/GEOFON, ISC, IPGP, IGN, INETER, FUNVISIS, CSN, SSN, AFAD, BREQ, IGP, HKO, NOA, KOERI, PHIVOLCS, SED, Early-Est…** | Redes regionales |
 
-Los **datos oficiales** siguen los términos de cada organismo. Este proyecto **no** reclama propiedad sobre esos datos.
+Los **datos oficiales** siguen los términos de cada organismo.
 
 ---
 
-## Apartados y modos de mapa
+## 3. Alertas tempranas (EEW)
 
-Clases / modos frecuentes en `#mainLayout`:
-
-- Vista lista + mapa global
-- `japan-focus` — estaciones / NIED Japón
-- `wave-focus` — ondas TauP
-- `tsunami-focus`
-- `typhoon-focus` / `hurricane-focus` / `us-alerts-focus`
-- `taiwan-focus` / `taiwan-motion-focus`
-- `jma-volcano-focus` / `jma-weather-focus`
-- `gdacs-focus` / `siat-focus`
-- `nhk-coverage-focus` — cobertura tipo alta intensidad Japón
-
-Cada apartado suele ocultar paneles ajenos para no saturar la UI.
+- Panel **JMA EEW**
+- EEW de otras vías cuando el evento está marcado (Wolfx, CENC, CWA, KMA, ShakeAlert, TREM, etc.)
+- Banner estilo **EQuake / Sesna** en vista Japón: *No Earthquake Warning issued* / alerta activa
+- Tarjeta estilo **INGV EEW** (MMI, lugar, hora, M, profundidad)
+- Coordinación con vista de ondas TauP
 
 ---
 
-## Detección y ondas
+## 4. Ondas P/S (TauP)
 
-1. **EEW oficial o de feed** → panel JMA / banner EEW / ondas.
-2. **Movimiento NIED** (sin EEW) → cuadros Weak/Shaking/Strong + prefecturas + estimación local.
-3. **Sismo confirmado en lista** → tarjeta, intensidad, zoom, capas.
-4. **Tsunami / meteo / SIAT** → paneles propios con temporizadores o cierre al volver.
-
-La detección local **no es un epicentro oficial JMA**.
+- Propagación estimada de ondas **P/S** en el mapa
+- Asociación a EEW y sismos con datos suficientes
+- La lógica de ondas se conserva aunque se haya retirado el panel UI antiguo “Fuentes Ondas P/S”
 
 ---
 
-## Interfaz y UX
+## 5. Japón · NIED / movimiento
 
-- Panel izquierdo: evento actual + lista
-- Mapa: capas, alertas flotantes, estaciones
-- Barra de acciones (inicio, TTS, ajustes…)
-- Ticker inferior
-- Panel de conexiones API
-- Diseño pensado para escritorio; en móvil hay reglas responsive (no se garantiza paridad total sin prueba en dispositivo)
+- Estaciones **NIED K-NET / KiK-net**
+- Métricas NIED (intensidad instrumental, PGA/PGV según configuración)
+- Detección local de movimiento (grupos, prefecturas)
+- Cuadros tipo EQuake: Weak / Shaking / Strong + prefecturas
+- **Local Epicenter Estimation** (estimación local, no boletín oficial)
+- Capas Yahoo·NIED / “Japón en vivo”
+- KMONI (puede estar oculto en UI según build)
+
+El cuadro de overlay Japón está orientado a **movimiento y EEW**, no a reportes finales de la lista.
 
 ---
 
-## Licencias y atribuciones
+## 6. Strong motion e intensidad en mapa
 
-### Licencia de este proyecto (partes derivadas)
+Capas independientes (panel **Intensidad / Strong Motion**):
+
+| Capa | Origen | Contenido |
+|------|--------|-----------|
+| 🇳🇿 **GeoNet** | `api.geonet.org.nz` `/intensity/strong/processed/{publicID}` | Estaciones MMI, PGA (%g), PGV (cm/s) **medidos** |
+| 🇺🇸 **USGS estaciones** | ShakeMap `stationlist.json` | `station_type: seismic` |
+| 🇺🇸 **USGS macrosísmico** | Mismo producto | DYFI / `macroseismic` (no instrumental) |
+| 🇺🇸 **Contornos MMI / PGA / PGV** | `cont_mmi.json`, `cont_pga.json`, `cont_pgv.json` | Geometrías oficiales del modelo ShakeMap |
+| 🇹🇼 **CWA estaciones** | Worker `cwa-worker.terremotis123.workers.dev/cwa` | Intensidad, PGA (gal), PGV (kine), coordenadas |
+| 🇮🇹 **INGV shakedata** | `webservices.ingv.it/ingvws/shakedata` `format=event_dat` | PGA/PGV (acc/vel API) por estación |
+
+- Colores según intensidad cuando hay MMI
+- Popup: agencia, estación, parámetros, **tipo de dato** (medido / macrosísmico / contorno modelo)
+- Al cambiar de sismo se limpian o recargan las capas del evento
+- GeoNet **no se sustituye** por las demás fuentes
+
+---
+
+## 7. Tsunami
+
+- Panel de avisos / forecast (p. ej. JMA)
+- Integración con cobertura tipo NHK en escenarios de alta intensidad Japón
+- Fuentes tipo PTWC cuando el monitor las tiene cableadas
+
+---
+
+## 8. Meteorología y otros peligros
+
+- **Tifones** (JMA / productos asociados)
+- **Huracanes EE. UU.** (NOAA / NHC)
+- **Alertas meteorológicas EE. UU.**
+- **Clima / alertas JMA**
+- **Volcanes JMA** y paneles de volcanes globales / Colombia (módulos)
+- **GDACS** (desastres globales)
+- **SIAT-CT México** (ciclones tropicales)
+
+---
+
+## 9. Taiwán
+
+- Feed **CWA** (Worker)
+- Métricas **TREM** / **P-Alert** según disponibilidad
+- Vista de movimiento Taiwán
+
+---
+
+## 10. Audio, TTS y ticker
+
+- **TTS** (lectura de alertas; voces configurables)
+- Sonidos de interfaz / intensidad (SREV / kotoho7 según atribución)
+- **Ticker** inferior con mensajes rotativos
+- Respeto a `prefers-reduced-motion` en varias animaciones
+
+---
+
+## 11. Configuración e interfaz
+
+- Modal de ajustes (magnitud mínima, métricas NIED, etc.)
+- Panel de estado de conexiones por fuente
+- Pantalla completa
+- Reloj (estilo SesnaQuake) y contadores
+- Tema oscuro, lista compacta, tipografías **Akshar** + **BIZ UDPGothic** + Roboto
+- Telop JMA (japonés + español)
+- Barra de acciones del mapa (inicio, TTS, ajustes…)
+
+---
+
+## 12. Modos de mapa
+
+Clases frecuentes en `#mainLayout`:
+
+| Modo | Uso |
+|------|-----|
+| `japan-focus` | NIED / Japón en vivo |
+| `wave-focus` | Ondas TauP |
+| `tsunami-focus` | Tsunami |
+| `typhoon-focus` / `hurricane-focus` / `us-alerts-focus` | Meteo |
+| `taiwan-focus` / `taiwan-motion-focus` | Taiwán |
+| `jma-volcano-focus` / `jma-weather-focus` | Volcán / clima JMA |
+| `gdacs-focus` / `siat-focus` | GDACS / SIAT-CT |
+| `nhk-coverage-focus` | Cobertura alta intensidad Japón |
+
+---
+
+## 13. Licencias y atribuciones
+
+### Este proyecto (partes derivadas)
 
 **GNU Affero General Public License v3.0 (AGPL-3.0)**
 
-Si modificas y publicas el monitor en una red (p. ej. **GitHub Pages**), debes ofrecer el **código fuente** de esa versión a los usuarios.
-
-Texto: https://www.gnu.org/licenses/agpl-3.0.html
+Si publicas el monitor en red (p. ej. GitHub Pages), debes ofrecer el **código fuente** de esa versión.
 
 ### SesnaQuake
 
-| | |
-|--|--|
-| **Repo** | https://github.com/Domiko7/SesnaQuake |
-| **Licencia** | AGPL-3.0 |
-| **Autor** | Domiko / Domiko7 |
-
-**Adaptado aquí (no es un fork completo de la app Tauri+React):**
-- Estilo de lista e intensidades
-- Colores Shindo/MMI (`transform.ts`)
-- Tema de UI y reloj
-- Concepto de panel EEW inactivo / activo
-- Ideas de presentación de sacudida local
+- https://github.com/Domiko7/SesnaQuake — **AGPL-3.0**
+- Lista, colores de intensidad, tema/reloj, ideas de panel EEW
 
 ### Kanameishi
 
-| | |
-|--|--|
-| **Repo** | https://github.com/Lipomoea/kanameishi |
-| **Licencia** | AGPL-3.0 |
-| **Upstream** | Web Vue + Leaflet para alertas y datos sísmicos vía APIs públicas |
+- https://github.com/Lipomoea/kanameishi — **AGPL-3.0**
+- Patrones del ecosistema de monitores abiertos presentes en el HTML
 
-**En este HTML:** patrones / piezas del ecosistema de monitores abiertos y cualquier lógica o UI relacionada con Kanameishi presente en el archivo. Mantener AGPL y este README al redistribuir.
-
-### Otros
+### Datos y otros
 
 | Recurso | Notas |
 |---------|--------|
-| **SREV / kotoho7** | Sonidos / intensidad; ver meta `srev-audio-attribution` en el HTML (p. ej. CC BY-SA 2.0 según origen) |
+| **GeoNet / GNS Science** | API pública; política de datos GeoNet |
+| **USGS ShakeMap** | Productos ComCat / ShakeMap |
+| **CWA** | Open Government Data; acceso vía Worker del proyecto |
+| **INGV** | FDSN / shakedata |
+| **SREV / kotoho7** | Sonidos; ver meta en el HTML |
 | **Leaflet** | Licencia propia de Leaflet |
-| **Fuentes sísmicas oficiales** | Términos de JMA, NIED, USGS, etc. |
 
-### Atribución corta (pie de página / Acerca de)
-
-```
-Partes de interfaz y presentación adaptadas de:
-• SesnaQuake (Domiko7) — AGPL-3.0 — https://github.com/Domiko7/SesnaQuake
-• Kanameishi (Lipomoea) — AGPL-3.0 — https://github.com/Lipomoea/kanameishi
+Atribución corta sugerida:
 
 ```
+Partes de UI: SesnaQuake (Domiko7) y Kanameishi (Lipomoea) — AGPL-3.0
+Datos: JMA, NIED, USGS, GeoNet, CWA, INGV y demás agencias según sus términos
+```
 
-## Créditos
+---
 
-- **SesnaQuake** — Domiko7  
-- **Kanameishi** — Lipomoea  
-- **Autores del monitor** — mantenedores de este repositorio  
-- **Agencias y redes** — únicamente como fuentes de datos  
+## 14. Publicación (GitHub Pages)
+
+1. Sube `index.html`, este `README.md` y `LICENSE` (AGPL).
+2. Activa GitHub Pages sobre la rama/carpeta del sitio.
+3. Repo **público** con fuente accesible (AGPL en red).
+4. No presentes estimaciones NIED/TauP/contornos de modelo como alertas oficiales.
 
 ---
 
@@ -229,9 +236,16 @@ Partes de interfaz y presentación adaptadas de:
 /
 ├── index.html      # Monitor completo
 ├── README.md       # Este archivo
-└── LICENSE         # Texto AGPL-3.0 (recomendado)
+└── LICENSE         # Texto AGPL-3.0
 ```
 
 ---
 
-*README generado para documentar funciones del HTML actual y obligaciones de licencia. Octubre 2026.*
+## Créditos
+
+- **SesnaQuake** — Domiko7  
+- **Kanameishi** — Lipomoea  
+- **Mantenedores de este monitor**  
+- **Agencias y redes** — solo como fuentes de datos  
+
+*README orientado al HTML multiagencia actual (incl. strong motion GeoNet / USGS / CWA Worker / INGV). Octubre 2026.*
