@@ -4325,6 +4325,7 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
 .tsunami-item.ts-group{border-left:3px solid rgba(64,196,255,.55);padding-left:8px;}
 </style>
 
+
 </head>
 <body>
 <script id="eq-antibug-core">
@@ -4388,7 +4389,7 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
     </div>
 
     <div class="main" id="mainLayout">
-        <div class="left-panel">
+<div class="left-panel">
 <div class="current-event" id="currentEvent">
                 <div id="cencAutoHeading" class="cenc-auto-heading" hidden>CENC (Auto) Information</div>
                 <div class="intensity-big">
@@ -27305,12 +27306,42 @@ function ynBuildLeafletMarkers() {
         function ynNiedMetricFresh(now = Date.now()) {
             return ynNiedMetricFetchedAt > 0 && Number(now) - ynNiedMetricFetchedAt <= YN_NIED_METRIC_STALE_MS;
         }
-        function ynNiedMetricColor(value, metric) {
-            if (!Number.isFinite(Number(value)) || Number(value) <= 0 || !ynNiedMetricFresh()) return '#737b86';
-            const breaks = metric === 'pgv' ? [0.1,0.5,1,3,10,30,100] : [0.1,0.5,1,5,10,50,100];
+        // Escalas de color PGA/PGV inspiradas en SesnaQuake (Domiko7, AGPL-3.0).
+        // Umbrales aproximados; los valores del GIF KMONI son estimaciones visuales.
+        const YN_PGA_GRADIENT = [
+            [0,0,7,197],[0.1,0,36,221],[0.2,0,101,195],[0.5,9,191,141],[1,26,235,91],
+            [2,95,242,37],[5,173,244,59],[10,229,244,59],[20,235,192,82],[50,225,125,38],
+            [100,235,108,44],[200,235,79,44],[500,238,41,31],[1000,136,6,5]
+        ];
+        const YN_PGV_GRADIENT = [
+            [0,0,7,197],[0.1,0,36,221],[0.5,0,101,195],[1.1,9,191,141],[3.4,26,235,91],
+            [8.1,95,242,37],[16,173,244,59],[31,229,244,59],[60,235,192,82],[116,225,125,38],
+            [200,235,108,44],[300,235,79,44],[400,238,41,31],[500,136,6,5]
+        ];
+        function ynMetricGradientColor(value, stops) {
+            const v = Number(value);
+            if (!Number.isFinite(v) || v < 0) return 'rgb('+stops[0][1]+','+stops[0][2]+','+stops[0][3]+')';
+            if (v <= stops[0][0]) return 'rgb('+stops[0][1]+','+stops[0][2]+','+stops[0][3]+')';
+            const last = stops[stops.length-1];
+            if (v >= last[0]) return 'rgb('+last[1]+','+last[2]+','+last[3]+')';
             let i = 0;
-            while (i < breaks.length && Number(value) >= breaks[i]) i++;
-            return YN_NIED_METRIC_COLORS[Math.min(i, YN_NIED_METRIC_COLORS.length - 1)];
+            while (i < stops.length-1 && v > stops[i+1][0]) i++;
+            const a = stops[i], b = stops[i+1];
+            const t = (v - a[0]) / (b[0] - a[0] || 1);
+            const r = Math.round(a[1] + (b[1]-a[1])*t);
+            const g = Math.round(a[2] + (b[2]-a[2])*t);
+            const bl = Math.round(a[3] + (b[3]-a[3])*t);
+            return 'rgb('+r+','+g+','+bl+')';
+        }
+        function ynNiedMetricColor(value, metric, allowStale) {
+            // allowStale: colores sin exigir trama KMONI fresca (respaldo por intensidad)
+            if (!allowStale && !ynNiedMetricFresh()) return '#6B6B9E';
+            const v = Number(value);
+            if (!Number.isFinite(v) || v < 0) return '#6B6B9E';
+            // En reposo (0) usar el azul bajo de la escala, no gris apagado, para que se vea la red
+            if (v === 0) return metric === 'pgv' ? ynMetricGradientColor(0.05, YN_PGV_GRADIENT) : ynMetricGradientColor(0.05, YN_PGA_GRADIENT);
+            if (metric === 'pgv') return ynMetricGradientColor(v, YN_PGV_GRADIENT);
+            return ynMetricGradientColor(v, YN_PGA_GRADIENT);
         }
         function ynNiedMetricLegend() {
             const title = document.getElementById('ynMetricLegendTitle');
@@ -27375,24 +27406,86 @@ function ynBuildLeafletMarkers() {
             try {
                 ynEnsureNiedMetricLayer();
                 const metric = ynNiedMetricMode() === 'pgv' ? 'pgv' : 'pga';
+                const codeToYahoo = new Map();
+                const cellToYahoo = new Map();
+                const cellKey = (lat, lon) => (Math.round(lat*100)/100) + ',' + (Math.round(lon*100)/100);
+                try {
+                    if (Array.isArray(ynLeafletMarkers)) {
+                        ynLeafletMarkers.forEach(m => {
+                            if (!m || !m.getLatLng) return;
+                            const ll = m.getLatLng();
+                            const yCode = Number(m._ynCode)||0;
+                            const nied = m._ynNied;
+                            let stCode = null;
+                            if (nied) {
+                                if (typeof nied === 'string') stCode = nied;
+                                else if (Array.isArray(nied)) stCode = nied[0];
+                                else stCode = nied.code || nied.id || nied[0];
+                            }
+                            if (stCode) codeToYahoo.set(String(stCode), yCode);
+                            if (ll) cellToYahoo.set(cellKey(ll.lat, ll.lng), yCode);
+                        });
+                    }
+                } catch (_) {}
                 ynNiedMetricMarkers.forEach(marker => {
-                    const sample = ynNiedMetricFresh() ? ynNiedMetricSamples.get(marker._ynNiedMetricCode) : null;
-                    const value = sample ? sample[metric] : 0;
-                    marker.setStyle({ fillColor: ynNiedMetricColor(value, metric), fillOpacity: sample ? 0.92 : 0.38, opacity:1 });
+                    const code = marker._ynNiedMetricCode;
+                    const sample = ynNiedMetricFresh() ? ynNiedMetricSamples.get(code) : null;
+                    let value = sample ? Number(sample[metric])||0 : 0;
+                    let yCode = codeToYahoo.has(String(code)) ? codeToYahoo.get(String(code)) : -1;
+                    if (yCode < 0) {
+                        try {
+                            const ll = marker.getLatLng && marker.getLatLng();
+                            if (ll && cellToYahoo.has(cellKey(ll.lat, ll.lng))) yCode = cellToYahoo.get(cellKey(ll.lat, ll.lng));
+                        } catch (_) {}
+                    }
+                    if (!(sample && value > 0) && yCode >= 0 && typeof ynCodeToApproxPgaPgv === 'function') {
+                        const ap = ynCodeToApproxPgaPgv(yCode);
+                        value = Number(ap[metric])||0;
+                    }
+                    // En calma (casi 0): mismo color que intensidad, para que no se vea todo gris muerto.
+                    // Con movimiento real: escala PGA/PGV.
+                    let fill;
+                    const quiet = !(value > 0.15);
+                    if (quiet && yCode >= 0) {
+                        if (typeof srevStationColorFromYahooCode === 'function') fill = srevStationColorFromYahooCode(yCode);
+                        else if (typeof ynHexColor === 'function') fill = ynHexColor(yCode);
+                        else fill = ynNiedMetricColor(0, metric, true);
+                    } else {
+                        fill = ynNiedMetricColor(Math.max(value, 0), metric, true);
+                    }
+                    marker.setStyle({
+                        fillColor: fill || '#6B6B9E',
+                        fillOpacity: sample ? 0.92 : 0.88,
+                        opacity: 1
+                    });
                 });
             } catch (_) {}
         }
         function ynSyncNiedMetricVisibility() {
-            const active = ynNiedMetricViewActive() && (typeof ynVisible !== 'function' || ynVisible()) && !document.hidden;
+            const selected = ynNiedMetricViewActive() && (typeof ynVisible !== 'function' || ynVisible()) && !document.hidden;
+            const hasSamples = selected && ynNiedMetricFresh() && ynNiedMetricSamples && ynNiedMetricSamples.size > 0;
             const originalPane = map && map.getPane ? map.getPane('yahooNiedStationsPane') : null;
             const metricPane = map && map.getPane ? map.getPane('niedDerivedMetricPane') : null;
-            if (originalPane) originalPane.style.display = active ? 'none' : '';
-            if (metricPane) metricPane.style.display = active ? '' : 'none';
-            if (active) {
+            // Sin trama KMONI real: NO ocultar intensidad (evita el mapa todo gris al elegir PGA/PGV).
+            // Con trama: capa métrica con colores PGA/PGV.
+            if (originalPane) originalPane.style.display = hasSamples ? 'none' : '';
+            if (metricPane) metricPane.style.display = hasSamples ? '' : 'none';
+            if (hasSamples) {
                 ynEnsureNiedMetricLayer();
+                try { ynRefreshNiedMetricMarkers(); } catch (_) {}
                 try { if (ynNiedMetricLayer && !map.hasLayer(ynNiedMetricLayer)) ynNiedMetricLayer.addTo(map); } catch (_) {}
             } else {
                 try { if (ynNiedMetricLayer && map.hasLayer(ynNiedMetricLayer)) map.removeLayer(ynNiedMetricLayer); } catch (_) {}
+                if (selected) {
+                    try {
+                        if (!window.__eqNiedMetricNoSampleToastAt || Date.now() - window.__eqNiedMetricNoSampleToastAt > 20000) {
+                            window.__eqNiedMetricNoSampleToastAt = Date.now();
+                            if (typeof showRegionToast === 'function') {
+                                showRegionToast('🇯🇵 PGA/PGV: sin trama KMONI aún · se muestra intensidad');
+                            }
+                        }
+                    } catch (_) {}
+                }
             }
             ynNiedMetricLegend();
         }
@@ -27554,7 +27647,10 @@ function ynBuildLeafletMarkers() {
         window.__eqApplyNiedMetricView = function () {
             try {
                 ynSyncNiedMetricVisibility();
-                if (ynNiedMetricViewActive()) ynRefreshNiedMetricMarkers();
+                // Siempre repintar al cambiar PGA/PGV (aunque aún no haya GIF KMONI)
+                if (ynNiedMetricSelected()) {
+                    try { ynEnsureNiedMetricLayer(); ynRefreshNiedMetricMarkers(); } catch (_) {}
+                }
                 if (ynNiedMetricViewActive()) ynFetchNiedMetricFrame();
                 ynUpdateNiedMetricsPanel();
             } catch (_) {}
@@ -35794,6 +35890,7 @@ For more information on this, and how to apply and follow the GNU AGPL, see
   window.__push={enable,disable,configure,test,prefs};
 })();
 </script>
+
 
 
 
