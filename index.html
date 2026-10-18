@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#0a1522">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Akshar:wght@400;500;600;700&family=BIZ+UDPGothic:wght@400;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
@@ -29762,6 +29767,8 @@ function ynBuildLeafletMarkers() {
 <button class="eqs-control eqs-tile" id="eqsOpenBogMov" type="button">🚦 Movilidad Bogotá · Avisos</button>
 <button class="eqs-control eqs-tile" id="eqsOpenVolcCar" type="button">🌋 Volcanes y tsunamis · Colombia y Caribe</button>
 <button class="eqs-control eqs-tile" id="eqsToggleKmaPews" type="button" aria-pressed="false">🇰🇷 Estaciones KMA (Corea)</button>
+<button class="eqs-control eqs-tile" id="eqsOpenLpgm" type="button" aria-pressed="false">🏢 Período largo JMA</button>
+<button class="eqs-control eqs-tile" id="eqsInstallPwa" type="button">📲 Instalar como app</button>
 <button class="eqs-control eqs-tile" id="eqsOpenInvias" type="button">🛣️ INVÍAS · Vías nacionales</button>
 </div>
 <div class="eqs-muted">SIAT se cierra a los 15 s. Movilidad Bogotá fija Bogotá en el mapa y no interrumpe alertas sísmicas.</div>
@@ -35534,6 +35541,175 @@ For more information on this, and how to apply and follow the GNU AGPL, see
   if(lsGet(KEY)==='1')setTimeout(()=>setEnabled(true),4000);
 })();
 </script>
+<script id="lpgmModule">
+/* Movimiento sísmico de período largo (長周期地震動) de la JMA: historial de 30 días y estaciones del evento elegido.
+ * Datos: https://www.data.jma.go.jp/eew/data/ltpgm/ (lista HTML + level.csv por evento, Shift_JIS). Reescrito para este monitor. */
+(function(){
+  'use strict';
+  if(typeof map==='undefined'||typeof L==='undefined')return;
+  const BASE='https://www.data.jma.go.jp/eew/data/ltpgm/';
+  const COL=['#7f93a8','#ffe94d','#ff9f1a','#ff3b30','#8e24aa'];
+  const MIN_POLL=10*60000;
+  let panel=null,layer=null,items=[],cur=null,open=false,timer=0,busy=false,lastErr='',okAt=0,seen=null;
+  const $=id=>document.getElementById(id);
+  const lsGet=k=>{try{return localStorage.getItem(k);}catch(_){return null;}};
+  const lsSet=(k,v)=>{try{localStorage.setItem(k,v);}catch(_){}};
+  async function getBuf(url){
+    const tries=[url,'https://corsproxy.io/?url='+encodeURIComponent(url),'https://api.allorigins.win/raw?url='+encodeURIComponent(url),'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(url)];
+    for(const u of tries){
+      try{const c=new AbortController(),to=setTimeout(()=>c.abort(),9000);const r=await fetch(u,{cache:'no-store',signal:c.signal});clearTimeout(to);if(!r.ok)continue;const b=await r.arrayBuffer();if(b.byteLength>40)return b;}catch(_){}
+    }
+    return null;
+  }
+  const dec=(buf,enc)=>{try{return new TextDecoder(enc).decode(buf);}catch(_){return new TextDecoder('utf-8').decode(buf);}};
+  const half=s=>String(s||'').replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/．/g,'.').trim();
+  function parseList(html){
+    const out=[];
+    try{
+      const d=new DOMParser().parseFromString(html,'text/html');
+      d.querySelectorAll('tr').forEach(tr=>{
+        const td=tr.querySelectorAll('td');if(td.length<4)return;
+        const a=tr.querySelector('a[href*="eventId="]');const m=a&&/eventId=(\d{14})/.exec(a.getAttribute('href')||'');if(!m)return;
+        const cls=/(\d)/.exec(half(td[3].textContent));
+        out.push({id:m[1],when:half(td[0].textContent),place:td[1].textContent.trim(),mag:half(td[2].textContent),cls:cls?+cls[1]:0});
+      });
+    }catch(_){}
+    return out;
+  }
+  function parseLevelCsv(text){
+    const rows=[];
+    text.split(/\r?\n/).forEach(line=>{
+      if(!line||line[0]==='#')return;
+      const p=line.split(',');if(p.length<9)return;
+      const lat=parseFloat(p[p.length-2]),lon=parseFloat(p[p.length-1]);
+      if(!Number.isFinite(lat)||!Number.isFinite(lon))return;
+      const cls=Math.max(0,Math.min(4,parseInt(p[5],10)||0));
+      rows.push({no:p[0],name:p[1],area:p[2],cls,lat,lon});
+    });
+    return rows;
+  }
+  function ensureUi(){
+    if(panel)return;
+    if(!$('lpgm-style')){
+      const st=document.createElement('style');st.id='lpgm-style';
+      st.textContent='#lpgmPanel{position:absolute;left:12px;bottom:12px;z-index:4400;width:min(330px,calc(100vw - 24px));max-height:48vh;display:none;flex-direction:column;background:rgba(10,18,30,.94);color:#e6eef8;border:1px solid rgba(255,255,255,.18);border-radius:10px;font:12px/1.35 system-ui,sans-serif;overflow:hidden}#lpgmPanel.on{display:flex}#lpgmPanel h4{margin:0;padding:8px 10px;font-size:12px;display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.06)}#lpgmPanel button.x{background:none;border:0;color:#cfe;font-size:16px;cursor:pointer}#lpgmList{overflow:auto}#lpgmList .r{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:6px 10px;border-top:1px solid rgba(255,255,255,.08);cursor:pointer}#lpgmList .r.sel{background:rgba(70,160,255,.18)}#lpgmList .r b{font-weight:700}#lpgmList .k{font-weight:800;padding:0 6px;border-radius:999px;color:#111}#lpgmFoot{padding:6px 10px;font-size:10.5px;color:#9db3c9;border-top:1px solid rgba(255,255,255,.08)}';
+      document.head.appendChild(st);
+    }
+    panel=document.createElement('div');panel.id='lpgmPanel';panel.setAttribute('role','region');panel.setAttribute('aria-label','Movimiento de período largo JMA');
+    panel.innerHTML='<h4><span>🏢 Período largo · JMA (30 días)</span><button class="x" id="lpgmClose" aria-label="Cerrar">×</button></h4><div id="lpgmList"></div><div id="lpgmFoot"></div>';
+    (document.querySelector('.map-container')||document.body).appendChild(panel);
+    panel.addEventListener('click',e=>{
+      if(e.target.closest('#lpgmClose')){setOpen(false);return;}
+      const r=e.target.closest('.r[data-id]');if(r)selectEvent(r.getAttribute('data-id'),true);
+    });
+    try{if(!map.getPane('lpgmPane')){const p=map.createPane('lpgmPane');p.style.zIndex='518';}}catch(_){}
+    layer=L.layerGroup();
+  }
+  function render(){
+    ensureUi();
+    const list=$('lpgmList'),foot=$('lpgmFoot');if(!list)return;
+    if(!items.length){list.innerHTML='<div class="r"><span>'+(busy?'Cargando…':'Sin datos'+(lastErr?' ('+lastErr+')':''))+'</span></div>';}
+    else list.innerHTML=items.slice(0,40).map(it=>'<div class="r'+(cur&&cur.id===it.id?' sel':'')+'" data-id="'+it.id+'"><span><b>'+it.when+'</b><br>'+it.place.replace(/</g,'')+' · M'+it.mag+'</span><span class="k" style="background:'+COL[Math.min(4,it.cls)]+'">'+it.cls+'</span></div>').join('');
+    foot.textContent='Clase de período largo 0–4 (JMA). '+(okAt?'Actualizado '+new Date(okAt).toLocaleTimeString():'')+' · Datos: JMA';
+  }
+  async function selectEvent(id,fit){
+    const it=items.find(x=>x.id===id);if(!it)return;cur=it;render();
+    const buf=await getBuf(BASE+id+'/data/level.csv');
+    if(!buf){lastErr='sin estaciones';render();return;}
+    const rows=parseLevelCsv(dec(buf,'shift_jis'));
+    try{layer.clearLayers();}catch(_){}
+    const pts=[];
+    rows.sort((a,b)=>a.cls-b.cls).forEach(s=>{
+      try{L.circleMarker([s.lat,s.lon],{pane:'lpgmPane',radius:s.cls>=1?8:5,weight:1,color:'#0b1524',fillColor:COL[s.cls],fillOpacity:.92})
+        .bindTooltip(s.name+' · '+s.area+' · clase '+s.cls).addTo(layer);pts.push([s.lat,s.lon]);}catch(_){}
+    });
+    try{if(open&&!map.hasLayer(layer))layer.addTo(map);}catch(_){}
+    if(fit&&pts.length){try{map.fitBounds(L.latLngBounds(pts),{padding:[40,40],maxZoom:8});}catch(_){}}
+  }
+  async function refresh(){
+    if(busy)return;busy=true;
+    try{
+      const buf=await getBuf(BASE+'eq_list.php');
+      if(!buf){lastErr='sin conexión';return;}
+      let html=dec(buf,'utf-8');if(/�/.test(html)&&!/長周期/.test(html))html=dec(buf,'shift_jis');
+      const list=parseList(html);
+      if(!list.length){lastErr='lista vacía';return;}
+      items=list;okAt=Date.now();lastErr='';
+      // Aviso: evento nuevo con clase ≥1 (poco frecuente)
+      const known=(lsGet('earthquake.lpgm.seen.v1')||'');
+      const strong=items.find(i=>i.cls>=1);
+      if(strong&&known!==strong.id){
+        lsSet('earthquake.lpgm.seen.v1',strong.id);
+        if(known){try{if(typeof showRegionToast==='function')showRegionToast('🏢 Período largo clase '+strong.cls+' · '+strong.place);}catch(_){}try{new Notification('🏢 Movimiento de período largo (JMA)',{body:strong.place+' · clase '+strong.cls,tag:'lpgm-'+strong.id});}catch(_){}}
+      }
+      if(!cur)cur=items[0];
+      if(open)await selectEvent(cur.id,false);
+    }catch(e){lastErr=String(e&&e.message||e);}
+    finally{busy=false;render();setStatus();}
+  }
+  function setOpen(v){
+    open=!!v;ensureUi();panel.classList.toggle('on',open);
+    clearInterval(timer);timer=0;
+    if(open){timer=setInterval(refresh,MIN_POLL);refresh();try{if(layer&&!map.hasLayer(layer))layer.addTo(map);}catch(_){}}
+    else{try{layer.clearLayers();map.removeLayer(layer);}catch(_){}}
+    setStatus();
+  }
+  function setStatus(){const b=$('eqsOpenLpgm');if(b){b.setAttribute('aria-pressed',open?'true':'false');b.textContent='🏢 Período largo JMA'+(open?' · '+(items.length?items.length+' eventos':(lastErr||'cargando…')):'');}}
+  document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('#eqsOpenLpgm');if(!b)return;try{$('eqSettingsModal')?.classList.remove('active');}catch(_){}setOpen(!open);});
+  window.__lpgm={parseList,parseLevelCsv,setOpen,state:()=>({open,items:items.length,lastErr})};
+  // Comprobación en segundo plano (sin abrir el panel) para avisar de eventos fuertes
+  setTimeout(refresh,15000);setInterval(()=>{if(!open)refresh();},30*60000);
+})();
+</script>
+
+<script id="pwaModule">
+/* PWA: registra el service worker (sw.js junto al HTML), muestra el botón "Instalar" y hace que las notificaciones
+ * funcionen en Chrome para Android (donde new Notification() lanza error y hay que usar registration.showNotification). */
+(function(){
+  'use strict';
+  const lsGet=k=>{try{return localStorage.getItem(k);}catch(_){return null;}};
+  // 1) Notificaciones compatibles con Android
+  try{
+    const Native=window.Notification;
+    if(Native&&!Native.__eqWrapped&&'serviceWorker' in navigator){
+      const W=function(title,opts){
+        try{return new Native(title,opts);}
+        catch(_){
+          try{navigator.serviceWorker.ready.then(r=>r.showNotification(title,Object.assign({icon:'icon-192.png',badge:'icon-192.png'},opts||{})));}catch(__){}
+          return {close(){},addEventListener(){},onclick:null};
+        }
+      };
+      W.prototype=Native.prototype;W.__eqWrapped=true;
+      Object.defineProperty(W,'permission',{get:()=>Native.permission});
+      W.requestPermission=function(){return Native.requestPermission.apply(Native,arguments);};
+      try{Object.defineProperty(W,'maxActions',{get:()=>Native.maxActions});}catch(_){}
+      window.Notification=W;
+    }
+  }catch(_){}
+  // 2) Service worker (necesita https o localhost y que sw.js esté publicado junto al HTML)
+  if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
+    window.addEventListener('load',()=>{try{navigator.serviceWorker.register('sw.js').catch(()=>{});}catch(_){}});
+  }
+  // 3) Botón de instalar en Configuración
+  let deferred=null;
+  const standalone=()=>{try{return window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;}catch(_){return false;}};
+  function setBtn(){
+    const b=document.getElementById('eqsInstallPwa');if(!b)return;
+    if(standalone()){b.textContent='📲 App instalada';b.disabled=true;return;}
+    b.textContent=deferred?'📲 Instalar como app':'📲 Instalar (menú ⋮ → Añadir a pantalla)';
+  }
+  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;setBtn();});
+  window.addEventListener('appinstalled',()=>{deferred=null;setBtn();});
+  document.addEventListener('click',e=>{
+    const b=e.target.closest&&e.target.closest('#eqsInstallPwa');if(!b)return;
+    if(deferred){deferred.prompt();deferred.userChoice.finally(()=>{deferred=null;setBtn();});}
+    else{try{if(typeof showRegionToast==='function')showRegionToast('En Chrome: menú ⋮ → «Instalar app» o «Añadir a pantalla de inicio»');}catch(_){}}
+  });
+  setTimeout(setBtn,1500);setInterval(setBtn,5000);
+  window.__pwa={standalone,canInstall:()=>!!deferred};
+})();
+</script>
+
 
 </body>
 </html>
