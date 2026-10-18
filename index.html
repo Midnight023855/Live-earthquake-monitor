@@ -27462,31 +27462,17 @@ function ynBuildLeafletMarkers() {
             } catch (_) {}
         }
         function ynSyncNiedMetricVisibility() {
-            const selected = ynNiedMetricViewActive() && (typeof ynVisible !== 'function' || ynVisible()) && !document.hidden;
-            const hasSamples = selected && ynNiedMetricFresh() && ynNiedMetricSamples && ynNiedMetricSamples.size > 0;
+            // PGA/PGV se pinta sobre la capa principal (ynUpdateLeafletColors).
+            // La capa derivada de KMONI queda opcional y no oculta la red de estaciones.
             const originalPane = map && map.getPane ? map.getPane('yahooNiedStationsPane') : null;
             const metricPane = map && map.getPane ? map.getPane('niedDerivedMetricPane') : null;
-            // Sin trama KMONI real: NO ocultar intensidad (evita el mapa todo gris al elegir PGA/PGV).
-            // Con trama: capa métrica con colores PGA/PGV.
-            if (originalPane) originalPane.style.display = hasSamples ? 'none' : '';
-            if (metricPane) metricPane.style.display = hasSamples ? '' : 'none';
-            if (hasSamples) {
-                ynEnsureNiedMetricLayer();
-                try { ynRefreshNiedMetricMarkers(); } catch (_) {}
-                try { if (ynNiedMetricLayer && !map.hasLayer(ynNiedMetricLayer)) ynNiedMetricLayer.addTo(map); } catch (_) {}
-            } else {
-                try { if (ynNiedMetricLayer && map.hasLayer(ynNiedMetricLayer)) map.removeLayer(ynNiedMetricLayer); } catch (_) {}
-                if (selected) {
-                    try {
-                        if (!window.__eqNiedMetricNoSampleToastAt || Date.now() - window.__eqNiedMetricNoSampleToastAt > 20000) {
-                            window.__eqNiedMetricNoSampleToastAt = Date.now();
-                            if (typeof showRegionToast === 'function') {
-                                showRegionToast('🇯🇵 PGA/PGV: sin trama KMONI aún · se muestra intensidad');
-                            }
-                        }
-                    } catch (_) {}
-                }
-            }
+            if (originalPane) originalPane.style.display = '';
+            if (metricPane) metricPane.style.display = 'none';
+            try { if (ynNiedMetricLayer && map.hasLayer(ynNiedMetricLayer)) map.removeLayer(ynNiedMetricLayer); } catch (_) {}
+            // Seguir intentando trama KMONI en segundo plano para mejorar valores
+            try {
+                if (ynNiedMetricViewActive() && !document.hidden) ynFetchNiedMetricFrame();
+            } catch (_) {}
             ynNiedMetricLegend();
         }
         function ynNiedRgbPosition(r,g,b) {
@@ -27646,11 +27632,9 @@ function ynBuildLeafletMarkers() {
         }
         window.__eqApplyNiedMetricView = function () {
             try {
+                ynLastColorUpdateMs = 0; // forzar repintado inmediato
                 ynSyncNiedMetricVisibility();
-                // Siempre repintar al cambiar PGA/PGV (aunque aún no haya GIF KMONI)
-                if (ynNiedMetricSelected()) {
-                    try { ynEnsureNiedMetricLayer(); ynRefreshNiedMetricMarkers(); } catch (_) {}
-                }
+                if (typeof ynUpdateLeafletColors === 'function') ynUpdateLeafletColors();
                 if (ynNiedMetricViewActive()) ynFetchNiedMetricFrame();
                 ynUpdateNiedMetricsPanel();
             } catch (_) {}
@@ -27772,7 +27756,6 @@ function ynBuildLeafletMarkers() {
         function ynUpdateLeafletColors() {
             if (!ynEnsureLeafletLayer()) return;
             try { ynSyncNiedMetricVisibility(); } catch (_) {}
-            if (ynNiedMetricViewActive()) { try { ynUpdateNiedMetricsPanel(); } catch (_) {} return; }
             // Throttle en móvil (evita trabar el celular)
             const now = Date.now();
             const minGap = ynIsMobilePerf() ? 600 : 200;
@@ -27781,6 +27764,73 @@ function ynBuildLeafletMarkers() {
                 return;
             }
             ynLastColorUpdateMs = now;
+            // Modo PGA/PGV: colorear la misma capa de estaciones con métrica (en vivo desde intensidad
+            // o muestra KMONI si existe). Así SÍ se actualiza aunque falle el GIF.
+            const metricMode = ynNiedMetricSelected();
+            const metricKey = ynNiedMetricMode() === 'pgv' ? 'pgv' : 'pga';
+            if (metricMode) {
+                if (!ynLeafletBuilt || !ynLeafletMarkers.length) {
+                    ynBuildLeafletMarkers();
+                }
+                const intensity = ynFeedIsFresh() ? (ynIntensity || '') : '';
+                const modeSrc = typeof ynJapanStationsSource === 'function' ? ynJapanStationsSource() : 'yahoo';
+                let valid = 0;
+                for (let i = 0; i < ynLeafletMarkers.length; i++) {
+                    const m = ynLeafletMarkers[i];
+                    if (!m) continue;
+                    let code = 0;
+                    const src = m._ynSource || (modeSrc === 'yahoo' ? 'yahoo' : 'nied');
+                    if (src === 'yahoo' && modeSrc === 'yahoo' && i < intensity.length) {
+                        const c = intensity.charCodeAt(i) - 100;
+                        if (Number.isInteger(c) && c >= 0 && c <= 20) { code = c; valid++; }
+                    } else {
+                        try {
+                            const ll = m.getLatLng && m.getLatLng();
+                            if (ll) code = ynIntensityCodeAt(ll.lat, ll.lng);
+                            if (code > 0) valid++;
+                        } catch (_) {}
+                    }
+                    m._ynCode = code;
+                    let value = 0;
+                    // Preferir muestra KMONI por código de estación si está fresca
+                    try {
+                        const nied = m._ynNied;
+                        let stCode = null;
+                        if (nied) {
+                            if (typeof nied === 'string') stCode = nied;
+                            else if (Array.isArray(nied)) stCode = nied[0];
+                            else stCode = nied.code || nied.id || nied[0];
+                        }
+                        if (stCode && ynNiedMetricFresh() && ynNiedMetricSamples && ynNiedMetricSamples.has(String(stCode))) {
+                            const sample = ynNiedMetricSamples.get(String(stCode));
+                            value = Number(sample[metricKey]) || 0;
+                        }
+                    } catch (_) {}
+                    if (!(value > 0) && typeof ynCodeToApproxPgaPgv === 'function') {
+                        const ap = ynCodeToApproxPgaPgv(code);
+                        value = Number(ap[metricKey]) || 0;
+                    }
+                    const col = (typeof ynNiedMetricColor === 'function')
+                        ? ynNiedMetricColor(Math.max(0, value), metricKey, true)
+                        : '#6B6B9E';
+                    try {
+                        if (m._ynIsSrev && m.setIcon) {
+                            // En PGA/PGV preferir círculo de color (más legible que número shindo)
+                            const ll = m.getLatLng();
+                            const neu = ynMakeQuietCircle(ll.lat, ll.lng, code, { nied: m._ynNied, source: m._ynSource });
+                            try { neu.setStyle({ fillColor: col, fillOpacity: 0.9 }); } catch (_) {}
+                            try { ynLeafletLayer.removeLayer(m); } catch (_) {}
+                            neu.addTo(ynLeafletLayer);
+                            ynLeafletMarkers[i] = neu;
+                        } else if (m.setStyle) {
+                            if (!m.options || m.options.fillColor !== col) m.setStyle({ fillColor: col, fillOpacity: 0.9 });
+                        }
+                    } catch (_) {}
+                }
+                ynValidCodes = valid;
+                try { ynUpdateNiedMetricsPanel(); } catch (_) {}
+                return;
+            }
             if (!ynLeafletBuilt || !ynLeafletMarkers.length) {
                 ynBuildLeafletMarkers();
                 return;
