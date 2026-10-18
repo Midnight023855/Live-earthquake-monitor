@@ -29769,6 +29769,9 @@ function ynBuildLeafletMarkers() {
 <button class="eqs-control eqs-tile" id="eqsToggleKmaPews" type="button" aria-pressed="false">🇰🇷 Estaciones KMA (Corea)</button>
 <button class="eqs-control eqs-tile" id="eqsOpenLpgm" type="button" aria-pressed="false">🏢 Período largo JMA</button>
 <button class="eqs-control eqs-tile" id="eqsInstallPwa" type="button">📲 Instalar como app</button>
+<button class="eqs-control eqs-tile" id="eqsPushToggle" type="button" aria-pressed="false">🔔 Avisos con la app cerrada</button>
+<button class="eqs-control eqs-tile" id="eqsPushConfig" type="button">⚙️ Reglas de los avisos</button>
+<button class="eqs-control eqs-tile" id="eqsPushTest" type="button">✅ Probar aviso</button>
 <button class="eqs-control eqs-tile" id="eqsOpenInvias" type="button">🛣️ INVÍAS · Vías nacionales</button>
 </div>
 <div class="eqs-muted">SIAT se cierra a los 15 s. Movilidad Bogotá fija Bogotá en el mapa y no interrumpe alertas sísmicas.</div>
@@ -35709,6 +35712,89 @@ For more information on this, and how to apply and follow the GNU AGPL, see
   window.__pwa={standalone,canInstall:()=>!!deferred};
 })();
 </script>
+<script id="pushModule">
+/* Avisos push con la página cerrada: suscripción al worker (sismos-push), reglas por usuario y botón de prueba.
+ * El servidor revisa las agencias cada minuto; no es alerta temprana (EEW). */
+(function(){
+  'use strict';
+  const WORKER_DEFAULT='https://notificaciones-push.terremotis123.workers.dev';
+  const PK='earthquake.push.prefs.v1',WK='earthquake.push.worker.v1',SK='earthquake.push.on.v1';
+  const DEF={worldMin:6,nearMin:3.5,nearKm:500,nearLat:4.65,nearLon:-74.1};
+  const lsGet=k=>{try{return localStorage.getItem(k);}catch(_){return null;}};
+  const lsSet=(k,v)=>{try{localStorage.setItem(k,v);}catch(_){}};
+  const worker=()=>(lsGet(WK)||WORKER_DEFAULT).replace(/\/$/,'');
+  const prefs=()=>{try{return Object.assign({},DEF,JSON.parse(lsGet(PK)||'{}'));}catch(_){return Object.assign({},DEF);}};
+  const toast=m=>{try{if(typeof showRegionToast==='function')showRegionToast(m);else alert(m);}catch(_){}};
+  const supported=()=>('serviceWorker' in navigator)&&('PushManager' in window)&&('Notification' in window);
+  const u8=b64=>{const p='='.repeat((4-b64.length%4)%4),s=(b64+p).replace(/-/g,'+').replace(/_/g,'/'),r=atob(s);return Uint8Array.from(r,c=>c.charCodeAt(0));};
+  async function api(path,body){
+    const r=await fetch(worker()+path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,cache:'no-store'});
+    const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j;
+  }
+  async function reg(){return (await navigator.serviceWorker.getRegistration())||await navigator.serviceWorker.ready;}
+  async function currentSub(){try{const r=await reg();return r?await r.pushManager.getSubscription():null;}catch(_){return null;}}
+  async function enable(){
+    if(!supported()){toast('Este navegador no admite avisos push');return;}
+    if(Notification.permission==='denied'){toast('Los avisos están bloqueados: actívalos en Chrome → Información del sitio → Notificaciones');return;}
+    const perm=Notification.permission==='granted'?'granted':await Notification.requestPermission();
+    if(perm!=='granted'){toast('Sin permiso de notificaciones');return;}
+    const r=await reg();if(!r){toast('El service worker aún no está listo; recarga y reintenta');return;}
+    const {key}=await api('/vapid');
+    let sub=await r.pushManager.getSubscription();
+    if(!sub)sub=await r.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(key)});
+    await api('/subscribe',{subscription:sub.toJSON(),prefs:prefs()});
+    lsSet(SK,'1');toast('🔔 Avisos activados');
+  }
+  async function disable(){
+    const sub=await currentSub();
+    if(sub){try{await api('/unsubscribe',{endpoint:sub.endpoint});}catch(_){}try{await sub.unsubscribe();}catch(_){}}
+    lsSet(SK,'0');toast('🔕 Avisos desactivados');
+  }
+  async function sendPrefs(){const sub=await currentSub();if(sub)await api('/prefs',{endpoint:sub.endpoint,prefs:prefs()});}
+  function askNumber(msg,cur,allowEmpty){
+    const v=prompt(msg+(allowEmpty?'\n(vacío = no avisar por este criterio)':''),cur===null?'':String(cur));
+    if(v===null)return undefined;           // cancelado
+    if(v.trim()==='')return allowEmpty?null:undefined;
+    const n=Number(v.replace(',','.'));return Number.isFinite(n)?n:undefined;
+  }
+  async function configure(){
+    const p=prefs();
+    const w=askNumber('Avisar de cualquier sismo en el mundo desde magnitud:',p.worldMin,true);if(w!==undefined)p.worldMin=w;
+    const km=askNumber('Radio de tu zona en km (0 = sin zona):',p.nearKm);if(km!==undefined)p.nearKm=Math.max(0,Math.min(20000,km));
+    if(p.nearKm>0){
+      const m=askNumber('Magnitud mínima dentro de tu zona:',p.nearMin);if(m!==undefined)p.nearMin=Math.max(0,Math.min(10,m));
+      if(confirm('¿Usar tu ubicación actual como centro de la zona?\n(Cancelar = mantener '+p.nearLat.toFixed(2)+', '+p.nearLon.toFixed(2)+')')&&navigator.geolocation){
+        await new Promise(res=>navigator.geolocation.getCurrentPosition(pos=>{p.nearLat=+pos.coords.latitude.toFixed(3);p.nearLon=+pos.coords.longitude.toFixed(3);res();},()=>{toast('No se pudo leer la ubicación');res();},{timeout:12000}));
+      }
+    }
+    lsSet(PK,JSON.stringify(p));
+    try{await sendPrefs();toast('Reglas guardadas');}catch(e){toast('Guardadas en este equipo; el servidor no respondió ('+e.message+')');}
+  }
+  async function test(){
+    const sub=await currentSub();if(!sub){toast('Primero activa los avisos');return;}
+    try{const j=await api('/test',{endpoint:sub.endpoint});toast(j.ok?'Prueba enviada: debe llegar en unos segundos':'El servicio push respondió '+j.status);}catch(e){toast('Prueba fallida: '+e.message);}
+  }
+  async function refreshBtn(){
+    const b=document.getElementById('eqsPushToggle');if(!b)return;
+    if(!supported()){b.textContent='🔔 Avisos con la app cerrada (no disponible aquí)';b.disabled=true;return;}
+    const sub=await currentSub(),on=!!sub&&lsGet(SK)==='1'&&Notification.permission==='granted';
+    b.setAttribute('aria-pressed',on?'true':'false');
+    b.textContent='🔔 Avisos con la app cerrada · '+(on?'activados':'apagados');
+  }
+  document.addEventListener('click',async e=>{
+    const t=e.target.closest&&e.target.closest('#eqsPushToggle,#eqsPushConfig,#eqsPushTest');if(!t)return;
+    try{
+      if(t.id==='eqsPushToggle'){const sub=await currentSub();if(sub&&lsGet(SK)==='1')await disable();else await enable();}
+      else if(t.id==='eqsPushConfig'){await configure();}
+      else await test();
+    }catch(err){toast('Avisos: '+(err&&err.message||err));}
+    refreshBtn();
+  });
+  setTimeout(refreshBtn,2000);setInterval(refreshBtn,8000);
+  window.__push={enable,disable,configure,test,prefs};
+})();
+</script>
+
 
 
 </body>
