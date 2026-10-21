@@ -4325,7 +4325,6 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
 .tsunami-item.ts-group{border-left:3px solid rgba(64,196,255,.55);padding-left:8px;}
 </style>
 
-
 </head>
 <body>
 <script id="eq-antibug-core">
@@ -4389,7 +4388,7 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
     </div>
 
     <div class="main" id="mainLayout">
-<div class="left-panel">
+        <div class="left-panel">
 <div class="current-event" id="currentEvent">
                 <div id="cencAutoHeading" class="cenc-auto-heading" hidden>CENC (Auto) Information</div>
                 <div class="intensity-big">
@@ -6810,6 +6809,7 @@ global.TauPJS=api;
         // puede mostrarse temporalmente, pero nunca sustituye esa vista de forma permanente.
         let yahooNiedModeActive = false;
         let japanLiveStationsPinned = false;
+        let ynPinnedMotionEpisode = false; // true si hubo movimiento detectado mientras Japón estaba fijado a mano
         let japanPinnedInternalMove = false;
         let japanPinnedOverrideMoveTimer = null;
         function holdJapanPinForMapMove(delayMs) {
@@ -11090,6 +11090,9 @@ global.TauPJS=api;
                 const wavePalette=Number.isFinite(waveMag)
                     ?(waveMag<4?{p:'#36c8ff',s:'#2f7dff'}:waveMag<5?{p:'#45e6b0',s:'#22a6ff'}:waveMag<6?{p:'#ffe04b',s:'#ff9f2f'}:waveMag<7?{p:'#ff9f2f',s:'#ff4d2f'}:waveMag<8?{p:'#ff5a36',s:'#ff1744'}:{p:'#ff315f',s:'#d91cff'})
                     :{p:'#36c8ff',s:'#ff7a32'};
+                // BMKG (visor WRS-NTWC): círculo amarillo = onda P (mayor) y rojo = onda S (menor), líneas finas centradas en el epicentro.
+                const isBmkgWave=String(ev.agency||'')==='BMKG';
+                const wp=isBmkgWave?{p:'#f7d800',s:'#e2154f'}:wavePalette;
                 const setFront=(circle,radius,color,weight,opacity,className)=>{
                     if(radius>0){
                         const smoothRadius=Math.max(5000,radius);
@@ -11099,8 +11102,8 @@ global.TauPJS=api;
                     if(circle)try{waveLayer.removeLayer(circle);}catch(_){}
                     return null;
                 };
-                wavePCircle=setFront(wavePCircle,pRadius,wavePalette.p,3,.98,'srev-wavefront-p');
-                waveSCircle=setFront(waveSCircle,sRadius,wavePalette.s,3.5,.9,'srev-wavefront-s');
+                wavePCircle=setFront(wavePCircle,pRadius,wp.p,isBmkgWave?2:3,.98,'srev-wavefront-p');
+                waveSCircle=setFront(waveSCircle,sRadius,wp.s,isBmkgWave?2:3.5,.9,'srev-wavefront-s');
                 if(window.__jmaEewWaveDiag){window.__jmaEewWaveDiag.last=`${ev.estimated?'TREM':(ev.agency||'EEW')} · marker + TauP P/S`;window.__jmaEewWaveDiag.layerCount=waveLayer.getLayers().length;window.__jmaEewWaveDiag.waveKey=ev.raw?jmaEewEventKey(ev.raw):String(ev.id||'');}
             } catch (_) {}
         }
@@ -19550,6 +19553,84 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             if (extremeMag) { try { showRegionToast('⚠️ ' + source + ' · magnitud extrema · esperar revisión'); } catch (_) {} }
             try { if (typeof setApiState === 'function') setApiState('wolfxAll', 'ok'); } catch (_) {}
         }
+        // ---- BMKG WRS / InaTEWS: detecciones en tiempo real (live30event.xml) tratadas como aviso EEW con ondas ----
+        // Fuente: bmkg-content-inatews.storage.googleapis.com/live30event.xml (los últimos 30 eventos del visor WRS de BMKG).
+        // No es alerta temprana oficial: BMKG publica el evento unos minutos después del origen; las ondas P/S se estiman desde el hipocentro.
+        const BMKG_RT_URL = 'https://bmkg-content-inatews.storage.googleapis.com/live30event.xml';
+        const BMKG_RT_JSON = 'https://bmkg-content-inatews.storage.googleapis.com/gempaQL.json';
+        // El visor WRS dibuja ondas para cada sismo de la lista (M>2). Por defecto igual; se puede subir: localStorage 'earthquake.bmkgrt.minmag'.
+        const BMKG_RT_MIN_MAG = (() => { try { const v = parseFloat(localStorage.getItem('earthquake.bmkgrt.minmag')); return Number.isFinite(v) ? v : 2.0; } catch (_) { return 2.0; } })();
+        const BMKG_RT_MAX_AGE_MS = 8 * 60 * 1000;
+        const bmkgRtSeen = new Map();
+        function bmkgRtParse(text) {
+            const out = []; let cur = null;
+            const re = /<([A-Za-z_][\w-]*)>\s*([^<]*?)\s*<\/\1>/g; let m;
+            while ((m = re.exec(String(text || '')))) {
+                const k = m[1].toLowerCase(), v = m[2];
+                if (k === 'eventid') { cur = { eventid: v }; out.push(cur); }
+                else if (cur) cur[k] = v;
+            }
+            return out;
+        }
+        function bmkgRtTime(s) {
+            const m = /(\d{4})[\/-](\d{2})[\/-](\d{2})\s+(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?/.exec(String(s || ''));
+            return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6], m[7] ? Math.round(Number('0.' + m[7]) * 1000) : 0) : NaN;
+        }
+        // gempaQL.json (GeoJSON de InaTEWS, hora UTC, coordenadas [lon, lat]) -> mismos registros que el XML
+        function bmkgRtParseJson(text) {
+            let j; try { j = JSON.parse(text); } catch (_) { return []; }
+            return (Array.isArray(j && j.features) ? j.features : []).map(f => {
+                const p = (f && f.properties) || {}, c = (f && f.geometry && f.geometry.coordinates) || [];
+                return { eventid: String(p.id || ''), waktu: String(p.time || ''), mag: p.mag, lintang: c[1], bujur: c[0], dalam: p.depth != null ? String(Math.round(Number(p.depth))) : '', area: p.place, status: p.status };
+            }).filter(r => r.eventid);
+        }
+        function bmkgRtIngest(text) { return bmkgRtIngestRecords(/^\s*[\{\[]/.test(String(text)) ? bmkgRtParseJson(text) : bmkgRtParse(text)); }
+        function bmkgRtIngestRecords(records) {
+            const now = Date.now(); let n = 0;
+            records.forEach(r => {
+                const lat = Number(r.lintang), lon = Number(r.bujur), mag = Number(r.mag), t = bmkgRtTime(r.waktu);
+                if (![lat, lon, mag, t].every(Number.isFinite) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return;
+                if (mag < BMKG_RT_MIN_MAG || now - t > BMKG_RT_MAX_AGE_MS || t - now > 120000) return;
+                const sig = [mag, lat, lon, r.dalam, r.status].join('|');
+                // Un sismo pequeño no le quita el mapa a otro EEW (de otra agencia) que ya esté mostrando ondas.
+                if (mag < 4) { let busy = false; try { const cur = hasWaveEventToShow() ? getCurrentWaveEvent() : null; busy = !!(cur && String(cur.agency || '') !== 'BMKG'); } catch (_) {} if (busy) return; }
+                if (bmkgRtSeen.get(r.eventid) === sig) return;
+                const isNew = !bmkgRtSeen.has(r.eventid);
+                bmkgRtSeen.set(r.eventid, sig);
+                const ev = {
+                    id: 'bmkg-rt-' + r.eventid, place: String(r.area || 'Indonesia'), lat, lon,
+                    mag: magnitudeDisplay(mag), depth: r.dalam != null && r.dalam !== '' ? r.dalam + ' km' : '—',
+                    agency: 'BMKG', source: 'BMKG · InaTEWS (WRS)', ts: t, waveOriginTs: t,
+                    time: formatTime(t), waveTime: formatTime(t),
+                    reportNumber: '', eewEventId: r.eventid, intensity: '—', colorClass: intensityClass(0),
+                    reportConfidence: 'preliminar', autoReport: !/confirm|manual/i.test(String(r.status || '')),
+                    isFinal: false, isCancel: false, isTaupEew: true, waveOriginEstimated: false,
+                    eewMaxAgeMs: BMKG_RT_MAX_AGE_MS, country: 'Indonesia'
+                };
+                const i = events.findIndex(x => String(x.id || '') === ev.id);
+                if (i >= 0) events[i] = { ...events[i], ...ev, id: events[i].id }; else events.unshift(ev);
+                try { renderEvents(); showWolfxAllEewWaves(i >= 0 ? events[i] : ev); } catch (_) {}
+                if (isNew) { try { showEarthquakeTicker(ev, 'BMKG · InaTEWS', { liveUpdate: true }); } catch (_) {} }
+                n++;
+            });
+            return n;
+        }
+        async function bmkgRtPoll() {
+            const attempts = [];
+            [BMKG_RT_JSON, BMKG_RT_URL].forEach(b => attempts.push(b, 'https://corsproxy.io/?url=' + encodeURIComponent(b), 'https://api.allorigins.win/raw?url=' + encodeURIComponent(b)));
+            for (const u of attempts) {
+                try {
+                    const r = await fetchWithTimeoutRetry(u, { cache: 'no-store' }, 0, 9000);
+                    const t = await r.text();
+                    if (/<eventid>/i.test(t) || /"features"/.test(t)) { bmkgRtIngest(t); try { setApiState('bmkgRt', 'ok'); } catch (_) {} return true; }
+                } catch (_) {}
+            }
+            try { setApiState('bmkgRt', 'error'); } catch (_) {}
+            return false;
+        }
+        window.__bmkgRt = { parse: bmkgRtParse, parseJson: bmkgRtParseJson, ingest: bmkgRtIngest, poll: bmkgRtPoll, time: bmkgRtTime };
+        setTimeout(() => { bmkgRtPoll(); setInterval(bmkgRtPoll, 20000); }, 9000);
+
         let wolfxAllConnectAttempts = 0;
         let wolfxAllConnectWatch = null;
         function connectWolfxAllEew() {
@@ -23393,6 +23474,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             }
 
             japanLiveStationsPinned = true;
+            ynPinnedMotionEpisode = false;
             // Ocultar exclusivamente la capa JMA de tsunami en la vista NIED.
             // No borramos sus datos ni sus geometrías, solo la retiramos del mapa.
             // Las líneas de tsunami (JMA/PTWC/estimadas) se mantienen visibles también en la vista NIED.
@@ -25684,6 +25766,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             // Japón debe abrirse y centrar el recuadro de detección activo.
             const wasAlreadyOpen = !!(ynMode || yahooNiedModeActive || layout.classList.contains('japan-focus'));
             if(!japanLiveStationsPinned)ynMotionAutoClosePending=true;
+            else ynPinnedMotionEpisode=true; // el cierre automático al terminar el movimiento también debe cerrar la vista fijada
             ynAutoOpened = !wasAlreadyOpen && !japanLiveStationsPinned;
             ynMode = true;
             yahooNiedModeActive = true;
@@ -26235,6 +26318,13 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
                 const ynBtn=document.getElementById('btnYahooNied');
                 if(ynBtn){ynBtn.style.borderColor='#555';ynBtn.style.color='#eee';}
                 return;
+            }
+            if(japanLiveStationsPinned&&ynPinnedMotionEpisode){
+                // El cierre viene del fin automático del movimiento: soltar la fijación y cerrar el apartado.
+                ynPinnedMotionEpisode=false;
+                document.body.classList.remove('japan-live-pinned');
+                try{document.getElementById('btnFaults')?.setAttribute('aria-pressed','false');}catch(_){}
+                japanLiveStationsPinned=false;
             }
             if(japanLiveStationsPinned){
                 if(!ynRealEventOverride)try{ynShowIdlePanel(motionAlert);}catch(_){}
@@ -27306,42 +27396,12 @@ function ynBuildLeafletMarkers() {
         function ynNiedMetricFresh(now = Date.now()) {
             return ynNiedMetricFetchedAt > 0 && Number(now) - ynNiedMetricFetchedAt <= YN_NIED_METRIC_STALE_MS;
         }
-        // Escalas de color PGA/PGV inspiradas en SesnaQuake (Domiko7, AGPL-3.0).
-        // Umbrales aproximados; los valores del GIF KMONI son estimaciones visuales.
-        const YN_PGA_GRADIENT = [
-            [0,0,7,197],[0.1,0,36,221],[0.2,0,101,195],[0.5,9,191,141],[1,26,235,91],
-            [2,95,242,37],[5,173,244,59],[10,229,244,59],[20,235,192,82],[50,225,125,38],
-            [100,235,108,44],[200,235,79,44],[500,238,41,31],[1000,136,6,5]
-        ];
-        const YN_PGV_GRADIENT = [
-            [0,0,7,197],[0.1,0,36,221],[0.5,0,101,195],[1.1,9,191,141],[3.4,26,235,91],
-            [8.1,95,242,37],[16,173,244,59],[31,229,244,59],[60,235,192,82],[116,225,125,38],
-            [200,235,108,44],[300,235,79,44],[400,238,41,31],[500,136,6,5]
-        ];
-        function ynMetricGradientColor(value, stops) {
-            const v = Number(value);
-            if (!Number.isFinite(v) || v < 0) return 'rgb('+stops[0][1]+','+stops[0][2]+','+stops[0][3]+')';
-            if (v <= stops[0][0]) return 'rgb('+stops[0][1]+','+stops[0][2]+','+stops[0][3]+')';
-            const last = stops[stops.length-1];
-            if (v >= last[0]) return 'rgb('+last[1]+','+last[2]+','+last[3]+')';
+        function ynNiedMetricColor(value, metric) {
+            if (!Number.isFinite(Number(value)) || Number(value) <= 0 || !ynNiedMetricFresh()) return '#737b86';
+            const breaks = metric === 'pgv' ? [0.1,0.5,1,3,10,30,100] : [0.1,0.5,1,5,10,50,100];
             let i = 0;
-            while (i < stops.length-1 && v > stops[i+1][0]) i++;
-            const a = stops[i], b = stops[i+1];
-            const t = (v - a[0]) / (b[0] - a[0] || 1);
-            const r = Math.round(a[1] + (b[1]-a[1])*t);
-            const g = Math.round(a[2] + (b[2]-a[2])*t);
-            const bl = Math.round(a[3] + (b[3]-a[3])*t);
-            return 'rgb('+r+','+g+','+bl+')';
-        }
-        function ynNiedMetricColor(value, metric, allowStale) {
-            // allowStale: colores sin exigir trama KMONI fresca (respaldo por intensidad)
-            if (!allowStale && !ynNiedMetricFresh()) return '#6B6B9E';
-            const v = Number(value);
-            if (!Number.isFinite(v) || v < 0) return '#6B6B9E';
-            // En reposo (0) usar el azul bajo de la escala, no gris apagado, para que se vea la red
-            if (v === 0) return metric === 'pgv' ? ynMetricGradientColor(0.05, YN_PGV_GRADIENT) : ynMetricGradientColor(0.05, YN_PGA_GRADIENT);
-            if (metric === 'pgv') return ynMetricGradientColor(v, YN_PGV_GRADIENT);
-            return ynMetricGradientColor(v, YN_PGA_GRADIENT);
+            while (i < breaks.length && Number(value) >= breaks[i]) i++;
+            return YN_NIED_METRIC_COLORS[Math.min(i, YN_NIED_METRIC_COLORS.length - 1)];
         }
         function ynNiedMetricLegend() {
             const title = document.getElementById('ynMetricLegendTitle');
@@ -27406,73 +27466,25 @@ function ynBuildLeafletMarkers() {
             try {
                 ynEnsureNiedMetricLayer();
                 const metric = ynNiedMetricMode() === 'pgv' ? 'pgv' : 'pga';
-                const codeToYahoo = new Map();
-                const cellToYahoo = new Map();
-                const cellKey = (lat, lon) => (Math.round(lat*100)/100) + ',' + (Math.round(lon*100)/100);
-                try {
-                    if (Array.isArray(ynLeafletMarkers)) {
-                        ynLeafletMarkers.forEach(m => {
-                            if (!m || !m.getLatLng) return;
-                            const ll = m.getLatLng();
-                            const yCode = Number(m._ynCode)||0;
-                            const nied = m._ynNied;
-                            let stCode = null;
-                            if (nied) {
-                                if (typeof nied === 'string') stCode = nied;
-                                else if (Array.isArray(nied)) stCode = nied[0];
-                                else stCode = nied.code || nied.id || nied[0];
-                            }
-                            if (stCode) codeToYahoo.set(String(stCode), yCode);
-                            if (ll) cellToYahoo.set(cellKey(ll.lat, ll.lng), yCode);
-                        });
-                    }
-                } catch (_) {}
                 ynNiedMetricMarkers.forEach(marker => {
-                    const code = marker._ynNiedMetricCode;
-                    const sample = ynNiedMetricFresh() ? ynNiedMetricSamples.get(code) : null;
-                    let value = sample ? Number(sample[metric])||0 : 0;
-                    let yCode = codeToYahoo.has(String(code)) ? codeToYahoo.get(String(code)) : -1;
-                    if (yCode < 0) {
-                        try {
-                            const ll = marker.getLatLng && marker.getLatLng();
-                            if (ll && cellToYahoo.has(cellKey(ll.lat, ll.lng))) yCode = cellToYahoo.get(cellKey(ll.lat, ll.lng));
-                        } catch (_) {}
-                    }
-                    if (!(sample && value > 0) && yCode >= 0 && typeof ynCodeToApproxPgaPgv === 'function') {
-                        const ap = ynCodeToApproxPgaPgv(yCode);
-                        value = Number(ap[metric])||0;
-                    }
-                    // En calma (casi 0): mismo color que intensidad, para que no se vea todo gris muerto.
-                    // Con movimiento real: escala PGA/PGV.
-                    let fill;
-                    const quiet = !(value > 0.15);
-                    if (quiet && yCode >= 0) {
-                        if (typeof srevStationColorFromYahooCode === 'function') fill = srevStationColorFromYahooCode(yCode);
-                        else if (typeof ynHexColor === 'function') fill = ynHexColor(yCode);
-                        else fill = ynNiedMetricColor(0, metric, true);
-                    } else {
-                        fill = ynNiedMetricColor(Math.max(value, 0), metric, true);
-                    }
-                    marker.setStyle({
-                        fillColor: fill || '#6B6B9E',
-                        fillOpacity: sample ? 0.92 : 0.88,
-                        opacity: 1
-                    });
+                    const sample = ynNiedMetricFresh() ? ynNiedMetricSamples.get(marker._ynNiedMetricCode) : null;
+                    const value = sample ? sample[metric] : 0;
+                    marker.setStyle({ fillColor: ynNiedMetricColor(value, metric), fillOpacity: sample ? 0.92 : 0.38, opacity:1 });
                 });
             } catch (_) {}
         }
         function ynSyncNiedMetricVisibility() {
-            // PGA/PGV se pinta sobre la capa principal (ynUpdateLeafletColors).
-            // La capa derivada de KMONI queda opcional y no oculta la red de estaciones.
+            const active = ynNiedMetricViewActive() && (typeof ynVisible !== 'function' || ynVisible()) && !document.hidden;
             const originalPane = map && map.getPane ? map.getPane('yahooNiedStationsPane') : null;
             const metricPane = map && map.getPane ? map.getPane('niedDerivedMetricPane') : null;
-            if (originalPane) originalPane.style.display = '';
-            if (metricPane) metricPane.style.display = 'none';
-            try { if (ynNiedMetricLayer && map.hasLayer(ynNiedMetricLayer)) map.removeLayer(ynNiedMetricLayer); } catch (_) {}
-            // Seguir intentando trama KMONI en segundo plano para mejorar valores
-            try {
-                if (ynNiedMetricViewActive() && !document.hidden) ynFetchNiedMetricFrame();
-            } catch (_) {}
+            if (originalPane) originalPane.style.display = active ? 'none' : '';
+            if (metricPane) metricPane.style.display = active ? '' : 'none';
+            if (active) {
+                ynEnsureNiedMetricLayer();
+                try { if (ynNiedMetricLayer && !map.hasLayer(ynNiedMetricLayer)) ynNiedMetricLayer.addTo(map); } catch (_) {}
+            } else {
+                try { if (ynNiedMetricLayer && map.hasLayer(ynNiedMetricLayer)) map.removeLayer(ynNiedMetricLayer); } catch (_) {}
+            }
             ynNiedMetricLegend();
         }
         function ynNiedRgbPosition(r,g,b) {
@@ -27632,9 +27644,8 @@ function ynBuildLeafletMarkers() {
         }
         window.__eqApplyNiedMetricView = function () {
             try {
-                ynLastColorUpdateMs = 0; // forzar repintado inmediato
                 ynSyncNiedMetricVisibility();
-                if (typeof ynUpdateLeafletColors === 'function') ynUpdateLeafletColors();
+                if (ynNiedMetricViewActive()) ynRefreshNiedMetricMarkers();
                 if (ynNiedMetricViewActive()) ynFetchNiedMetricFrame();
                 ynUpdateNiedMetricsPanel();
             } catch (_) {}
@@ -27756,6 +27767,7 @@ function ynBuildLeafletMarkers() {
         function ynUpdateLeafletColors() {
             if (!ynEnsureLeafletLayer()) return;
             try { ynSyncNiedMetricVisibility(); } catch (_) {}
+            if (ynNiedMetricViewActive()) { try { ynUpdateNiedMetricsPanel(); } catch (_) {} return; }
             // Throttle en móvil (evita trabar el celular)
             const now = Date.now();
             const minGap = ynIsMobilePerf() ? 600 : 200;
@@ -27764,73 +27776,6 @@ function ynBuildLeafletMarkers() {
                 return;
             }
             ynLastColorUpdateMs = now;
-            // Modo PGA/PGV: colorear la misma capa de estaciones con métrica (en vivo desde intensidad
-            // o muestra KMONI si existe). Así SÍ se actualiza aunque falle el GIF.
-            const metricMode = ynNiedMetricSelected();
-            const metricKey = ynNiedMetricMode() === 'pgv' ? 'pgv' : 'pga';
-            if (metricMode) {
-                if (!ynLeafletBuilt || !ynLeafletMarkers.length) {
-                    ynBuildLeafletMarkers();
-                }
-                const intensity = ynFeedIsFresh() ? (ynIntensity || '') : '';
-                const modeSrc = typeof ynJapanStationsSource === 'function' ? ynJapanStationsSource() : 'yahoo';
-                let valid = 0;
-                for (let i = 0; i < ynLeafletMarkers.length; i++) {
-                    const m = ynLeafletMarkers[i];
-                    if (!m) continue;
-                    let code = 0;
-                    const src = m._ynSource || (modeSrc === 'yahoo' ? 'yahoo' : 'nied');
-                    if (src === 'yahoo' && modeSrc === 'yahoo' && i < intensity.length) {
-                        const c = intensity.charCodeAt(i) - 100;
-                        if (Number.isInteger(c) && c >= 0 && c <= 20) { code = c; valid++; }
-                    } else {
-                        try {
-                            const ll = m.getLatLng && m.getLatLng();
-                            if (ll) code = ynIntensityCodeAt(ll.lat, ll.lng);
-                            if (code > 0) valid++;
-                        } catch (_) {}
-                    }
-                    m._ynCode = code;
-                    let value = 0;
-                    // Preferir muestra KMONI por código de estación si está fresca
-                    try {
-                        const nied = m._ynNied;
-                        let stCode = null;
-                        if (nied) {
-                            if (typeof nied === 'string') stCode = nied;
-                            else if (Array.isArray(nied)) stCode = nied[0];
-                            else stCode = nied.code || nied.id || nied[0];
-                        }
-                        if (stCode && ynNiedMetricFresh() && ynNiedMetricSamples && ynNiedMetricSamples.has(String(stCode))) {
-                            const sample = ynNiedMetricSamples.get(String(stCode));
-                            value = Number(sample[metricKey]) || 0;
-                        }
-                    } catch (_) {}
-                    if (!(value > 0) && typeof ynCodeToApproxPgaPgv === 'function') {
-                        const ap = ynCodeToApproxPgaPgv(code);
-                        value = Number(ap[metricKey]) || 0;
-                    }
-                    const col = (typeof ynNiedMetricColor === 'function')
-                        ? ynNiedMetricColor(Math.max(0, value), metricKey, true)
-                        : '#6B6B9E';
-                    try {
-                        if (m._ynIsSrev && m.setIcon) {
-                            // En PGA/PGV preferir círculo de color (más legible que número shindo)
-                            const ll = m.getLatLng();
-                            const neu = ynMakeQuietCircle(ll.lat, ll.lng, code, { nied: m._ynNied, source: m._ynSource });
-                            try { neu.setStyle({ fillColor: col, fillOpacity: 0.9 }); } catch (_) {}
-                            try { ynLeafletLayer.removeLayer(m); } catch (_) {}
-                            neu.addTo(ynLeafletLayer);
-                            ynLeafletMarkers[i] = neu;
-                        } else if (m.setStyle) {
-                            if (!m.options || m.options.fillColor !== col) m.setStyle({ fillColor: col, fillOpacity: 0.9 });
-                        }
-                    } catch (_) {}
-                }
-                ynValidCodes = valid;
-                try { ynUpdateNiedMetricsPanel(); } catch (_) {}
-                return;
-            }
             if (!ynLeafletBuilt || !ynLeafletMarkers.length) {
                 ynBuildLeafletMarkers();
                 return;
@@ -29913,6 +29858,7 @@ function ynBuildLeafletMarkers() {
 <button class="eqs-control eqs-tile" id="eqsOpenBogMov" type="button">🚦 Movilidad Bogotá · Avisos</button>
 <button class="eqs-control eqs-tile" id="eqsOpenVolcCar" type="button">🌋 Volcanes y tsunamis · Colombia y Caribe</button>
 <button class="eqs-control eqs-tile" id="eqsToggleKmaPews" type="button" aria-pressed="false">🇰🇷 Estaciones KMA (Corea)</button>
+<button class="eqs-control eqs-tile" id="eqsOpenBmkgMmi" type="button" aria-pressed="false">🇮🇩 Intensidad oficial BMKG</button>
 <button class="eqs-control eqs-tile" id="eqsOpenLpgm" type="button" aria-pressed="false">🏢 Período largo JMA</button>
 <button class="eqs-control eqs-tile" id="eqsInstallPwa" type="button">📲 Instalar como app</button>
 <button class="eqs-control eqs-tile" id="eqsPushToggle" type="button" aria-pressed="false">🔔 Avisos con la app cerrada</button>
@@ -35811,6 +35757,176 @@ For more information on this, and how to apply and follow the GNU AGPL, see
 })();
 </script>
 
+<script id="bmkgMmiModule">
+/* Mapa de intensidad oficial de BMKG (Indonesia): pinta por kabupaten/kota la intensidad MMI que BMKG publica en el campo
+ * "Dirasakan" de sus datos abiertos (data.bmkg.go.id/gempabumi: autogempa y gempadirasakan). Los límites administrativos se cargan
+ * aparte: primero ./kabkota.geojson (si lo pones junto al HTML) y si no geoBoundaries IDN ADM2 (BPS 2020, CC BY 3.0 IGO).
+ * Fuente de los sismos: BMKG. */
+(function(){
+  'use strict';
+  if(typeof map==='undefined'||typeof L==='undefined')return;
+  const TEWS='https://data.bmkg.go.id/DataMKG/TEWS/';
+  const GB='wmgeolab/geoBoundaries/9469f09/releaseData/gbOpen/IDN/ADM2/geoBoundaries-IDN-ADM2_simplified.geojson';
+  const BOUNDS=['kabkota.geojson','https://media.githubusercontent.com/media/'+GB,'https://github.com/'+GB.replace('/9469f09/','/raw/9469f09/'),'https://raw.githubusercontent.com/'+GB];
+  const COL={1:'#dfe7ef',2:'#5fc9c4',3:'#6fd08c',4:'#c9e66a',5:'#ffe45c',6:'#ffa63d',7:'#ff5a3d',8:'#d0213a',9:'#8e1a5e',10:'#5b1a8c',11:'#5b1a8c',12:'#5b1a8c'};
+  const ROMAN={I:1,II:2,III:3,IV:4,V:5,VI:6,VII:7,VIII:8,IX:9,X:10,XI:11,XII:12};
+  let panel=null,group=null,items=[],cur=null,open=false,timer=0,busy=false,lastErr='',okAt=0,feats=null,featErr='';
+  const $=id=>document.getElementById(id);
+  const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  async function tryFetch(urls,asText,ms){
+    for(const u of urls){
+      try{const c=new AbortController(),to=setTimeout(()=>c.abort(),ms||12000);const r=await fetch(u,{cache:'no-store',signal:c.signal});clearTimeout(to);if(!r.ok)continue;const t=await r.text();if(t&&t.length>2)return asText?t:JSON.parse(t.match(/[\{\[][\s\S]*[\}\]]/)[0]);}catch(_){}
+    }
+    return null;
+  }
+  const viaProxies=u=>[u,'https://corsproxy.io/?url='+encodeURIComponent(u),'https://api.allorigins.win/raw?url='+encodeURIComponent(u),'https://cors.eu.org/'+u];
+  // ---------- texto "Dirasakan" ----------
+  const maxRoman=s=>{let m=0;String(s).split(/\s*[-–]\s*/).forEach(p=>{m=Math.max(m,ROMAN[p.trim().toUpperCase()]||0);});return m;};
+  function parseDirasakan(txt){
+    const out=[];let last=null;
+    String(txt||'').replace(/\([^)]*\)/g,' ').split(/\s*[,;]\s*/).forEach(piece=>{
+      piece=piece.trim();if(!piece)return;
+      const m=/^((?:[IVX]+)(?:\s*[-–]\s*[IVX]+)?)\s+(.+)$/i.exec(piece);
+      if(m&&maxRoman(m[1])){last={label:m[1].toUpperCase().replace(/\s+/g,''),mmi:maxRoman(m[1])};out.push({label:last.label,mmi:last.mmi,name:m[2].trim()});}
+      else if(last)out.push({label:last.label,mmi:last.mmi,name:piece});
+    });
+    return out;
+  }
+  // ---------- emparejar nombres con los límites ----------
+  const strip=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  const isCityName=n=>/^(kota|kotamadya|city)\b/.test(strip(n).trim());
+  const baseKey=n=>strip(n).replace(/\(.*?\)/g,' ').replace(/\b(kabupaten|kab|kotamadya|kota|city|regency|administrasi|adm)\b\.?/g,' ').replace(/[^a-z0-9]/g,'');
+  const ALIAS={'jakartaraya':'jakartapusat','kepulauanseribu':'kepulauanseribu','karangasem':'karangasem','tojouna-una':'tojounauna'};
+  function featInfo(f){
+    const p=f.properties||{};
+    const name=p.shapeName||p.NAME_2||p.name||p.NAME||'';
+    const type=p.TYPE_2||p.shapeType||p.type||'';
+    const city=isCityName(name)||/kota|city/i.test(String(type))&&!/kabupaten|regency/i.test(String(type));
+    return {name,key:baseKey(name),city};
+  }
+  function indexFeats(fc){
+    const idx=new Map();
+    (fc.features||[]).forEach(f=>{const i=featInfo(f);if(!i.key)return;if(!idx.has(i.key))idx.set(i.key,[]);idx.get(i.key).push({f,city:i.city,name:i.name});});
+    return idx;
+  }
+  function findFeat(idx,name){
+    const k0=baseKey(name),k=ALIAS[k0]||k0;const list=idx.get(k);if(!list||!list.length)return null;
+    if(list.length===1)return list[0];
+    const wantCity=isCityName(name),explicitKab=/\bkab/i.test(name);
+    return list.find(x=>x.city===wantCity)||(explicitKab?list.find(x=>!x.city):null)||list[0];
+  }
+  async function loadBounds(){
+    if(feats)return feats;
+    let fc=null;
+    try{const c=await caches.open('bmkg-mmi-v1');const hit=await c.match('bounds');if(hit){fc=await hit.json();}}catch(_){}
+    if(!fc){
+      for(const u of BOUNDS){
+        const t=await tryFetch(viaProxies(u).slice(0,u.startsWith('http')?3:1),true,45000);
+        if(!t)continue;
+        try{const j=JSON.parse(t);if(j&&Array.isArray(j.features)&&j.features.length>50){fc=j;try{const c=await caches.open('bmkg-mmi-v1');await c.put('bounds',new Response(t));}catch(_){}break;}}catch(_){}
+      }
+    }
+    if(!fc){featErr='no se pudieron cargar los límites de kabupaten';return null;}
+    feats=indexFeats(fc);featErr='';return feats;
+  }
+  // ---------- eventos ----------
+  const wibToMs=(d,j)=>{const m=/(\d{1,2})\s+(\w{3})\w*\s+(\d{4})/.exec(d||''),t=/(\d{2}):(\d{2}):(\d{2})/.exec(j||'');if(!m||!t)return NaN;const mo={jan:0,feb:1,mar:2,apr:3,mei:4,may:4,jun:5,jul:6,agu:7,aug:7,ags:7,sep:8,okt:9,oct:9,nov:10,des:11,dec:11}[m[2].toLowerCase()];return mo===undefined?NaN:Date.UTC(+m[3],mo,+m[1],+t[1]-7,+t[2],+t[3]);};
+  function toItem(g,isLatest){
+    if(!g)return null;
+    const c=String(g.Coordinates||'').split(',').map(Number);
+    const t=g.DateTime?Date.parse(g.DateTime):wibToMs(g.Tanggal,g.Jam);
+    const zones=parseDirasakan(g.Dirasakan);
+    return {id:(g.DateTime||g.Tanggal+g.Jam)+'|'+g.Coordinates,t,mag:g.Magnitude,depth:g.Kedalaman,place:g.Wilayah||'',felt:g.Dirasakan||'',zones,lat:c[0],lon:c[1],shake:g.Shakemap||'',latest:!!isLatest};
+  }
+  async function refresh(){
+    if(busy)return;busy=true;
+    try{
+      const [a,d]=await Promise.all([tryFetch(viaProxies(TEWS+'autogempa.json'),false,10000),tryFetch(viaProxies(TEWS+'gempadirasakan.json'),false,10000)]);
+      const out=[];
+      const auto=a&&a.Infogempa&&a.Infogempa.gempa;if(auto)out.push(toItem(auto,true));
+      const list=d&&d.Infogempa&&d.Infogempa.gempa;(Array.isArray(list)?list:list?[list]:[]).forEach(g=>{const it=toItem(g,false);if(it&&!out.some(o=>o.id===it.id))out.push(it);});
+      if(!out.length){lastErr='sin conexión con BMKG';return;}
+      items=out.filter(Boolean);okAt=Date.now();lastErr='';
+      if(!cur||!items.some(i=>i.id===cur.id))cur=items[0];else cur=items.find(i=>i.id===cur.id);
+      await draw(cur,false);
+    }catch(e){lastErr=String(e&&e.message||e);}
+    finally{busy=false;render();setStatus();}
+  }
+  // ---------- dibujo ----------
+  const polyCenter=f=>{
+    try{const g=f.geometry;const polys=g.type==='Polygon'?[g.coordinates]:g.coordinates;let best=null,ba=-1;
+      polys.forEach(p=>{const ring=p[0];let mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9;ring.forEach(q=>{mnx=Math.min(mnx,q[0]);mxx=Math.max(mxx,q[0]);mny=Math.min(mny,q[1]);mxy=Math.max(mxy,q[1]);});const a=(mxx-mnx)*(mxy-mny);if(a>ba){ba=a;best=[(mny+mxy)/2,(mnx+mxx)/2];}});return best;}catch(_){return null;}
+  };
+  async function draw(it,fit){
+    ensureUi();group.clearLayers();
+    if(!it)return;
+    const pts=[];
+    if(Number.isFinite(it.lat)&&Number.isFinite(it.lon)){
+      L.marker([it.lat,it.lon],{pane:'bmkgMmiPane',interactive:false,icon:L.divIcon({className:'',html:'<div class="bmx">✕</div>',iconSize:[34,34],iconAnchor:[17,17]})}).addTo(group);pts.push([it.lat,it.lon]);
+    }
+    const idx=await loadBounds();let miss=[];
+    if(idx){
+      it.zones.slice().sort((x,y)=>x.mmi-y.mmi).forEach(z=>{
+        const hit=findFeat(idx,z.name);if(!hit){miss.push(z.name);return;}
+        try{
+          const col=COL[z.mmi]||'#999';
+          const gj=L.geoJSON(hit.f,{pane:'bmkgMmiPane',style:{color:'#fff',weight:2,fillColor:col,fillOpacity:.55,opacity:.95}}).bindTooltip(esc(hit.name)+' · MMI '+z.label).addTo(group);
+          const cen=polyCenter(hit.f);
+          if(cen)L.marker(cen,{pane:'bmkgMmiPane',interactive:false,icon:L.divIcon({className:'',html:'<div class="bmr" style="background:'+col+'">'+esc(z.label)+'</div>',iconSize:[44,30],iconAnchor:[22,15]})}).addTo(group);
+          const b=gj.getBounds();if(b.isValid()){pts.push([b.getSouth(),b.getWest()],[b.getNorth(),b.getEast()]);}
+        }catch(_){}
+      });
+    }
+    it.miss=miss;
+    try{if(open&&!map.hasLayer(group))group.addTo(map);}catch(_){}
+    if(fit&&pts.length){try{map.fitBounds(L.latLngBounds(pts),{padding:[50,50],maxZoom:9});}catch(_){}}
+    renderCard(it);
+  }
+  function renderCard(it){
+    const el=$('bmkgMmiCard');if(!el||!it)return;
+    const mx=it.zones.reduce((m,z)=>Math.max(m,z.mmi),0),lab=it.zones.find(z=>z.mmi===mx);
+    const when=Number.isFinite(it.t)?new Date(it.t).toLocaleString('es-CO',{dateStyle:'short',timeStyle:'medium'}):'';
+    el.innerHTML='<div class="h">Data gempabumi | BMKG</div><div class="b"><div class="i" style="background:'+(COL[mx]||'#555')+'"><small>Intensidad máx.</small><b>'+esc(lab?lab.label:'—')+'</b></div><div class="t"><div class="w">'+esc(it.place)+'</div><div>'+esc(when)+'</div><div>M '+esc(it.mag)+' · Profundidad '+esc(it.depth)+'</div></div></div>'+
+      (it.shake?'<a class="s" target="_blank" rel="noopener" href="https://static.bmkg.go.id/'+it.shake+'">Ver Shakemap oficial (imagen BMKG)</a>':'')+
+      (featErr?'<div class="m">⚠️ '+esc(featErr)+'. Se muestran solo el epicentro y el texto: '+esc(it.felt)+'</div>':'')+
+      (it.miss&&it.miss.length?'<div class="m">Sin polígono para: '+esc(it.miss.join(', '))+'</div>':'');
+  }
+  function ensureUi(){
+    if(panel)return;
+    if(!$('bmkgmmi-style')){
+      const st=document.createElement('style');st.id='bmkgmmi-style';
+      st.textContent='#bmkgMmiPanel{position:absolute;left:8px;right:8px;bottom:8px;z-index:4400;max-width:420px;max-height:52vh;display:none;flex-direction:column;background:rgba(10,18,30,.95);color:#e6eef8;border:1px solid rgba(255,255,255,.18);border-radius:12px;font:12px/1.35 system-ui,sans-serif;overflow:hidden}#bmkgMmiPanel.on{display:flex}#bmkgMmiPanel h4{margin:0;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;font-size:13px;border-bottom:1px solid rgba(255,255,255,.12)}#bmkgMmiPanel h4 button{background:none;border:0;color:inherit;font-size:20px;line-height:1;padding:0 4px}#bmkgMmiList{overflow:auto;flex:1;min-height:60px}#bmkgMmiList .r{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.07);cursor:pointer}#bmkgMmiList .r.sel{background:rgba(95,201,196,.18)}#bmkgMmiCard{border-top:1px solid rgba(255,255,255,.12);padding:8px 10px}#bmkgMmiCard .h{font-size:11px;opacity:.8;margin-bottom:4px}#bmkgMmiCard .b{display:flex;gap:8px}#bmkgMmiCard .i{min-width:78px;border-radius:8px;padding:6px;text-align:center;color:#06210f}#bmkgMmiCard .i small{display:block;font-size:10px}#bmkgMmiCard .i b{font-size:20px}#bmkgMmiCard .w{font-weight:700;font-size:13px}#bmkgMmiCard .s{display:inline-block;margin-top:6px;color:#8fd3ff}#bmkgMmiCard .m{margin-top:6px;color:#ffd166}.bmx{width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;color:#e53935;text-shadow:0 0 3px #fff,0 0 6px #fff}.bmr{min-width:36px;padding:3px 6px;border-radius:7px;border:2px solid rgba(255,255,255,.9);color:#08212b;font:700 14px/1.1 system-ui,sans-serif;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.5)}';
+      document.head.appendChild(st);
+    }
+    panel=document.createElement('div');panel.id='bmkgMmiPanel';panel.setAttribute('role','region');panel.setAttribute('aria-label','Mapa de intensidad BMKG');
+    panel.innerHTML='<h4><span>🇮🇩 Intensidad oficial · BMKG</span><button id="bmkgMmiClose" aria-label="Cerrar">×</button></h4><div id="bmkgMmiList"></div><div id="bmkgMmiCard"></div>';
+    (document.querySelector('.map-container')||document.body).appendChild(panel);
+    panel.addEventListener('click',e=>{
+      if(e.target.closest('#bmkgMmiClose')){setOpen(false);return;}
+      const r=e.target.closest('.r[data-id]');if(r){cur=items.find(i=>i.id===r.getAttribute('data-id'))||cur;render();draw(cur,true);}
+    });
+    try{if(!map.getPane('bmkgMmiPane')){const p=map.createPane('bmkgMmiPane');p.style.zIndex='430';}}catch(_){}
+    group=L.layerGroup();
+  }
+  function render(){
+    ensureUi();const list=$('bmkgMmiList');if(!list)return;
+    if(!items.length){list.innerHTML='<div class="r"><span>'+(busy?'Cargando…':'Sin datos'+(lastErr?' ('+esc(lastErr)+')':''))+'</span></div>';return;}
+    list.innerHTML=items.slice(0,16).map(it=>{const when=Number.isFinite(it.t)?new Date(it.t).toLocaleString('es-CO',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+      return '<div class="r'+(cur&&cur.id===it.id?' sel':'')+'" data-id="'+esc(it.id)+'"><b>M'+esc(it.mag)+'</b> · '+esc(when)+(it.latest?' · último':'')+'<br>'+esc(it.felt||it.place)+'</div>';}).join('');
+  }
+  function setOpen(v){
+    open=!!v;ensureUi();panel.classList.toggle('on',open);
+    clearInterval(timer);timer=0;
+    if(open){timer=setInterval(refresh,120000);refresh().then(()=>{if(cur)draw(cur,true);});try{if(group&&!map.hasLayer(group))group.addTo(map);}catch(_){}}
+    else{try{group.clearLayers();map.removeLayer(group);}catch(_){}}
+    setStatus();
+  }
+  function setStatus(){const b=$('eqsOpenBmkgMmi');if(b){b.setAttribute('aria-pressed',open?'true':'false');b.textContent='🇮🇩 Intensidad oficial BMKG'+(open?' · '+(items.length?items.length+' sismos':(lastErr||'cargando…')):'');}}
+  document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('#eqsOpenBmkgMmi');if(!b)return;try{$('eqSettingsModal')?.classList.remove('active');}catch(_){}setOpen(!open);});
+  window.__bmkgMmi={parseDirasakan,baseKey,indexFeats,findFeat,setOpen,state:()=>({open,items:items.length,lastErr,featErr})};
+})();
+</script>
+
 <script id="pwaModule">
 /* PWA: registra el service worker (sw.js junto al HTML), muestra el botón "Instalar" y hace que las notificaciones
  * funcionen en Chrome para Android (donde new Notification() lanza error y hay que usar registration.showNotification). */
@@ -35865,11 +35981,11 @@ For more information on this, and how to apply and follow the GNU AGPL, see
   'use strict';
   const WORKER_DEFAULT='https://notificaciones-push.terremotis123.workers.dev';
   const PK='earthquake.push.prefs.v1',WK='earthquake.push.worker.v1',SK='earthquake.push.on.v1';
-  const DEF={worldMin:6,nearMin:3.5,nearKm:500,nearLat:4.65,nearLon:-74.1};
+  const DEF={worldMin:6,nearMin:3.5,nearKm:500,nearLat:4.65,nearLon:-74.1,jmaMinInt:'3',eewMinMag:0,cats:{quakes:true,jma:true,eew:true,volcano:true,tsunami:true,bogota:true},bogTypes:['accidente','manifestacion','cierre','transmilenio']};
   const lsGet=k=>{try{return localStorage.getItem(k);}catch(_){return null;}};
   const lsSet=(k,v)=>{try{localStorage.setItem(k,v);}catch(_){}};
   const worker=()=>(lsGet(WK)||WORKER_DEFAULT).replace(/\/$/,'');
-  const prefs=()=>{try{return Object.assign({},DEF,JSON.parse(lsGet(PK)||'{}'));}catch(_){return Object.assign({},DEF);}};
+  const prefs=()=>{try{const s=JSON.parse(lsGet(PK)||'{}');return Object.assign({},DEF,s,{cats:Object.assign({},DEF.cats,s.cats||{})});}catch(_){return JSON.parse(JSON.stringify(DEF));}};
   const toast=m=>{try{if(typeof showRegionToast==='function')showRegionToast(m);else alert(m);}catch(_){}};
   const supported=()=>('serviceWorker' in navigator)&&('PushManager' in window)&&('Notification' in window);
   const u8=b64=>{const p='='.repeat((4-b64.length%4)%4),s=(b64+p).replace(/-/g,'+').replace(/_/g,'/'),r=atob(s);return Uint8Array.from(r,c=>c.charCodeAt(0));};
@@ -35913,6 +36029,11 @@ For more information on this, and how to apply and follow the GNU AGPL, see
         await new Promise(res=>navigator.geolocation.getCurrentPosition(pos=>{p.nearLat=+pos.coords.latitude.toFixed(3);p.nearLon=+pos.coords.longitude.toFixed(3);res();},()=>{toast('No se pudo leer la ubicación');res();},{timeout:12000}));
       }
     }
+    const names={quakes:'Sismos (USGS/EMSC/SGC)',jma:'Sismos detectados por la JMA',eew:'EEW de todas las agencias',volcano:'Volcanes importantes del mundo',tsunami:'Tsunamis (PTWC/NTWC/JMA)',bogota:'Movilidad Bogotá'};
+    for(const c of Object.keys(names))p.cats[c]=confirm('¿Avisar de: '+names[c]+'?\n(Aceptar = sí, Cancelar = no)\nActual: '+(p.cats[c]?'sí':'no'));
+    if(p.cats.jma){const v=prompt('Intensidad JMA mínima (1,2,3,4,5-,5+,6-,6+,7):',p.jmaMinInt);if(v&&['1','2','3','4','5-','5+','6-','6+','7'].includes(v.trim()))p.jmaMinInt=v.trim();}
+    if(p.cats.eew){const m=askNumber('Magnitud mínima para avisos EEW (0 = todos):',p.eewMinMag);if(m!==undefined)p.eewMinMag=Math.max(0,Math.min(10,m));}
+    if(p.cats.bogota){const T={accidente:'accidentes',manifestacion:'manifestaciones',cierre:'cierres/obras',transmilenio:'TransMilenio',clima:'clima',trafico:'tráfico',aviso:'avisos generales'};const sel=[];for(const t of Object.keys(T))if(confirm('Movilidad Bogotá: ¿avisar de '+T[t]+'?\nActual: '+(p.bogTypes.includes(t)?'sí':'no')))sel.push(t);p.bogTypes=sel;}
     lsSet(PK,JSON.stringify(p));
     try{await sendPrefs();toast('Reglas guardadas');}catch(e){toast('Guardadas en este equipo; el servidor no respondió ('+e.message+')');}
   }
@@ -35940,7 +36061,6 @@ For more information on this, and how to apply and follow the GNU AGPL, see
   window.__push={enable,disable,configure,test,prefs};
 })();
 </script>
-
 
 
 
