@@ -3313,6 +3313,7 @@
             font-size: 13px;
         }
         #eqSettingsDialog .eqs-title { margin-top: 12px; }
+
 </style>
 <style id="modern-ui-only">
 /* Diseño visual solamente: no modifica datos, mapa, fuentes ni automatizaciones. */
@@ -4594,59 +4595,6 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
 #eqSettingsDialog{overflow-y:auto;overflow-x:hidden}
 </style>
 
-
-<style id="eq-weather-radar-persist">
-/* Radares (lluvia + viento) visibles en todos los apartados / focus */
-.leaflet-eqWeatherRadarPane,
-.leaflet-pane.leaflet-eqWeatherRadarPane {
-  z-index: 650 !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  pointer-events: none !important;
-  display: block !important;
-}
-#mainLayout[class*="-focus"] .leaflet-eqWeatherRadarPane,
-#mainLayout[class*="-focus"] .leaflet-pane.leaflet-eqWeatherRadarPane,
-#mainLayout.bog-focus .leaflet-eqWeatherRadarPane,
-#mainLayout.korea-focus .leaflet-eqWeatherRadarPane,
-#mainLayout.taiwan-focus .leaflet-eqWeatherRadarPane,
-#mainLayout.japan-focus .leaflet-eqWeatherRadarPane,
-#mainLayout.jma-weather-focus .leaflet-eqWeatherRadarPane,
-#mainLayout.wave-focus .leaflet-eqWeatherRadarPane,
-#mainLayout.siat-focus .leaflet-eqWeatherRadarPane,
-#mainLayout.volc-focus .leaflet-eqWeatherRadarPane,
-#mainLayout.typhoon-focus .leaflet-eqWeatherRadarPane {
-  opacity: 1 !important;
-  visibility: visible !important;
-  display: block !important;
-  pointer-events: none !important;
-}
-/* En Bogotá el resto de paneles Leaflet se atenúan; el radar de clima no */
-#mainLayout.bog-focus .map-container > .leaflet-eqWeatherRadarPane {
-  opacity: 1 !important;
-  pointer-events: none !important;
-}
-#eqWindRadarCanvas {
-  z-index: 660 !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  pointer-events: none !important;
-}
-#mainLayout[class*="-focus"] #eqWindRadarCanvas {
-  display: block !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-#eqWindRadarChip {
-  z-index: 5200 !important;
-}
-#mainLayout[class*="-focus"] #eqWindRadarChip {
-  display: block !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-</style>
-
 </head>
 <body>
 <script id="eq-antibug-core">
@@ -5014,6 +4962,27 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
                 <div id="todayQuakeCount" style="font-size:10px;color:#9fb3c0;text-align:right;margin-top:2px;">— sismos hoy</div>
             </div>
 
+            <section id="blitzortungPanel" aria-label="Mapa mundial de rayos Blitzortung" style="
+                display:none;
+                position:absolute;
+                top:58px;
+                right:12px;
+                z-index:2200;
+                width:min(520px, calc(100% - 24px));
+                height:min(520px, 68vh);
+                min-height:280px;
+                background:rgba(7,15,26,.97);
+                border:1px solid #62d9ff;
+                border-radius:10px;
+                overflow:hidden;
+                box-shadow:0 8px 28px rgba(0,0,0,.65);
+            ">
+                <div style="height:38px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 10px;background:rgba(15,35,52,.98);color:#eaf7ff;font:600 12px/1.2 Arial,sans-serif;">
+                    <span>⚡ Rayos en vivo · Blitzortung</span>
+                    <button id="btnCloseBlitzortung" type="button" aria-label="Cerrar mapa de rayos" title="Cerrar" style="width:28px;height:26px;border:1px solid #557080;border-radius:6px;background:#152b3c;color:#fff;font-size:18px;cursor:pointer;">×</button>
+                </div>
+                <iframe id="blitzortungFrame" title="Mapa mundial de rayos en tiempo real de Blitzortung" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" src="https://map.blitzortung.org/index.php?interactive=1&NavigationControl=1&FullScreenControl=1&Cookies=0&InfoDiv=0&MenuButtonDiv=1&ScaleControl=1&Advertisment=0&LightningCheckboxChecked=1&LightningRangeValue=10#2/20/0" style="display:block;width:100%;height:calc(100% - 38px);border:0;background:#101820;" allowfullscreen></iframe>
+            </section>
             <div id="mapActionToolbar" style="
                 position: absolute;
                 bottom: 10px;
@@ -5037,6 +5006,7 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
                     justify-content: center;
                     box-shadow: 0 2px 8px rgba(0,0,0,0.5);
                 ">🏠</button>
+
                 <button id="btnFaults" title="Fijar Japón y mostrar estaciones en vivo" aria-label="Fijar Japón y mostrar estaciones en vivo" aria-pressed="false" style="
                     background: rgba(20,20,20,0.9);
                     border: 1px solid #555;
@@ -8025,13 +7995,6 @@ global.TauPJS=api;
             { name:'Taiwán', bounds:L.latLngBounds([[20,118],[27,123]]) },
             { name:'Colombia', bounds:L.latLngBounds([[-5,-80],[14,-66]]) }
         ];
-        try {
-            if (!map.getPane('eqWeatherRadarPane')) {
-                const pane = map.createPane('eqWeatherRadarPane');
-                pane.style.zIndex = '650';
-                pane.style.pointerEvents = 'none';
-            }
-        } catch (_) {}
         let eqRadarLayers = [];
         let eqRadarPathSignature = '';
         let eqRadarRefreshBusy = false;
@@ -8049,7 +8012,7 @@ global.TauPJS=api;
                 if(signature === eqRadarPathSignature && eqRadarLayers.length) return;
                 const url = `${data.host}${frame.path}/256/{z}/{x}/{y}/2/1_0.png`;
                 const nextLayers = eqRadarRegions.map(region => L.tileLayer(url, {
-                    pane:'eqWeatherRadarPane',
+                    pane:'overlayPane',
                     bounds:region.bounds,
                     minZoom:3,
                     maxZoom:19,
@@ -8057,7 +8020,6 @@ global.TauPJS=api;
                     opacity:0.62,
                     updateWhenIdle:true,
                     keepBuffer:1,
-                    className:'eq-weather-radar-tiles',
                     attribution:'Radar: <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a>'
                 }));
                 nextLayers.forEach(layer => layer.addTo(map));
@@ -8073,333 +8035,10 @@ global.TauPJS=api;
             }
         }
         eqRefreshPersistentRadar();
-        
-setInterval(eqRefreshPersistentRadar, 10 * 60 * 1000);
-
-        // === Radar de viento (estilo Windy) · Colombia / Japón / Taiwán =========
-        // Datos: Open-Meteo GFS (sin API key). Partículas animadas en canvas.
-        // Solo se dibuja dentro de las mismas regiones del radar de precipitación.
-        (function eqWindRadarModule(){
-            const WIND_KEY = 'earthquake.windRadar.enabled.v1';
-            const REGIONS = [
-                { name:'Japón',     south:24, north:46, west:122, east:150, step:1.25 },
-                { name:'Taiwán',    south:20, north:27, west:118, east:123, step:0.55 },
-                { name:'Colombia',  south:-5, north:14, west:-80, east:-66, step:1.0 }
-            ];
-            let enabled = false;
-            try { enabled = localStorage.getItem(WIND_KEY) === '1'; } catch(_){}
-            let canvas = null, ctx = null, anim = 0, particles = [];
-            let field = null; // {cols, rows, xmin, ymax, dx, dy, u[], v[], maxSp}
-            let lastFetch = 0, fetchBusy = false, statusEl = null;
-
-            function ensureCanvas(){
-                if(canvas) return;
-                const mapEl = document.getElementById('map') || map.getContainer();
-                canvas = document.createElement('canvas');
-                canvas.id = 'eqWindRadarCanvas';
-                canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:660;';
-                mapEl.appendChild(canvas);
-                ctx = canvas.getContext('2d');
-                resize();
-                map.on('move zoom resize moveend zoomend', onMapChange);
-                window.addEventListener('resize', resize);
-            }
-            function resize(){
-                if(!canvas||!map) return;
-                const s = map.getSize();
-                const dpr = Math.min(window.devicePixelRatio||1, 2);
-                canvas.width = Math.round(s.x * dpr);
-                canvas.height = Math.round(s.y * dpr);
-                canvas.style.width = s.x + 'px';
-                canvas.style.height = s.y + 'px';
-                ctx.setTransform(dpr,0,0,dpr,0,0);
-            }
-            function onMapChange(){ resize(); seedParticles(true); }
-
-            function inAnyRegion(lat, lon){
-                for(const r of REGIONS){
-                    if(lat>=r.south && lat<=r.north && lon>=r.west && lon<=r.east) return true;
-                }
-                return false;
-            }
-
-            async function fetchRegionGrid(r){
-                const lats=[], lons=[];
-                for(let lat=r.south; lat<=r.north+1e-9; lat+=r.step){
-                    for(let lon=r.west; lon<=r.east+1e-9; lon+=r.step){
-                        lats.push(+lat.toFixed(3));
-                        lons.push(+lon.toFixed(3));
-                    }
-                }
-                // Open-Meteo admite listas separadas por comas (máx ~100 por petición)
-                const chunk=90;
-                const u=[], v=[], pts=[];
-                for(let i=0;i<lats.length;i+=chunk){
-                    const la=lats.slice(i,i+chunk), lo=lons.slice(i,i+chunk);
-                    const url='https://api.open-meteo.com/v1/forecast?latitude='+la.join(',')
-                        +'&longitude='+lo.join(',')
-                        +'&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=ms&timezone=UTC';
-                    const res=await fetch(url,{cache:'no-store'});
-                    if(!res.ok) throw new Error('Open-Meteo HTTP '+res.status);
-                    const data=await res.json();
-                    const list=Array.isArray(data)?data:[data];
-                    list.forEach((item,idx)=>{
-                        const cur=item.current||{};
-                        const spd=Number(cur.wind_speed_10m);
-                        const dir=Number(cur.wind_direction_10m); // meteorológico: de dónde sopla
-                        if(!Number.isFinite(spd)||!Number.isFinite(dir)) return;
-                        // a componentes u (este), v (norte): viento hacia
-                        const rad=(dir+180)*Math.PI/180;
-                        u.push(spd*Math.sin(rad));
-                        v.push(spd*Math.cos(rad));
-                        pts.push({lat:la[idx], lon:lo[idx], spd});
-                    });
-                }
-                return {pts, u, v};
-            }
-
-            async function refreshField(){
-                if(fetchBusy) return;
-                fetchBusy=true;
-                try{
-                    const allPts=[], allU=[], allV=[];
-                    for(const r of REGIONS){
-                        try{
-                            const g=await fetchRegionGrid(r);
-                            g.pts.forEach((p,i)=>{ allPts.push(p); allU.push(g.u[i]); allV.push(g.v[i]); });
-                        }catch(err){ console.warn('[wind-radar]', r.name, err); }
-                    }
-                    if(!allPts.length) throw new Error('sin datos de viento');
-                    // Construir grilla irregular → interpolación por vecino más cercano en sampleUV
-                    field = { pts: allPts, u: allU, v: allV, maxSp: Math.max(...allPts.map(p=>p.spd), 1) };
-                    lastFetch=Date.now();
-                    seedParticles(true);
-                    updateStatus(true);
-                }catch(err){
-                    console.warn('[wind-radar] fetch', err);
-                    updateStatus(false, String(err.message||err));
-                }finally{ fetchBusy=false; }
-            }
-
-            function sampleUV(lat, lon){
-                if(!field||!field.pts.length) return null;
-                if(!inAnyRegion(lat, lon)) return null;
-                let best=0, bestD=1e15;
-                for(let i=0;i<field.pts.length;i++){
-                    const p=field.pts[i];
-                    const d=(p.lat-lat)*(p.lat-lat)+(p.lon-lon)*(p.lon-lon);
-                    if(d<bestD){ bestD=d; best=i; }
-                }
-                if(bestD>2.5*2.5) return null; // demasiado lejos del punto de grilla
-                return { u: field.u[best], v: field.v[best], spd: field.pts[best].spd };
-            }
-
-            function seedParticles(force){
-                if(!map||!canvas) return;
-                const size=map.getSize();
-                const target=Math.min(1800, Math.max(400, Math.floor(size.x*size.y/1800)));
-                if(!force && particles.length>=target*0.85) return;
-                particles=[];
-                const bounds=map.getBounds();
-                // Preferir puntos dentro de las regiones de interés visibles
-                const visibleRegions=REGIONS.filter(r=>{
-                    try{
-                        return bounds.intersects(L.latLngBounds([[r.south,r.west],[r.north,r.east]]));
-                    }catch(_){ return true; }
-                });
-                const pools=visibleRegions.length?visibleRegions:REGIONS;
-                for(let i=0;i<target;i++){
-                    const r=pools[i%pools.length];
-                    const lat=r.south+Math.random()*(r.north-r.south);
-                    const lon=r.west+Math.random()*(r.east-r.west);
-                    if(!bounds.contains([lat,lon])) continue;
-                    particles.push({lat, lon, age:Math.random()*80});
-                }
-            }
-
-            function colorForSpeed(spd){
-                // Paleta tipo Windy (azul → cian → verde → amarillo → rojo)
-                const t=Math.max(0, Math.min(1, spd/22));
-                const stops=[
-                    [0.00,[36,104,180]],[0.15,[60,157,194]],[0.30,[128,205,193]],
-                    [0.45,[151,218,168]],[0.60,[198,231,181]],[0.75,[238,247,217]],
-                    [0.85,[255,210,100]],[0.95,[255,120,50]],[1.00,[200,30,40]]
-                ];
-                let a=stops[0], b=stops[stops.length-1];
-                for(let i=0;i<stops.length-1;i++){
-                    if(t>=stops[i][0]&&t<=stops[i+1][0]){ a=stops[i]; b=stops[i+1]; break; }
-                }
-                const u=(t-a[0])/Math.max(1e-6,b[0]-a[0]);
-                const r=Math.round(a[1][0]+(b[1][0]-a[1][0])*u);
-                const g=Math.round(a[1][1]+(b[1][1]-a[1][1])*u);
-                const bl=Math.round(a[1][2]+(b[1][2]-a[1][2])*u);
-                return 'rgba('+r+','+g+','+bl+',0.85)';
-            }
-
-            function frame(){
-                if(!enabled||!ctx||!canvas){ anim=0; return; }
-                const size=map.getSize();
-                ctx.clearRect(0,0,size.x,size.y);
-                // estela suave
-                ctx.fillStyle='rgba(10,16,28,0.08)';
-                // no fill full - particles only
-
-                if(!field){ anim=requestAnimationFrame(frame); return; }
-
-                for(let i=0;i<particles.length;i++){
-                    const p=particles[i];
-                    const uv=sampleUV(p.lat, p.lon);
-                    if(!uv){
-                        // reubicar
-                        const b=map.getBounds();
-                        p.lat=b.getSouth()+Math.random()*(b.getNorth()-b.getSouth());
-                        p.lon=b.getWest()+Math.random()*(b.getEast()-b.getWest());
-                        p.age=0;
-                        continue;
-                    }
-                    // avanzar en lat/lon (escala visual)
-                    const scale=0.00035; // grados por (m/s) por frame
-                    p.lon += uv.u * scale;
-                    p.lat += uv.v * scale;
-                    p.age++;
-                    if(p.age>90 || !inAnyRegion(p.lat,p.lon) || !map.getBounds().contains([p.lat,p.lon])){
-                        const b=map.getBounds();
-                        let tries=0;
-                        do{
-                            p.lat=b.getSouth()+Math.random()*(b.getNorth()-b.getSouth());
-                            p.lon=b.getWest()+Math.random()*(b.getEast()-b.getWest());
-                            tries++;
-                        }while(!inAnyRegion(p.lat,p.lon)&&tries<8);
-                        p.age=0;
-                        continue;
-                    }
-                    const pt=map.latLngToContainerPoint([p.lat,p.lon]);
-                    const next=map.latLngToContainerPoint([p.lat - uv.v*scale*0.4, p.lon - uv.u*scale*0.4]);
-                    ctx.beginPath();
-                    ctx.strokeStyle=colorForSpeed(uv.spd);
-                    ctx.lineWidth=1.2;
-                    ctx.moveTo(next.x, next.y);
-                    ctx.lineTo(pt.x, pt.y);
-                    ctx.stroke();
-                }
-                anim=requestAnimationFrame(frame);
-            }
-
-            function updateStatus(ok, err){
-                if(!statusEl){
-                    statusEl=document.createElement('div');
-                    statusEl.id='eqWindRadarChip';
-                    statusEl.style.cssText='position:absolute;left:12px;bottom:72px;z-index:5200;padding:6px 10px;border-radius:8px;background:rgba(12,18,28,.88);border:1px solid rgba(120,180,255,.25);color:#cfe6ff;font-size:11px;font-weight:600;pointer-events:none;display:none;';
-                    (document.getElementById('map')||document.body).appendChild(statusEl);
-                }
-                if(!enabled){ statusEl.style.display='none'; return; }
-                statusEl.style.display='block';
-                if(ok) statusEl.textContent='💨 Viento GFS · CO / JP / TW · '+new Date(lastFetch).toLocaleTimeString();
-                else statusEl.textContent='💨 Viento · error: '+(err||'sin datos');
-            }
-
-            function setEnabled(on){
-                enabled=!!on;
-                try{ localStorage.setItem(WIND_KEY, enabled?'1':'0'); }catch(_){}
-                const btn=document.getElementById('eqsWindRadarToggle');
-                if(btn){
-                    btn.setAttribute('aria-pressed', enabled?'true':'false');
-                    btn.textContent=enabled?'💨 Radar de viento · ON (CO·JP·TW)':'💨 Radar de viento (CO · JP · TW)';
-                    btn.style.borderColor=enabled?'#19b0c8':'';
-                    btn.style.color=enabled?'#b8f0fa':'';
-                }
-                if(enabled){
-                    ensureCanvas();
-                    canvas.style.display='block';
-                    refreshField();
-                    if(!anim) anim=requestAnimationFrame(frame);
-                    // refresco cada 1 min
-                    clearInterval(window.__eqWindRadarTimer);
-                    window.__eqWindRadarTimer=setInterval(refreshField, 60*1000);
-                }else{
-                    clearInterval(window.__eqWindRadarTimer);
-                    if(anim){ cancelAnimationFrame(anim); anim=0; }
-                    if(canvas){ ctx&&ctx.clearRect(0,0,canvas.width,canvas.height); canvas.style.display='none'; }
-                    updateStatus(false);
-                    if(statusEl) statusEl.style.display='none';
-                }
-            }
-
-            function bind(){
-                const btn=document.getElementById('eqsWindRadarToggle');
-                if(btn && !btn.__eqWindBound){
-                    btn.__eqWindBound=true;
-                    btn.addEventListener('click', ()=>setEnabled(!enabled));
-                }
-                setEnabled(enabled);
-            }
-            if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', ()=>setTimeout(bind,500));
-            else setTimeout(bind,800);
-            window.__eqWindRadar = { setEnabled, refresh:refreshField, isEnabled:()=>enabled };
-        })();
-
-        // Mantener radares (lluvia/viento) al cambiar de apartado
-        (function eqRadarPersistAcrossApartments(){
-            const layout = document.getElementById('mainLayout');
-            if (!layout || layout.__eqRadarPersistObs) return;
-            layout.__eqRadarPersistObs = true;
-            const kick = () => {
-                try { if (typeof eqRefreshPersistentRadar === 'function') eqRefreshPersistentRadar(); } catch(_){}
-                try {
-                    if (window.__eqWindRadar && window.__eqWindRadar.isEnabled && window.__eqWindRadar.isEnabled()) {
-                        window.__eqWindRadar.refresh && window.__eqWindRadar.refresh();
-                    }
-                } catch(_){}
-                try { map && map.invalidateSize({ pan:false }); } catch(_){}
-                try {
-                    const c = document.getElementById('eqWindRadarCanvas');
-                    if (c && map) {
-                        const s = map.getSize();
-                        const dpr = Math.min(window.devicePixelRatio||1, 2);
-                        c.width = Math.round(s.x * dpr);
-                        c.height = Math.round(s.y * dpr);
-                        c.style.width = s.x + 'px';
-                        c.style.height = s.y + 'px';
-                    }
-                } catch(_){}
-            };
-            new MutationObserver(() => { setTimeout(kick, 80); setTimeout(kick, 400); })
-                .observe(layout, { attributes:true, attributeFilter:['class'] });
-        })();
-
-
-        // Mantener radares (lluvia/viento) al cambiar de apartado
-        (function eqRadarPersistAcrossApartments(){
-            const layout = document.getElementById('mainLayout');
-            if (!layout || layout.__eqRadarPersistObs) return;
-            layout.__eqRadarPersistObs = true;
-            const kick = () => {
-                try { if (typeof eqRefreshPersistentRadar === 'function') eqRefreshPersistentRadar(); } catch(_){}
-                try {
-                    if (window.__eqWindRadar && window.__eqWindRadar.isEnabled && window.__eqWindRadar.isEnabled()) {
-                        window.__eqWindRadar.refresh && window.__eqWindRadar.refresh();
-                    }
-                } catch(_){}
-                try { map && map.invalidateSize({ pan:false }); } catch(_){}
-                try {
-                    const c = document.getElementById('eqWindRadarCanvas');
-                    if (c && map) {
-                        const s = map.getSize();
-                        const dpr = Math.min(window.devicePixelRatio||1, 2);
-                        c.width = Math.round(s.x * dpr);
-                        c.height = Math.round(s.y * dpr);
-                        c.style.width = s.x + 'px';
-                        c.style.height = s.y + 'px';
-                    }
-                } catch(_){}
-            };
-            new MutationObserver(() => { setTimeout(kick, 80); setTimeout(kick, 400); })
-                .observe(layout, { attributes:true, attributeFilter:['class'] });
-        })();
+        setInterval(eqRefreshPersistentRadar, 10 * 60 * 1000);
 
         // Seguimiento persistente de ciclones: separado de la vista/panel de
         // tifones para que las trayectorias sigan visibles al volver al mapa global.
-
         const eqPersistentTyphoonLayer = L.layerGroup().addTo(map);
         function eqRenderPersistentTyphoons(){
             try {
@@ -12228,6 +11867,142 @@ setInterval(eqRefreshPersistentRadar, 10 * 60 * 1000);
         const mapTileRenderOptions = { updateWhenZooming:false, updateWhenIdle:true, keepBuffer:1 };
         // Basemap oscuro tipo monitor sísmico: países oscuros y fronteras visibles.
         const tileDark = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { ...mapTileRenderOptions, maxZoom: 16, opacity:.78, attribution: '© Esri, HERE, Garmin, USGS, NGA, EPA, NPS | Datos sísmicos: USGS + JMA + CENC + EMSC' });
+
+        // Capa de velocidad del viento directamente sobre el mapa Leaflet.
+        // El pane queda por encima del fondo, pero debajo de intensidad,
+        // fronteras, epicentros, EEW, tsunami y estaciones.
+        const windOverlayPane = map.createPane('windOverlayPane');
+        windOverlayPane.style.zIndex = '345';
+        windOverlayPane.style.pointerEvents = 'none';
+        const windTileOptions = {
+            pane: 'windOverlayPane', opacity: 0.52, minZoom: 2, maxZoom: 18,
+            updateWhenZooming: false, updateWhenIdle: true, keepBuffer: 1,
+            attribution: 'Viento: WeatherAPI.com'
+        };
+        function windForecastTileUrl() {
+            const now = new Date();
+            const yyyy = now.getUTCFullYear();
+            const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
+            const dd = String(now.getUTCDate()).padStart(2, '0');
+            const hh = String(now.getUTCHours()).padStart(2, '0');
+            return `https://weathermaps.weatherapi.com/wind/tiles/${yyyy}${mm}${dd}${hh}/{z}/{x}/{y}.png`;
+        }
+        let windOverlayLayer = L.tileLayer(windForecastTileUrl(), windTileOptions);
+        windOverlayLayer.on('tileerror', () => {
+            console.warn('[EarthQuake] No se pudo cargar una tesela de viento; se reintentará en la próxima actualización.');
+        });
+        // La capa empieza apagada; solo se añade al mapa cuando el usuario la activa.
+
+        // Control manual de la capa de viento, independiente de las capas sísmicas.
+        const btnWindOverlay = document.getElementById('btnWindOverlay');
+        function setWindOverlayEnabled(enabled) {
+            if (!windOverlayLayer || !map || !btnWindOverlay) return;
+            if (enabled) {
+                if (!map.hasLayer(windOverlayLayer)) windOverlayLayer.addTo(map);
+                btnWindOverlay.setAttribute('aria-pressed', 'true');
+                btnWindOverlay.setAttribute('aria-label', 'Desactivar capa de viento');
+                btnWindOverlay.title = 'Desactivar capa de viento';
+                btnWindOverlay.textContent = '💨 Viento: activado';
+                btnWindOverlay.style.background = 'rgba(20,70,95,0.95)';
+                btnWindOverlay.style.borderColor = '#62d9ff';
+            } else {
+                if (map.hasLayer(windOverlayLayer)) map.removeLayer(windOverlayLayer);
+                btnWindOverlay.setAttribute('aria-pressed', 'false');
+                btnWindOverlay.setAttribute('aria-label', 'Activar capa de viento');
+                btnWindOverlay.title = 'Activar capa de viento';
+                btnWindOverlay.textContent = '💨 Viento: desactivado';
+                btnWindOverlay.style.background = 'rgba(20,20,20,0.9)';
+                btnWindOverlay.style.borderColor = '#555';
+            }
+        }
+        if (btnWindOverlay) {
+            btnWindOverlay.addEventListener('click', () => {
+                setWindOverlayEnabled(!map.hasLayer(windOverlayLayer));
+            });
+            setWindOverlayEnabled(false);
+        }
+
+
+        // Panel incrustado del mapa oficial Blitzortung (no extrae datos sin procesar).
+        const btnBlitzortung = document.getElementById('btnBlitzortung');
+        const blitzortungPanel = document.getElementById('blitzortungPanel');
+        const btnCloseBlitzortung = document.getElementById('btnCloseBlitzortung');
+        function setBlitzortungPanelOpen(open) {
+            if (!blitzortungPanel || !btnBlitzortung) return;
+            blitzortungPanel.style.display = open ? 'block' : 'none';
+            btnBlitzortung.setAttribute('aria-pressed', open ? 'true' : 'false');
+            btnBlitzortung.setAttribute('aria-label', open ? 'Cerrar mapa de rayos Blitzortung' : 'Abrir mapa de rayos Blitzortung');
+            btnBlitzortung.title = open ? 'Cerrar mapa de rayos Blitzortung' : 'Abrir mapa de rayos Blitzortung';
+            btnBlitzortung.style.background = open ? 'rgba(20,70,95,0.95)' : 'rgba(20,20,20,0.92)';
+            btnBlitzortung.style.borderColor = open ? '#62d9ff' : '#555';
+        }
+        if (btnBlitzortung) btnBlitzortung.addEventListener('click', () => {
+            const isOpen = blitzortungPanel && blitzortungPanel.style.display !== 'none';
+            setBlitzortungPanelOpen(!isOpen);
+            if (!isOpen) document.getElementById('eqSettingsModal')?.classList.remove('active');
+        });
+        if (btnCloseBlitzortung) btnCloseBlitzortung.addEventListener('click', () => setBlitzortungPanelOpen(false));
+
+        // Selector de imágenes satelitales meteorológicas NASA GIBS.
+        // Capa en un pane propio, por encima del mapa base y debajo de las capas sísmicas.
+        const satelliteWeatherPane = map.createPane('satelliteWeatherPane');
+        satelliteWeatherPane.style.zIndex = '350';
+        satelliteWeatherPane.style.pointerEvents = 'none';
+        const satelliteWeatherSelect = document.getElementById('satelliteWeatherSelect');
+        let satelliteWeatherLayer = null;
+        const satelliteWeatherCatalog = {
+            'goes-east': { id: 'GOES-East_ABI_GeoColor', label: 'GOES-East GeoColor' },
+            'goes-east-ir': { id: 'GOES-East_ABI_Band13_Clean_Infrared', label: 'GOES-East infrarrojo' },
+            'goes-west': { id: 'GOES-West_ABI_GeoColor', label: 'GOES-West GeoColor' },
+            'goes-west-ir': { id: 'GOES-West_ABI_Band13_Clean_Infrared', label: 'GOES-West infrarrojo' },
+            'himawari': { id: 'Himawari_AHI_Band3_Red_Visible_1km', label: 'Himawari visible' },
+            'himawari-ir': { id: 'Himawari_AHI_Band13_Clean_Infrared', label: 'Himawari infrarrojo' }
+        };
+        function satelliteWeatherTileUrl(layerId) {
+            const now = new Date();
+            const date = `${now.getUTCFullYear()}-${String(now.getUTCMonth()+1).padStart(2,'0')}-${String(now.getUTCDate()).padStart(2,'0')}`;
+            return `https://gibs.earthdata.nasa.gov/wmts/epsg3857/nrt/${layerId}/default/${date}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`;
+        }
+        function setSatelliteWeatherLayer(choice) {
+            if (satelliteWeatherLayer) {
+                map.removeLayer(satelliteWeatherLayer);
+                satelliteWeatherLayer = null;
+            }
+            const config = satelliteWeatherCatalog[choice];
+            if (!config) {
+                if (satelliteWeatherSelect) {
+                    satelliteWeatherSelect.style.borderColor = '#668899';
+                    satelliteWeatherSelect.title = 'Satélite meteorológico desactivado';
+                }
+                return;
+            }
+            satelliteWeatherLayer = L.tileLayer(satelliteWeatherTileUrl(config.id), {
+                pane: 'satelliteWeatherPane', opacity: 0.62, minZoom: 2, maxZoom: 9,
+                updateWhenZooming: false, updateWhenIdle: true, keepBuffer: 1,
+                attribution: 'Imagery courtesy NASA GIBS'
+            });
+            satelliteWeatherLayer.on('tileerror', () => {
+                console.warn(`[EarthQuake] No se pudo cargar la capa satelital ${config.label}; comprueba la disponibilidad de NASA GIBS para la fecha actual.`);
+            });
+            satelliteWeatherLayer.addTo(map);
+            if (satelliteWeatherSelect) {
+                satelliteWeatherSelect.style.borderColor = '#62d9ff';
+                satelliteWeatherSelect.title = `Satélite seleccionado: ${config.label}`;
+            }
+        }
+        if (satelliteWeatherSelect) {
+            satelliteWeatherSelect.addEventListener('change', () => setSatelliteWeatherLayer(satelliteWeatherSelect.value));
+        }
+
+        // Actualizar la referencia temporal del mosaico cada hora UTC.
+        setInterval(() => {
+            try {
+                const nextUrl = windForecastTileUrl();
+                if (windOverlayLayer && map.hasLayer(windOverlayLayer)) {
+                    windOverlayLayer.setUrl(nextUrl, true);
+                }
+            } catch (err) { console.warn('[EarthQuake] Actualización de viento:', err); }
+        }, 60 * 60 * 1000);
 
         let darkTileErrors = 0;
         function applyDarkFallbackFilter(active) {
@@ -30581,7 +30356,7 @@ function ynBuildLeafletMarkers() {
 </div>
 
 <div id="eqSettingsModal" role="dialog" aria-modal="true" aria-labelledby="eqSettingsTitle"><div id="eqSettingsDialog"><div class="eqs-head"><span id="eqSettingsTitle" data-i18n="settingsTitle">Ajustes</span><button class="eqs-close" id="eqSettingsClose" type="button" aria-label="Cerrar ajustes">×</button></div>
-<div class="eqs-searchbar"><input id="eqsSearch" type="search" placeholder="Buscar ajuste…" autocomplete="off" aria-label="Buscar ajuste"><nav class="eqs-chips" aria-label="Secciones"><a href="#eqsSecIdioma">Idioma</a><a href="#eqsSecApartados">Apartados</a><a href="#eqsSecLista">Lista</a><a href="#eqsSecMapa">Mapa</a><a href="#eqsSecSonido">Sonido</a><a href="#eqsSecJapon">Japón</a><a href="#eqsSecColombia">Colombia</a><a href="#eqsSecAgencias">Agencias</a></nav></div>
+<div class="eqs-searchbar"><input id="eqsSearch" type="search" placeholder="Buscar ajuste…" autocomplete="off" aria-label="Buscar ajuste"><nav class="eqs-chips" aria-label="Secciones"><a href="#eqsSecIdioma">Idioma</a><a href="#eqsSecApartados">Apartados</a><a href="#eqsSecLista">Lista</a><a href="#eqsSecMapa">Mapa</a><a href="#eqsSecCapasMeteo">Capas meteo.</a><a href="#eqsSecSonido">Sonido</a><a href="#eqsSecJapon">Japón</a><a href="#eqsSecColombia">Colombia</a><a href="#eqsSecAgencias">Agencias</a></nav></div>
 
 <div class="eqs-section" id="eqsSecIdioma">
 <div class="eqs-title" id="eqsTitleIdioma">🌐 Idioma de la interfaz</div>
@@ -30607,7 +30382,6 @@ function ynBuildLeafletMarkers() {
 <div class="eqs-sub">Meteorología y estaciones</div>
 <div class="eqs-tiles">
 <button class="eqs-control eqs-tile" id="eqsJmaWeatherToggle" type="button" aria-pressed="false">🇯🇵 Alertas meteorológicas de Japón</button>
-<button class="eqs-control eqs-tile" id="eqsWindRadarToggle" type="button" aria-pressed="false">💨 Radar de viento (CO · JP · TW)</button>
 <button class="eqs-control eqs-tile" id="eqsJapanSeaStationsToggle" type="button" aria-pressed="false">🌊 Mar de Japón · estaciones en vivo</button>
 <button class="eqs-control eqs-tile" id="eqsMeteoCenterToggle" type="button" aria-pressed="false">🌦️ Abrir Centro Meteorológico LIVE</button>
 </div>
@@ -30648,6 +30422,28 @@ function ynBuildLeafletMarkers() {
 
 <div class="eqs-section">
 <div class="eqs-title" id="eqsSecMapa">🗺️ Mapa, texto TV y avisos</div>
+<div class="eqs-section" id="eqsSecCapasMeteo">
+<div class="eqs-title">🌦️ Capas meteorológicas del mapa</div>
+<div class="eqs-sub">Activa o desactiva las capas que aparecen sobre el mapa principal.</div>
+<div class="eqs-tiles">
+<button class="eqs-control eqs-tile" id="btnWindOverlay" type="button" title="Desactivar capa de viento" aria-label="Desactivar capa de viento" aria-pressed="true">💨 Viento: activado</button>
+<button class="eqs-control eqs-tile" id="btnBlitzortung" type="button" title="Abrir/cerrar mapa de rayos Blitzortung" aria-label="Abrir mapa de rayos Blitzortung" aria-pressed="false">⚡ Rayos · Blitzortung</button>
+</div>
+<div class="eqs-grid" style="margin-top:10px">
+<label class="eqs-row" style="align-items:flex-start;flex-direction:column">🛰️ Satélite meteorológico
+<select id="satelliteWeatherSelect" title="Cambiar satélite meteorológico" aria-label="Cambiar satélite meteorológico">
+<option value="off">Satélite: OFF</option>
+<option value="goes-east">GOES-East · GeoColor</option>
+<option value="goes-east-ir">GOES-East · Infrarrojo</option>
+<option value="goes-west">GOES-West · GeoColor</option>
+<option value="goes-west-ir">GOES-West · Infrarrojo</option>
+<option value="himawari">Himawari · Asia-Pacífico</option>
+<option value="himawari-ir">Himawari · Infrarrojo</option>
+</select></label>
+</div>
+<div class="eqs-muted">El mapa de rayos se abre en un panel independiente. La disponibilidad de viento y satélite depende de sus proveedores.</div>
+</div>
+
 <div class="eqs-grid">
 <label class="eqs-row">Líneas de fallas tectónicas <input class="eqs-switch" id="eqsShowFaults" type="checkbox"></label>
 <div class="eqs-muted" style="grid-column:1/-1">Activa o desactiva las fallas (PB2002) sobre el mapa.</div>
@@ -30816,7 +30612,7 @@ function ynBuildLeafletMarkers() {
   if(modal&&window.MutationObserver)new MutationObserver(()=>{if(modal.classList.contains('active')){inp.value='';apply();}}).observe(modal,{attributes:true,attributeFilter:['class']});
 })();
 </script>
-<script id="eq-settings-module">(function(){'use strict';const modal=document.getElementById('eqSettingsModal'),open=document.getElementById('btnSettings');if(!modal||!open)return;const agencies=['USGS','NEIC','JMA','CENC','CEA','CEIC','EMSC','IGN','INETER','GEOFON','SSN','AFAD','BMKG','GEONET','INGV','IPGP','SED','PHIVOLCS','CSN','IG-EPN','EARLY-EST','HKO','NOA','KOERI','SGC','KMA','BCSF','NRCan','USP','MMD' ,'CEA-PR'],key='earthquake.settings.v1',defaults={uiLanguage:'es-ES',tts:true,audio:true,masterVolume:1,taup:'precise',intensityScale:'source',mapSea:'dark',japanStations:'nied',niedMotionEnabled:true,showTremMetrics:true,showPalertMetrics:true,showNiedMetrics:true,niedMetric:'intensity',colombiaGoalRain:true,colombiaMatchAlerts:true,showFaults:false,browserNotify:false,minTickerMag:0,listMinMag:0,listFeltOnly:false,listRegion:'ALL',listFocusZoom:5,disabled:{}};const read=()=>{try{const saved=JSON.parse(localStorage.getItem(key)||'{}'),out=Object.assign({},defaults,saved);if(!Object.prototype.hasOwnProperty.call(saved,'niedMotionEnabled')){const legacy=window.__eqKanameishiHypoDebug?.().niedEnabled;if(typeof legacy==='boolean')out.niedMotionEnabled=legacy}if(!Object.prototype.hasOwnProperty.call(saved,'masterVolume')){const v=Number(localStorage.getItem('earthquake.masterVolume'));if(Number.isFinite(v))out.masterVolume=Math.max(0,Math.min(1,v))}return out}catch(_){return Object.assign({},defaults)}};let state=read();try{const L=localStorage.getItem('earthquake.uiLanguage');if(L)state.uiLanguage=L;}catch(_){}window.__eqListFocusZoom=Math.max(3,Math.min(8,Number(state.listFocusZoom)||5));const uiLanguage=document.getElementById('eqsUiLanguage'),tts=document.getElementById('eqsTts'),audio=document.getElementById('eqsAudio'),masterVolumeSlider=document.getElementById('eqsMasterVolume'),masterVolumeValue=document.getElementById('eqsMasterVolumeValue'),taup=document.getElementById('eqsTaup'),intensityScale=document.getElementById('eqsIntensityScale'),mapSea=document.getElementById('eqsMapSea'),japanStations=document.getElementById('eqsJapanStations'),motionDetection=document.getElementById('eqsMotionDetectionEnabled'),showTremMetrics=document.getElementById('eqsShowTremMetrics'),showPalertMetrics=document.getElementById('eqsShowPalertMetrics'),showNiedMetrics=document.getElementById('eqsShowNiedMetrics'),niedMetric=document.getElementById('eqsNiedMetric'),colombiaGoalRain=document.getElementById('eqsColombiaGoalRain'),colombiaMatchAlerts=document.getElementById('eqsColombiaMatchAlerts'),goalRainTest=document.getElementById('eqsTestColombiaGoalRain'),showFaults=document.getElementById('eqsShowFaults'),browserNotify=document.getElementById('eqsBrowserNotify'),minTickerMag=document.getElementById('eqsMinTickerMag'),listMinMag=document.getElementById('eqsListMinMag'),listRegion=document.getElementById('eqsListRegion'),listFeltOnly=document.getElementById('eqsListFeltOnly'),listFocusZoom=document.getElementById('eqsListFocusZoom'),listFocusZoomValue=document.getElementById('eqsListFocusZoomValue'),list=document.getElementById('eqsAgencies');const uiSounds=document.getElementById('eqsUiSounds'),srevSounds=document.getElementById('eqsSrevSounds'),jmaToggle=document.getElementById('eqsJmaWeatherToggle');function syncJmaToggle(){const api=window.__eqJmaWeatherView;const active=!!(api&&typeof api.isActive==='function'&&api.isActive());if(jmaToggle){jmaToggle.textContent=active?'↩️ Volver a la vista normal':'🇯🇵 Alertas meteorológicas de Japón';jmaToggle.setAttribute('aria-pressed',String(active));jmaToggle.style.borderColor=active?'#ffb300':'';jmaToggle.style.color=active?'#ffd873':''}}const uiSoundNames=[['click','Clic'],['select','Selección'],['refresh','Actualizar'],['success','Correcto'],['home','Inicio'],['alert','Alerta'],['ynWave','Onda NIED'],['motion','Movimiento']];const srevSoundNames=[['eew0','EEW débil'],['eew3','EEW intensidad 3'],['eew5','EEW intensidad 5'],['eewC','EEW cancelación'],['koushin','Actualización'],['koushinE','Actualización EEW'],['VXSE51','VXSE51 información'],['VXSE52','VXSE52 epicentro'],['VXSE53','VXSE53 detalle'],['VXSE5C','VXSE5C'],['VTSE5','VTSE5 tsunami'],['tsa01','Tsunami tsa01'],['tsa02','Tsunami tsa02'],['tsa03','Tsunami tsa03'],['tsa04','Tsunami tsa04'],['tsa12','Tsunami tsa12'],['tsa13','Tsunami tsa13'],['tsa14','Tsunami tsa14'],['tsa21','Tsunami tsa21'],['tsa22','Tsunami tsa22'],['tsa23','Tsunami tsa23'],['tsa24','Tsunami tsa24'],['tsa32','Tsunami tsa32'],['tsa33','Tsunami tsa33'],['p1024','p1024'],['NewInt0','Movimiento int. 0'],['NewInt1','Movimiento int. 1'],['NewInt2','Movimiento int. 2'],['NewInt3','Movimiento int. 3'],['NewInt4','Movimiento int. 4'],['NewInt5','Movimiento int. 5'],['NewInt6','Movimiento int. 6–7']];function render(){if(uiLanguage)uiLanguage.value=state.uiLanguage||'es-ES';const a=window.__eqAudioSettings;tts.checked=a?a.ttsEnabled:state.tts;audio.checked=a?a.audioEnabled:state.audio;if(masterVolumeSlider){const n=Math.max(0,Math.min(1,Number(state.masterVolume??1)));masterVolumeSlider.value=String(Math.round(n*100));if(masterVolumeValue)masterVolumeValue.textContent=Math.round(n*100)+'%'}taup.value=(window.__eqTaupSettings&&window.__eqTaupSettings.mode)||state.taup;intensityScale.value=state.intensityScale||'source';if(mapSea)mapSea.value=state.mapSea||'dark';if(japanStations)japanStations.value=state.japanStations||'nied';if(motionDetection)motionDetection.checked=state.niedMotionEnabled!==false;if(showTremMetrics)showTremMetrics.checked=state.showTremMetrics!==false;if(showPalertMetrics)showPalertMetrics.checked=state.showPalertMetrics!==false;if(showNiedMetrics)showNiedMetrics.checked=state.showNiedMetrics!==false;if(niedMetric)niedMetric.value=state.niedMetric||'intensity';if(colombiaGoalRain)colombiaGoalRain.checked=state.colombiaGoalRain!==false;if(colombiaMatchAlerts)colombiaMatchAlerts.checked=state.colombiaMatchAlerts!==false;if(showFaults)showFaults.checked=state.showFaults===true;if(browserNotify)browserNotify.checked=state.browserNotify===true;if(minTickerMag)minTickerMag.value=String(state.minTickerMag!=null?state.minTickerMag:0);if(listMinMag)listMinMag.value=String(state.listMinMag!=null?state.listMinMag:0);if(listRegion)listRegion.value=String(state.listRegion||'ALL');if(listFeltOnly)listFeltOnly.checked=state.listFeltOnly===true;if(listFocusZoom){const n=Math.max(3,Math.min(8,Number(state.listFocusZoom)||5));listFocusZoom.value=String(n);if(listFocusZoomValue)listFocusZoomValue.textContent=String(n);window.__eqListFocusZoom=n}uiSounds.innerHTML=uiSoundNames.map(x=>'<button class="eqs-control" type="button" data-ui-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');srevSounds.innerHTML=srevSoundNames.map(x=>'<button class="eqs-control" type="button" data-srev-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');list.innerHTML=agencies.map(x=>'<label class="eqs-agency"><input type="checkbox" data-agency="'+x+'" '+(!(state.disabled&&state.disabled[x])?'checked':'')+'> '+x+'</label>').join('')}
+<script id="eq-settings-module">(function(){'use strict';const modal=document.getElementById('eqSettingsModal'),open=document.getElementById('btnSettings');if(!modal||!open)return;const agencies=['USGS','NEIC','JMA','CENC','CEA','CEIC','EMSC','IGN','INETER','GEOFON','SSN','AFAD','BMKG','GEONET','INGV','IPGP','SED','PHIVOLCS','CSN','IG-EPN','EARLY-EST','HKO','NOA','KOERI','SGC','KMA','BCSF','NRCan','USP','MMD' ,'CEA-PR'],key='earthquake.settings.v1',defaults={uiLanguage:'es-ES',tts:true,audio:true,masterVolume:1,taup:'precise',intensityScale:'source',mapSea:'dark',japanStations:'nied',niedMotionEnabled:true,showTremMetrics:true,showPalertMetrics:true,showNiedMetrics:true,niedMetric:'intensity',colombiaGoalRain:true,colombiaMatchAlerts:true,showFaults:false,browserNotify:false,minTickerMag:0,listMinMag:0,listFeltOnly:false,listRegion:'ALL',listFocusZoom:5,disabled:{}};const read=()=>{try{const saved=JSON.parse(localStorage.getItem(key)||'{}'),out=Object.assign({},defaults,saved);if(!Object.prototype.hasOwnProperty.call(saved,'niedMotionEnabled')){const legacy=window.__eqKanameishiHypoDebug?.().niedEnabled;if(typeof legacy==='boolean')out.niedMotionEnabled=legacy}if(!Object.prototype.hasOwnProperty.call(saved,'masterVolume')){const v=Number(localStorage.getItem('earthquake.masterVolume'));if(Number.isFinite(v))out.masterVolume=Math.max(0,Math.min(1,v))}return out}catch(_){return Object.assign({},defaults)}};let state=read();/* uiLanguage kept */window.__eqListFocusZoom=Math.max(3,Math.min(8,Number(state.listFocusZoom)||5));const uiLanguage=document.getElementById('eqsUiLanguage'),tts=document.getElementById('eqsTts'),audio=document.getElementById('eqsAudio'),masterVolumeSlider=document.getElementById('eqsMasterVolume'),masterVolumeValue=document.getElementById('eqsMasterVolumeValue'),taup=document.getElementById('eqsTaup'),intensityScale=document.getElementById('eqsIntensityScale'),mapSea=document.getElementById('eqsMapSea'),japanStations=document.getElementById('eqsJapanStations'),motionDetection=document.getElementById('eqsMotionDetectionEnabled'),showTremMetrics=document.getElementById('eqsShowTremMetrics'),showPalertMetrics=document.getElementById('eqsShowPalertMetrics'),showNiedMetrics=document.getElementById('eqsShowNiedMetrics'),niedMetric=document.getElementById('eqsNiedMetric'),colombiaGoalRain=document.getElementById('eqsColombiaGoalRain'),colombiaMatchAlerts=document.getElementById('eqsColombiaMatchAlerts'),goalRainTest=document.getElementById('eqsTestColombiaGoalRain'),showFaults=document.getElementById('eqsShowFaults'),browserNotify=document.getElementById('eqsBrowserNotify'),minTickerMag=document.getElementById('eqsMinTickerMag'),listMinMag=document.getElementById('eqsListMinMag'),listRegion=document.getElementById('eqsListRegion'),listFeltOnly=document.getElementById('eqsListFeltOnly'),listFocusZoom=document.getElementById('eqsListFocusZoom'),listFocusZoomValue=document.getElementById('eqsListFocusZoomValue'),list=document.getElementById('eqsAgencies');const uiSounds=document.getElementById('eqsUiSounds'),srevSounds=document.getElementById('eqsSrevSounds'),jmaToggle=document.getElementById('eqsJmaWeatherToggle');function syncJmaToggle(){const api=window.__eqJmaWeatherView;const active=!!(api&&typeof api.isActive==='function'&&api.isActive());if(jmaToggle){jmaToggle.textContent=active?'↩️ Volver a la vista normal':'🇯🇵 Alertas meteorológicas de Japón';jmaToggle.setAttribute('aria-pressed',String(active));jmaToggle.style.borderColor=active?'#ffb300':'';jmaToggle.style.color=active?'#ffd873':''}}const uiSoundNames=[['click','Clic'],['select','Selección'],['refresh','Actualizar'],['success','Correcto'],['home','Inicio'],['alert','Alerta'],['ynWave','Onda NIED'],['motion','Movimiento']];const srevSoundNames=[['eew0','EEW débil'],['eew3','EEW intensidad 3'],['eew5','EEW intensidad 5'],['eewC','EEW cancelación'],['koushin','Actualización'],['koushinE','Actualización EEW'],['VXSE51','VXSE51 información'],['VXSE52','VXSE52 epicentro'],['VXSE53','VXSE53 detalle'],['VXSE5C','VXSE5C'],['VTSE5','VTSE5 tsunami'],['tsa01','Tsunami tsa01'],['tsa02','Tsunami tsa02'],['tsa03','Tsunami tsa03'],['tsa04','Tsunami tsa04'],['tsa12','Tsunami tsa12'],['tsa13','Tsunami tsa13'],['tsa14','Tsunami tsa14'],['tsa21','Tsunami tsa21'],['tsa22','Tsunami tsa22'],['tsa23','Tsunami tsa23'],['tsa24','Tsunami tsa24'],['tsa32','Tsunami tsa32'],['tsa33','Tsunami tsa33'],['p1024','p1024'],['NewInt0','Movimiento int. 0'],['NewInt1','Movimiento int. 1'],['NewInt2','Movimiento int. 2'],['NewInt3','Movimiento int. 3'],['NewInt4','Movimiento int. 4'],['NewInt5','Movimiento int. 5'],['NewInt6','Movimiento int. 6–7']];function render(){if(uiLanguage)uiLanguage.value=state.uiLanguage||'es-ES';const a=window.__eqAudioSettings;tts.checked=a?a.ttsEnabled:state.tts;audio.checked=a?a.audioEnabled:state.audio;if(masterVolumeSlider){const n=Math.max(0,Math.min(1,Number(state.masterVolume??1)));masterVolumeSlider.value=String(Math.round(n*100));if(masterVolumeValue)masterVolumeValue.textContent=Math.round(n*100)+'%'}taup.value=(window.__eqTaupSettings&&window.__eqTaupSettings.mode)||state.taup;intensityScale.value=state.intensityScale||'source';if(mapSea)mapSea.value=state.mapSea||'dark';if(japanStations)japanStations.value=state.japanStations||'nied';if(motionDetection)motionDetection.checked=state.niedMotionEnabled!==false;if(showTremMetrics)showTremMetrics.checked=state.showTremMetrics!==false;if(showPalertMetrics)showPalertMetrics.checked=state.showPalertMetrics!==false;if(showNiedMetrics)showNiedMetrics.checked=state.showNiedMetrics!==false;if(niedMetric)niedMetric.value=state.niedMetric||'intensity';if(colombiaGoalRain)colombiaGoalRain.checked=state.colombiaGoalRain!==false;if(colombiaMatchAlerts)colombiaMatchAlerts.checked=state.colombiaMatchAlerts!==false;if(showFaults)showFaults.checked=state.showFaults===true;if(browserNotify)browserNotify.checked=state.browserNotify===true;if(minTickerMag)minTickerMag.value=String(state.minTickerMag!=null?state.minTickerMag:0);if(listMinMag)listMinMag.value=String(state.listMinMag!=null?state.listMinMag:0);if(listRegion)listRegion.value=String(state.listRegion||'ALL');if(listFeltOnly)listFeltOnly.checked=state.listFeltOnly===true;if(listFocusZoom){const n=Math.max(3,Math.min(8,Number(state.listFocusZoom)||5));listFocusZoom.value=String(n);if(listFocusZoomValue)listFocusZoomValue.textContent=String(n);window.__eqListFocusZoom=n}uiSounds.innerHTML=uiSoundNames.map(x=>'<button class="eqs-control" type="button" data-ui-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');srevSounds.innerHTML=srevSoundNames.map(x=>'<button class="eqs-control" type="button" data-srev-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');list.innerHTML=agencies.map(x=>'<label class="eqs-agency"><input type="checkbox" data-agency="'+x+'" '+(!(state.disabled&&state.disabled[x])?'checked':'')+'> '+x+'</label>').join('')}
 function applyMetricsPanelsVisibility(st){
   const s=st||state||{};
   document.body.classList.toggle('hide-trem-metrics',s.showTremMetrics===false);
@@ -30839,7 +30635,7 @@ state.listMinMag=listMinMag?parseFloat(listMinMag.value)||0:0;window.__eqListMin
 state.listRegion=listRegion?listRegion.value:'ALL';window.__eqListRegion=state.listRegion;
 state.listFeltOnly=listFeltOnly?listFeltOnly.checked:false;window.__eqListFeltOnly=state.listFeltOnly;state.listFocusZoom=listFocusZoom?Math.max(3,Math.min(8,Number(listFocusZoom.value)||5)):Math.max(3,Math.min(8,Number(state.listFocusZoom)||5));window.__eqListFocusZoom=state.listFocusZoom;
 
-try{window.__eqSyncListFilters?.();}catch(_){}if(!state.colombiaMatchAlerts)window.__eqStopColombiaMatchAlert?.();state.disabled={};list.querySelectorAll('input[data-agency]').forEach(x=>{if(!x.checked)state.disabled[x.dataset.agency]=true});window.__eqDisabledAgencies=state.disabled;if(window.__eqAudioSettings){window.__eqAudioSettings.setAudio(state.audio);window.__eqAudioSettings.setTts(state.tts)}if(window.__eqTaupSettings)window.__eqTaupSettings.mode=state.taup;window.__eqForcedIntensityScale=state.intensityScale;try{if(typeof window.__eqApplyMapSeaTheme==='function')window.__eqApplyMapSeaTheme(state.mapSea||'dark');}catch(_){};try{localStorage.setItem(key,JSON.stringify(state))}catch(_){}document.getElementById('filterAgency')?.dispatchEvent(new Event('change'));if(previousIntensityScale!==state.intensityScale)window.__eqRefreshIntensityScale?.();if(save){modal.classList.remove('active');const lng=state.uiLanguage||'es-ES';try{localStorage.setItem('earthquake.uiLanguage',lng);}catch(_){}if(lng!==previousUiLanguage){try{window.__eqSetUiLanguage?.(lng,{reload:true});}catch(_){try{window.__eqApplyUiLanguage?.(lng);}catch(__){}location.reload();}return;}try{window.__eqApplyUiLanguage?.(lng);}catch(_){}}}function show(){state=read();render();window.__eqAudioSettings?.refreshVoiceSelect?.();syncJmaToggle();syncJapanSeaToggle();modal.classList.add('active')}open.addEventListener('click',show);jmaToggle?.addEventListener('click',()=>{const api=window.__eqJmaWeatherView;if(api&&typeof api.toggle==='function'){const pending=api.toggle();modal.classList.remove('active');syncJmaToggle();Promise.resolve(pending).then(syncJmaToggle).catch(syncJmaToggle)}else{document.getElementById('btnJmaWeatherAlerts')?.click();modal.classList.remove('active');setTimeout(syncJmaToggle,250)}});const japanSeaToggle=document.getElementById('eqsJapanSeaStationsToggle');function syncJapanSeaToggle(){const active=!!japanSeaStationsMode;if(japanSeaToggle){japanSeaToggle.textContent=active?'↩️ Volver a Japón · estaciones en vivo':'🌊 Mar de Japón · estaciones en vivo';japanSeaToggle.setAttribute('aria-pressed',String(active));japanSeaToggle.style.borderColor=active?'#35d5dd':'';japanSeaToggle.style.color=active?'#8ff7ff':''}}japanSeaToggle?.addEventListener('click',()=>{try{toggleJapanSeaStations();syncJapanSeaToggle()}catch(_){}});document.getElementById('eqSettingsClose').addEventListener('click',()=>modal.classList.remove('active'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('active')});document.getElementById('eqsSave').addEventListener('click',()=>apply(true));document.getElementById('eqsReset').addEventListener('click',()=>{state=Object.assign({},defaults,{disabled:{}});render();apply(false)});tts.addEventListener('change',()=>apply(false));audio.addEventListener('change',()=>apply(false));masterVolumeSlider?.addEventListener('input',()=>{const n=Math.max(0,Math.min(1,Number(masterVolumeSlider.value)/100));state.masterVolume=n;if(masterVolumeValue)masterVolumeValue.textContent=Math.round(n*100)+'%';window.__eqAudioSettings?.setVolume(n);try{localStorage.setItem(key,JSON.stringify(state))}catch(_){}});taup.addEventListener('change',()=>apply(false));intensityScale.addEventListener('change',()=>apply(false));mapSea?.addEventListener('change',()=>apply(false));japanStations?.addEventListener('change',()=>apply(false));motionDetection?.addEventListener('change',()=>apply(false));showTremMetrics?.addEventListener('change',()=>apply(false));showPalertMetrics?.addEventListener('change',()=>apply(false));showNiedMetrics?.addEventListener('change',()=>apply(false));niedMetric?.addEventListener('change',()=>apply(false));colombiaGoalRain?.addEventListener('change',()=>apply(false));colombiaMatchAlerts?.addEventListener('change',()=>apply(false));showFaults?.addEventListener('change',()=>apply(false));browserNotify?.addEventListener('change',()=>apply(false));minTickerMag?.addEventListener('change',()=>apply(false));listMinMag?.addEventListener('change',()=>apply(false));listRegion?.addEventListener('change',()=>apply(false));listFeltOnly?.addEventListener('change',()=>apply(false));listFocusZoom?.addEventListener('input',()=>{if(listFocusZoomValue)listFocusZoomValue.textContent=String(Math.max(3,Math.min(8,Number(listFocusZoom.value)||5)))});listFocusZoom?.addEventListener('change',()=>apply(false));goalRainTest?.addEventListener('click',()=>window.__eqTestColombiaGoalRain?.());uiSounds.addEventListener('click',e=>{const b=e.target.closest('[data-ui-sound]');if(b)window.__eqAudioSettings?.testUi(b.dataset.uiSound)});srevSounds.addEventListener('click',e=>{const b=e.target.closest('[data-srev-sound]');if(b)window.__eqAudioSettings?.testSrev(b.dataset.srevSound)});document.getElementById('ttsVoiceSelect')?.addEventListener('change',e=>window.__eqAudioSettings?.setPreferredVoice(e.target.value));document.getElementById('btnTtsVoiceTest')?.addEventListener('click',()=>window.__eqAudioSettings?.testPreferredVoice());document.getElementById('btnTtsVoiceReset')?.addEventListener('click',()=>window.__eqAudioSettings?.resetPreferredVoice());document.getElementById('eqsTestTts').addEventListener('click',()=>window.__eqAudioSettings?.testTts());window.__eqAudioSettings?.setVolume(state.masterVolume);window.__eqDisabledAgencies=state.disabled||{};window.__eqForcedIntensityScale=state.intensityScale||'source';window.__eqJapanStationsSource=state.japanStations||'nied';window.__ynSetMotionDetectionEnabled?.(state.niedMotionEnabled!==false);const initialKmdMotion=window.__eqKanameishiHypoDebug?.();if(initialKmdMotion&&initialKmdMotion.niedEnabled!==(state.niedMotionEnabled!==false))window.__eqKanameishiMotionConfigure?.({niedEnabled:state.niedMotionEnabled!==false});try{applyMetricsPanelsVisibility(state);}catch(_){};window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain!==false;window.__eqColombiaMatchAlertsEnabled=state.colombiaMatchAlerts!==false;
+try{window.__eqSyncListFilters?.();}catch(_){}if(!state.colombiaMatchAlerts)window.__eqStopColombiaMatchAlert?.();state.disabled={};list.querySelectorAll('input[data-agency]').forEach(x=>{if(!x.checked)state.disabled[x.dataset.agency]=true});window.__eqDisabledAgencies=state.disabled;if(window.__eqAudioSettings){window.__eqAudioSettings.setAudio(state.audio);window.__eqAudioSettings.setTts(state.tts)}if(window.__eqTaupSettings)window.__eqTaupSettings.mode=state.taup;window.__eqForcedIntensityScale=state.intensityScale;try{if(typeof window.__eqApplyMapSeaTheme==='function')window.__eqApplyMapSeaTheme(state.mapSea||'dark');}catch(_){};try{localStorage.setItem(key,JSON.stringify(state))}catch(_){}document.getElementById('filterAgency')?.dispatchEvent(new Event('change'));if(previousIntensityScale!==state.intensityScale)window.__eqRefreshIntensityScale?.();if(save){modal.classList.remove('active');if((state.uiLanguage||'es-ES')!==previousUiLanguage){try{window.__eqApplyUiLanguage?.(state.uiLanguage);}catch(_){}location.reload();return;}try{window.__eqApplyUiLanguage?.(state.uiLanguage||'es-ES');}catch(_){}}}function show(){state=read();render();window.__eqAudioSettings?.refreshVoiceSelect?.();syncJmaToggle();syncJapanSeaToggle();modal.classList.add('active')}open.addEventListener('click',show);jmaToggle?.addEventListener('click',()=>{const api=window.__eqJmaWeatherView;if(api&&typeof api.toggle==='function'){const pending=api.toggle();modal.classList.remove('active');syncJmaToggle();Promise.resolve(pending).then(syncJmaToggle).catch(syncJmaToggle)}else{document.getElementById('btnJmaWeatherAlerts')?.click();modal.classList.remove('active');setTimeout(syncJmaToggle,250)}});const japanSeaToggle=document.getElementById('eqsJapanSeaStationsToggle');function syncJapanSeaToggle(){const active=!!japanSeaStationsMode;if(japanSeaToggle){japanSeaToggle.textContent=active?'↩️ Volver a Japón · estaciones en vivo':'🌊 Mar de Japón · estaciones en vivo';japanSeaToggle.setAttribute('aria-pressed',String(active));japanSeaToggle.style.borderColor=active?'#35d5dd':'';japanSeaToggle.style.color=active?'#8ff7ff':''}}japanSeaToggle?.addEventListener('click',()=>{try{toggleJapanSeaStations();syncJapanSeaToggle()}catch(_){}});document.getElementById('eqSettingsClose').addEventListener('click',()=>modal.classList.remove('active'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('active')});document.getElementById('eqsSave').addEventListener('click',()=>apply(true));document.getElementById('eqsReset').addEventListener('click',()=>{state=Object.assign({},defaults,{disabled:{}});render();apply(false)});tts.addEventListener('change',()=>apply(false));audio.addEventListener('change',()=>apply(false));masterVolumeSlider?.addEventListener('input',()=>{const n=Math.max(0,Math.min(1,Number(masterVolumeSlider.value)/100));state.masterVolume=n;if(masterVolumeValue)masterVolumeValue.textContent=Math.round(n*100)+'%';window.__eqAudioSettings?.setVolume(n);try{localStorage.setItem(key,JSON.stringify(state))}catch(_){}});taup.addEventListener('change',()=>apply(false));intensityScale.addEventListener('change',()=>apply(false));mapSea?.addEventListener('change',()=>apply(false));japanStations?.addEventListener('change',()=>apply(false));motionDetection?.addEventListener('change',()=>apply(false));showTremMetrics?.addEventListener('change',()=>apply(false));showPalertMetrics?.addEventListener('change',()=>apply(false));showNiedMetrics?.addEventListener('change',()=>apply(false));niedMetric?.addEventListener('change',()=>apply(false));colombiaGoalRain?.addEventListener('change',()=>apply(false));colombiaMatchAlerts?.addEventListener('change',()=>apply(false));showFaults?.addEventListener('change',()=>apply(false));browserNotify?.addEventListener('change',()=>apply(false));minTickerMag?.addEventListener('change',()=>apply(false));listMinMag?.addEventListener('change',()=>apply(false));listRegion?.addEventListener('change',()=>apply(false));listFeltOnly?.addEventListener('change',()=>apply(false));listFocusZoom?.addEventListener('input',()=>{if(listFocusZoomValue)listFocusZoomValue.textContent=String(Math.max(3,Math.min(8,Number(listFocusZoom.value)||5)))});listFocusZoom?.addEventListener('change',()=>apply(false));goalRainTest?.addEventListener('click',()=>window.__eqTestColombiaGoalRain?.());uiSounds.addEventListener('click',e=>{const b=e.target.closest('[data-ui-sound]');if(b)window.__eqAudioSettings?.testUi(b.dataset.uiSound)});srevSounds.addEventListener('click',e=>{const b=e.target.closest('[data-srev-sound]');if(b)window.__eqAudioSettings?.testSrev(b.dataset.srevSound)});document.getElementById('ttsVoiceSelect')?.addEventListener('change',e=>window.__eqAudioSettings?.setPreferredVoice(e.target.value));document.getElementById('btnTtsVoiceTest')?.addEventListener('click',()=>window.__eqAudioSettings?.testPreferredVoice());document.getElementById('btnTtsVoiceReset')?.addEventListener('click',()=>window.__eqAudioSettings?.resetPreferredVoice());document.getElementById('eqsTestTts').addEventListener('click',()=>window.__eqAudioSettings?.testTts());window.__eqAudioSettings?.setVolume(state.masterVolume);window.__eqDisabledAgencies=state.disabled||{};window.__eqForcedIntensityScale=state.intensityScale||'source';window.__eqJapanStationsSource=state.japanStations||'nied';window.__ynSetMotionDetectionEnabled?.(state.niedMotionEnabled!==false);const initialKmdMotion=window.__eqKanameishiHypoDebug?.();if(initialKmdMotion&&initialKmdMotion.niedEnabled!==(state.niedMotionEnabled!==false))window.__eqKanameishiMotionConfigure?.({niedEnabled:state.niedMotionEnabled!==false});try{applyMetricsPanelsVisibility(state);}catch(_){};window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain!==false;window.__eqColombiaMatchAlertsEnabled=state.colombiaMatchAlerts!==false;
 window.__eqShowFaults=state.showFaults===true;window.__eqBrowserNotify=state.browserNotify===true;window.__eqMinTickerMag=Number(state.minTickerMag)||0;window.__eqListMinMag=Number(state.listMinMag)||0;window.__eqListRegion=state.listRegion||'ALL';window.__eqListFeltOnly=state.listFeltOnly===true;
 setTimeout(()=>{try{window.__eqApplyFaults?.(!!window.__eqShowFaults);}catch(_){}try{window.__eqApplyBrowserNotify?.(!!window.__eqBrowserNotify);}catch(_){}},1200);setTimeout(()=>{render();syncJmaToggle();window.__eqRefreshIntensityScale?.()},0)})();</script>
 
@@ -36834,12 +36630,11 @@ For more information on this, and how to apply and follow the GNU AGPL, see
 (function(){
   'use strict';
   var STORAGE_KEY = 'earthquake.settings.v1';
-  var LANG_KEY = 'earthquake.uiLanguage';
   var DICTS = {
     'es-ES': {
       settingsTitle: 'Ajustes',
       settingsLanguage: 'Idioma',
-      settingsLanguageNote: 'El idioma se aplica al guardar (y al instante en este panel).',
+      settingsLanguageNote: 'Al guardar, la página se recargará para aplicar el idioma en toda la interfaz.',
       settingsSave: 'Guardar',
       settingsReset: 'Restablecer',
       settingsClose: 'Cerrar ajustes',
@@ -36853,21 +36648,12 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       sectionSonido: '🔊 Sonido',
       sectionJapon: '🇯🇵 Japón',
       sectionColombia: '⚽ Colombia',
-      sectionAgencias: '🏢 Agencias visibles en la lista',
-      chipIdioma: 'Idioma',
-      chipApartados: 'Apartados',
-      chipLista: 'Lista',
-      chipMapa: 'Mapa',
-      chipSonido: 'Sonido',
-      chipJapon: 'Japón',
-      chipColombia: 'Colombia',
-      chipAgencias: 'Agencias',
-      langApplied: 'Idioma aplicado'
+      sectionAgencias: '🏢 Agencias visibles en la lista'
     },
     'en-US': {
       settingsTitle: 'Settings',
       settingsLanguage: 'Language',
-      settingsLanguageNote: 'Language is applied on save (and instantly in this panel).',
+      settingsLanguageNote: 'On save, the page will reload to apply the language across the interface.',
       settingsSave: 'Save',
       settingsReset: 'Reset',
       settingsClose: 'Close settings',
@@ -36881,21 +36667,12 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       sectionSonido: '🔊 Sound',
       sectionJapon: '🇯🇵 Japan',
       sectionColombia: '⚽ Colombia',
-      sectionAgencias: '🏢 Agencies visible in the list',
-      chipIdioma: 'Language',
-      chipApartados: 'Sections',
-      chipLista: 'List',
-      chipMapa: 'Map',
-      chipSonido: 'Sound',
-      chipJapon: 'Japan',
-      chipColombia: 'Colombia',
-      chipAgencias: 'Agencies',
-      langApplied: 'Language applied'
+      sectionAgencias: '🏢 Agencies visible in the list'
     },
     'ja-JP': {
       settingsTitle: '設定',
       settingsLanguage: '言語',
-      settingsLanguageNote: '保存時に言語が適用されます（このパネルでは即座に反映）。',
+      settingsLanguageNote: '保存するとページが再読み込みされ、インターフェース全体に言語が適用されます。',
       settingsSave: '保存',
       settingsReset: 'リセット',
       settingsClose: '設定を閉じる',
@@ -36909,21 +36686,12 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       sectionSonido: '🔊 音',
       sectionJapon: '🇯🇵 日本',
       sectionColombia: '⚽ コロンビア',
-      sectionAgencias: '🏢 リストに表示する機関',
-      chipIdioma: '言語',
-      chipApartados: 'セクション',
-      chipLista: 'リスト',
-      chipMapa: '地図',
-      chipSonido: '音',
-      chipJapon: '日本',
-      chipColombia: 'コロンビア',
-      chipAgencias: '機関',
-      langApplied: '言語を適用しました'
+      sectionAgencias: '🏢 リストに表示する機関'
     },
     'zh-CN': {
       settingsTitle: '设置',
       settingsLanguage: '语言',
-      settingsLanguageNote: '保存时应用语言（本面板会立即生效）。',
+      settingsLanguageNote: '保存后页面将重新加载，以在整个界面应用语言。',
       settingsSave: '保存',
       settingsReset: '重置',
       settingsClose: '关闭设置',
@@ -36937,21 +36705,12 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       sectionSonido: '🔊 声音',
       sectionJapon: '🇯🇵 日本',
       sectionColombia: '⚽ 哥伦比亚',
-      sectionAgencias: '🏢 列表中显示的机构',
-      chipIdioma: '语言',
-      chipApartados: '分区',
-      chipLista: '列表',
-      chipMapa: '地图',
-      chipSonido: '声音',
-      chipJapon: '日本',
-      chipColombia: '哥伦比亚',
-      chipAgencias: '机构',
-      langApplied: '语言已应用'
+      sectionAgencias: '🏢 列表中显示的机构'
     },
     'zh-TW': {
       settingsTitle: '設定',
       settingsLanguage: '語言',
-      settingsLanguageNote: '儲存時套用語言（本面板會立即生效）。',
+      settingsLanguageNote: '儲存後頁面會重新載入，以在整個介面套用語言。',
       settingsSave: '儲存',
       settingsReset: '重設',
       settingsClose: '關閉設定',
@@ -36965,21 +36724,12 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       sectionSonido: '🔊 聲音',
       sectionJapon: '🇯🇵 日本',
       sectionColombia: '⚽ 哥倫比亞',
-      sectionAgencias: '🏢 列表顯示的機構',
-      chipIdioma: '語言',
-      chipApartados: '分區',
-      chipLista: '列表',
-      chipMapa: '地圖',
-      chipSonido: '聲音',
-      chipJapon: '日本',
-      chipColombia: '哥倫比亞',
-      chipAgencias: '機構',
-      langApplied: '語言已套用'
+      sectionAgencias: '🏢 列表顯示的機構'
     },
     'pl-PL': {
       settingsTitle: 'Ustawienia',
       settingsLanguage: 'Język',
-      settingsLanguageNote: 'Język jest stosowany po zapisaniu (i od razu w tym panelu).',
+      settingsLanguageNote: 'Po zapisaniu strona zostanie przeładowana, aby zastosować język w całym interfejsie.',
       settingsSave: 'Zapisz',
       settingsReset: 'Resetuj',
       settingsClose: 'Zamknij ustawienia',
@@ -36993,21 +36743,12 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       sectionSonido: '🔊 Dźwięk',
       sectionJapon: '🇯🇵 Japonia',
       sectionColombia: '⚽ Kolumbia',
-      sectionAgencias: '🏢 Agencje widoczne na liście',
-      chipIdioma: 'Język',
-      chipApartados: 'Sekcje',
-      chipLista: 'Lista',
-      chipMapa: 'Mapa',
-      chipSonido: 'Dźwięk',
-      chipJapon: 'Japonia',
-      chipColombia: 'Kolumbia',
-      chipAgencias: 'Agencje',
-      langApplied: 'Język zastosowany'
+      sectionAgencias: '🏢 Agencje widoczne na liście'
     },
     'it-IT': {
       settingsTitle: 'Impostazioni',
       settingsLanguage: 'Lingua',
-      settingsLanguageNote: 'La lingua si applica al salvataggio (e subito in questo pannello).',
+      settingsLanguageNote: 'Salvando, la pagina si ricaricherà per applicare la lingua a tutta l\'interfaccia.',
       settingsSave: 'Salva',
       settingsReset: 'Reimposta',
       settingsClose: 'Chiudi impostazioni',
@@ -37021,21 +36762,12 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       sectionSonido: '🔊 Suono',
       sectionJapon: '🇯🇵 Giappone',
       sectionColombia: '⚽ Colombia',
-      sectionAgencias: '🏢 Agenzie visibili nell\'elenco',
-      chipIdioma: 'Lingua',
-      chipApartados: 'Sezioni',
-      chipLista: 'Elenco',
-      chipMapa: 'Mappa',
-      chipSonido: 'Suono',
-      chipJapon: 'Giappone',
-      chipColombia: 'Colombia',
-      chipAgencias: 'Agenzie',
-      langApplied: 'Lingua applicata'
+      sectionAgencias: '🏢 Agenzie visibili nell\'elenco'
     },
     'ko-KR': {
       settingsTitle: '설정',
       settingsLanguage: '언어',
-      settingsLanguageNote: '저장 시 언어가 적용됩니다(이 패널에서는 즉시 반영).',
+      settingsLanguageNote: '저장하면 페이지가 다시 로드되어 전체 인터페이스에 언어가 적용됩니다.',
       settingsSave: '저장',
       settingsReset: '초기화',
       settingsClose: '설정 닫기',
@@ -37049,21 +36781,12 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       sectionSonido: '🔊 소리',
       sectionJapon: '🇯🇵 일본',
       sectionColombia: '⚽ 콜롬비아',
-      sectionAgencias: '🏢 목록에 표시할 기관',
-      chipIdioma: '언어',
-      chipApartados: '섹션',
-      chipLista: '목록',
-      chipMapa: '지도',
-      chipSonido: '소리',
-      chipJapon: '일본',
-      chipColombia: '콜롬비아',
-      chipAgencias: '기관',
-      langApplied: '언어가 적용됨'
+      sectionAgencias: '🏢 목록에 표시할 기관'
     },
     'pt-BR': {
       settingsTitle: 'Configurações',
       settingsLanguage: 'Idioma',
-      settingsLanguageNote: 'O idioma é aplicado ao salvar (e na hora neste painel).',
+      settingsLanguageNote: 'Ao salvar, a página será recarregada para aplicar o idioma em toda a interface.',
       settingsSave: 'Salvar',
       settingsReset: 'Redefinir',
       settingsClose: 'Fechar configurações',
@@ -37077,43 +36800,16 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       sectionSonido: '🔊 Som',
       sectionJapon: '🇯🇵 Japão',
       sectionColombia: '⚽ Colômbia',
-      sectionAgencias: '🏢 Agências visíveis na lista',
-      chipIdioma: 'Idioma',
-      chipApartados: 'Seções',
-      chipLista: 'Lista',
-      chipMapa: 'Mapa',
-      chipSonido: 'Som',
-      chipJapon: 'Japão',
-      chipColombia: 'Colômbia',
-      chipAgencias: 'Agências',
-      langApplied: 'Idioma aplicado'
+      sectionAgencias: '🏢 Agências visíveis na lista'
     }
   };
 
   function detect() {
     try {
-      var direct = localStorage.getItem(LANG_KEY);
-      if (direct && DICTS[direct]) return direct;
-    } catch (_) {}
-    try {
       var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-      if (saved && saved.uiLanguage && DICTS[saved.uiLanguage]) return saved.uiLanguage;
-    } catch (_) {}
-    try {
-      var q = new URLSearchParams(location.search || '').get('lang');
-      if (q && DICTS[q]) return q;
+      if (saved && saved.uiLanguage) return saved.uiLanguage;
     } catch (_) {}
     return 'es-ES';
-  }
-
-  function persist(lng) {
-    try { localStorage.setItem(LANG_KEY, lng); } catch (_) {}
-    try {
-      var saved = {};
-      try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch (_) { saved = {}; }
-      saved.uiLanguage = lng;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
-    } catch (_) {}
   }
 
   function t(key, lng) {
@@ -37126,9 +36822,9 @@ For more information on this, and how to apply and follow the GNU AGPL, see
     lng = lng || detect();
     if (!DICTS[lng]) lng = 'es-ES';
     window.__eqUiLanguage = lng;
-    try { document.documentElement.lang = String(lng).split('-')[0]; } catch (_) {}
-    try { document.documentElement.setAttribute('data-ui-lang', lng); } catch (_) {}
+    try { document.documentElement.lang = lng.split('-')[0]; } catch (_) {}
 
+    // data-i18n nodes
     document.querySelectorAll('[data-i18n]').forEach(function (el) {
       var key = el.getAttribute('data-i18n');
       if (key) el.textContent = t(key, lng);
@@ -37146,6 +36842,7 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       if (key) el.setAttribute('aria-label', t(key, lng));
     });
 
+    // Known fixed ids in settings chrome
     var map = {
       eqSettingsTitle: 'settingsTitle',
       eqsTitleIdioma: 'sectionIdioma',
@@ -37163,7 +36860,6 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       var el = document.getElementById(id);
       if (el) el.textContent = t(map[id], lng);
     });
-
     var closeBtn = document.getElementById('eqSettingsClose');
     if (closeBtn) closeBtn.setAttribute('aria-label', t('settingsClose', lng));
     var search = document.getElementById('eqsSearch');
@@ -37181,93 +36877,25 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       btnHome.setAttribute('title', t('btnHome', lng));
       btnHome.setAttribute('aria-label', t('btnHome', lng));
     }
-
-    // Chips de navegación del modal
-    var chips = document.querySelectorAll('#eqSettingsDialog .eqs-chips a');
-    var chipKeys = ['chipIdioma','chipApartados','chipLista','chipMapa','chipSonido','chipJapon','chipColombia','chipAgencias'];
-    chips.forEach(function (a, i) {
-      if (chipKeys[i]) a.textContent = t(chipKeys[i], lng);
-    });
-
-    // Sincronizar el <select> si existe
-    var sel = document.getElementById('eqsUiLanguage');
-    if (sel && sel.value !== lng) {
-      try { sel.value = lng; } catch (_) {}
-    }
-
-    // Marca visible de que el idioma cambió
-    try {
-      var note = document.querySelector('#eqsSecIdioma .eqs-muted');
-      if (note) note.textContent = t('settingsLanguageNote', lng);
-    } catch (_) {}
-  }
-
-  function setLanguage(lng, opts) {
-    opts = opts || {};
-    if (!DICTS[lng]) lng = 'es-ES';
-    persist(lng);
-    applyUiLanguage(lng);
-    if (opts.reload) {
-      try {
-        var url = new URL(location.href);
-        url.searchParams.set('lang', lng);
-        // Evita bucles raros en content:// : solo reload simple si no hay search usable
-        if (location.protocol === 'content:' || location.protocol === 'file:') {
-          location.reload();
-        } else {
-          location.href = url.toString();
-        }
-      } catch (_) {
-        location.reload();
-      }
-    }
   }
 
   window.__eqApplyUiLanguage = applyUiLanguage;
-  window.__eqSetUiLanguage = setLanguage;
   window.__eqT = t;
-  window.__eqDetectUiLanguage = detect;
-
-  function bindSelect() {
-    var sel = document.getElementById('eqsUiLanguage');
-    if (!sel || sel.__eqI18nBound) return;
-    sel.__eqI18nBound = true;
-    sel.addEventListener('change', function () {
-      var lng = sel.value || 'es-ES';
-      // Vista previa inmediata en el panel
-      setLanguage(lng, { reload: false });
-    });
-  }
 
   function boot() {
     var lng = detect();
     window.__eqUiLanguage = lng;
     applyUiLanguage(lng);
-    bindSelect();
   }
-
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);
   } else {
     boot();
   }
-  // Reaplicar cuando se abre el modal (por si otros scripts reescriben textos)
-  document.addEventListener('click', function (e) {
-    var t = e.target;
-    if (!t) return;
-    if (t.id === 'btnSettings' || (t.closest && t.closest('#btnSettings'))) {
-      setTimeout(function () {
-        applyUiLanguage(window.__eqUiLanguage || detect());
-        bindSelect();
-      }, 50);
-    }
-  }, true);
-
-  // Por si el módulo de settings carga tarde
-  setTimeout(boot, 300);
-  setTimeout(boot, 1200);
 })();
 </script>
+
+
 
 </body>
 </html>
