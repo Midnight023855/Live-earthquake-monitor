@@ -4594,6 +4594,59 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
 #eqSettingsDialog{overflow-y:auto;overflow-x:hidden}
 </style>
 
+
+<style id="eq-weather-radar-persist">
+/* Radares (lluvia + viento) visibles en todos los apartados / focus */
+.leaflet-eqWeatherRadarPane,
+.leaflet-pane.leaflet-eqWeatherRadarPane {
+  z-index: 650 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: none !important;
+  display: block !important;
+}
+#mainLayout[class*="-focus"] .leaflet-eqWeatherRadarPane,
+#mainLayout[class*="-focus"] .leaflet-pane.leaflet-eqWeatherRadarPane,
+#mainLayout.bog-focus .leaflet-eqWeatherRadarPane,
+#mainLayout.korea-focus .leaflet-eqWeatherRadarPane,
+#mainLayout.taiwan-focus .leaflet-eqWeatherRadarPane,
+#mainLayout.japan-focus .leaflet-eqWeatherRadarPane,
+#mainLayout.jma-weather-focus .leaflet-eqWeatherRadarPane,
+#mainLayout.wave-focus .leaflet-eqWeatherRadarPane,
+#mainLayout.siat-focus .leaflet-eqWeatherRadarPane,
+#mainLayout.volc-focus .leaflet-eqWeatherRadarPane,
+#mainLayout.typhoon-focus .leaflet-eqWeatherRadarPane {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+  pointer-events: none !important;
+}
+/* En Bogotá el resto de paneles Leaflet se atenúan; el radar de clima no */
+#mainLayout.bog-focus .map-container > .leaflet-eqWeatherRadarPane {
+  opacity: 1 !important;
+  pointer-events: none !important;
+}
+#eqWindRadarCanvas {
+  z-index: 660 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: none !important;
+}
+#mainLayout[class*="-focus"] #eqWindRadarCanvas {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+#eqWindRadarChip {
+  z-index: 5200 !important;
+}
+#mainLayout[class*="-focus"] #eqWindRadarChip {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+</style>
+
 </head>
 <body>
 <script id="eq-antibug-core">
@@ -7972,6 +8025,13 @@ global.TauPJS=api;
             { name:'Taiwán', bounds:L.latLngBounds([[20,118],[27,123]]) },
             { name:'Colombia', bounds:L.latLngBounds([[-5,-80],[14,-66]]) }
         ];
+        try {
+            if (!map.getPane('eqWeatherRadarPane')) {
+                const pane = map.createPane('eqWeatherRadarPane');
+                pane.style.zIndex = '650';
+                pane.style.pointerEvents = 'none';
+            }
+        } catch (_) {}
         let eqRadarLayers = [];
         let eqRadarPathSignature = '';
         let eqRadarRefreshBusy = false;
@@ -7989,7 +8049,7 @@ global.TauPJS=api;
                 if(signature === eqRadarPathSignature && eqRadarLayers.length) return;
                 const url = `${data.host}${frame.path}/256/{z}/{x}/{y}/2/1_0.png`;
                 const nextLayers = eqRadarRegions.map(region => L.tileLayer(url, {
-                    pane:'overlayPane',
+                    pane:'eqWeatherRadarPane',
                     bounds:region.bounds,
                     minZoom:3,
                     maxZoom:19,
@@ -7997,6 +8057,7 @@ global.TauPJS=api;
                     opacity:0.62,
                     updateWhenIdle:true,
                     keepBuffer:1,
+                    className:'eq-weather-radar-tiles',
                     attribution:'Radar: <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a>'
                 }));
                 nextLayers.forEach(layer => layer.addTo(map));
@@ -8012,10 +8073,333 @@ global.TauPJS=api;
             }
         }
         eqRefreshPersistentRadar();
-        setInterval(eqRefreshPersistentRadar, 10 * 60 * 1000);
+        
+setInterval(eqRefreshPersistentRadar, 10 * 60 * 1000);
+
+        // === Radar de viento (estilo Windy) · Colombia / Japón / Taiwán =========
+        // Datos: Open-Meteo GFS (sin API key). Partículas animadas en canvas.
+        // Solo se dibuja dentro de las mismas regiones del radar de precipitación.
+        (function eqWindRadarModule(){
+            const WIND_KEY = 'earthquake.windRadar.enabled.v1';
+            const REGIONS = [
+                { name:'Japón',     south:24, north:46, west:122, east:150, step:1.25 },
+                { name:'Taiwán',    south:20, north:27, west:118, east:123, step:0.55 },
+                { name:'Colombia',  south:-5, north:14, west:-80, east:-66, step:1.0 }
+            ];
+            let enabled = false;
+            try { enabled = localStorage.getItem(WIND_KEY) === '1'; } catch(_){}
+            let canvas = null, ctx = null, anim = 0, particles = [];
+            let field = null; // {cols, rows, xmin, ymax, dx, dy, u[], v[], maxSp}
+            let lastFetch = 0, fetchBusy = false, statusEl = null;
+
+            function ensureCanvas(){
+                if(canvas) return;
+                const mapEl = document.getElementById('map') || map.getContainer();
+                canvas = document.createElement('canvas');
+                canvas.id = 'eqWindRadarCanvas';
+                canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:660;';
+                mapEl.appendChild(canvas);
+                ctx = canvas.getContext('2d');
+                resize();
+                map.on('move zoom resize moveend zoomend', onMapChange);
+                window.addEventListener('resize', resize);
+            }
+            function resize(){
+                if(!canvas||!map) return;
+                const s = map.getSize();
+                const dpr = Math.min(window.devicePixelRatio||1, 2);
+                canvas.width = Math.round(s.x * dpr);
+                canvas.height = Math.round(s.y * dpr);
+                canvas.style.width = s.x + 'px';
+                canvas.style.height = s.y + 'px';
+                ctx.setTransform(dpr,0,0,dpr,0,0);
+            }
+            function onMapChange(){ resize(); seedParticles(true); }
+
+            function inAnyRegion(lat, lon){
+                for(const r of REGIONS){
+                    if(lat>=r.south && lat<=r.north && lon>=r.west && lon<=r.east) return true;
+                }
+                return false;
+            }
+
+            async function fetchRegionGrid(r){
+                const lats=[], lons=[];
+                for(let lat=r.south; lat<=r.north+1e-9; lat+=r.step){
+                    for(let lon=r.west; lon<=r.east+1e-9; lon+=r.step){
+                        lats.push(+lat.toFixed(3));
+                        lons.push(+lon.toFixed(3));
+                    }
+                }
+                // Open-Meteo admite listas separadas por comas (máx ~100 por petición)
+                const chunk=90;
+                const u=[], v=[], pts=[];
+                for(let i=0;i<lats.length;i+=chunk){
+                    const la=lats.slice(i,i+chunk), lo=lons.slice(i,i+chunk);
+                    const url='https://api.open-meteo.com/v1/forecast?latitude='+la.join(',')
+                        +'&longitude='+lo.join(',')
+                        +'&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=ms&timezone=UTC';
+                    const res=await fetch(url,{cache:'no-store'});
+                    if(!res.ok) throw new Error('Open-Meteo HTTP '+res.status);
+                    const data=await res.json();
+                    const list=Array.isArray(data)?data:[data];
+                    list.forEach((item,idx)=>{
+                        const cur=item.current||{};
+                        const spd=Number(cur.wind_speed_10m);
+                        const dir=Number(cur.wind_direction_10m); // meteorológico: de dónde sopla
+                        if(!Number.isFinite(spd)||!Number.isFinite(dir)) return;
+                        // a componentes u (este), v (norte): viento hacia
+                        const rad=(dir+180)*Math.PI/180;
+                        u.push(spd*Math.sin(rad));
+                        v.push(spd*Math.cos(rad));
+                        pts.push({lat:la[idx], lon:lo[idx], spd});
+                    });
+                }
+                return {pts, u, v};
+            }
+
+            async function refreshField(){
+                if(fetchBusy) return;
+                fetchBusy=true;
+                try{
+                    const allPts=[], allU=[], allV=[];
+                    for(const r of REGIONS){
+                        try{
+                            const g=await fetchRegionGrid(r);
+                            g.pts.forEach((p,i)=>{ allPts.push(p); allU.push(g.u[i]); allV.push(g.v[i]); });
+                        }catch(err){ console.warn('[wind-radar]', r.name, err); }
+                    }
+                    if(!allPts.length) throw new Error('sin datos de viento');
+                    // Construir grilla irregular → interpolación por vecino más cercano en sampleUV
+                    field = { pts: allPts, u: allU, v: allV, maxSp: Math.max(...allPts.map(p=>p.spd), 1) };
+                    lastFetch=Date.now();
+                    seedParticles(true);
+                    updateStatus(true);
+                }catch(err){
+                    console.warn('[wind-radar] fetch', err);
+                    updateStatus(false, String(err.message||err));
+                }finally{ fetchBusy=false; }
+            }
+
+            function sampleUV(lat, lon){
+                if(!field||!field.pts.length) return null;
+                if(!inAnyRegion(lat, lon)) return null;
+                let best=0, bestD=1e15;
+                for(let i=0;i<field.pts.length;i++){
+                    const p=field.pts[i];
+                    const d=(p.lat-lat)*(p.lat-lat)+(p.lon-lon)*(p.lon-lon);
+                    if(d<bestD){ bestD=d; best=i; }
+                }
+                if(bestD>2.5*2.5) return null; // demasiado lejos del punto de grilla
+                return { u: field.u[best], v: field.v[best], spd: field.pts[best].spd };
+            }
+
+            function seedParticles(force){
+                if(!map||!canvas) return;
+                const size=map.getSize();
+                const target=Math.min(1800, Math.max(400, Math.floor(size.x*size.y/1800)));
+                if(!force && particles.length>=target*0.85) return;
+                particles=[];
+                const bounds=map.getBounds();
+                // Preferir puntos dentro de las regiones de interés visibles
+                const visibleRegions=REGIONS.filter(r=>{
+                    try{
+                        return bounds.intersects(L.latLngBounds([[r.south,r.west],[r.north,r.east]]));
+                    }catch(_){ return true; }
+                });
+                const pools=visibleRegions.length?visibleRegions:REGIONS;
+                for(let i=0;i<target;i++){
+                    const r=pools[i%pools.length];
+                    const lat=r.south+Math.random()*(r.north-r.south);
+                    const lon=r.west+Math.random()*(r.east-r.west);
+                    if(!bounds.contains([lat,lon])) continue;
+                    particles.push({lat, lon, age:Math.random()*80});
+                }
+            }
+
+            function colorForSpeed(spd){
+                // Paleta tipo Windy (azul → cian → verde → amarillo → rojo)
+                const t=Math.max(0, Math.min(1, spd/22));
+                const stops=[
+                    [0.00,[36,104,180]],[0.15,[60,157,194]],[0.30,[128,205,193]],
+                    [0.45,[151,218,168]],[0.60,[198,231,181]],[0.75,[238,247,217]],
+                    [0.85,[255,210,100]],[0.95,[255,120,50]],[1.00,[200,30,40]]
+                ];
+                let a=stops[0], b=stops[stops.length-1];
+                for(let i=0;i<stops.length-1;i++){
+                    if(t>=stops[i][0]&&t<=stops[i+1][0]){ a=stops[i]; b=stops[i+1]; break; }
+                }
+                const u=(t-a[0])/Math.max(1e-6,b[0]-a[0]);
+                const r=Math.round(a[1][0]+(b[1][0]-a[1][0])*u);
+                const g=Math.round(a[1][1]+(b[1][1]-a[1][1])*u);
+                const bl=Math.round(a[1][2]+(b[1][2]-a[1][2])*u);
+                return 'rgba('+r+','+g+','+bl+',0.85)';
+            }
+
+            function frame(){
+                if(!enabled||!ctx||!canvas){ anim=0; return; }
+                const size=map.getSize();
+                ctx.clearRect(0,0,size.x,size.y);
+                // estela suave
+                ctx.fillStyle='rgba(10,16,28,0.08)';
+                // no fill full - particles only
+
+                if(!field){ anim=requestAnimationFrame(frame); return; }
+
+                for(let i=0;i<particles.length;i++){
+                    const p=particles[i];
+                    const uv=sampleUV(p.lat, p.lon);
+                    if(!uv){
+                        // reubicar
+                        const b=map.getBounds();
+                        p.lat=b.getSouth()+Math.random()*(b.getNorth()-b.getSouth());
+                        p.lon=b.getWest()+Math.random()*(b.getEast()-b.getWest());
+                        p.age=0;
+                        continue;
+                    }
+                    // avanzar en lat/lon (escala visual)
+                    const scale=0.00035; // grados por (m/s) por frame
+                    p.lon += uv.u * scale;
+                    p.lat += uv.v * scale;
+                    p.age++;
+                    if(p.age>90 || !inAnyRegion(p.lat,p.lon) || !map.getBounds().contains([p.lat,p.lon])){
+                        const b=map.getBounds();
+                        let tries=0;
+                        do{
+                            p.lat=b.getSouth()+Math.random()*(b.getNorth()-b.getSouth());
+                            p.lon=b.getWest()+Math.random()*(b.getEast()-b.getWest());
+                            tries++;
+                        }while(!inAnyRegion(p.lat,p.lon)&&tries<8);
+                        p.age=0;
+                        continue;
+                    }
+                    const pt=map.latLngToContainerPoint([p.lat,p.lon]);
+                    const next=map.latLngToContainerPoint([p.lat - uv.v*scale*0.4, p.lon - uv.u*scale*0.4]);
+                    ctx.beginPath();
+                    ctx.strokeStyle=colorForSpeed(uv.spd);
+                    ctx.lineWidth=1.2;
+                    ctx.moveTo(next.x, next.y);
+                    ctx.lineTo(pt.x, pt.y);
+                    ctx.stroke();
+                }
+                anim=requestAnimationFrame(frame);
+            }
+
+            function updateStatus(ok, err){
+                if(!statusEl){
+                    statusEl=document.createElement('div');
+                    statusEl.id='eqWindRadarChip';
+                    statusEl.style.cssText='position:absolute;left:12px;bottom:72px;z-index:5200;padding:6px 10px;border-radius:8px;background:rgba(12,18,28,.88);border:1px solid rgba(120,180,255,.25);color:#cfe6ff;font-size:11px;font-weight:600;pointer-events:none;display:none;';
+                    (document.getElementById('map')||document.body).appendChild(statusEl);
+                }
+                if(!enabled){ statusEl.style.display='none'; return; }
+                statusEl.style.display='block';
+                if(ok) statusEl.textContent='💨 Viento GFS · CO / JP / TW · '+new Date(lastFetch).toLocaleTimeString();
+                else statusEl.textContent='💨 Viento · error: '+(err||'sin datos');
+            }
+
+            function setEnabled(on){
+                enabled=!!on;
+                try{ localStorage.setItem(WIND_KEY, enabled?'1':'0'); }catch(_){}
+                const btn=document.getElementById('eqsWindRadarToggle');
+                if(btn){
+                    btn.setAttribute('aria-pressed', enabled?'true':'false');
+                    btn.textContent=enabled?'💨 Radar de viento · ON (CO·JP·TW)':'💨 Radar de viento (CO · JP · TW)';
+                    btn.style.borderColor=enabled?'#19b0c8':'';
+                    btn.style.color=enabled?'#b8f0fa':'';
+                }
+                if(enabled){
+                    ensureCanvas();
+                    canvas.style.display='block';
+                    refreshField();
+                    if(!anim) anim=requestAnimationFrame(frame);
+                    // refresco cada 1 min
+                    clearInterval(window.__eqWindRadarTimer);
+                    window.__eqWindRadarTimer=setInterval(refreshField, 60*1000);
+                }else{
+                    clearInterval(window.__eqWindRadarTimer);
+                    if(anim){ cancelAnimationFrame(anim); anim=0; }
+                    if(canvas){ ctx&&ctx.clearRect(0,0,canvas.width,canvas.height); canvas.style.display='none'; }
+                    updateStatus(false);
+                    if(statusEl) statusEl.style.display='none';
+                }
+            }
+
+            function bind(){
+                const btn=document.getElementById('eqsWindRadarToggle');
+                if(btn && !btn.__eqWindBound){
+                    btn.__eqWindBound=true;
+                    btn.addEventListener('click', ()=>setEnabled(!enabled));
+                }
+                setEnabled(enabled);
+            }
+            if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', ()=>setTimeout(bind,500));
+            else setTimeout(bind,800);
+            window.__eqWindRadar = { setEnabled, refresh:refreshField, isEnabled:()=>enabled };
+        })();
+
+        // Mantener radares (lluvia/viento) al cambiar de apartado
+        (function eqRadarPersistAcrossApartments(){
+            const layout = document.getElementById('mainLayout');
+            if (!layout || layout.__eqRadarPersistObs) return;
+            layout.__eqRadarPersistObs = true;
+            const kick = () => {
+                try { if (typeof eqRefreshPersistentRadar === 'function') eqRefreshPersistentRadar(); } catch(_){}
+                try {
+                    if (window.__eqWindRadar && window.__eqWindRadar.isEnabled && window.__eqWindRadar.isEnabled()) {
+                        window.__eqWindRadar.refresh && window.__eqWindRadar.refresh();
+                    }
+                } catch(_){}
+                try { map && map.invalidateSize({ pan:false }); } catch(_){}
+                try {
+                    const c = document.getElementById('eqWindRadarCanvas');
+                    if (c && map) {
+                        const s = map.getSize();
+                        const dpr = Math.min(window.devicePixelRatio||1, 2);
+                        c.width = Math.round(s.x * dpr);
+                        c.height = Math.round(s.y * dpr);
+                        c.style.width = s.x + 'px';
+                        c.style.height = s.y + 'px';
+                    }
+                } catch(_){}
+            };
+            new MutationObserver(() => { setTimeout(kick, 80); setTimeout(kick, 400); })
+                .observe(layout, { attributes:true, attributeFilter:['class'] });
+        })();
+
+
+        // Mantener radares (lluvia/viento) al cambiar de apartado
+        (function eqRadarPersistAcrossApartments(){
+            const layout = document.getElementById('mainLayout');
+            if (!layout || layout.__eqRadarPersistObs) return;
+            layout.__eqRadarPersistObs = true;
+            const kick = () => {
+                try { if (typeof eqRefreshPersistentRadar === 'function') eqRefreshPersistentRadar(); } catch(_){}
+                try {
+                    if (window.__eqWindRadar && window.__eqWindRadar.isEnabled && window.__eqWindRadar.isEnabled()) {
+                        window.__eqWindRadar.refresh && window.__eqWindRadar.refresh();
+                    }
+                } catch(_){}
+                try { map && map.invalidateSize({ pan:false }); } catch(_){}
+                try {
+                    const c = document.getElementById('eqWindRadarCanvas');
+                    if (c && map) {
+                        const s = map.getSize();
+                        const dpr = Math.min(window.devicePixelRatio||1, 2);
+                        c.width = Math.round(s.x * dpr);
+                        c.height = Math.round(s.y * dpr);
+                        c.style.width = s.x + 'px';
+                        c.style.height = s.y + 'px';
+                    }
+                } catch(_){}
+            };
+            new MutationObserver(() => { setTimeout(kick, 80); setTimeout(kick, 400); })
+                .observe(layout, { attributes:true, attributeFilter:['class'] });
+        })();
 
         // Seguimiento persistente de ciclones: separado de la vista/panel de
         // tifones para que las trayectorias sigan visibles al volver al mapa global.
+
         const eqPersistentTyphoonLayer = L.layerGroup().addTo(map);
         function eqRenderPersistentTyphoons(){
             try {
@@ -30223,6 +30607,7 @@ function ynBuildLeafletMarkers() {
 <div class="eqs-sub">Meteorología y estaciones</div>
 <div class="eqs-tiles">
 <button class="eqs-control eqs-tile" id="eqsJmaWeatherToggle" type="button" aria-pressed="false">🇯🇵 Alertas meteorológicas de Japón</button>
+<button class="eqs-control eqs-tile" id="eqsWindRadarToggle" type="button" aria-pressed="false">💨 Radar de viento (CO · JP · TW)</button>
 <button class="eqs-control eqs-tile" id="eqsJapanSeaStationsToggle" type="button" aria-pressed="false">🌊 Mar de Japón · estaciones en vivo</button>
 <button class="eqs-control eqs-tile" id="eqsMeteoCenterToggle" type="button" aria-pressed="false">🌦️ Abrir Centro Meteorológico LIVE</button>
 </div>
