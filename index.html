@@ -30431,7 +30431,7 @@ function ynBuildLeafletMarkers() {
   if(modal&&window.MutationObserver)new MutationObserver(()=>{if(modal.classList.contains('active')){inp.value='';apply();}}).observe(modal,{attributes:true,attributeFilter:['class']});
 })();
 </script>
-<script id="eq-settings-module">(function(){'use strict';const modal=document.getElementById('eqSettingsModal'),open=document.getElementById('btnSettings');if(!modal||!open)return;const agencies=['USGS','NEIC','JMA','CENC','CEA','CEIC','EMSC','IGN','INETER','GEOFON','SSN','AFAD','BMKG','GEONET','INGV','IPGP','SED','PHIVOLCS','CSN','IG-EPN','EARLY-EST','HKO','NOA','KOERI','SGC','KMA','BCSF','NRCan','USP','MMD' ,'CEA-PR'],key='earthquake.settings.v1',defaults={uiLanguage:'es-ES',tts:true,audio:true,masterVolume:1,taup:'precise',intensityScale:'source',mapSea:'dark',japanStations:'nied',niedMotionEnabled:true,showTremMetrics:true,showPalertMetrics:true,showNiedMetrics:true,niedMetric:'intensity',colombiaGoalRain:true,colombiaMatchAlerts:true,showFaults:false,browserNotify:false,minTickerMag:0,listMinMag:0,listFeltOnly:false,listRegion:'ALL',listFocusZoom:5,disabled:{}};const read=()=>{try{const saved=JSON.parse(localStorage.getItem(key)||'{}'),out=Object.assign({},defaults,saved);if(!Object.prototype.hasOwnProperty.call(saved,'niedMotionEnabled')){const legacy=window.__eqKanameishiHypoDebug?.().niedEnabled;if(typeof legacy==='boolean')out.niedMotionEnabled=legacy}if(!Object.prototype.hasOwnProperty.call(saved,'masterVolume')){const v=Number(localStorage.getItem('earthquake.masterVolume'));if(Number.isFinite(v))out.masterVolume=Math.max(0,Math.min(1,v))}return out}catch(_){return Object.assign({},defaults)}};let state=read();/* uiLanguage kept */window.__eqListFocusZoom=Math.max(3,Math.min(8,Number(state.listFocusZoom)||5));const uiLanguage=document.getElementById('eqsUiLanguage'),tts=document.getElementById('eqsTts'),audio=document.getElementById('eqsAudio'),masterVolumeSlider=document.getElementById('eqsMasterVolume'),masterVolumeValue=document.getElementById('eqsMasterVolumeValue'),taup=document.getElementById('eqsTaup'),intensityScale=document.getElementById('eqsIntensityScale'),mapSea=document.getElementById('eqsMapSea'),japanStations=document.getElementById('eqsJapanStations'),motionDetection=document.getElementById('eqsMotionDetectionEnabled'),showTremMetrics=document.getElementById('eqsShowTremMetrics'),showPalertMetrics=document.getElementById('eqsShowPalertMetrics'),showNiedMetrics=document.getElementById('eqsShowNiedMetrics'),niedMetric=document.getElementById('eqsNiedMetric'),colombiaGoalRain=document.getElementById('eqsColombiaGoalRain'),colombiaMatchAlerts=document.getElementById('eqsColombiaMatchAlerts'),goalRainTest=document.getElementById('eqsTestColombiaGoalRain'),showFaults=document.getElementById('eqsShowFaults'),browserNotify=document.getElementById('eqsBrowserNotify'),minTickerMag=document.getElementById('eqsMinTickerMag'),listMinMag=document.getElementById('eqsListMinMag'),listRegion=document.getElementById('eqsListRegion'),listFeltOnly=document.getElementById('eqsListFeltOnly'),listFocusZoom=document.getElementById('eqsListFocusZoom'),listFocusZoomValue=document.getElementById('eqsListFocusZoomValue'),list=document.getElementById('eqsAgencies');const uiSounds=document.getElementById('eqsUiSounds'),srevSounds=document.getElementById('eqsSrevSounds'),jmaToggle=document.getElementById('eqsJmaWeatherToggle');function syncJmaToggle(){const api=window.__eqJmaWeatherView;const active=!!(api&&typeof api.isActive==='function'&&api.isActive());if(jmaToggle){jmaToggle.textContent=active?'↩️ Volver a la vista normal':'🇯🇵 Alertas meteorológicas de Japón';jmaToggle.setAttribute('aria-pressed',String(active));jmaToggle.style.borderColor=active?'#ffb300':'';jmaToggle.style.color=active?'#ffd873':''}}const uiSoundNames=[['click','Clic'],['select','Selección'],['refresh','Actualizar'],['success','Correcto'],['home','Inicio'],['alert','Alerta'],['ynWave','Onda NIED'],['motion','Movimiento']];const srevSoundNames=[['eew0','EEW débil'],['eew3','EEW intensidad 3'],['eew5','EEW intensidad 5'],['eewC','EEW cancelación'],['koushin','Actualización'],['koushinE','Actualización EEW'],['VXSE51','VXSE51 información'],['VXSE52','VXSE52 epicentro'],['VXSE53','VXSE53 detalle'],['VXSE5C','VXSE5C'],['VTSE5','VTSE5 tsunami'],['tsa01','Tsunami tsa01'],['tsa02','Tsunami tsa02'],['tsa03','Tsunami tsa03'],['tsa04','Tsunami tsa04'],['tsa12','Tsunami tsa12'],['tsa13','Tsunami tsa13'],['tsa14','Tsunami tsa14'],['tsa21','Tsunami tsa21'],['tsa22','Tsunami tsa22'],['tsa23','Tsunami tsa23'],['tsa24','Tsunami tsa24'],['tsa32','Tsunami tsa32'],['tsa33','Tsunami tsa33'],['p1024','p1024'],['NewInt0','Movimiento int. 0'],['NewInt1','Movimiento int. 1'],['NewInt2','Movimiento int. 2'],['NewInt3','Movimiento int. 3'],['NewInt4','Movimiento int. 4'],['NewInt5','Movimiento int. 5'],['NewInt6','Movimiento int. 6–7']];function render(){if(uiLanguage)uiLanguage.value=state.uiLanguage||'es-ES';const a=window.__eqAudioSettings;tts.checked=a?a.ttsEnabled:state.tts;audio.checked=a?a.audioEnabled:state.audio;if(masterVolumeSlider){const n=Math.max(0,Math.min(1,Number(state.masterVolume??1)));masterVolumeSlider.value=String(Math.round(n*100));if(masterVolumeValue)masterVolumeValue.textContent=Math.round(n*100)+'%'}taup.value=(window.__eqTaupSettings&&window.__eqTaupSettings.mode)||state.taup;intensityScale.value=state.intensityScale||'source';if(mapSea)mapSea.value=state.mapSea||'dark';if(japanStations)japanStations.value=state.japanStations||'nied';if(motionDetection)motionDetection.checked=state.niedMotionEnabled!==false;if(showTremMetrics)showTremMetrics.checked=state.showTremMetrics!==false;if(showPalertMetrics)showPalertMetrics.checked=state.showPalertMetrics!==false;if(showNiedMetrics)showNiedMetrics.checked=state.showNiedMetrics!==false;if(niedMetric)niedMetric.value=state.niedMetric||'intensity';if(colombiaGoalRain)colombiaGoalRain.checked=state.colombiaGoalRain!==false;if(colombiaMatchAlerts)colombiaMatchAlerts.checked=state.colombiaMatchAlerts!==false;if(showFaults)showFaults.checked=state.showFaults===true;if(browserNotify)browserNotify.checked=state.browserNotify===true;if(minTickerMag)minTickerMag.value=String(state.minTickerMag!=null?state.minTickerMag:0);if(listMinMag)listMinMag.value=String(state.listMinMag!=null?state.listMinMag:0);if(listRegion)listRegion.value=String(state.listRegion||'ALL');if(listFeltOnly)listFeltOnly.checked=state.listFeltOnly===true;if(listFocusZoom){const n=Math.max(3,Math.min(8,Number(state.listFocusZoom)||5));listFocusZoom.value=String(n);if(listFocusZoomValue)listFocusZoomValue.textContent=String(n);window.__eqListFocusZoom=n}uiSounds.innerHTML=uiSoundNames.map(x=>'<button class="eqs-control" type="button" data-ui-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');srevSounds.innerHTML=srevSoundNames.map(x=>'<button class="eqs-control" type="button" data-srev-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');list.innerHTML=agencies.map(x=>'<label class="eqs-agency"><input type="checkbox" data-agency="'+x+'" '+(!(state.disabled&&state.disabled[x])?'checked':'')+'> '+x+'</label>').join('')}
+<script id="eq-settings-module">(function(){'use strict';const modal=document.getElementById('eqSettingsModal'),open=document.getElementById('btnSettings');if(!modal||!open)return;const agencies=['USGS','NEIC','JMA','CENC','CEA','CEIC','EMSC','IGN','INETER','GEOFON','SSN','AFAD','BMKG','GEONET','INGV','IPGP','SED','PHIVOLCS','CSN','IG-EPN','EARLY-EST','HKO','NOA','KOERI','SGC','KMA','BCSF','NRCan','USP','MMD' ,'CEA-PR'],key='earthquake.settings.v1',defaults={uiLanguage:'es-ES',tts:true,audio:true,masterVolume:1,taup:'precise',intensityScale:'source',mapSea:'dark',japanStations:'nied',niedMotionEnabled:true,showTremMetrics:true,showPalertMetrics:true,showNiedMetrics:true,niedMetric:'intensity',colombiaGoalRain:true,colombiaMatchAlerts:true,showFaults:false,browserNotify:false,minTickerMag:0,listMinMag:0,listFeltOnly:false,listRegion:'ALL',listFocusZoom:5,disabled:{}};const read=()=>{try{const saved=JSON.parse(localStorage.getItem(key)||'{}'),out=Object.assign({},defaults,saved);if(!Object.prototype.hasOwnProperty.call(saved,'niedMotionEnabled')){const legacy=window.__eqKanameishiHypoDebug?.().niedEnabled;if(typeof legacy==='boolean')out.niedMotionEnabled=legacy}if(!Object.prototype.hasOwnProperty.call(saved,'masterVolume')){const v=Number(localStorage.getItem('earthquake.masterVolume'));if(Number.isFinite(v))out.masterVolume=Math.max(0,Math.min(1,v))}return out}catch(_){return Object.assign({},defaults)}};let state=read();try{const L=localStorage.getItem('earthquake.uiLanguage');if(L)state.uiLanguage=L;}catch(_){}window.__eqListFocusZoom=Math.max(3,Math.min(8,Number(state.listFocusZoom)||5));const uiLanguage=document.getElementById('eqsUiLanguage'),tts=document.getElementById('eqsTts'),audio=document.getElementById('eqsAudio'),masterVolumeSlider=document.getElementById('eqsMasterVolume'),masterVolumeValue=document.getElementById('eqsMasterVolumeValue'),taup=document.getElementById('eqsTaup'),intensityScale=document.getElementById('eqsIntensityScale'),mapSea=document.getElementById('eqsMapSea'),japanStations=document.getElementById('eqsJapanStations'),motionDetection=document.getElementById('eqsMotionDetectionEnabled'),showTremMetrics=document.getElementById('eqsShowTremMetrics'),showPalertMetrics=document.getElementById('eqsShowPalertMetrics'),showNiedMetrics=document.getElementById('eqsShowNiedMetrics'),niedMetric=document.getElementById('eqsNiedMetric'),colombiaGoalRain=document.getElementById('eqsColombiaGoalRain'),colombiaMatchAlerts=document.getElementById('eqsColombiaMatchAlerts'),goalRainTest=document.getElementById('eqsTestColombiaGoalRain'),showFaults=document.getElementById('eqsShowFaults'),browserNotify=document.getElementById('eqsBrowserNotify'),minTickerMag=document.getElementById('eqsMinTickerMag'),listMinMag=document.getElementById('eqsListMinMag'),listRegion=document.getElementById('eqsListRegion'),listFeltOnly=document.getElementById('eqsListFeltOnly'),listFocusZoom=document.getElementById('eqsListFocusZoom'),listFocusZoomValue=document.getElementById('eqsListFocusZoomValue'),list=document.getElementById('eqsAgencies');const uiSounds=document.getElementById('eqsUiSounds'),srevSounds=document.getElementById('eqsSrevSounds'),jmaToggle=document.getElementById('eqsJmaWeatherToggle');function syncJmaToggle(){const api=window.__eqJmaWeatherView;const active=!!(api&&typeof api.isActive==='function'&&api.isActive());if(jmaToggle){jmaToggle.textContent=active?'↩️ Volver a la vista normal':'🇯🇵 Alertas meteorológicas de Japón';jmaToggle.setAttribute('aria-pressed',String(active));jmaToggle.style.borderColor=active?'#ffb300':'';jmaToggle.style.color=active?'#ffd873':''}}const uiSoundNames=[['click','Clic'],['select','Selección'],['refresh','Actualizar'],['success','Correcto'],['home','Inicio'],['alert','Alerta'],['ynWave','Onda NIED'],['motion','Movimiento']];const srevSoundNames=[['eew0','EEW débil'],['eew3','EEW intensidad 3'],['eew5','EEW intensidad 5'],['eewC','EEW cancelación'],['koushin','Actualización'],['koushinE','Actualización EEW'],['VXSE51','VXSE51 información'],['VXSE52','VXSE52 epicentro'],['VXSE53','VXSE53 detalle'],['VXSE5C','VXSE5C'],['VTSE5','VTSE5 tsunami'],['tsa01','Tsunami tsa01'],['tsa02','Tsunami tsa02'],['tsa03','Tsunami tsa03'],['tsa04','Tsunami tsa04'],['tsa12','Tsunami tsa12'],['tsa13','Tsunami tsa13'],['tsa14','Tsunami tsa14'],['tsa21','Tsunami tsa21'],['tsa22','Tsunami tsa22'],['tsa23','Tsunami tsa23'],['tsa24','Tsunami tsa24'],['tsa32','Tsunami tsa32'],['tsa33','Tsunami tsa33'],['p1024','p1024'],['NewInt0','Movimiento int. 0'],['NewInt1','Movimiento int. 1'],['NewInt2','Movimiento int. 2'],['NewInt3','Movimiento int. 3'],['NewInt4','Movimiento int. 4'],['NewInt5','Movimiento int. 5'],['NewInt6','Movimiento int. 6–7']];function render(){if(uiLanguage)uiLanguage.value=state.uiLanguage||'es-ES';const a=window.__eqAudioSettings;tts.checked=a?a.ttsEnabled:state.tts;audio.checked=a?a.audioEnabled:state.audio;if(masterVolumeSlider){const n=Math.max(0,Math.min(1,Number(state.masterVolume??1)));masterVolumeSlider.value=String(Math.round(n*100));if(masterVolumeValue)masterVolumeValue.textContent=Math.round(n*100)+'%'}taup.value=(window.__eqTaupSettings&&window.__eqTaupSettings.mode)||state.taup;intensityScale.value=state.intensityScale||'source';if(mapSea)mapSea.value=state.mapSea||'dark';if(japanStations)japanStations.value=state.japanStations||'nied';if(motionDetection)motionDetection.checked=state.niedMotionEnabled!==false;if(showTremMetrics)showTremMetrics.checked=state.showTremMetrics!==false;if(showPalertMetrics)showPalertMetrics.checked=state.showPalertMetrics!==false;if(showNiedMetrics)showNiedMetrics.checked=state.showNiedMetrics!==false;if(niedMetric)niedMetric.value=state.niedMetric||'intensity';if(colombiaGoalRain)colombiaGoalRain.checked=state.colombiaGoalRain!==false;if(colombiaMatchAlerts)colombiaMatchAlerts.checked=state.colombiaMatchAlerts!==false;if(showFaults)showFaults.checked=state.showFaults===true;if(browserNotify)browserNotify.checked=state.browserNotify===true;if(minTickerMag)minTickerMag.value=String(state.minTickerMag!=null?state.minTickerMag:0);if(listMinMag)listMinMag.value=String(state.listMinMag!=null?state.listMinMag:0);if(listRegion)listRegion.value=String(state.listRegion||'ALL');if(listFeltOnly)listFeltOnly.checked=state.listFeltOnly===true;if(listFocusZoom){const n=Math.max(3,Math.min(8,Number(state.listFocusZoom)||5));listFocusZoom.value=String(n);if(listFocusZoomValue)listFocusZoomValue.textContent=String(n);window.__eqListFocusZoom=n}uiSounds.innerHTML=uiSoundNames.map(x=>'<button class="eqs-control" type="button" data-ui-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');srevSounds.innerHTML=srevSoundNames.map(x=>'<button class="eqs-control" type="button" data-srev-sound="'+x[0]+'">Play '+x[1]+'</button>').join('');list.innerHTML=agencies.map(x=>'<label class="eqs-agency"><input type="checkbox" data-agency="'+x+'" '+(!(state.disabled&&state.disabled[x])?'checked':'')+'> '+x+'</label>').join('')}
 function applyMetricsPanelsVisibility(st){
   const s=st||state||{};
   document.body.classList.toggle('hide-trem-metrics',s.showTremMetrics===false);
@@ -30454,7 +30454,7 @@ state.listMinMag=listMinMag?parseFloat(listMinMag.value)||0:0;window.__eqListMin
 state.listRegion=listRegion?listRegion.value:'ALL';window.__eqListRegion=state.listRegion;
 state.listFeltOnly=listFeltOnly?listFeltOnly.checked:false;window.__eqListFeltOnly=state.listFeltOnly;state.listFocusZoom=listFocusZoom?Math.max(3,Math.min(8,Number(listFocusZoom.value)||5)):Math.max(3,Math.min(8,Number(state.listFocusZoom)||5));window.__eqListFocusZoom=state.listFocusZoom;
 
-try{window.__eqSyncListFilters?.();}catch(_){}if(!state.colombiaMatchAlerts)window.__eqStopColombiaMatchAlert?.();state.disabled={};list.querySelectorAll('input[data-agency]').forEach(x=>{if(!x.checked)state.disabled[x.dataset.agency]=true});window.__eqDisabledAgencies=state.disabled;if(window.__eqAudioSettings){window.__eqAudioSettings.setAudio(state.audio);window.__eqAudioSettings.setTts(state.tts)}if(window.__eqTaupSettings)window.__eqTaupSettings.mode=state.taup;window.__eqForcedIntensityScale=state.intensityScale;try{if(typeof window.__eqApplyMapSeaTheme==='function')window.__eqApplyMapSeaTheme(state.mapSea||'dark');}catch(_){};try{localStorage.setItem(key,JSON.stringify(state))}catch(_){}document.getElementById('filterAgency')?.dispatchEvent(new Event('change'));if(previousIntensityScale!==state.intensityScale)window.__eqRefreshIntensityScale?.();if(save){modal.classList.remove('active');if((state.uiLanguage||'es-ES')!==previousUiLanguage){try{window.__eqApplyUiLanguage?.(state.uiLanguage);}catch(_){}location.reload();return;}try{window.__eqApplyUiLanguage?.(state.uiLanguage||'es-ES');}catch(_){}}}function show(){state=read();render();window.__eqAudioSettings?.refreshVoiceSelect?.();syncJmaToggle();syncJapanSeaToggle();modal.classList.add('active')}open.addEventListener('click',show);jmaToggle?.addEventListener('click',()=>{const api=window.__eqJmaWeatherView;if(api&&typeof api.toggle==='function'){const pending=api.toggle();modal.classList.remove('active');syncJmaToggle();Promise.resolve(pending).then(syncJmaToggle).catch(syncJmaToggle)}else{document.getElementById('btnJmaWeatherAlerts')?.click();modal.classList.remove('active');setTimeout(syncJmaToggle,250)}});const japanSeaToggle=document.getElementById('eqsJapanSeaStationsToggle');function syncJapanSeaToggle(){const active=!!japanSeaStationsMode;if(japanSeaToggle){japanSeaToggle.textContent=active?'↩️ Volver a Japón · estaciones en vivo':'🌊 Mar de Japón · estaciones en vivo';japanSeaToggle.setAttribute('aria-pressed',String(active));japanSeaToggle.style.borderColor=active?'#35d5dd':'';japanSeaToggle.style.color=active?'#8ff7ff':''}}japanSeaToggle?.addEventListener('click',()=>{try{toggleJapanSeaStations();syncJapanSeaToggle()}catch(_){}});document.getElementById('eqSettingsClose').addEventListener('click',()=>modal.classList.remove('active'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('active')});document.getElementById('eqsSave').addEventListener('click',()=>apply(true));document.getElementById('eqsReset').addEventListener('click',()=>{state=Object.assign({},defaults,{disabled:{}});render();apply(false)});tts.addEventListener('change',()=>apply(false));audio.addEventListener('change',()=>apply(false));masterVolumeSlider?.addEventListener('input',()=>{const n=Math.max(0,Math.min(1,Number(masterVolumeSlider.value)/100));state.masterVolume=n;if(masterVolumeValue)masterVolumeValue.textContent=Math.round(n*100)+'%';window.__eqAudioSettings?.setVolume(n);try{localStorage.setItem(key,JSON.stringify(state))}catch(_){}});taup.addEventListener('change',()=>apply(false));intensityScale.addEventListener('change',()=>apply(false));mapSea?.addEventListener('change',()=>apply(false));japanStations?.addEventListener('change',()=>apply(false));motionDetection?.addEventListener('change',()=>apply(false));showTremMetrics?.addEventListener('change',()=>apply(false));showPalertMetrics?.addEventListener('change',()=>apply(false));showNiedMetrics?.addEventListener('change',()=>apply(false));niedMetric?.addEventListener('change',()=>apply(false));colombiaGoalRain?.addEventListener('change',()=>apply(false));colombiaMatchAlerts?.addEventListener('change',()=>apply(false));showFaults?.addEventListener('change',()=>apply(false));browserNotify?.addEventListener('change',()=>apply(false));minTickerMag?.addEventListener('change',()=>apply(false));listMinMag?.addEventListener('change',()=>apply(false));listRegion?.addEventListener('change',()=>apply(false));listFeltOnly?.addEventListener('change',()=>apply(false));listFocusZoom?.addEventListener('input',()=>{if(listFocusZoomValue)listFocusZoomValue.textContent=String(Math.max(3,Math.min(8,Number(listFocusZoom.value)||5)))});listFocusZoom?.addEventListener('change',()=>apply(false));goalRainTest?.addEventListener('click',()=>window.__eqTestColombiaGoalRain?.());uiSounds.addEventListener('click',e=>{const b=e.target.closest('[data-ui-sound]');if(b)window.__eqAudioSettings?.testUi(b.dataset.uiSound)});srevSounds.addEventListener('click',e=>{const b=e.target.closest('[data-srev-sound]');if(b)window.__eqAudioSettings?.testSrev(b.dataset.srevSound)});document.getElementById('ttsVoiceSelect')?.addEventListener('change',e=>window.__eqAudioSettings?.setPreferredVoice(e.target.value));document.getElementById('btnTtsVoiceTest')?.addEventListener('click',()=>window.__eqAudioSettings?.testPreferredVoice());document.getElementById('btnTtsVoiceReset')?.addEventListener('click',()=>window.__eqAudioSettings?.resetPreferredVoice());document.getElementById('eqsTestTts').addEventListener('click',()=>window.__eqAudioSettings?.testTts());window.__eqAudioSettings?.setVolume(state.masterVolume);window.__eqDisabledAgencies=state.disabled||{};window.__eqForcedIntensityScale=state.intensityScale||'source';window.__eqJapanStationsSource=state.japanStations||'nied';window.__ynSetMotionDetectionEnabled?.(state.niedMotionEnabled!==false);const initialKmdMotion=window.__eqKanameishiHypoDebug?.();if(initialKmdMotion&&initialKmdMotion.niedEnabled!==(state.niedMotionEnabled!==false))window.__eqKanameishiMotionConfigure?.({niedEnabled:state.niedMotionEnabled!==false});try{applyMetricsPanelsVisibility(state);}catch(_){};window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain!==false;window.__eqColombiaMatchAlertsEnabled=state.colombiaMatchAlerts!==false;
+try{window.__eqSyncListFilters?.();}catch(_){}if(!state.colombiaMatchAlerts)window.__eqStopColombiaMatchAlert?.();state.disabled={};list.querySelectorAll('input[data-agency]').forEach(x=>{if(!x.checked)state.disabled[x.dataset.agency]=true});window.__eqDisabledAgencies=state.disabled;if(window.__eqAudioSettings){window.__eqAudioSettings.setAudio(state.audio);window.__eqAudioSettings.setTts(state.tts)}if(window.__eqTaupSettings)window.__eqTaupSettings.mode=state.taup;window.__eqForcedIntensityScale=state.intensityScale;try{if(typeof window.__eqApplyMapSeaTheme==='function')window.__eqApplyMapSeaTheme(state.mapSea||'dark');}catch(_){};try{localStorage.setItem(key,JSON.stringify(state))}catch(_){}document.getElementById('filterAgency')?.dispatchEvent(new Event('change'));if(previousIntensityScale!==state.intensityScale)window.__eqRefreshIntensityScale?.();if(save){modal.classList.remove('active');const lng=state.uiLanguage||'es-ES';try{localStorage.setItem('earthquake.uiLanguage',lng);}catch(_){}if(lng!==previousUiLanguage){try{window.__eqSetUiLanguage?.(lng,{reload:true});}catch(_){try{window.__eqApplyUiLanguage?.(lng);}catch(__){}location.reload();}return;}try{window.__eqApplyUiLanguage?.(lng);}catch(_){}}}function show(){state=read();render();window.__eqAudioSettings?.refreshVoiceSelect?.();syncJmaToggle();syncJapanSeaToggle();modal.classList.add('active')}open.addEventListener('click',show);jmaToggle?.addEventListener('click',()=>{const api=window.__eqJmaWeatherView;if(api&&typeof api.toggle==='function'){const pending=api.toggle();modal.classList.remove('active');syncJmaToggle();Promise.resolve(pending).then(syncJmaToggle).catch(syncJmaToggle)}else{document.getElementById('btnJmaWeatherAlerts')?.click();modal.classList.remove('active');setTimeout(syncJmaToggle,250)}});const japanSeaToggle=document.getElementById('eqsJapanSeaStationsToggle');function syncJapanSeaToggle(){const active=!!japanSeaStationsMode;if(japanSeaToggle){japanSeaToggle.textContent=active?'↩️ Volver a Japón · estaciones en vivo':'🌊 Mar de Japón · estaciones en vivo';japanSeaToggle.setAttribute('aria-pressed',String(active));japanSeaToggle.style.borderColor=active?'#35d5dd':'';japanSeaToggle.style.color=active?'#8ff7ff':''}}japanSeaToggle?.addEventListener('click',()=>{try{toggleJapanSeaStations();syncJapanSeaToggle()}catch(_){}});document.getElementById('eqSettingsClose').addEventListener('click',()=>modal.classList.remove('active'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('active')});document.getElementById('eqsSave').addEventListener('click',()=>apply(true));document.getElementById('eqsReset').addEventListener('click',()=>{state=Object.assign({},defaults,{disabled:{}});render();apply(false)});tts.addEventListener('change',()=>apply(false));audio.addEventListener('change',()=>apply(false));masterVolumeSlider?.addEventListener('input',()=>{const n=Math.max(0,Math.min(1,Number(masterVolumeSlider.value)/100));state.masterVolume=n;if(masterVolumeValue)masterVolumeValue.textContent=Math.round(n*100)+'%';window.__eqAudioSettings?.setVolume(n);try{localStorage.setItem(key,JSON.stringify(state))}catch(_){}});taup.addEventListener('change',()=>apply(false));intensityScale.addEventListener('change',()=>apply(false));mapSea?.addEventListener('change',()=>apply(false));japanStations?.addEventListener('change',()=>apply(false));motionDetection?.addEventListener('change',()=>apply(false));showTremMetrics?.addEventListener('change',()=>apply(false));showPalertMetrics?.addEventListener('change',()=>apply(false));showNiedMetrics?.addEventListener('change',()=>apply(false));niedMetric?.addEventListener('change',()=>apply(false));colombiaGoalRain?.addEventListener('change',()=>apply(false));colombiaMatchAlerts?.addEventListener('change',()=>apply(false));showFaults?.addEventListener('change',()=>apply(false));browserNotify?.addEventListener('change',()=>apply(false));minTickerMag?.addEventListener('change',()=>apply(false));listMinMag?.addEventListener('change',()=>apply(false));listRegion?.addEventListener('change',()=>apply(false));listFeltOnly?.addEventListener('change',()=>apply(false));listFocusZoom?.addEventListener('input',()=>{if(listFocusZoomValue)listFocusZoomValue.textContent=String(Math.max(3,Math.min(8,Number(listFocusZoom.value)||5)))});listFocusZoom?.addEventListener('change',()=>apply(false));goalRainTest?.addEventListener('click',()=>window.__eqTestColombiaGoalRain?.());uiSounds.addEventListener('click',e=>{const b=e.target.closest('[data-ui-sound]');if(b)window.__eqAudioSettings?.testUi(b.dataset.uiSound)});srevSounds.addEventListener('click',e=>{const b=e.target.closest('[data-srev-sound]');if(b)window.__eqAudioSettings?.testSrev(b.dataset.srevSound)});document.getElementById('ttsVoiceSelect')?.addEventListener('change',e=>window.__eqAudioSettings?.setPreferredVoice(e.target.value));document.getElementById('btnTtsVoiceTest')?.addEventListener('click',()=>window.__eqAudioSettings?.testPreferredVoice());document.getElementById('btnTtsVoiceReset')?.addEventListener('click',()=>window.__eqAudioSettings?.resetPreferredVoice());document.getElementById('eqsTestTts').addEventListener('click',()=>window.__eqAudioSettings?.testTts());window.__eqAudioSettings?.setVolume(state.masterVolume);window.__eqDisabledAgencies=state.disabled||{};window.__eqForcedIntensityScale=state.intensityScale||'source';window.__eqJapanStationsSource=state.japanStations||'nied';window.__ynSetMotionDetectionEnabled?.(state.niedMotionEnabled!==false);const initialKmdMotion=window.__eqKanameishiHypoDebug?.();if(initialKmdMotion&&initialKmdMotion.niedEnabled!==(state.niedMotionEnabled!==false))window.__eqKanameishiMotionConfigure?.({niedEnabled:state.niedMotionEnabled!==false});try{applyMetricsPanelsVisibility(state);}catch(_){};window.__eqColombiaGoalRainEnabled=state.colombiaGoalRain!==false;window.__eqColombiaMatchAlertsEnabled=state.colombiaMatchAlerts!==false;
 window.__eqShowFaults=state.showFaults===true;window.__eqBrowserNotify=state.browserNotify===true;window.__eqMinTickerMag=Number(state.minTickerMag)||0;window.__eqListMinMag=Number(state.listMinMag)||0;window.__eqListRegion=state.listRegion||'ALL';window.__eqListFeltOnly=state.listFeltOnly===true;
 setTimeout(()=>{try{window.__eqApplyFaults?.(!!window.__eqShowFaults);}catch(_){}try{window.__eqApplyBrowserNotify?.(!!window.__eqBrowserNotify);}catch(_){}},1200);setTimeout(()=>{render();syncJmaToggle();window.__eqRefreshIntensityScale?.()},0)})();</script>
 
@@ -36449,11 +36449,12 @@ For more information on this, and how to apply and follow the GNU AGPL, see
 (function(){
   'use strict';
   var STORAGE_KEY = 'earthquake.settings.v1';
+  var LANG_KEY = 'earthquake.uiLanguage';
   var DICTS = {
     'es-ES': {
       settingsTitle: 'Ajustes',
       settingsLanguage: 'Idioma',
-      settingsLanguageNote: 'Al guardar, la página se recargará para aplicar el idioma en toda la interfaz.',
+      settingsLanguageNote: 'El idioma se aplica al guardar (y al instante en este panel).',
       settingsSave: 'Guardar',
       settingsReset: 'Restablecer',
       settingsClose: 'Cerrar ajustes',
@@ -36467,12 +36468,21 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       sectionSonido: '🔊 Sonido',
       sectionJapon: '🇯🇵 Japón',
       sectionColombia: '⚽ Colombia',
-      sectionAgencias: '🏢 Agencias visibles en la lista'
+      sectionAgencias: '🏢 Agencias visibles en la lista',
+      chipIdioma: 'Idioma',
+      chipApartados: 'Apartados',
+      chipLista: 'Lista',
+      chipMapa: 'Mapa',
+      chipSonido: 'Sonido',
+      chipJapon: 'Japón',
+      chipColombia: 'Colombia',
+      chipAgencias: 'Agencias',
+      langApplied: 'Idioma aplicado'
     },
     'en-US': {
       settingsTitle: 'Settings',
       settingsLanguage: 'Language',
-      settingsLanguageNote: 'On save, the page will reload to apply the language across the interface.',
+      settingsLanguageNote: 'Language is applied on save (and instantly in this panel).',
       settingsSave: 'Save',
       settingsReset: 'Reset',
       settingsClose: 'Close settings',
@@ -36486,12 +36496,21 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       sectionSonido: '🔊 Sound',
       sectionJapon: '🇯🇵 Japan',
       sectionColombia: '⚽ Colombia',
-      sectionAgencias: '🏢 Agencies visible in the list'
+      sectionAgencias: '🏢 Agencies visible in the list',
+      chipIdioma: 'Language',
+      chipApartados: 'Sections',
+      chipLista: 'List',
+      chipMapa: 'Map',
+      chipSonido: 'Sound',
+      chipJapon: 'Japan',
+      chipColombia: 'Colombia',
+      chipAgencias: 'Agencies',
+      langApplied: 'Language applied'
     },
     'ja-JP': {
       settingsTitle: '設定',
       settingsLanguage: '言語',
-      settingsLanguageNote: '保存するとページが再読み込みされ、インターフェース全体に言語が適用されます。',
+      settingsLanguageNote: '保存時に言語が適用されます（このパネルでは即座に反映）。',
       settingsSave: '保存',
       settingsReset: 'リセット',
       settingsClose: '設定を閉じる',
@@ -36505,12 +36524,21 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       sectionSonido: '🔊 音',
       sectionJapon: '🇯🇵 日本',
       sectionColombia: '⚽ コロンビア',
-      sectionAgencias: '🏢 リストに表示する機関'
+      sectionAgencias: '🏢 リストに表示する機関',
+      chipIdioma: '言語',
+      chipApartados: 'セクション',
+      chipLista: 'リスト',
+      chipMapa: '地図',
+      chipSonido: '音',
+      chipJapon: '日本',
+      chipColombia: 'コロンビア',
+      chipAgencias: '機関',
+      langApplied: '言語を適用しました'
     },
     'zh-CN': {
       settingsTitle: '设置',
       settingsLanguage: '语言',
-      settingsLanguageNote: '保存后页面将重新加载，以在整个界面应用语言。',
+      settingsLanguageNote: '保存时应用语言（本面板会立即生效）。',
       settingsSave: '保存',
       settingsReset: '重置',
       settingsClose: '关闭设置',
@@ -36524,12 +36552,21 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       sectionSonido: '🔊 声音',
       sectionJapon: '🇯🇵 日本',
       sectionColombia: '⚽ 哥伦比亚',
-      sectionAgencias: '🏢 列表中显示的机构'
+      sectionAgencias: '🏢 列表中显示的机构',
+      chipIdioma: '语言',
+      chipApartados: '分区',
+      chipLista: '列表',
+      chipMapa: '地图',
+      chipSonido: '声音',
+      chipJapon: '日本',
+      chipColombia: '哥伦比亚',
+      chipAgencias: '机构',
+      langApplied: '语言已应用'
     },
     'zh-TW': {
       settingsTitle: '設定',
       settingsLanguage: '語言',
-      settingsLanguageNote: '儲存後頁面會重新載入，以在整個介面套用語言。',
+      settingsLanguageNote: '儲存時套用語言（本面板會立即生效）。',
       settingsSave: '儲存',
       settingsReset: '重設',
       settingsClose: '關閉設定',
@@ -36543,12 +36580,21 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       sectionSonido: '🔊 聲音',
       sectionJapon: '🇯🇵 日本',
       sectionColombia: '⚽ 哥倫比亞',
-      sectionAgencias: '🏢 列表顯示的機構'
+      sectionAgencias: '🏢 列表顯示的機構',
+      chipIdioma: '語言',
+      chipApartados: '分區',
+      chipLista: '列表',
+      chipMapa: '地圖',
+      chipSonido: '聲音',
+      chipJapon: '日本',
+      chipColombia: '哥倫比亞',
+      chipAgencias: '機構',
+      langApplied: '語言已套用'
     },
     'pl-PL': {
       settingsTitle: 'Ustawienia',
       settingsLanguage: 'Język',
-      settingsLanguageNote: 'Po zapisaniu strona zostanie przeładowana, aby zastosować język w całym interfejsie.',
+      settingsLanguageNote: 'Język jest stosowany po zapisaniu (i od razu w tym panelu).',
       settingsSave: 'Zapisz',
       settingsReset: 'Resetuj',
       settingsClose: 'Zamknij ustawienia',
@@ -36562,12 +36608,21 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       sectionSonido: '🔊 Dźwięk',
       sectionJapon: '🇯🇵 Japonia',
       sectionColombia: '⚽ Kolumbia',
-      sectionAgencias: '🏢 Agencje widoczne na liście'
+      sectionAgencias: '🏢 Agencje widoczne na liście',
+      chipIdioma: 'Język',
+      chipApartados: 'Sekcje',
+      chipLista: 'Lista',
+      chipMapa: 'Mapa',
+      chipSonido: 'Dźwięk',
+      chipJapon: 'Japonia',
+      chipColombia: 'Kolumbia',
+      chipAgencias: 'Agencje',
+      langApplied: 'Język zastosowany'
     },
     'it-IT': {
       settingsTitle: 'Impostazioni',
       settingsLanguage: 'Lingua',
-      settingsLanguageNote: 'Salvando, la pagina si ricaricherà per applicare la lingua a tutta l\'interfaccia.',
+      settingsLanguageNote: 'La lingua si applica al salvataggio (e subito in questo pannello).',
       settingsSave: 'Salva',
       settingsReset: 'Reimposta',
       settingsClose: 'Chiudi impostazioni',
@@ -36581,12 +36636,21 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       sectionSonido: '🔊 Suono',
       sectionJapon: '🇯🇵 Giappone',
       sectionColombia: '⚽ Colombia',
-      sectionAgencias: '🏢 Agenzie visibili nell\'elenco'
+      sectionAgencias: '🏢 Agenzie visibili nell\'elenco',
+      chipIdioma: 'Lingua',
+      chipApartados: 'Sezioni',
+      chipLista: 'Elenco',
+      chipMapa: 'Mappa',
+      chipSonido: 'Suono',
+      chipJapon: 'Giappone',
+      chipColombia: 'Colombia',
+      chipAgencias: 'Agenzie',
+      langApplied: 'Lingua applicata'
     },
     'ko-KR': {
       settingsTitle: '설정',
       settingsLanguage: '언어',
-      settingsLanguageNote: '저장하면 페이지가 다시 로드되어 전체 인터페이스에 언어가 적용됩니다.',
+      settingsLanguageNote: '저장 시 언어가 적용됩니다(이 패널에서는 즉시 반영).',
       settingsSave: '저장',
       settingsReset: '초기화',
       settingsClose: '설정 닫기',
@@ -36600,12 +36664,21 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       sectionSonido: '🔊 소리',
       sectionJapon: '🇯🇵 일본',
       sectionColombia: '⚽ 콜롬비아',
-      sectionAgencias: '🏢 목록에 표시할 기관'
+      sectionAgencias: '🏢 목록에 표시할 기관',
+      chipIdioma: '언어',
+      chipApartados: '섹션',
+      chipLista: '목록',
+      chipMapa: '지도',
+      chipSonido: '소리',
+      chipJapon: '일본',
+      chipColombia: '콜롬비아',
+      chipAgencias: '기관',
+      langApplied: '언어가 적용됨'
     },
     'pt-BR': {
       settingsTitle: 'Configurações',
       settingsLanguage: 'Idioma',
-      settingsLanguageNote: 'Ao salvar, a página será recarregada para aplicar o idioma em toda a interface.',
+      settingsLanguageNote: 'O idioma é aplicado ao salvar (e na hora neste painel).',
       settingsSave: 'Salvar',
       settingsReset: 'Redefinir',
       settingsClose: 'Fechar configurações',
@@ -36619,16 +36692,43 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       sectionSonido: '🔊 Som',
       sectionJapon: '🇯🇵 Japão',
       sectionColombia: '⚽ Colômbia',
-      sectionAgencias: '🏢 Agências visíveis na lista'
+      sectionAgencias: '🏢 Agências visíveis na lista',
+      chipIdioma: 'Idioma',
+      chipApartados: 'Seções',
+      chipLista: 'Lista',
+      chipMapa: 'Mapa',
+      chipSonido: 'Som',
+      chipJapon: 'Japão',
+      chipColombia: 'Colômbia',
+      chipAgencias: 'Agências',
+      langApplied: 'Idioma aplicado'
     }
   };
 
   function detect() {
     try {
+      var direct = localStorage.getItem(LANG_KEY);
+      if (direct && DICTS[direct]) return direct;
+    } catch (_) {}
+    try {
       var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-      if (saved && saved.uiLanguage) return saved.uiLanguage;
+      if (saved && saved.uiLanguage && DICTS[saved.uiLanguage]) return saved.uiLanguage;
+    } catch (_) {}
+    try {
+      var q = new URLSearchParams(location.search || '').get('lang');
+      if (q && DICTS[q]) return q;
     } catch (_) {}
     return 'es-ES';
+  }
+
+  function persist(lng) {
+    try { localStorage.setItem(LANG_KEY, lng); } catch (_) {}
+    try {
+      var saved = {};
+      try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch (_) { saved = {}; }
+      saved.uiLanguage = lng;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+    } catch (_) {}
   }
 
   function t(key, lng) {
@@ -36641,9 +36741,9 @@ For more information on this, and how to apply and follow the GNU AGPL, see
     lng = lng || detect();
     if (!DICTS[lng]) lng = 'es-ES';
     window.__eqUiLanguage = lng;
-    try { document.documentElement.lang = lng.split('-')[0]; } catch (_) {}
+    try { document.documentElement.lang = String(lng).split('-')[0]; } catch (_) {}
+    try { document.documentElement.setAttribute('data-ui-lang', lng); } catch (_) {}
 
-    // data-i18n nodes
     document.querySelectorAll('[data-i18n]').forEach(function (el) {
       var key = el.getAttribute('data-i18n');
       if (key) el.textContent = t(key, lng);
@@ -36661,7 +36761,6 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       if (key) el.setAttribute('aria-label', t(key, lng));
     });
 
-    // Known fixed ids in settings chrome
     var map = {
       eqSettingsTitle: 'settingsTitle',
       eqsTitleIdioma: 'sectionIdioma',
@@ -36679,6 +36778,7 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       var el = document.getElementById(id);
       if (el) el.textContent = t(map[id], lng);
     });
+
     var closeBtn = document.getElementById('eqSettingsClose');
     if (closeBtn) closeBtn.setAttribute('aria-label', t('settingsClose', lng));
     var search = document.getElementById('eqsSearch');
@@ -36696,21 +36796,91 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       btnHome.setAttribute('title', t('btnHome', lng));
       btnHome.setAttribute('aria-label', t('btnHome', lng));
     }
+
+    // Chips de navegación del modal
+    var chips = document.querySelectorAll('#eqSettingsDialog .eqs-chips a');
+    var chipKeys = ['chipIdioma','chipApartados','chipLista','chipMapa','chipSonido','chipJapon','chipColombia','chipAgencias'];
+    chips.forEach(function (a, i) {
+      if (chipKeys[i]) a.textContent = t(chipKeys[i], lng);
+    });
+
+    // Sincronizar el <select> si existe
+    var sel = document.getElementById('eqsUiLanguage');
+    if (sel && sel.value !== lng) {
+      try { sel.value = lng; } catch (_) {}
+    }
+
+    // Marca visible de que el idioma cambió
+    try {
+      var note = document.querySelector('#eqsSecIdioma .eqs-muted');
+      if (note) note.textContent = t('settingsLanguageNote', lng);
+    } catch (_) {}
+  }
+
+  function setLanguage(lng, opts) {
+    opts = opts || {};
+    if (!DICTS[lng]) lng = 'es-ES';
+    persist(lng);
+    applyUiLanguage(lng);
+    if (opts.reload) {
+      try {
+        var url = new URL(location.href);
+        url.searchParams.set('lang', lng);
+        // Evita bucles raros en content:// : solo reload simple si no hay search usable
+        if (location.protocol === 'content:' || location.protocol === 'file:') {
+          location.reload();
+        } else {
+          location.href = url.toString();
+        }
+      } catch (_) {
+        location.reload();
+      }
+    }
   }
 
   window.__eqApplyUiLanguage = applyUiLanguage;
+  window.__eqSetUiLanguage = setLanguage;
   window.__eqT = t;
+  window.__eqDetectUiLanguage = detect;
+
+  function bindSelect() {
+    var sel = document.getElementById('eqsUiLanguage');
+    if (!sel || sel.__eqI18nBound) return;
+    sel.__eqI18nBound = true;
+    sel.addEventListener('change', function () {
+      var lng = sel.value || 'es-ES';
+      // Vista previa inmediata en el panel
+      setLanguage(lng, { reload: false });
+    });
+  }
 
   function boot() {
     var lng = detect();
     window.__eqUiLanguage = lng;
     applyUiLanguage(lng);
+    bindSelect();
   }
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);
   } else {
     boot();
   }
+  // Reaplicar cuando se abre el modal (por si otros scripts reescriben textos)
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t) return;
+    if (t.id === 'btnSettings' || (t.closest && t.closest('#btnSettings'))) {
+      setTimeout(function () {
+        applyUiLanguage(window.__eqUiLanguage || detect());
+        bindSelect();
+      }, 50);
+    }
+  }, true);
+
+  // Por si el módulo de settings carga tarde
+  setTimeout(boot, 300);
+  setTimeout(boot, 1200);
 })();
 </script>
 
