@@ -27080,7 +27080,7 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
             ynMotionGroupLastFrameMs=Number(ynLastObservedMs)||0;ynPreviousMotionGroupStates=[];ynConfirmedMotionGroups=[];
         }
         function ynFinishMotionEpisodeAfterIdle() {
-            // Se llama tras 5 s sin una trama nueva que confirme movimiento.
+            // Movimiento terminado → cerrar el apartado de Japón de inmediato.
             ynEarlyEpisode=false;
             ynRequireFreshMotionAfterIdle();
             ynAutoActivationAttempted=false;
@@ -27091,39 +27091,42 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
             try{ynHideLocalEpicenterCard();}catch(_){}
             const alert=document.getElementById('ynEarlyAlert');
             if(alert){
-                alert.classList.remove('active','yn-motion-active','yn-weak','yn-shaking','yn-strong','eqk-only-shake');
-                // No dejar un cuadro vacío debajo del EEW: volver a idle o limpiar
-                try{ynShowIdlePanel(alert);}catch(_){ alert.innerHTML=''; }
+                alert.classList.remove('active','yn-motion-active','yn-weak','yn-shaking','yn-strong','eqk-only-shake','yn-tsunami-forecast');
+                alert.innerHTML='';
+                alert.textContent='';
+                alert.style.removeProperty('display');
             }
-            // Cerrar solo la vista local de estaciones aunque siga vigente un EEW;
-            // ynCloseAutomatically conserva wave-focus y el panel del aviso activo.
+            // Forzar cierre aunque ynAutoOpened no estuviera marcado.
             ynMotionAutoClosePending=true;
+            ynAutoOpened=true;
             try{ynCloseAutomatically();}catch(err){console.warn('[motion-idle-close]',err);}
+            // Cierre duro por si ynCloseAutomatically salió antes por otra condición.
+            try{
+                const layout=document.getElementById('mainLayout');
+                japanLiveStationsPinned=false;
+                ynPinnedMotionEpisode=false;
+                yahooNiedModeActive=false;
+                ynMode=false;
+                document.body.classList.remove('japan-live-pinned');
+                layout?.classList.remove('japan-focus','yahoo-nied-active');
+                window.__deactivateYahooNied?.();
+                try{if(ynCanvas){ynCanvas.style.display='none';ynCanvas.style.pointerEvents='none';}}catch(_){}
+                try{map&&map.invalidateSize({pan:false});}catch(_){}
+            }catch(_){}
             return true;
         }
+        // ~0,8 s sin movimiento confirmado = episodio terminado y cierre del apartado.
+        const YN_MOTION_IDLE_CLOSE_MS = 800;
         function ynScheduleMotionIdleClose() {
             if(!ynEarlyEpisode)return;
             if(!ynLastConfirmedMotionAt)ynLastConfirmedMotionAt=Date.now();
             if(ynMotionIdleCloseTimer)return;
-            const delay=Math.max(0,5000-(Date.now()-ynLastConfirmedMotionAt));
+            const delay=Math.max(0,YN_MOTION_IDLE_CLOSE_MS-(Date.now()-ynLastConfirmedMotionAt));
             ynMotionIdleCloseTimer=setTimeout(()=>{
                 ynMotionIdleCloseTimer=null;
                 if(!ynEarlyEpisode)return;
                 const idleMs=Date.now()-ynLastConfirmedMotionAt;
-                if(idleMs<5000){ynScheduleMotionIdleClose();return;}
-                // Sin movimiento: se fija Japón 5 s y después el apartado se cierra solo.
-                // Una trama nueva confirmada cancela esta espera (ynRecordConfirmedMotionFrame
-                // limpia el temporizador) y el episodio continúa.
-                if(ynFixJapanDuringIdle()){
-                    ynMotionIdleCloseTimer=setTimeout(()=>{
-                        ynMotionIdleCloseTimer=null;
-                        if(!ynEarlyEpisode)return;
-                        ynFinishMotionEpisodeAfterIdle();
-                    },YN_IDLE_JAPAN_HOLD_MS);
-                    return;
-                }
-                // No revalidar con la última trama cacheada: solo una trama nueva
-                // y confirmada puede reiniciar la cuenta de inactividad.
+                if(idleMs<YN_MOTION_IDLE_CLOSE_MS){ynScheduleMotionIdleClose();return;}
                 ynFinishMotionEpisodeAfterIdle();
             },delay);
         }
@@ -27317,7 +27320,12 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
                     ynPlayMotionIntensitySound(maxInstr, signature);
                     return;
                 }
-                if(ynEarlyEpisode){ynScheduleMotionIdleClose();return;}
+                if(ynEarlyEpisode){
+                    try { ynFinishMotionEpisodeAfterIdle(); } catch (_) {
+                        try { ynScheduleMotionIdleClose(); } catch (__) {}
+                    }
+                    return;
+                }
                 ynGroups = [];
                 ynWaveStartedAt = 0;
                 ynActiveSignature = '';
@@ -27342,11 +27350,18 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
             const confirmed = ynFeedIsFresh() && ynLastMotionEvidenceAt>0 && Date.now()-ynLastMotionEvidenceAt<=5000 && Number(ynLastObservedMs)>ynLastMotionEpisodeClosedStamp && ynAutoActivationReady && ynActiveFrameStreak >= 2 && current.length >= YN_MOTION_QUORUM && groups.length>0;
             if (!confirmed || ynStartupLocked()) {
                 if (ynEarlyEpisode && !confirmed) {
-                    ynScheduleMotionIdleClose();
+                    // Cerrar ya: no depender solo del timer (a veces no dispara).
+                    try { ynFinishMotionEpisodeAfterIdle(); } catch (_) {
+                        try { ynScheduleMotionIdleClose(); } catch (__) {}
+                    }
                     return;
                 }
-                if (ynMode && !ynEarlyEpisode) ynShowIdlePanel(alert);
-                else if (!ynEarlyEpisode) { alert.classList.remove('active'); alert.textContent = ''; }
+                // Sin episodio activo: no mantener Japón abierto con panel idle.
+                if (!ynEarlyEpisode) {
+                    alert.classList.remove('active','yn-motion-active','yn-weak','yn-shaking','yn-strong');
+                    alert.textContent = '';
+                    alert.style.removeProperty('display');
+                }
                 return;
             }
             const waveStations = [...current].sort((a,b) => b.code - a.code);
