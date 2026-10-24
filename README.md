@@ -1,124 +1,152 @@
-# EarthQuake 🌎
+# 🌎 EarthQuake
 
-Monitor sísmico interactivo en HTML que reúne información de distintas
-agencias y visualizaciones en un mapa. Su contenido depende de la
-disponibilidad y actualización de las fuentes de datos; no sustituye los
-avisos oficiales ni constituye un sistema certificado de protección
-civil.
+### El planeta habla. EarthQuake te ayuda a observar sus señales.
 
-## Funciones principales
+**Un monitor sísmico interactivo en HTML que reúne eventos, estaciones y
+alertas en un mapa dinámico.**
 
-### 🌐 Monitoreo de terremotos
+[Funciones](#-qué-puedes-explorar) · [Cómo usarlo](#-cómo-empezar) ·
+[Importante](#️-antes-de-usarlo)
 
--   Consulta y presenta eventos sísmicos de múltiples agencias
-    nacionales e internacionales.
--   Muestra datos disponibles del evento, como magnitud, ubicación,
-    profundidad, hora, agencia informante e intensidad.
--   Permite filtrar el catálogo por magnitud mínima y por agencia.
--   Mantiene los eventos organizados en el mapa y en los paneles del
-    monitor.
+------------------------------------------------------------------------
 
-### 🗺️ Mapa interactivo
+## ⚡ ¿Qué es EarthQuake?
 
--   Mapa geográfico con marcadores de eventos sísmicos.
--   Acercamiento a zonas de interés y vistas específicas para algunas
-    funciones.
--   Capas geográficas y límites regionales cuando los datos
-    correspondientes están disponibles.
--   Visualizaciones adicionales para estaciones, alertas y actividad
-    sísmica.
+EarthQuake es un monitor sísmico que concentra información de distintas
+agencias y herramientas de visualización en una sola interfaz. Desde el
+catálogo de terremotos hasta las estaciones instrumentales, las ondas
+estimadas y los avisos de tsunami, cada sección ayuda a explorar una
+parte distinta de la actividad sísmica.
 
-### 〰️ Ondas sísmicas
+> **Una ventana de observación, muchas señales del planeta.** 🌐
 
--   Vista dedicada a la visualización de ondas estimadas asociadas a
-    eventos compatibles.
--   Animación de frentes de onda sobre el mapa.
--   Seguimiento del evento activo y actualización de la visualización
-    conforme llegan nuevos datos.
--   Las ondas son una representación calculada y no una medición directa
-    del movimiento del suelo en cada punto.
+## 🔎 ¿Qué puedes explorar?
 
-### 🇯🇵 Estaciones y detección de movimiento en Japón
+### 🌍 Catálogo sísmico global
 
--   Vista de estaciones sísmicas japonesas con actualizaciones
-    periódicas.
--   Panel de detección de actividad instrumental.
--   Presentación de estaciones activas y cuadros visuales de movimiento
-    cuando se cumplen los criterios de detección configurados.
--   Herramientas de enfoque y retorno a la vista de Japón.
+-   Consulta eventos publicados por múltiples agencias nacionales e
+    internacionales.
+-   Explora la información disponible: magnitud, ubicación, profundidad,
+    hora, agencia e intensidad.
+-   Filtra los eventos por magnitud mínima o por agencia para encontrar
+    más fácilmente lo que buscas.
+-   Observa los eventos en el mapa y sigue sus actualizaciones cuando
+    llegan nuevos reportes.
 
-### 🇹🇼 Estaciones de Taiwán y movimiento instrumental
+### 🗺️ Un mapa que conecta la información
 
--   Visualización de estaciones TREM disponibles.
--   Evaluación de lecturas instrumentales recientes para identificar
-    actividad.
--   Agrupación de estaciones cercanas para evitar tratar una lectura
-    aislada como una detección confirmada por el panel.
--   Uso del panel y de los cuadros visuales compartidos con la detección
-    japonesa cuando se detecta actividad en Taiwán.
--   La detección instrumental depende de que lleguen datos válidos y
-    actualizados.
+-   Visualiza la ubicación de los eventos sobre un mapa interactivo.
+-   Explora regiones de interés y vistas especializadas.
+-   Consulta límites geográficos y otras capas cuando los datos están
+    disponibles.
+-   Cambia entre las vistas del monitor para observar eventos,
+    estaciones y alertas desde distintas perspectivas.
 
-### 🌊 Información y visualización de tsunamis
+### 〰️ Ondas sísmicas animadas
 
--   Panel y modo de mapa para avisos y zonas de tsunami disponibles.
--   Representación diferenciada de niveles de información, como
-    *Forecast*, *Advisory*, *Warning* y *Major Warning*, cuando los
-    reportes los incluyen.
--   Líneas costeras y zonas de aviso con actualización de la información
+-   Abre una vista dedicada a las ondas estimadas asociadas a eventos
+    compatibles.
+-   Observa la animación de los frentes de onda sobre el mapa.
+-   Sigue el evento activo mientras se actualiza la información
     recibida.
--   Sonidos de aviso asociados a cambios de nivel, sujetos a la
-    configuración y a las restricciones de audio del navegador.
 
-### 🌋 Otras alertas y capas
+*Las ondas son una visualización calculada, no una medición directa del
+movimiento del suelo en cada lugar.*
 
--   Paneles para determinados avisos meteorológicos y fenómenos
-    geofísicos disponibles en la versión.
--   Vistas especializadas que pueden cambiar temporalmente el enfoque
-    del mapa para mostrar la región pertinente.
--   Capas complementarias, como límites geográficos y fallas, cuando la
-    fuente correspondiente está disponible.
+### 🇯🇵 Japón: estaciones y detección de movimiento
 
-### 🔊 Audio y avisos
+-   Explora la vista de estaciones sísmicas japonesas con
+    actualizaciones periódicas.
+-   Consulta el panel de detección de actividad instrumental.
+-   Cuando se cumplen los criterios configurados, las estaciones activas
+    y los cuadros visuales ayudan a identificar la zona donde se observa
+    movimiento.
+-   Usa los controles de vista para volver al enfoque de Japón.
 
--   Reproducción de sonidos para determinados reportes y cambios de
+### 🇹🇼 Taiwán: actividad instrumental
+
+-   Visualiza las estaciones TREM disponibles y sus lecturas
+    instrumentales.
+-   Evalúa lecturas recientes y la proximidad entre estaciones para
+    detectar actividad agrupada.
+-   Cuando se cumplen los criterios de detección, Taiwán puede utilizar
+    el mismo panel y los cuadros visuales de movimiento que Japón.
+-   La detección depende de que las lecturas sean válidas y estén
+    actualizadas.
+
+### 🌊 Tsunamis: avisos y zonas
+
+-   Consulta el modo de mapa para los avisos de tsunami disponibles.
+-   Distingue los niveles incluidos en los reportes, como **Forecast**,
+    **Advisory**, **Warning** y **Major Warning**.
+-   Explora las zonas y líneas costeras representadas según la
+    información recibida.
+-   Recibe sonidos asociados a determinados cambios de alerta cuando el
+    navegador permite reproducir audio.
+
+### 🌦️🌋 Otras capas y alertas
+
+-   Accede a paneles especializados para ciertos avisos meteorológicos y
+    fenómenos geofísicos incluidos en la versión.
+-   Visualiza información regional cuando existe un reporte compatible.
+-   Explora capas complementarias, como límites geográficos y fallas,
+    cuando están disponibles.
+
+### 🔊 Sonidos y avisos
+
+-   Reproduce sonidos para determinados reportes sísmicos y cambios de
     alerta.
--   Algunas funciones de audio requieren una interacción inicial con la
-    página debido a las políticas del navegador.
--   La disponibilidad de sonidos puede variar según el tipo de evento y
-    el estado del reporte.
+-   Algunas funciones de audio necesitan que interactúes primero con la
+    página, según las reglas del navegador.
+-   Los sonidos y avisos disponibles dependen del tipo de reporte y de
+    los datos recibidos.
 
-## Uso
+## 🚀 Cómo empezar
 
-1.  Abre el archivo HTML en un navegador compatible.
-2.  Permite que cargue el mapa y espera a que se consulten las fuentes
-    de datos.
-3.  Selecciona un evento o una función del monitor para explorar su
-    información.
-4.  Usa los filtros del catálogo para limitar los eventos por magnitud o
-    agencia.
-5.  Para obtener información de seguridad, confirma siempre los avisos
-    en los canales oficiales de las autoridades correspondientes.
+1.  **Abre** el archivo HTML con un navegador compatible.
+2.  **Espera** a que se carguen el mapa y las fuentes de datos.
+3.  **Explora** el catálogo, selecciona una agencia o filtra por
+    magnitud.
+4.  **Cambia de vista** para consultar las ondas, las estaciones o los
+    paneles de alertas disponibles.
+5.  **Contrasta la información** con las publicaciones oficiales si
+    necesitas tomar decisiones de seguridad.
 
-## Consideraciones
+## 🧭 Filosofía del monitor
 
--   EarthQuake es un monitor informativo, no un instrumento certificado
-    de alerta temprana.
--   La latencia, precisión, cobertura y disponibilidad dependen de cada
-    fuente de datos y de la conexión a Internet.
--   Los datos preliminares pueden cambiar cuando la agencia publica una
-    actualización o un informe final.
--   Las ondas estimadas y las detecciones basadas en estaciones no deben
-    interpretarse como confirmación automática de daños ni como garantía
-    de que se emitirá una alerta oficial.
--   Algunas secciones solo muestran información cuando existe un reporte
-    activo o cuando la fuente proporciona datos compatibles.
--   Este README describe las funciones visibles del monitor; no
-    documenta detalles internos de conexión.
+EarthQuake está pensado para observar y explorar información sísmica de
+distintas fuentes en una interfaz común. Las agencias pueden publicar
+reportes preliminares, actualizaciones y soluciones finales diferentes;
+por eso, los datos pueden cambiar durante el desarrollo de un evento.
 
-## Créditos
+La animación de ondas y la detección instrumental son herramientas de
+visualización. No garantizan que un sismo vaya a ser detectado con
+anticipación ni que se emita una alerta oficial.
 
-EarthQuake integra datos y conceptos de visualización procedentes de
-distintas agencias y proyectos públicos. Consulta las atribuciones y
-condiciones de uso que aparecen en el propio código y en las fuentes
-originales.
+## ⚠️ Antes de usarlo
+
+-   EarthQuake es un monitor informativo, **no un sistema certificado de
+    alerta temprana**.
+-   La cobertura, precisión, latencia y disponibilidad dependen de cada
+    fuente y de tu conexión a Internet.
+-   Las magnitudes, profundidades y ubicaciones preliminares pueden
+    cambiar.
+-   Una detección de movimiento no confirma por sí sola daños ni permite
+    determinar automáticamente el impacto en una zona.
+-   Algunas secciones solo muestran información cuando hay reportes
+    activos o datos compatibles.
+-   Para emergencias, evacuaciones o decisiones de seguridad, sigue
+    siempre las instrucciones de las autoridades oficiales.
+
+## 🧩 Acerca de los datos
+
+EarthQuake presenta información de diversas agencias y proyectos
+públicos. La disponibilidad de cada función depende de los datos que
+esas fuentes publiquen en cada momento. Consulta las atribuciones y
+condiciones de uso incluidas en el código y en las fuentes originales.
+
+------------------------------------------------------------------------
+
+**EarthQuake 🌎**\
+*Observa los datos. Explora las señales. Consulta siempre las fuentes
+oficiales.*
