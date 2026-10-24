@@ -5156,6 +5156,7 @@ body.sismos-meteo-quiet #mainLayout .map-container{visibility:hidden}
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@joergdietrich/leaflet.terminator@1.1.0/L.Terminator.js"></script>
     <script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
     <script>
 /* taup-js 1.0.0 bundled for EarthQuake; license: AGPL-3.0-only */
@@ -6735,6 +6736,53 @@ global.TauPJS=api;
             doubleClickZoom: true,
             touchZoom: true
         }).setView([20, 140], 3);
+
+        // Día/noche global inspirado en Kanameishi: sombreado nocturno actualizado en tiempo real.
+        // Se usa un pane propio para mantener las estaciones y los marcadores interactivos por encima.
+        let earthQuakeDayNightLayer = null;
+        let earthQuakeDayNightTimer = null;
+        try {
+            if (typeof L.terminator === 'function') {
+                const dayNightPane = map.createPane('earthQuakeDayNightPane');
+                dayNightPane.style.zIndex = '350';
+                dayNightPane.style.pointerEvents = 'none';
+                earthQuakeDayNightLayer = L.terminator({
+                    pane: 'earthQuakeDayNightPane',
+                    resolution: 2,
+                    fill: true,
+                    fillColor: '#06101f',
+                    fillOpacity: 0.48,
+                    color: '#f6d782',
+                    opacity: 0.72,
+                    weight: 1
+                }).addTo(map);
+                earthQuakeDayNightTimer = window.setInterval(() => {
+                    try {
+                        if (earthQuakeDayNightLayer && typeof earthQuakeDayNightLayer.setTime === 'function') {
+                            earthQuakeDayNightLayer.setTime();
+                        }
+                    } catch (_) {}
+                }, 60000);
+                const dayNightLegend = L.control({ position: 'bottomright' });
+                dayNightLegend.onAdd = function () {
+                    const el = L.DomUtil.create('div', 'eq-day-night-legend');
+                    el.innerHTML = '<span class="eq-day-night-swatch"></span><span>🌙 Noche</span><span class="eq-day-night-day">☀️ Día</span>';
+                    el.style.cssText = 'display:flex;align-items:center;gap:9px;padding:6px 9px;border:1px solid rgba(246,215,130,.45);border-radius:8px;background:rgba(8,14,24,.86);color:#f4f7fb;font:600 12px/1.2 Arial,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.35);';
+                    const swatch = el.querySelector('.eq-day-night-swatch');
+                    if (swatch) swatch.style.cssText = 'display:inline-block;width:13px;height:13px;border-radius:50%;background:#06101f;border:1px solid #f6d782;';
+                    L.DomEvent.disableClickPropagation(el);
+                    return el;
+                };
+                dayNightLegend.addTo(map);
+                const style = document.createElement('style');
+                style.textContent = '.eq-day-night-legend .eq-day-night-day{color:#ffe8a6;}';
+                document.head.appendChild(style);
+            } else {
+                console.warn('EarthQuake: la librería de terminador día/noche no se cargó.');
+            }
+        } catch (dayNightError) {
+            console.warn('EarthQuake: no se pudo iniciar la capa día/noche.', dayNightError);
+        }
         map.attributionControl.addAttribution('<a href="https://www.geoboundaries.org/" target="_blank" rel="noopener">geoBoundaries</a>');
         let programmaticMapMove = false;
         let programmaticMapMoveSequence = 0;
@@ -11868,87 +11916,120 @@ global.TauPJS=api;
         // Basemap oscuro tipo monitor sísmico: países oscuros y fronteras visibles.
         const tileDark = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { ...mapTileRenderOptions, maxZoom: 16, opacity:.78, attribution: '© Esri, HERE, Garmin, USGS, NGA, EPA, NPS | Datos sísmicos: USGS + JMA + CENC + EMSC' });
 
-        // Capa de velocidad del viento directamente sobre el mapa Leaflet.
-        // El pane queda por encima del fondo, pero debajo de intensidad,
-        // fronteras, epicentros, EEW, tsunami y estaciones.
+        // Viento animado sobre el mapa principal. Usa observaciones/modelo Open-Meteo
+        // en puntos del encuadre; las partículas se mueven según dirección y velocidad recibidas.
         const windOverlayPane = map.createPane('windOverlayPane');
         windOverlayPane.style.zIndex = '345';
         windOverlayPane.style.pointerEvents = 'none';
-        const windTileOptions = {
-            pane: 'windOverlayPane', opacity: 0.52, minZoom: 2, maxZoom: 18,
-            updateWhenZooming: false, updateWhenIdle: true, keepBuffer: 1,
-            attribution: 'Viento: WeatherAPI.com'
-        };
-        function windForecastTileUrl() {
-            const now = new Date();
-            const yyyy = now.getUTCFullYear();
-            const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
-            const dd = String(now.getUTCDate()).padStart(2, '0');
-            const hh = String(now.getUTCHours()).padStart(2, '0');
-            return `https://weathermaps.weatherapi.com/wind/tiles/${yyyy}${mm}${dd}${hh}/{z}/{x}/{y}.png`;
+        const windCanvas = L.DomUtil.create('canvas', 'eq-wind-particles');
+        windCanvas.style.position = 'absolute'; windCanvas.style.left = '0'; windCanvas.style.top = '0';
+        windCanvas.style.pointerEvents = 'none'; windOverlayPane.appendChild(windCanvas);
+        const windCtx = windCanvas.getContext('2d');
+        let windEnabled = false, windParticles = [], windGrid = [], windAnimFrame = 0, windFetchBusy = false;
+        function sizeWindCanvas(){
+            const z=window.devicePixelRatio||1, sz=map.getSize();
+            windCanvas.width=Math.max(1,Math.round(sz.x*z)); windCanvas.height=Math.max(1,Math.round(sz.y*z));
+            windCanvas.style.width=sz.x+'px'; windCanvas.style.height=sz.y+'px';
+            windCtx.setTransform(z,0,0,z,0,0); L.DomUtil.setPosition(windCanvas,L.point(0,0));
+            windParticles=[];
         }
-        let windOverlayLayer = L.tileLayer(windForecastTileUrl(), windTileOptions);
-        windOverlayLayer.on('tileerror', () => {
-            console.warn('[EarthQuake] No se pudo cargar una tesela de viento; se reintentará en la próxima actualización.');
-        });
-        // La capa empieza apagada; solo se añade al mapa cuando el usuario la activa.
-
-        // Control manual de la capa de viento, independiente de las capas sísmicas.
-        const btnWindOverlay = document.getElementById('btnWindOverlay');
-        function setWindOverlayEnabled(enabled) {
-            if (!windOverlayLayer || !map || !btnWindOverlay) return;
-            if (enabled) {
-                if (!map.hasLayer(windOverlayLayer)) windOverlayLayer.addTo(map);
-                btnWindOverlay.setAttribute('aria-pressed', 'true');
-                btnWindOverlay.setAttribute('aria-label', 'Desactivar capa de viento');
-                btnWindOverlay.title = 'Desactivar capa de viento';
-                btnWindOverlay.textContent = '💨 Viento: activado';
-                btnWindOverlay.style.background = 'rgba(20,70,95,0.95)';
-                btnWindOverlay.style.borderColor = '#62d9ff';
-            } else {
-                if (map.hasLayer(windOverlayLayer)) map.removeLayer(windOverlayLayer);
-                btnWindOverlay.setAttribute('aria-pressed', 'false');
-                btnWindOverlay.setAttribute('aria-label', 'Activar capa de viento');
-                btnWindOverlay.title = 'Activar capa de viento';
-                btnWindOverlay.textContent = '💨 Viento: desactivado';
-                btnWindOverlay.style.background = 'rgba(20,20,20,0.9)';
-                btnWindOverlay.style.borderColor = '#555';
+        function windSample(lat,lon){
+            if(!windGrid.length) return null;
+            let best=null,bd=Infinity;
+            for(const g of windGrid){const d=(g.lat-lat)**2*Math.cos(lat*Math.PI/180)**2+(g.lon-lon)**2;if(d<bd){bd=d;best=g;}}
+            return best;
+        }
+        async function loadWindGrid(){
+            if(windFetchBusy||!windEnabled)return; windFetchBusy=true;
+            try{
+                // Consultas independientes y válidas de Open-Meteo, distribuidas solo en las tres regiones.
+                // La API no acepta arrays de latitudes/longitudes separados por comas en una sola ubicación.
+                const samplePoints=[
+                    {lat:4.6,lon:-74.1},{lat:7.1,lon:-73.1},{lat:10.4,lon:-75.5},
+                    {lat:35.7,lon:139.7},{lat:38.3,lon:140.9},{lat:43.1,lon:141.3},
+                    {lat:25.0,lon:121.5},{lat:23.7,lon:120.9},{lat:22.6,lon:120.3}
+                ];
+                const results=await Promise.all(samplePoints.map(async pt=>{
+                    const url='https://api.open-meteo.com/v1/forecast?latitude='+pt.lat+'&longitude='+pt.lon+'&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=kmh';
+                    const res=await fetch(url,{cache:'no-store'});if(!res.ok)throw Error('Open-Meteo HTTP '+res.status);
+                    const data=await res.json(),cur=data&&data.current;
+                    const speed=Number(cur?.wind_speed_10m),dir=Number(cur?.wind_direction_10m);
+                    if(!Number.isFinite(speed)||!Number.isFinite(dir))throw Error('Datos de viento incompletos');
+                    return {lat:pt.lat,lon:pt.lon,speed,dir,time:cur.time||data.current_weather?.time||null};
+                }));
+                if(results.length!==samplePoints.length)throw Error('No se recibieron todos los puntos de viento');
+                windGrid=results;
+                if(btnWindOverlay){btnWindOverlay.title='Viento basado en Open-Meteo · actualizado '+new Date().toLocaleTimeString();}
+            }catch(e){
+                // No conservar datos viejos ni animar con valores inventados cuando la API falla.
+                windGrid=[];windParticles=[];
+                if(windCtx)windCtx.clearRect(0,0,windCanvas.width,windCanvas.height);
+                if(btnWindOverlay){btnWindOverlay.textContent='💨 Viento: datos no disponibles';btnWindOverlay.title='Open-Meteo no devolvió datos válidos';}
+                console.warn('[EarthQuake] Viento desactivado por falta de datos válidos de Open-Meteo',e);
+            }finally{windFetchBusy=false;}
+        }
+        // Limitar las partículas a Colombia, Japón y Taiwán; fuera de estas regiones no se dibuja viento.
+        const windAllowedRegions=[
+            {name:'Colombia',south:-5.5,north:13.8,west:-82.5,east:-66.0},
+            {name:'Japón',south:24.0,north:46.5,west:122.0,east:150.0},
+            {name:'Taiwán',south:20.0,north:27.5,west:117.0,east:124.5}
+        ];
+        function windRegionAt(lat,lon){return windAllowedRegions.find(r=>lat>=r.south&&lat<=r.north&&lon>=r.west&&lon<=r.east)||null;}
+        function randomWindPoint(){
+            const sz=map.getSize();
+            for(let i=0;i<80;i++){const x=Math.random()*sz.x,y=Math.random()*sz.y,ll=map.containerPointToLatLng([x,y]);if(windRegionAt(ll.lat,ll.lng)&&windSample(ll.lat,ll.lng))return {x,y,life:30+Math.random()*55,age:0};}
+            return {x:-100,y:-100,life:1,age:0};
+        }
+        function windVector(lat,lon){if(!windRegionAt(lat,lon))return null;const g=windSample(lat,lon);if(!g)return null;const a=(g.dir+180)*Math.PI/180;return {x:Math.sin(a)*Math.max(0.6,g.speed/18),y:-Math.cos(a)*Math.max(0.6,g.speed/18),speed:g.speed};}
+        function animateWind(){
+            if(!windEnabled)return; const sz=map.getSize();
+            if(!windGrid.length){windCtx.clearRect(0,0,sz.x,sz.y);windAnimFrame=requestAnimationFrame(animateWind);return;}
+            if(windCanvas.width===0||windCanvas.height===0)sizeWindCanvas();
+            windCtx.clearRect(0,0,sz.x,sz.y);
+            const target=Math.min(700,Math.max(180,Math.floor(sz.x*sz.y/1500)));
+            while(windParticles.length<target)windParticles.push(randomWindPoint());
+            windCtx.lineWidth=1.15;windCtx.strokeStyle='rgba(105,220,255,.78)';windCtx.fillStyle='rgba(175,242,255,.8)';
+            for(const p of windParticles){
+                const ll=map.containerPointToLatLng([p.x,p.y]),v=windVector(ll.lat,ll.lng);
+                if(v){const oldx=p.x,oldy=p.y;p.x+=v.x*(1+v.speed/18)*1.6;p.y+=v.y*(1+v.speed/18)*1.6;
+                    const nextLL=map.containerPointToLatLng([p.x,p.y]);
+                    if(windRegionAt(nextLL.lat,nextLL.lng)){windCtx.beginPath();windCtx.moveTo(oldx,oldy);windCtx.lineTo(p.x,p.y);windCtx.stroke();}}
+                p.age++;const currentLL=map.containerPointToLatLng([p.x,p.y]);if(p.x<0||p.x>sz.x||p.y<0||p.y>sz.y||p.age>p.life||!windRegionAt(currentLL.lat,currentLL.lng)){Object.assign(p,randomWindPoint());}
             }
+            windAnimFrame=requestAnimationFrame(animateWind);
         }
-        if (btnWindOverlay) {
-            btnWindOverlay.addEventListener('click', () => {
-                setWindOverlayEnabled(!map.hasLayer(windOverlayLayer));
-            });
-            setWindOverlayEnabled(false);
+        let btnWindOverlay = document.getElementById('btnWindOverlay');
+        function setWindOverlayEnabled(enabled){
+            windEnabled=!!enabled;
+            if(windEnabled){sizeWindCanvas();loadWindGrid();cancelAnimationFrame(windAnimFrame);animateWind();}
+            else{cancelAnimationFrame(windAnimFrame);windCtx.clearRect(0,0,windCanvas.width,windCanvas.height);}
+            if(btnWindOverlay){btnWindOverlay.setAttribute('aria-pressed',String(windEnabled));btnWindOverlay.textContent=windEnabled?'💨 Viento animado: activado':'💨 Viento animado: desactivado';btnWindOverlay.style.borderColor=windEnabled?'#62d9ff':'#555';}
         }
+        map.on('moveend zoomend resize',()=>{if(windEnabled){sizeWindCanvas();loadWindGrid();}});
+        setInterval(()=>{if(windEnabled)loadWindGrid();},10*60*1000);
+        function bindWindOverlayControl(){btnWindOverlay=document.getElementById('btnWindOverlay');if(!btnWindOverlay||btnWindOverlay.dataset.eqBound==='1')return;btnWindOverlay.dataset.eqBound='1';btnWindOverlay.addEventListener('click',()=>setWindOverlayEnabled(!windEnabled));setWindOverlayEnabled(false);}
+        if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindWindOverlayControl,{once:true});else bindWindOverlayControl();
 
-
-        // Panel incrustado del mapa oficial Blitzortung (no extrae datos sin procesar).
-        const btnBlitzortung = document.getElementById('btnBlitzortung');
-        const blitzortungPanel = document.getElementById('blitzortungPanel');
-        const btnCloseBlitzortung = document.getElementById('btnCloseBlitzortung');
-        function setBlitzortungPanelOpen(open) {
-            if (!blitzortungPanel || !btnBlitzortung) return;
-            blitzortungPanel.style.display = open ? 'block' : 'none';
-            btnBlitzortung.setAttribute('aria-pressed', open ? 'true' : 'false');
-            btnBlitzortung.setAttribute('aria-label', open ? 'Cerrar mapa de rayos Blitzortung' : 'Abrir mapa de rayos Blitzortung');
-            btnBlitzortung.title = open ? 'Cerrar mapa de rayos Blitzortung' : 'Abrir mapa de rayos Blitzortung';
-            btnBlitzortung.style.background = open ? 'rgba(20,70,95,0.95)' : 'rgba(20,20,20,0.92)';
-            btnBlitzortung.style.borderColor = open ? '#62d9ff' : '#555';
+        // Rayos en el mapa principal: teselas transparentes en vivo de LightningMaps.
+        const lightningPane=map.createPane('eqLightningPane');lightningPane.style.zIndex='360';lightningPane.style.pointerEvents='none';
+        let lightningLayer=null,lightningEnabled=false,btnBlitzortung=document.getElementById('btnBlitzortung');
+        function lightningTileUrl(){return 'https://tiles.lightningmaps.org/?x={x}&y={y}&z={z}&s=256&t=5&T='+Math.floor(Date.now()/1000);}
+        function setLightningEnabled(enabled){
+            lightningEnabled=!!enabled;
+            if(lightningEnabled){if(lightningLayer)map.removeLayer(lightningLayer);lightningLayer=L.tileLayer(lightningTileUrl(),{pane:'eqLightningPane',opacity:.92,updateWhenIdle:true,keepBuffer:1,attribution:'Rayos: LightningMaps / Blitzortung'}).addTo(map);}
+            else if(lightningLayer){map.removeLayer(lightningLayer);lightningLayer=null;}
+            if(btnBlitzortung){btnBlitzortung.setAttribute('aria-pressed',String(lightningEnabled));btnBlitzortung.textContent=lightningEnabled?'⚡ Rayos en mapa: activados':'⚡ Rayos en mapa: desactivados';btnBlitzortung.style.borderColor=lightningEnabled?'#62d9ff':'#555';}
         }
-        if (btnBlitzortung) btnBlitzortung.addEventListener('click', () => {
-            const isOpen = blitzortungPanel && blitzortungPanel.style.display !== 'none';
-            setBlitzortungPanelOpen(!isOpen);
-            if (!isOpen) document.getElementById('eqSettingsModal')?.classList.remove('active');
-        });
-        if (btnCloseBlitzortung) btnCloseBlitzortung.addEventListener('click', () => setBlitzortungPanelOpen(false));
+        setInterval(()=>{if(lightningEnabled)setLightningEnabled(true);},15000);
+        function bindLightningControl(){btnBlitzortung=document.getElementById('btnBlitzortung');if(!btnBlitzortung||btnBlitzortung.dataset.eqBound==='1')return;btnBlitzortung.dataset.eqBound='1';btnBlitzortung.addEventListener('click',()=>setLightningEnabled(!lightningEnabled));setLightningEnabled(false);}
+        if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindLightningControl,{once:true});else bindLightningControl();
 
         // Selector de imágenes satelitales meteorológicas NASA GIBS.
         // Capa en un pane propio, por encima del mapa base y debajo de las capas sísmicas.
         const satelliteWeatherPane = map.createPane('satelliteWeatherPane');
         satelliteWeatherPane.style.zIndex = '350';
         satelliteWeatherPane.style.pointerEvents = 'none';
-        const satelliteWeatherSelect = document.getElementById('satelliteWeatherSelect');
+        let satelliteWeatherSelect = document.getElementById('satelliteWeatherSelect');
         let satelliteWeatherLayer = null;
         const satelliteWeatherCatalog = {
             'goes-east': { id: 'GOES-East_ABI_GeoColor', label: 'GOES-East GeoColor' },
@@ -11990,9 +12071,14 @@ global.TauPJS=api;
                 satelliteWeatherSelect.title = `Satélite seleccionado: ${config.label}`;
             }
         }
-        if (satelliteWeatherSelect) {
+        function bindSatelliteWeatherControl() {
+            satelliteWeatherSelect = document.getElementById('satelliteWeatherSelect');
+            if (!satelliteWeatherSelect || satelliteWeatherSelect.dataset.eqBound === '1') return;
+            satelliteWeatherSelect.dataset.eqBound = '1';
             satelliteWeatherSelect.addEventListener('change', () => setSatelliteWeatherLayer(satelliteWeatherSelect.value));
         }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindSatelliteWeatherControl, { once:true });
+        else bindSatelliteWeatherControl();
 
         // Actualizar la referencia temporal del mosaico cada hora UTC.
         setInterval(() => {
@@ -19943,11 +20029,31 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             return Number.isFinite(ts) ? ts : 0;
         }
         function showWolfxAllEewWaves(ev) {
-            if (!ev || !taupEewWaveIsFresh(ev)) return;
-            try { notifyRealEarthquakePriority(ev); } catch (_) {}
+            if (!ev || ev.isCancel || !Number.isFinite(Number(ev.lat)) || !Number.isFinite(Number(ev.lon))) return;
+            const origin = Number(ev.waveOriginTs || ev.ts) || parseTs(ev.time);
+            const age = Date.now() - origin;
+            const maxAge = Number(ev.eewMaxAgeMs) > 0 ? Number(ev.eewMaxAgeMs) : 5 * 60 * 1000;
+            // Un reporte FINAL no cancela la propagación física de las ondas.
+            // Mantener una copia de visualización activa hasta que el evento
+            // expire; el estado final original se conserva en la lista de sismos.
+            if (!Number.isFinite(origin) || origin <= 0 || age < -120000 || age > maxAge) return;
+            const waveEvent = {
+                ...ev,
+                isTaupEew: true,
+                isFinal: false,
+                isCancel: false,
+                waveOriginTs: origin,
+                waveTime: ev.waveTime || (typeof formatTime === 'function' ? formatTime(origin) : ev.time || ''),
+                status: ev.reportConfidence === 'final' ? 'Reporte final · ondas en propagación' : (ev.status || 'En vivo')
+            };
+            // Fijar el evento explícitamente evita depender de que el selector
+            // genérico encuentre el mismo evento entre otras fuentes simultáneas.
+            taupEewWaveEvent = waveEvent;
+            try { notifyRealEarthquakePriority(waveEvent); } catch (_) {}
             try {
-                openEewJapanStationsView(ev, { showToast:false });
+                openEewJapanStationsView(waveEvent, { showToast:false });
                 if (typeof renderWaveMode === 'function') renderWaveMode();
+                if (typeof startWaveAnimation === 'function') startWaveAnimation();
             } catch (_) {}
             try { window.__sesnaEewBannerSync?.(); } catch (_) {}
         }
@@ -20060,14 +20166,14 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 const previous = events[duplicateIndex];
                 const merged = { ...previous, ...ev, id:previous.id, agency:previous.agency || ev.agency, source:previous.source || ev.source };
                 events[duplicateIndex] = merged;
-                try { renderEvents(); if (!terminal) showWolfxAllEewWaves(merged); } catch (_) {}
+                try { renderEvents(); showWolfxAllEewWaves(merged); } catch (_) {}
                 if (extremeMag) { try { showRegionToast('⚠️ ' + source + ' · magnitud extrema · esperar revisión'); } catch (_) {} }
                 try { if (typeof setApiState === 'function') setApiState('wolfxAll', 'ok'); } catch (_) {}
                 return;
             }
             const i = events.findIndex(x => x.id === ev.id);
             if (i >= 0) events[i] = { ...events[i], ...ev }; else events.unshift(ev);
-            try { renderEvents(); if (!terminal) showWolfxAllEewWaves(i >= 0 ? events[i] : ev); } catch (_) {}
+            try { renderEvents(); showWolfxAllEewWaves(i >= 0 ? events[i] : ev); } catch (_) {}
             try { showEarthquakeTicker(ev, extremeMag ? (source + ' · magnitud extrema') : source, { liveUpdate:true }); } catch (_) {}
             if (extremeMag) { try { showRegionToast('⚠️ ' + source + ' · magnitud extrema · esperar revisión'); } catch (_) {} }
             try { if (typeof setApiState === 'function') setApiState('wolfxAll', 'ok'); } catch (_) {}
@@ -27079,25 +27185,21 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
             ynActiveFrameStreak=0;ynAutoActivationReady=false;ynPreviousFrameActive=false;ynInactiveSinceBaseline=true;ynPreviousActiveStationIndices=new Set();
             ynMotionGroupLastFrameMs=Number(ynLastObservedMs)||0;ynPreviousMotionGroupStates=[];ynConfirmedMotionGroups=[];
         }
-        // Ondas P/S de estimación local activas.
+        // Ondas locales o cuadros de movimiento aún activos → no cerrar Japón.
         function ynLocalEstimateWavesActive() {
             try {
                 if (ynWaveStartedAt > 0 && (Date.now() - ynWaveStartedAt) < 5 * 60 * 1000) {
                     if (ynWaveCenter || ynWaveTarget) return true;
-                    try {
-                        if (ynWaveCanvas && ynWaveCanvas.style.display !== 'none' && ynWaveCanvas.style.display !== '') return true;
-                    } catch (_) {}
+                    try { if (ynWaveCanvas && ynWaveCanvas.style.display !== 'none' && ynWaveCanvas.style.display !== '') return true; } catch (_) {}
                 }
                 if (typeof waveMode !== 'undefined' && waveMode) {
                     const ev = typeof getCurrentWaveEvent === 'function' ? getCurrentWaveEvent() : null;
                     if (ev && (ev.estimated === true || ev.waveOriginEstimated === true)) return true;
-                    if (ev && ev.isTaupEew && /nied|yahoo|local|estim/i.test(String(ev.agency || ev.source || ''))) return true;
                 }
                 if (window.__ynLocalEpicenterEstimate) return true;
             } catch (_) {}
             return false;
         }
-        // Cuadros de movimiento (celdas verdes/amarillas/rojas) aún visibles en el mapa.
         function ynMotionBoxesStillVisible() {
             try {
                 if (ynMotionHighlightLayer) {
@@ -27106,95 +27208,90 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
                     if (n > 0) return true;
                 }
                 if (document.querySelector('.yn-movement-box')) return true;
-                if (Array.isArray(ynGroups) && ynGroups.some(g => (g?.stations || []).length > 0)) return true;
             } catch (_) {}
             return false;
         }
-        // No cerrar si hay ondas locales o cuadros parpadeando.
         function ynShouldKeepJapanApartadoOpen() {
             return ynLocalEstimateWavesActive() || ynMotionBoxesStillVisible();
         }
+        function ynForceCloseJapanApartado() {
+            try {
+                const layout = document.getElementById('mainLayout');
+                japanLiveStationsPinned = false;
+                ynPinnedMotionEpisode = false;
+                yahooNiedModeActive = false;
+                ynMode = false;
+                document.body.classList.remove('japan-live-pinned');
+                layout?.classList.remove('japan-focus', 'yahoo-nied-active');
+                window.__deactivateYahooNied?.();
+                try { if (ynCanvas) { ynCanvas.style.display = 'none'; ynCanvas.style.pointerEvents = 'none'; } } catch (_) {}
+                try { map && map.invalidateSize({ pan: false }); } catch (_) {}
+            } catch (_) {}
+        }
         function ynFinishMotionEpisodeAfterIdle() {
-            // Si aún hay ondas locales o cuadros de movimiento, NO cerrar.
+            // Con ondas o cuadros: no cerrar; reintentar en 1 s.
             if (ynShouldKeepJapanApartadoOpen()) {
                 ynEarlyEpisode = false;
                 ynRequireFreshMotionAfterIdle();
-                ynAutoActivationAttempted = false;
-                ynLastMotionIntLevel = -1;
-                ynActiveSignature = '';
                 ynClearMotionIdleCloseTimer();
-                // Reintentar cierre a los 5 s cuando ya no queden ondas/cuadros.
                 try {
                     clearTimeout(window.__ynKeepOpenRetryTimer);
-                    const retryKeepOpen = () => {
-                        try {
-                            if (ynShouldKeepJapanApartadoOpen()) {
-                                window.__ynKeepOpenRetryTimer = setTimeout(retryKeepOpen, 5000);
-                                return;
-                            }
-                            ynFinishMotionEpisodeAfterIdle();
-                        } catch (_) {}
-                    };
-                    window.__ynKeepOpenRetryTimer = setTimeout(retryKeepOpen, 5000);
+                    window.__ynKeepOpenRetryTimer = setTimeout(() => {
+                        try { ynFinishMotionEpisodeAfterIdle(); } catch (_) {}
+                    }, 1000);
                 } catch (_) {}
                 return true;
             }
-            // Sin ondas ni cuadros: cerrar el apartado (tras la espera de 5 s del schedule).
-            ynEarlyEpisode=false;
+            // Cerrar apartado de Japón.
+            ynEarlyEpisode = false;
             ynRequireFreshMotionAfterIdle();
-            ynAutoActivationAttempted=false;
-            ynLastMotionIntLevel=-1;ynGroups=[];ynWaveStartedAt=0;ynActiveSignature='';ynInitialViewDone=false;
-            try{ynClearMotionBoxes();}catch(_){}
-            try{window.__eqKanameishiClearMotionVisual?.();}catch(_){}
-            try{ynStopWaveAnimation();}catch(_){}
-            try{ynHideLocalEpicenterCard();}catch(_){}
-            const alert=document.getElementById('ynEarlyAlert');
-            if(alert){
-                alert.classList.remove('active','yn-motion-active','yn-weak','yn-shaking','yn-strong','eqk-only-shake','yn-tsunami-forecast');
-                alert.innerHTML='';
-                alert.textContent='';
+            ynAutoActivationAttempted = false;
+            ynLastMotionIntLevel = -1;
+            ynGroups = [];
+            ynWaveStartedAt = 0;
+            ynActiveSignature = '';
+            ynInitialViewDone = false;
+            try { ynClearMotionBoxes(); } catch (_) {}
+            try { window.__eqKanameishiClearMotionVisual?.(); } catch (_) {}
+            try { ynStopWaveAnimation(); } catch (_) {}
+            try { ynHideLocalEpicenterCard(); } catch (_) {}
+            const alert = document.getElementById('ynEarlyAlert');
+            if (alert) {
+                alert.classList.remove('active', 'yn-motion-active', 'yn-weak', 'yn-shaking', 'yn-strong', 'eqk-only-shake', 'yn-tsunami-forecast');
+                alert.innerHTML = '';
+                alert.textContent = '';
                 alert.style.removeProperty('display');
             }
-            ynMotionAutoClosePending=true;
-            ynAutoOpened=true;
-            try{ynCloseAutomatically();}catch(err){console.warn('[motion-idle-close]',err);}
-            try{
-                const layout=document.getElementById('mainLayout');
-                japanLiveStationsPinned=false;
-                ynPinnedMotionEpisode=false;
-                yahooNiedModeActive=false;
-                ynMode=false;
-                document.body.classList.remove('japan-live-pinned');
-                layout?.classList.remove('japan-focus','yahoo-nied-active');
-                window.__deactivateYahooNied?.();
-                try{if(ynCanvas){ynCanvas.style.display='none';ynCanvas.style.pointerEvents='none';}}catch(_){}
-                try{map&&map.invalidateSize({pan:false});}catch(_){}
-            }catch(_){}
+            ynMotionAutoClosePending = true;
+            ynAutoOpened = true;
+            try { ynCloseAutomatically(); } catch (err) { console.warn('[motion-idle-close]', err); }
+            ynForceCloseJapanApartado();
             return true;
         }
-        // Cierre solo después de 5 s sin movimiento confirmado.
-        const YN_MOTION_IDLE_CLOSE_MS = 5000;
+        // Cierre tras 1 s sin movimiento confirmado.
+        const YN_MOTION_IDLE_CLOSE_MS = 1000;
         function ynScheduleMotionIdleClose() {
-            if(!ynEarlyEpisode && !ynShouldKeepJapanApartadoOpen())return;
-            if(!ynLastConfirmedMotionAt)ynLastConfirmedMotionAt=Date.now();
-            if(ynMotionIdleCloseTimer)return;
-            // Si hay ondas/cuadros, esperar 5 s y volver a comprobar; si no, cuenta normal de 5 s sin movimiento.
+            if (!ynEarlyEpisode && !ynShouldKeepJapanApartadoOpen()) return;
+            if (!ynLastConfirmedMotionAt) ynLastConfirmedMotionAt = Date.now();
+            if (ynMotionIdleCloseTimer) return;
             const delay = ynShouldKeepJapanApartadoOpen()
                 ? YN_MOTION_IDLE_CLOSE_MS
                 : Math.max(0, YN_MOTION_IDLE_CLOSE_MS - (Date.now() - ynLastConfirmedMotionAt));
-            ynMotionIdleCloseTimer=setTimeout(()=>{
-                ynMotionIdleCloseTimer=null;
-                if(ynShouldKeepJapanApartadoOpen()){
-                    // Aún hay ondas o cuadros parpadeando: no cerrar; reintentar en 5 s.
+            ynMotionIdleCloseTimer = setTimeout(() => {
+                ynMotionIdleCloseTimer = null;
+                if (ynShouldKeepJapanApartadoOpen()) {
                     ynScheduleMotionIdleClose();
                     return;
                 }
-                if(ynEarlyEpisode){
-                    const idleMs=Date.now()-ynLastConfirmedMotionAt;
-                    if(idleMs<YN_MOTION_IDLE_CLOSE_MS){ynScheduleMotionIdleClose();return;}
+                if (ynEarlyEpisode) {
+                    const idleMs = Date.now() - ynLastConfirmedMotionAt;
+                    if (idleMs < YN_MOTION_IDLE_CLOSE_MS) {
+                        ynScheduleMotionIdleClose();
+                        return;
+                    }
                 }
                 ynFinishMotionEpisodeAfterIdle();
-            },delay);
+            }, delay);
         }
         const YN_IDLE_JAPAN_HOLD_MS = 0;
         // Encuadra todo Japón al terminar el movimiento. Devuelve true si el mapa quedó fijado
@@ -30425,56 +30522,9 @@ function ynBuildLeafletMarkers() {
 </div>
 
 <div id="eqSettingsModal" role="dialog" aria-modal="true" aria-labelledby="eqSettingsTitle"><div id="eqSettingsDialog"><div class="eqs-head"><span id="eqSettingsTitle" data-i18n="settingsTitle">Ajustes</span><button class="eqs-close" id="eqSettingsClose" type="button" aria-label="Cerrar ajustes">×</button></div>
-<div class="eqs-searchbar"><input id="eqsSearch" type="search" placeholder="Buscar ajuste…" autocomplete="off" aria-label="Buscar ajuste"><nav class="eqs-chips" aria-label="Secciones"><a href="#eqsSecIdioma">Idioma</a><a href="#eqsSecApartados">Apartados</a><a href="#eqsSecLista">Lista</a><a href="#eqsSecMapa">Mapa</a><a href="#eqsSecCapasMeteo">Capas meteo.</a><a href="#eqsSecSonido">Sonido</a><a href="#eqsSecJapon">Japón</a><a href="#eqsSecColombia">Colombia</a><a href="#eqsSecAgencias">Agencias</a></nav></div>
+<div class="eqs-searchbar"><input id="eqsSearch" type="search" placeholder="Buscar ajuste…" autocomplete="off" aria-label="Buscar ajuste"><nav class="eqs-chips" aria-label="Secciones"><a href="#eqsSecApartados">Apartados</a><a href="#eqsSecLista">Lista</a><a href="#eqsSecMapa">Mapa</a><a href="#eqsSecCapasMeteo">Capas meteo.</a><a href="#eqsSecSonido">Sonido</a><a href="#eqsSecJapon">Japón</a><a href="#eqsSecColombia">Colombia</a><a href="#eqsSecAgencias">Agencias</a></nav></div>
 
-<div class="eqs-section" id="eqsSecIdioma">
-<div class="eqs-title" id="eqsTitleIdioma">🌐 Idioma de la interfaz</div>
-<div class="eqs-grid">
-<label class="eqs-row"><span data-i18n="settingsLanguage">Idioma</span>
-<select id="eqsUiLanguage" class="eqs-select" aria-label="Idioma de la interfaz">
-<option value="es-ES">Español</option>
-<option value="en-US">English</option>
-<option value="ja-JP">日本語</option>
-<option value="zh-CN">中文</option>
-<option value="zh-TW">繁體中文</option>
-<option value="pl-PL">Polski</option>
-<option value="it-IT">Italiano</option>
-<option value="ko-KR">한국어</option>
-<option value="pt-BR">Português (Brasil)</option>
-</select></label>
-</div>
-<div class="eqs-muted" data-i18n="settingsLanguageNote">Al guardar, la página se recargará para aplicar el idioma en toda la interfaz.</div>
-</div>
 
-<div class="eqs-section" id="eqsSectionsButtons">
-<div class="eqs-title" id="eqsSecApartados">🧭 Apartados</div>
-<div class="eqs-sub">Meteorología y estaciones</div>
-<div class="eqs-tiles">
-<button class="eqs-control eqs-tile" id="eqsJmaWeatherToggle" type="button" aria-pressed="false">🇯🇵 Alertas meteorológicas de Japón</button>
-<button class="eqs-control eqs-tile" id="eqsJapanSeaStationsToggle" type="button" aria-pressed="false">🌊 Mar de Japón · estaciones en vivo</button>
-<button class="eqs-control eqs-tile" id="eqsMeteoCenterToggle" type="button" aria-pressed="false">🌦️ Abrir Centro Meteorológico LIVE</button>
-</div>
-<div class="eqs-sub">Regionales (se abren solos ante un aviso nuevo)</div>
-<div class="eqs-tiles">
-<button class="eqs-control eqs-tile" id="eqsOpenSiatCt" type="button">🌪️ SIAT-CT México · Ciclones</button>
-<button class="eqs-control eqs-tile" id="eqsOpenBogMov" type="button">🚦 Movilidad Bogotá · Avisos</button>
-<button class="eqs-control eqs-tile" id="eqsOpenVolcCar" type="button">🌋 Volcanes y tsunamis · Colombia y Caribe</button>
-<button class="eqs-control eqs-tile" id="eqsToggleKmaPews" type="button" aria-pressed="false">🇰🇷 KMA PEWS (Corea · sin estaciones)</button>
-<button class="eqs-control eqs-tile" id="eqsOpenBmkgMmi" type="button" aria-pressed="false">🇮🇩 Intensidad oficial BMKG</button>
-<button class="eqs-control eqs-tile" id="eqsOpenLpgm" type="button" aria-pressed="false">🏢 Período largo JMA</button>
-<button class="eqs-control eqs-tile" id="eqsInstallPwa" type="button">📲 Instalar como app</button>
-<button class="eqs-control eqs-tile" id="eqsPushToggle" type="button" aria-pressed="false">🔔 Avisos con la app cerrada</button>
-<button class="eqs-control eqs-tile" id="eqsPushConfig" type="button">⚙️ Reglas de los avisos</button>
-<button class="eqs-control eqs-tile" id="eqsPushTest" type="button">✅ Probar aviso</button>
-<button class="eqs-control eqs-tile" id="eqsOpenInvias" type="button">🛣️ INVÍAS · Vías nacionales</button>
-</div>
-<div class="eqs-muted">SIAT se cierra a los 15 s. Movilidad Bogotá fija Bogotá en el mapa y no interrumpe alertas sísmicas.</div>
-<div class="eqs-sub">Rotación automática</div>
-<div class="sismos-auto-box">
-<button class="eqs-control" id="eqsAutoExploreToggle" type="button" aria-pressed="false" style="width:100%;text-align:left;padding:9px">🔄 Modo automático: desactivado</button>
-<div class="sismos-auto-status">Sin tocar la pantalla durante 30 s, SISMOS LIVE puede rotar apartados. Una alerta prioritaria interrumpe la rotación y después continúa.</div>
-</div>
-</div>
 
 <div class="eqs-section">
 <div class="eqs-title" id="eqsSecLista">📋 Lista de sismos</div>
@@ -36710,7 +36760,7 @@ For more information on this, and how to apply and follow the GNU AGPL, see
       settingsSearch: 'Buscar ajuste…',
       btnSettings: 'Abrir configuración',
       btnHome: 'Inicio',
-      sectionIdioma: '🌐 Idioma de la interfaz',
+      
       sectionApartados: '🧭 Apartados',
       sectionMapa: '🗺️ Mapa, texto TV y avisos',
       sectionLista: '📋 Lista',
@@ -36968,3 +37018,47 @@ For more information on this, and how to apply and follow the GNU AGPL, see
 
 </body>
 </html>
+
+
+<style id="eqs-organized-layout-v2">
+/* Organización visual de todos los ajustes: secciones claras, controles alineados y mejor uso en móvil. */
+#eqSettingsModal #eqSettingsDialog{width:min(780px,96vw)!important; padding:0 14px 0!important;}
+#eqSettingsDialog .eqs-searchbar{padding-bottom:11px!important;}
+#eqSettingsDialog .eqs-chips{flex-wrap:wrap!important;overflow:visible!important;gap:6px!important;}
+#eqSettingsDialog .eqs-chips a{font-size:11px!important;padding:6px 10px!important;}
+#eqSettingsDialog .eqs-section{margin:10px 0!important;padding:14px!important;scroll-margin-top:120px;}
+#eqSettingsDialog .eqs-section .eqs-section{margin:0 0 12px!important;padding:12px!important;background:rgba(4,13,25,.55)!important;border-color:rgba(98,217,255,.22)!important;}
+#eqSettingsDialog .eqs-title{display:flex;align-items:center;gap:7px;line-height:1.35;}
+#eqSettingsDialog .eqs-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:9px!important;}
+#eqSettingsDialog .eqs-row{box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;min-height:44px;padding:9px 11px!important;border:1px solid rgba(137,190,255,.10);}
+#eqSettingsDialog .eqs-row>span:first-child{min-width:0;}
+#eqSettingsDialog .eqs-row select{width:min(48%,210px);min-width:100px;}
+#eqSettingsDialog .eqs-row input[type=checkbox]{margin-left:auto;}
+#eqSettingsDialog .eqs-tiles{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+#eqSettingsDialog .eqs-tile{min-height:48px!important;display:flex;align-items:center;gap:8px;white-space:normal;}
+#eqSettingsDialog #satelliteWeatherSelect{width:100%;max-width:none!important;min-height:42px;}
+#eqSettingsDialog .eqs-sub{padding-bottom:5px;border-bottom:1px solid rgba(255,207,107,.17);}
+#eqSettingsDialog .eqs-muted{max-width:100%;}
+#eqSettingsDialog .eqs-actions{display:flex;justify-content:flex-end;gap:10px;}
+#eqSettingsDialog .eqs-actions button{min-width:104px;min-height:42px;}
+#eqSettingsDialog .eqs-save{color:#fff!important;}
+#eqSettingsDialog .eqs-volume-control{display:flex;align-items:center;gap:10px;min-width:50%;}
+#eqSettingsDialog .eqs-volume-control input{flex:1;min-width:70px;}
+#eqSettingsDialog .eqs-sound-group{margin-top:12px;padding:10px;border-radius:10px;background:rgba(255,255,255,.025);}
+#eqSettingsDialog .eqs-agencies{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px!important;}
+#eqSettingsDialog .eqs-agency{min-height:36px;display:flex;align-items:center;gap:8px;}
+@media(max-width:560px){
+ #eqSettingsModal{align-items:flex-end!important;}
+ #eqSettingsModal #eqSettingsDialog{width:100vw!important;max-width:100vw!important;max-height:calc(100dvh - 36px)!important;padding:0 10px 0!important;border-radius:18px 18px 0 0!important;}
+ #eqSettingsDialog .eqs-head{margin:0 -10px!important;padding:11px 13px 9px!important;}
+ #eqSettingsDialog .eqs-searchbar{top:49px!important;margin:0 -10px 6px!important;padding:2px 10px 9px!important;}
+ #eqSettingsDialog .eqs-grid{grid-template-columns:minmax(0,1fr)!important;}
+ #eqSettingsDialog .eqs-row select{width:48%;max-width:48%!important;}
+ #eqSettingsDialog .eqs-tiles{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+ #eqSettingsDialog .eqs-tile{font-size:12px!important;padding:9px!important;}
+ #eqSettingsDialog .eqs-section{padding:10px!important;}
+ #eqSettingsDialog .eqs-section .eqs-section{padding:9px!important;}
+ #eqSettingsDialog .eqs-actions{margin:10px -10px 0!important;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))!important;}
+}
+@media(max-width:360px){#eqSettingsDialog .eqs-tiles{grid-template-columns:minmax(0,1fr)!important;}#eqSettingsDialog .eqs-chips a{font-size:10px!important;padding:5px 8px!important;}}
+</style>
