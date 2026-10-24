@@ -919,6 +919,21 @@
             background:rgba(8,19,25,.95); color:#eaf8ff; box-shadow:0 0 28px rgba(45,164,210,.38);
             flex-direction:column; justify-content:center; align-items:center; text-align:center;
         }
+        /* Taiwán reutiliza el mismo cuadro de detección que Japón; el panel propio
+           de estado se oculta solo durante el episodio automático compartido. */
+        #mainLayout.taiwan-motion-focus #ynEarlyAlert.active {
+            display:block !important; position:absolute !important; z-index:2200 !important;
+            left:12px !important; right:auto !important; top:12px !important;
+            width:min(82vw,330px) !important; max-height:34vh; overflow:auto;
+            box-sizing:border-box; padding:8px 10px; border:1px solid #5d6268 !important;
+            border-left:4px solid #4bafd8 !important; border-radius:2px;
+            background:rgba(25,35,42,.97) !important; color:#eee !important;
+            box-shadow:0 1px 4px rgba(0,0,0,.35); font-size:10px; line-height:13px;
+        }
+        #mainLayout.taiwan-motion-focus #taiwanDetectorPanel.taiwan-focus-panel { display:none !important; }
+        #mainLayout.taiwan-motion-focus #ynEarlyAlert .eqk-shake-head { color:#8bd8ff !important; }
+        #mainLayout.taiwan-motion-focus #ynEarlyAlert .eqk-shake-body { color:#eaf8ff !important; }
+        #mainLayout.taiwan-motion-focus #ynEarlyAlert .yn-motion-place { color:#fff !important; font-size:11px; font-weight:800; }
         #mainLayout.taiwan-motion-focus #taiwanDetectorPanel.taiwan-focus-panel .title {
             width:100%; font-size:12px; color:#8bd8ff; margin-bottom:10px; display:flex; justify-content:space-between; gap:12px;
         }
@@ -8917,7 +8932,7 @@ global.TauPJS=api;
         // Capa de líneas de costa del PTWC (rojo/amarillo/morado), independiente de la JMA.
         let ptwcCoastLayer = L.layerGroup().addTo(map);
         let ptwcZones = [];   // [{iso, name, level}] zonas PTWC activas
-        // Capa de tsunami ESTIMADO (USGS/EMSC M6.5+), bajo las líneas oficiales.
+        // Capa de tsunami ESTIMADO (USGS/EMSC M6.0+), bajo las líneas oficiales.
         let tsEstLayer = L.layerGroup().addTo(map);
         let tsEstHasLines = false;
         try {
@@ -10192,7 +10207,11 @@ global.TauPJS=api;
             try {
                 (Array.isArray(tsunamiData) ? tsunamiData : [])
                     .filter(x => /PTWC/i.test(String(x && (x.source || x.agency) || '')))
-                    .forEach(x => out.push([x.event, x.headline, x.description, x.area].join(' . ')));
+                    .forEach(x => {
+                        const text = [x.event, x.headline, x.description, x.area].join(' . ');
+                        // Ignorar mensajes finales/cancelaciones: no deben mantener una amenaza anterior activa.
+                        if (text && !PTWC_FINAL_RE.test(text)) out.push(text);
+                    });
             } catch (_) {}
             const feed = await ptwcFetchText(PTWC_ATOM_URL);
             if (!feed) { ptwcDiag('Atom PTWC sin respuesta'); return out; }
@@ -10352,7 +10371,7 @@ global.TauPJS=api;
         setInterval(refreshPtwcCoastLines, 2 * 60 * 1000);
 
         // =====================================================================
-        // TSUNAMI ESTIMADO (sismos M6.5+ de USGS/EMSC) · líneas en costas SIN aviso oficial
+        // TSUNAMI ESTIMADO (sismos M6.0+ de USGS/EMSC) · líneas en costas SIN aviso oficial
         // ---------------------------------------------------------------------
         // Modelo simple y explicable (NO es un pronóstico oficial):
         //   H0  = 10^(0.5·M − 3.5) m                  altura en la fuente (M7.6 ≈ 2 m)
@@ -10368,7 +10387,7 @@ global.TauPJS=api;
         // Se oculta donde ya hay línea oficial (PTWC/JMA) y si el PTWC ya emitió boletín del mismo sismo.
         // =====================================================================
         const TSUNAMI_EST_ENABLED = true;
-        const TSUNAMI_EST_MIN_MAG = 6.5;
+        const TSUNAMI_EST_MIN_MAG = 6.0;
         const TSUNAMI_EST_MAX_DEPTH = 100;        // km
         const TSUNAMI_EST_MAX_AGE_MS = 24 * 3600 * 1000;
         const TSUNAMI_EST_SPEED_KMH = 650;
@@ -13986,6 +14005,16 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             const wasOpen = taiwanMotionViewActive;
             taiwanMotionViewActive = false;
             layout?.classList.remove('taiwan-motion-focus');
+            try {
+                const sharedAlert = document.getElementById('ynEarlyAlert');
+                if (sharedAlert?.dataset?.motionRegion === 'taiwan') {
+                    sharedAlert.classList.remove('active','yn-motion-active','yn-weak','yn-shaking','yn-strong','eqk-only-shake');
+                    sharedAlert.textContent = '';
+                    delete sharedAlert.dataset.motionRegion;
+                    sharedAlert.style.removeProperty('display');
+                }
+                if (typeof ynClearMotionBoxes === 'function') ynClearMotionBoxes();
+            } catch (_) {}
             if (!taiwanMode && !layout?.classList.contains('taiwan-focus')) {
                 document.getElementById('taiwanDetectorPanel')?.classList.remove('taiwan-focus-panel');
             }
@@ -14034,6 +14063,39 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 }
             }, 160);
         }
+        function renderTaiwanSharedMotionPanel(stations) {
+            try {
+                const alert = document.getElementById('ynEarlyAlert');
+                if (!alert || !Array.isArray(stations) || stations.length < 2) return;
+                const valid = stations.filter(st => Number.isFinite(Number(st.lat)) && Number.isFinite(Number(st.lon)));
+                if (valid.length < 2) return;
+                const intensities = valid.map(st => Number(st.intensity)).filter(Number.isFinite);
+                const maxI = intensities.length ? Math.max(...intensities) : 0;
+                const level = maxI >= 3 ? 'strong' : (maxI >= 1 ? 'shaking' : 'weak');
+                const areas = [...new Set(valid.map(taiwanStationAreaLabel).filter(Boolean))];
+                const escapeHtml = value => String(value).replace(/[&<>\"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
+                const areaText = escapeHtml(areas.length ? areas.slice(0, 6).join(' · ') : 'Taiwán');
+                alert.innerHTML = '<div class="eqk-shake-head">Movimiento detectado · Taiwán</div>' +
+                    '<div class="eqk-shake-body"><div class="yn-motion-place">' + areaText + '</div>' +
+                    '<div class="yn-motion-metrics"><span>Estaciones activas<b>' + valid.length + '</b></span>' +
+                    '<span>Intensidad instrumental máx.<b>' + (intensities.length ? maxI.toFixed(1).replace(/\.0$/,'') : '—') + '</b></span></div></div>';
+                alert.classList.remove('yn-weak','yn-shaking','yn-strong','eqk-only-shake','yn-tsunami-forecast');
+                alert.classList.add('active','yn-motion-active','yn-' + level);
+                alert.dataset.motionRegion = 'taiwan';
+                alert.style.display = 'block';
+                // Reutiliza los cuadros Kanameishi/Japón, convirtiendo la intensidad
+                // instrumental a una escala visual equivalente solo para colorear cuadros.
+                if (typeof ynUpdateMotionBoxes === 'function') {
+                    const boxStations = valid.map((st, i) => ({
+                        ...st,
+                        index: 'TW-' + String(st.id ?? i),
+                        code: Math.max(0, Math.min(20, Math.round((Math.max(0, Number(st.intensity) || 0) + 3) * 2)))
+                    }));
+                    ynUpdateMotionBoxes(boxStations);
+                }
+            } catch (e) { console.warn('[TREM shared motion panel]', e); }
+        }
+
         function syncTaiwanMovementView(source, stations) {
             if (!Object.prototype.hasOwnProperty.call(taiwanMotionSources,source)) return;
             taiwanMotionSources[source] = Array.isArray(stations)
@@ -14073,6 +14135,8 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 taiwanMotionReturnTimer = null;
                 if (!taiwanMotionViewActive) {
                     taiwanMotionViewActive = true;
+                    // Cada región conserva su propia cuadrícula: no heredar el origen de Japón.
+                    try { if (typeof ynClearMotionBoxes === 'function') ynClearMotionBoxes(); } catch (_) {}
                     clearTimeout(autoSectionReturnTimer);
                     autoSectionReturnTimer = null;
                     layout?.classList.add('taiwan-motion-focus');
@@ -14081,6 +14145,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                     if (source === 'palert') { try { showRegionToast('🇹🇼 Movimiento P-Alert · enfocando estaciones activas'); } catch (_) {} }
                 }
                 updateTaiwanMovementPanel();
+                renderTaiwanSharedMotionPanel(activeBoxStations);
                 syncPAlertVisibility();
                 focusTaiwanMovementArea();
                 return;
@@ -20029,31 +20094,11 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             return Number.isFinite(ts) ? ts : 0;
         }
         function showWolfxAllEewWaves(ev) {
-            if (!ev || ev.isCancel || !Number.isFinite(Number(ev.lat)) || !Number.isFinite(Number(ev.lon))) return;
-            const origin = Number(ev.waveOriginTs || ev.ts) || parseTs(ev.time);
-            const age = Date.now() - origin;
-            const maxAge = Number(ev.eewMaxAgeMs) > 0 ? Number(ev.eewMaxAgeMs) : 5 * 60 * 1000;
-            // Un reporte FINAL no cancela la propagación física de las ondas.
-            // Mantener una copia de visualización activa hasta que el evento
-            // expire; el estado final original se conserva en la lista de sismos.
-            if (!Number.isFinite(origin) || origin <= 0 || age < -120000 || age > maxAge) return;
-            const waveEvent = {
-                ...ev,
-                isTaupEew: true,
-                isFinal: false,
-                isCancel: false,
-                waveOriginTs: origin,
-                waveTime: ev.waveTime || (typeof formatTime === 'function' ? formatTime(origin) : ev.time || ''),
-                status: ev.reportConfidence === 'final' ? 'Reporte final · ondas en propagación' : (ev.status || 'En vivo')
-            };
-            // Fijar el evento explícitamente evita depender de que el selector
-            // genérico encuentre el mismo evento entre otras fuentes simultáneas.
-            taupEewWaveEvent = waveEvent;
-            try { notifyRealEarthquakePriority(waveEvent); } catch (_) {}
+            if (!ev || !taupEewWaveIsFresh(ev)) return;
+            try { notifyRealEarthquakePriority(ev); } catch (_) {}
             try {
-                openEewJapanStationsView(waveEvent, { showToast:false });
+                openEewJapanStationsView(ev, { showToast:false });
                 if (typeof renderWaveMode === 'function') renderWaveMode();
-                if (typeof startWaveAnimation === 'function') startWaveAnimation();
             } catch (_) {}
             try { window.__sesnaEewBannerSync?.(); } catch (_) {}
         }
@@ -20166,14 +20211,14 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 const previous = events[duplicateIndex];
                 const merged = { ...previous, ...ev, id:previous.id, agency:previous.agency || ev.agency, source:previous.source || ev.source };
                 events[duplicateIndex] = merged;
-                try { renderEvents(); showWolfxAllEewWaves(merged); } catch (_) {}
+                try { renderEvents(); if (!terminal) showWolfxAllEewWaves(merged); } catch (_) {}
                 if (extremeMag) { try { showRegionToast('⚠️ ' + source + ' · magnitud extrema · esperar revisión'); } catch (_) {} }
                 try { if (typeof setApiState === 'function') setApiState('wolfxAll', 'ok'); } catch (_) {}
                 return;
             }
             const i = events.findIndex(x => x.id === ev.id);
             if (i >= 0) events[i] = { ...events[i], ...ev }; else events.unshift(ev);
-            try { renderEvents(); showWolfxAllEewWaves(i >= 0 ? events[i] : ev); } catch (_) {}
+            try { renderEvents(); if (!terminal) showWolfxAllEewWaves(i >= 0 ? events[i] : ev); } catch (_) {}
             try { showEarthquakeTicker(ev, extremeMag ? (source + ' · magnitud extrema') : source, { liveUpdate:true }); } catch (_) {}
             if (extremeMag) { try { showRegionToast('⚠️ ' + source + ' · magnitud extrema · esperar revisión'); } catch (_) {} }
             try { if (typeof setApiState === 'function') setApiState('wolfxAll', 'ok'); } catch (_) {}
@@ -21283,7 +21328,7 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
                 el.textContent = `🌊 Mensaje oficial de tsunami · ${ev.agency || 'fuente sísmica'}`;
             } else if (mag >= 6.5) {
                 el.classList.add('review');
-                el.textContent = '🌊 M6.5+: revisa los avisos oficiales de tsunami';
+                el.textContent = '🌊 M6.0+: estimación no oficial; revisa los avisos oficiales';
             } else {
                 el.textContent = '🌊 Sin amenaza de tsunami reportada';
             }
