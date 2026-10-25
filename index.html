@@ -27915,16 +27915,17 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
             } catch (_) {}
         }
         function ynFinishMotionEpisodeAfterIdle() {
-            // El apartado de Japón se cierra en cuanto termina la detección, sin esperar
-            // a que desaparezcan los cuadros/ondas ni programar un reintento de 1 segundo.
+            // Terminó la detección de movimiento → cerrar el apartado de Japón de una vez.
             try { clearTimeout(window.__ynKeepOpenRetryTimer); window.__ynKeepOpenRetryTimer = null; } catch (_) {}
-            // Cerrar apartado de Japón.
+            try { ynClearMotionIdleCloseTimer(); } catch (_) {}
             ynEarlyEpisode = false;
             ynRequireFreshMotionAfterIdle();
             ynAutoActivationAttempted = false;
             ynLastMotionIntLevel = -1;
             ynGroups = [];
             ynWaveStartedAt = 0;
+            ynWaveCenter = null;
+            ynWaveTarget = null;
             ynActiveSignature = '';
             ynInitialViewDone = false;
             try { ynClearMotionBoxes(); } catch (_) {}
@@ -27941,13 +27942,14 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
             ynMotionAutoClosePending = true;
             ynAutoOpened = true;
             try { ynCloseAutomatically(); } catch (err) { console.warn('[motion-idle-close]', err); }
+            // Cierre duro: quitar japan-focus sí o sí.
             ynForceCloseJapanApartado();
             return true;
         }
-        // Cierre inmediato al detectar que terminó el movimiento.
+        // Cierre inmediato (sin espera) cuando acaba el movimiento.
         const YN_MOTION_IDLE_CLOSE_MS = 0;
         function ynScheduleMotionIdleClose() {
-            if (!ynEarlyEpisode && !ynShouldKeepJapanApartadoOpen()) return;
+            if (!ynEarlyEpisode) return;
             if (ynMotionIdleCloseTimer) return;
             ynMotionIdleCloseTimer = setTimeout(() => {
                 ynMotionIdleCloseTimer = null;
@@ -28144,7 +28146,10 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
                     ynPlayMotionIntensitySound(maxInstr, signature);
                     return;
                 }
-                if(ynEarlyEpisode){ynScheduleMotionIdleClose();return;}
+                if (ynEarlyEpisode) {
+                    try { ynFinishMotionEpisodeAfterIdle(); } catch (_) { try { ynScheduleMotionIdleClose(); } catch (__) {} }
+                    return;
+                }
                 ynGroups = [];
                 ynWaveStartedAt = 0;
                 ynActiveSignature = '';
@@ -28152,12 +28157,9 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
                 try { ynClearMotionBoxes(); } catch (_) {}
                 ynStopWaveAnimation();
                 alert.classList.remove('yn-motion-active', 'yn-weak', 'yn-shaking', 'yn-strong');
-                if ((ynMode || yahooNiedModeActive || japanLiveStationsPinned) && document.getElementById('mainLayout')?.classList.contains('japan-focus')) {
-                    ynShowIdlePanel(alert);
-                } else {
-                    alert.classList.remove('active');
-                    alert.textContent = '';
-                }
+                alert.classList.remove('active');
+                alert.textContent = '';
+                alert.style.removeProperty('display');
                 return;
             }
 
@@ -28169,11 +28171,15 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
             const confirmed = ynFeedIsFresh() && ynLastMotionEvidenceAt>0 && Date.now()-ynLastMotionEvidenceAt<=5000 && Number(ynLastObservedMs)>ynLastMotionEpisodeClosedStamp && ynAutoActivationReady && ynActiveFrameStreak >= 2 && current.length >= YN_MOTION_QUORUM && groups.length>0;
             if (!confirmed || ynStartupLocked()) {
                 if (ynEarlyEpisode && !confirmed) {
-                    ynScheduleMotionIdleClose();
+                    // Terminó el movimiento: cerrar el apartado de una vez.
+                    try { ynFinishMotionEpisodeAfterIdle(); } catch (_) { try { ynScheduleMotionIdleClose(); } catch (__) {} }
                     return;
                 }
-                if (ynMode && !ynEarlyEpisode) ynShowIdlePanel(alert);
-                else if (!ynEarlyEpisode) { alert.classList.remove('active'); alert.textContent = ''; }
+                if (!ynEarlyEpisode) {
+                    alert.classList.remove('active', 'yn-motion-active', 'yn-weak', 'yn-shaking', 'yn-strong');
+                    alert.textContent = '';
+                    alert.style.removeProperty('display');
+                }
                 return;
             }
             const waveStations = [...current].sort((a,b) => b.code - a.code);
