@@ -1,152 +1,101 @@
-# 🌎 EarthQuake
+# EarthQuake — Monitor sísmico multiagencia
 
-### El planeta habla. EarthQuake te ayuda a observar sus señales.
+Monitor sísmico web de una sola página HTML. Reúne reportes de sismos, alertas tempranas, observaciones instrumentales y alertas ambientales en un mapa interactivo. La interfaz y los avisos están preparados principalmente en español.
 
-**Un monitor sísmico interactivo en HTML que reúne eventos, estaciones y
-alertas en un mapa dinámico.**
+> **Importante:** el HTML contiene integraciones con servicios externos. La disponibilidad, la latencia y la cobertura dependen de cada proveedor, de la conexión a Internet, de CORS y de sus cambios de servicio. Que un proveedor figure aquí no garantiza que responda en todo momento. El monitor es informativo y **no sustituye los canales oficiales de emergencia**.
 
-[Funciones](#-qué-puedes-explorar) · [Cómo usarlo](#-cómo-empezar) ·
-[Importante](#️-antes-de-usarlo)
+## Inicio
 
-------------------------------------------------------------------------
+1. Descarga o abre el archivo HTML en un navegador moderno.
+2. Conéctate a Internet para cargar mapas, catálogos, geometrías y datos en vivo.
+3. Usa **Inicio** para volver al mapa principal. Abre **Ajustes** para configurar agencias, filtros, sonidos, voz, escalas e integraciones opcionales.
 
-## ⚡ ¿Qué es EarthQuake?
+Es un HTML independiente: no requiere instalación de paquetes ni un proceso de compilación. Algunas funciones pueden estar sujetas a restricciones del navegador al abrir archivos locales; para uso continuado conviene servir el archivo desde un sitio HTTPS.
 
-EarthQuake es un monitor sísmico que concentra información de distintas
-agencias y herramientas de visualización en una sola interfaz. Desde el
-catálogo de terremotos hasta las estaciones instrumentales, las ondas
-estimadas y los avisos de tsunami, cada sección ayuda a explorar una
-parte distinta de la actividad sísmica.
+## Funciones
 
-> **Una ventana de observación, muchas señales del planeta.** 🌐
+### Mapa y lista sísmica
 
-## 🔎 ¿Qué puedes explorar?
+- Mapa interactivo con estilos **SesnaQuake**, oscuro, satélite y terreno; también permite cambiar el color del mar.
+- Lista y ficha del evento seleccionado con los datos que publique su fuente, como magnitud, hora, profundidad, ubicación e intensidad. Los campos ausentes se muestran como no disponibles, no se inventan.
+- Filtros por agencia, magnitud mínima, región y eventos sentidos; control del zoom de selección de la lista.
+- Capas de fallas/límites tectónicos PB2002, mapa de calor de sismicidad reciente y conteos/resúmenes cuando hay datos disponibles.
+- Selección de escala de intensidad —la escala original de la agencia, Shindo, MMI, CSIS, CWA o GeoNet— cuando la fuente entrega información compatible. Las conversiones o estimaciones se distinguen de una medición oficial.
+- Geometrías administrativas y capas de intensidad cargadas para contextualizar eventos, según la disponibilidad de los límites y datos de cada región.
 
-### 🌍 Catálogo sísmico global
+### Agencias sísmicas y reportes
 
--   Consulta eventos publicados por múltiples agencias nacionales e
-    internacionales.
--   Explora la información disponible: magnitud, ubicación, profundidad,
-    hora, agencia e intensidad.
--   Filtra los eventos por magnitud mínima o por agencia para encontrar
-    más fácilmente lo que buscas.
--   Observa los eventos en el mapa y sigue sus actualizaciones cuando
-    llegan nuevos reportes.
+El HTML incluye integraciones o rutas de consulta para las agencias y redes listadas en el filtro: **USGS, NEIC, JMA, CENC, EMSC, IGN, INETER/CATAC, GEOFON/GFZ, SSN, AFAD, BMKG, GeoNet, INGV, IPGP, SED, PHIVOLCS, CSN, IG-EPN, Early-Est, HKO, VMGD, NOA, KOERI, SGC, KMA, BCSF, NRCan, USP, MMD, CEA-PR, ShakeAlert y FUNVISIS**.
 
-### 🗺️ Un mapa que conecta la información
+La lista indica integraciones contempladas por el HTML, no un compromiso de disponibilidad ni que todas publiquen el mismo tipo de dato. Los avisos retransmitidos conservan la agencia de origen cuando se conoce; una red o retransmisor no se presenta como autoridad original.
 
--   Visualiza la ubicación de los eventos sobre un mapa interactivo.
--   Explora regiones de interés y vistas especializadas.
--   Consulta límites geográficos y otras capas cuando los datos están
-    disponibles.
--   Cambia entre las vistas del monitor para observar eventos,
-    estaciones y alertas desde distintas perspectivas.
+### Alertas tempranas, ondas y reportes finales
 
-### 〰️ Ondas sísmicas animadas
+- **JMA EEW**, incluidos mensajes de Wolfx, con revisión y estado del reporte; las cancelaciones se diferencian de los reportes finales.
+- **CWA (Taiwán)** y otros canales EEW de **Wolfx All_EEW** integrados en el monitor, como CENC y varias regiones de China, de acuerdo con el tipo de mensaje recibido.
+- Visualización de tarjetas EEW y frentes P/S estimados; las ondas estimadas se identifican como tales y no equivalen a una observación instrumental ni a una alerta oficial adicional.
+- Recuperación de reportes recientes bajo las ventanas temporales configuradas por el código, sin tratar un mensaje cancelado como alerta activa.
+- Ticker inferior para reportes sísmicos y avisos prioritarios, con umbral de magnitud configurable.
 
--   Abre una vista dedicada a las ondas estimadas asociadas a eventos
-    compatibles.
--   Observa la animación de los frentes de onda sobre el mapa.
--   Sigue el evento activo mientras se actualiza la información
-    recibida.
+### Japón: JMA y estaciones NIED/Kyoshin
 
-*Las ondas son una visualización calculada, no una medición directa del
-movimiento del suelo en cada lugar.*
+- Vista de **estaciones de Japón** con intensidades instrumentales de Kyoshin Monitor/Yahoo y NIED K-NET/KiK-net, según la fuente seleccionada en Ajustes.
+- Detección local de movimiento a partir de lecturas recientes y estaciones coherentes. Puede abrir y cerrar automáticamente la vista de Japón según movimiento/reposo confirmado; una trama ausente o un feed caído no se interpreta por sí solo como reposo.
+- Selección de fuentes Yahoo, NIED oficial, K-NET, KiK-net o combinada cuando estén disponibles. Hi-net y F-net se identifican como catálogos sin telemetría en vivo en esta vista.
+- Selector de intensidad o de PGA/PGV aproximados a partir de imágenes cuando corresponda. Los valores aproximados no son datos crudos; no se estima PGD.
+- EEW e informes JMA pueden mostrarse junto con la visualización de estaciones. La intensidad oficial de un sismo seleccionado procede del boletín/estaciones JMA correspondientes, no de puntos de catálogo ajenos al evento.
+- Opciones TauP para cálculo preciso, rápido o de respaldo.
 
-### 🇯🇵 Japón: estaciones y detección de movimiento
+### Taiwán y otras estaciones
 
--   Explora la vista de estaciones sísmicas japonesas con
-    actualizaciones periódicas.
--   Consulta el panel de detección de actividad instrumental.
--   Cuando se cumplen los criterios configurados, las estaciones activas
-    y los cuadros visuales ayudan a identificar la zona donde se observa
-    movimiento.
--   Usa los controles de vista para volver al enfoque de Japón.
+- Integración de **TREM** y **P-Alert** para movimiento instrumental taiwanés y métricas de PGA/PGV cuando el feed las proporciona.
+- La detección local de movimiento en estaciones es distinta de un EEW oficial. PGA/PGV no se convierten en Shindo ni en intensidad oficial.
+- Visualización de estaciones GeoNet y reportes sentidos asociados al evento seleccionado, con opción de intensidad MMI, PGA o PGV cuando la API correspondiente los entrega.
+- Estaciones de la Red Sismológica Nacional de Costa Rica (RSN/TC) y OVSICORI (OV) mediante muestras EarthScope con retraso. Esta telemetría experimental no es una alerta temprana ni una medida oficial de intensidad.
 
-### 🇹🇼 Taiwán: actividad instrumental
+### Tsunami, clima y alertas de protección civil
 
--   Visualiza las estaciones TREM disponibles y sus lecturas
-    instrumentales.
--   Evalúa lecturas recientes y la proximidad entre estaciones para
-    detectar actividad agrupada.
--   Cuando se cumplen los criterios de detección, Taiwán puede utilizar
-    el mismo panel y los cuadros visuales de movimiento que Japón.
--   La detección depende de que las lecturas sean válidas y estén
-    actualizadas.
+- Apartado de tsunami con boletines JMA y NOAA/PTWC/NTWC y sus áreas oficiales disponibles.
+- Alertas meteorológicas de Japón (JMA), avisos meteorológicos de Estados Unidos (NWS/NOAA) y mapa de condados cuando la fuente publica geometría utilizable.
+- Alertas globales GDACS.
+- Tifones de Japón y otras fuentes integradas; huracanes de Estados Unidos/NHC con trayectorias/capas disponibles.
+- Avisos volcánicos oficiales JMA y catálogo/alertas volcánicas mundiales basados en fuentes de observación incluidas en el código.
+- Alertas SIAT-CT de México y avisos de volcanes/tsunami de Colombia y el Caribe, incluidos datos SGC y PTWC/NTWC según el apartado.
+- Centro de alertas y ticker para avisos ambientales, de riesgo y de servicio incluidos en la página.
 
-### 🌊 Tsunamis: avisos y zonas
+Los apartados prioritarios pueden abrirse automáticamente al detectarse novedades y regresar después al mapa sísmico. El comportamiento depende de la novedad y vigencia que pueda establecer el feed; no todos los avisos se repiten ni se consideran una confirmación independiente.
 
--   Consulta el modo de mapa para los avisos de tsunami disponibles.
--   Distingue los niveles incluidos en los reportes, como **Forecast**,
-    **Advisory**, **Warning** y **Major Warning**.
--   Explora las zonas y líneas costeras representadas según la
-    información recibida.
--   Recibe sonidos asociados a determinados cambios de alerta cuando el
-    navegador permite reproducir audio.
+### Colombia, movilidad e información complementaria
 
-### 🌦️🌋 Otras capas y alertas
+- Apartado de movilidad de Bogotá con panel de avisos y mapas; botones para abrir Waze y consultar el estado de vías nacionales INVÍAS cuando el servicio esté disponible.
+- Ticker con avisos de movilidad, servicios, clima y otras fuentes incluidas en el HTML.
+- Módulo de partidos de Colombia con ventanas de partido, marcador cuando exista una fuente compatible y efectos/avisos configurables. Un marcador se limita a los datos disponibles en el feed.
+- Capas meteorológicas integradas o enlazadas —lluvia, temperatura, viento, rayos, incendios, satélite y oleaje— con disponibilidad variable según el proveedor. El mapa de rayos Blitzortung puede abrirse en un panel independiente.
+- Vista de clima por capitales y búsqueda de ubicación en el módulo meteorológico.
 
--   Accede a paneles especializados para ciertos avisos meteorológicos y
-    fenómenos geofísicos incluidos en la versión.
--   Visualiza información regional cuando existe un reporte compatible.
--   Explora capas complementarias, como límites geográficos y fallas,
-    cuando están disponibles.
+## Ajustes
 
-### 🔊 Sonidos y avisos
+Desde **Ajustes** se pueden modificar, entre otras opciones visibles en el HTML:
 
--   Reproduce sonidos para determinados reportes sísmicos y cambios de
-    alerta.
--   Algunas funciones de audio necesitan que interactúes primero con la
-    página, según las reglas del navegador.
--   Los sonidos y avisos disponibles dependen del tipo de reporte y de
-    los datos recibidos.
+- agencias sísmicas habilitadas, magnitud mínima de lista y ticker, región, filtro de sismos sentidos y zoom;
+- estilo del mapa, escala de intensidad y opciones TauP;
+- fuente de estaciones de Japón, detección local Yahoo/NIED y métricas NIED, TREM y P-Alert;
+- capas de GeoNet, estaciones costarricenses y puntos oficiales JMA del sismo seleccionado;
+- voz TTS en español, volumen general, sonidos y notificaciones del navegador;
+- fallas tectónicas, capas meteorológicas, avisos y efectos de goles de Colombia.
 
-## 🚀 Cómo empezar
+Los nombres y opciones que aparecen dependen de la versión del HTML. Los cambios se guardan en el almacenamiento local del navegador.
 
-1.  **Abre** el archivo HTML con un navegador compatible.
-2.  **Espera** a que se carguen el mapa y las fuentes de datos.
-3.  **Explora** el catálogo, selecciona una agencia o filtra por
-    magnitud.
-4.  **Cambia de vista** para consultar las ondas, las estaciones o los
-    paneles de alertas disponibles.
-5.  **Contrasta la información** con las publicaciones oficiales si
-    necesitas tomar decisiones de seguridad.
+## Datos, precisión y limitaciones
 
-## 🧭 Filosofía del monitor
+- **Catálogo no es telemetría:** que exista la ubicación de una estación no significa que esté conectada. La vista de estaciones requiere datos recientes válidos para mostrar lecturas vivas.
+- **Medido, estimado y oficial son cosas distintas:** una estimación basada en estaciones, una conversión de escala o una lectura aproximada de una imagen se etiqueta como tal y no sustituye el boletín de la agencia.
+- **Sin datos no significa cero:** el monitor no debe interpretar un campo vacío, una conexión caída o una respuesta tardía como magnitud cero, reposo confirmado o estación desconectada.
+- **Los tiempos de actualización y cobertura varían** por producto, red y proveedor. Una función puede permanecer visible aunque la fuente esté temporalmente fuera de servicio.
+- Las capas de mapa, límites, iconos, audio y datos pueden estar sujetas a condiciones y licencias de sus proveedores.
 
-EarthQuake está pensado para observar y explorar información sísmica de
-distintas fuentes en una interfaz común. Las agencias pueden publicar
-reportes preliminares, actualizaciones y soluciones finales diferentes;
-por eso, los datos pueden cambiar durante el desarrollo de un evento.
+## Créditos y licencias
 
-La animación de ondas y la detección instrumental son herramientas de
-visualización. No garantizan que un sismo vaya a ser detectado con
-anticipación ni que se emita una alerta oficial.
+La interfaz incluye atribuciones y avisos de licencia en el propio HTML. Entre las adaptaciones y recursos identificados allí están componentes de **SesnaQuake** (Domiko7) y **Kanameishi** (Lipomoea), bajo **AGPL-3.0**, además de recursos de audio y símbolos SREV/Kotoho7 bajo **CC BY-SA 2.0**. El HTML incluye código fuente correspondiente de las adaptaciones indicadas y una copia de la licencia AGPL para Kanameishi. GeoNet, JMA, EOX Sentinel-2 y otros proveedores conservan sus atribuciones respectivas.
 
-## ⚠️ Antes de usarlo
-
--   EarthQuake es un monitor informativo, **no un sistema certificado de
-    alerta temprana**.
--   La cobertura, precisión, latencia y disponibilidad dependen de cada
-    fuente y de tu conexión a Internet.
--   Las magnitudes, profundidades y ubicaciones preliminares pueden
-    cambiar.
--   Una detección de movimiento no confirma por sí sola daños ni permite
-    determinar automáticamente el impacto en una zona.
--   Algunas secciones solo muestran información cuando hay reportes
-    activos o datos compatibles.
--   Para emergencias, evacuaciones o decisiones de seguridad, sigue
-    siempre las instrucciones de las autoridades oficiales.
-
-## 🧩 Acerca de los datos
-
-EarthQuake presenta información de diversas agencias y proyectos
-públicos. La disponibilidad de cada función depende de los datos que
-esas fuentes publiquen en cada momento. Consulta las atribuciones y
-condiciones de uso incluidas en el código y en las fuentes originales.
-
-------------------------------------------------------------------------
-
-**EarthQuake 🌎**\
-*Observa los datos. Explora las señales. Consulta siempre las fuentes
-oficiales.*
+Antes de redistribuir o publicar una versión modificada, revisa las licencias, los avisos incluidos en el HTML y las condiciones vigentes de cada proveedor de datos y recurso.
