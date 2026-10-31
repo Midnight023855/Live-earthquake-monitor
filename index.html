@@ -16111,220 +16111,171 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         }
 
         async function loadTaiwanStations() {
-            const urls = [
-                'https://api-1.exptech.dev/api/v1/trem/station',
-                'https://cdn.jsdelivr.net/gh/ExpTechTW/API@master/resource/station.json',
-                'https://raw.githubusercontent.com/ExpTechTW/API/master/resource/station.json'
-            ];
-            let data = null;
-            for (const u of urls) {
-                try {
-                    const controller = new AbortController();
-                    const to = setTimeout(() => controller.abort(), 12000);
-                    const res = await fetch(u, { cache: 'no-store', signal: controller.signal });
-                    clearTimeout(to);
-                    if (!res.ok) continue;
-                    data = await res.json();
-                    if (data && typeof data === 'object' && Object.keys(data).length > 10) break;
-                    data = null;
-                } catch (_) {}
-            }
+            if (loadTaiwanStations._busy) return;
+            loadTaiwanStations._busy = true;
             try {
-                if (!data) throw new Error('sin estaciones TREM');
-                taiwanStationMeta = {};
+                const urls = [
+                    'https://api.lb-tpe1.exptech.dev/resource/station',
+                    'https://api.lb-khh1.exptech.dev/resource/station',
+                    'https://raw.githubusercontent.com/ExpTechTW/DPIP/main/resource/station'
+                ];
+                let csv = '';
+                for (const url of urls) {
+                    try {
+                        const controller = new AbortController();
+                        const timeout = setTimeout(() => controller.abort(), 12000);
+                        const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
+                        clearTimeout(timeout);
+                        if (!response.ok) continue;
+                        const candidate = await response.text();
+                        if (candidate && /loc_code\s*,\s*id\s*,\s*lat\s*,\s*lon/i.test(candidate.slice(0, 500))) { csv = candidate; break; }
+                    } catch (_) {}
+                }
+                if (!csv) throw new Error('No se pudo obtener el catálogo CSV oficial TREM');
+                const rows = csv.replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean);
+                const headers = rows.shift().split(',').map(x => x.trim().toLowerCase());
+                const col = name => headers.indexOf(name);
+                const idx = { id: col('id'), lat: col('lat'), lon: col('lon'), net: col('net'), work: col('work'), area: col('loc_code'), code: col('code') };
+                if (idx.id < 0 || idx.lat < 0 || idx.lon < 0) throw new Error('CSV TREM sin columnas id/lat/lon');
+                const parseCsvRow = line => {
+                    const out = []; let value = '', quoted = false;
+                    for (let i = 0; i < line.length; i++) {
+                        const ch = line[i];
+                        if (ch === '"' && line[i + 1] === '"' && quoted) { value += '"'; i++; }
+                        else if (ch === '"') quoted = !quoted;
+                        else if (ch === ',' && !quoted) { out.push(value); value = ''; }
+                        else value += ch;
+                    }
+                    out.push(value); return out;
+                };
+                const catalog = {};
+                rows.forEach(line => {
+                    const cells = parseCsvRow(line), id = String(cells[idx.id] || '').trim();
+                    const lat = Number(cells[idx.lat]), lon = Number(cells[idx.lon]);
+                    if (!id || !Number.isFinite(lat) || !Number.isFinite(lon) || lat < 20 || lat > 27 || lon < 118 || lon > 124) return;
+                    if (idx.work >= 0 && /^(0|false|no)$/i.test(String(cells[idx.work]).trim())) return;
+                    catalog[id] = { lat, lon, net: idx.net >= 0 ? cells[idx.net] : 'TREM', area: idx.area >= 0 ? cells[idx.area] : '', name: idx.code >= 0 ? cells[idx.code] : id, _twMotionStreak: 0, _twWasActive: false };
+                });
+                if (!Object.keys(catalog).length) throw new Error('Catálogo CSV TREM sin estaciones válidas en Taiwán');
+                taiwanStationMeta = catalog;
                 try { taiwanStationsLayer.clearLayers(); } catch (_) {}
                 taiwanMarkers = {};
-
-                Object.keys(data).forEach(id => {
-                    const st = data[id];
-                    if (!st || !st.info || !st.info.length) return;
-                    let info = null;
-                    for (let i = st.info.length - 1; i >= 0; i--) {
-                        const cand = st.info[i];
-                        if (cand && cand.lat != null && cand.lon != null) { info = cand; break; }
-                    }
-                    if (!info) return;
-                    const lat = Number(info.lat), lon = Number(info.lon);
-                    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-                    // Solo Taiwán / alrededores
-                    if (lat < 20 || lat > 27 || lon < 118 || lon > 124) return;
-
-                    taiwanStationMeta[id] = {
-                        lat, lon,
-                        net: st.net || 'TREM',
-                        area: info.area || info.county || info.city || '',
-                        name: info.name || info.town || id
-                    };
-                    // La ficha del catálogo solo da coordenadas: no crear marcador hasta tener datos RTS recientes.
-                });
-
-                const n = Object.keys(taiwanStationMeta).length;
-                if (!n) throw new Error('0 estaciones en rango');
-                // La lista de estaciones es solo un catálogo estático; no declara telemetría conectada.
                 apiMetrics.trem = apiMetrics.trem || {};
-                apiMetrics.trem.count = n;
+                apiMetrics.trem.count = Object.keys(catalog).length;
                 apiMetrics.trem.catalogLoadedAt = Date.now();
-                apiMetrics.trem.lastSeen = 0;
-                apiMetrics.trem.rtLastSeen = 0;
-                apiState.trem = 'updating';
-                queueConnectionPanelRender();
-                twEnsureLayers();
-                console.log('[TREM] catálogo de estaciones', n, '· esperando trama RTS reciente');
+                apiMetrics.trem.lastSeen = 0; apiMetrics.trem.rtLastSeen = 0;
+                apiState.trem = 'updating'; queueConnectionPanelRender();
+                try { setApiState('trem', 'updating', Object.keys(catalog).length); } catch (_) {}
+                console.log('[TREM] catálogo CSV cargado; esperando RTS SSE', Object.keys(catalog).length);
                 updateTaiwanRTS();
-            } catch (e) {
-                console.warn('[TREM] load', e);
+            } catch (error) {
+                console.warn('[TREM] catálogo', error);
                 setApiState('trem', 'bad');
-            }
+            } finally { loadTaiwanStations._busy = false; }
         }
 
         async function updateTaiwanRTS() {
             if (taiwanRtsBusy) return;
             taiwanRtsBusy = true;
+            let reader = null;
             try {
-                if (!Object.keys(taiwanStationMeta || {}).length) {
-                    loadTaiwanStations();
-                    return;
-                }
-                const urls = [
-                    'https://api.lb-tpe1.exptech.dev/api/v2/trem/rts',
-                    'https://api.lb-khh1.exptech.dev/api/v2/trem/rts',
-                    'https://lb-1.exptech.dev/api/v1/trem/rts',
-                    'https://lb-2.exptech.dev/api/v1/trem/rts'
-                ];
-                let data = null;
-                for (const u of urls) {
+                if (!Object.keys(taiwanStationMeta || {}).length) { await loadTaiwanStations(); return; }
+                const hosts = ['https://api.lb-tpe1.exptech.dev', 'https://api.lb-khh1.exptech.dev'];
+                let response = null, lastError = null;
+                for (const host of hosts) {
                     try {
                         const controller = new AbortController();
-                        const to = setTimeout(() => controller.abort(), 8000);
-                        const res = await fetch(u, { cache: 'no-store', signal: controller.signal, headers: { 'Accept': 'application/json' } });
-                        clearTimeout(to);
-                        if (!res.ok) continue;
-                        data = await res.json();
-                        if (data && data.station) break;
-                        data = null;
-                    } catch (_) {}
+                        updateTaiwanRTS._controller = controller;
+                        response = await fetch(host + '/api/v1/trem/sse?topics=trem.rts.v1&mode=live', {
+                            cache: 'no-store', signal: controller.signal, headers: { Accept: 'text/event-stream' }
+                        });
+                        if (response.ok && response.body) break;
+                        throw new Error('SSE HTTP ' + response.status);
+                    } catch (error) { lastError = error; response = null; }
                 }
-                if (!data || !data.station) throw new Error('RTS vacío');
-                const stations = data.station;
-                const rawFrameStamp = data.timestamp ?? data.time ?? data.updatedAt ?? data.updated_at ?? data.generatedAt ?? data.generated_at;
-                const tremFrameStamp = rawFrameStamp != null && String(rawFrameStamp).trim()
-                    ? String(rawFrameStamp) : '';
-                if (!tremFrameStamp) throw new Error('RTS sin sello de trama del origen; no se puede confirmar telemetría nueva');
-                const tremFrameTime = Date.parse(tremFrameStamp);
-                if (!Number.isFinite(tremFrameTime) || Date.now() - tremFrameTime > 60000 || tremFrameTime > Date.now() + 10000) throw new Error('trama RTS vencida o con hora inválida');
-                const newTremFrame = tremFrameStamp !== updateTaiwanRTS._lastMotionFrameStamp;
-                if (newTremFrame) updateTaiwanRTS._lastMotionFrameStamp = tremFrameStamp;
-
-                // Conectado ya
-                try {
-                    apiMetrics.trem = apiMetrics.trem || {};
-                    apiMetrics.trem.rtLastSeen = Date.now();
-                    apiMetrics.trem.lastSeen = tremFrameTime;
-                    apiMetrics.trem.frameTimestamp = tremFrameStamp;
-                } catch (_) {}
-                setApiState('trem', 'ok', Object.keys(taiwanStationMeta).length);
-                try { apiMetrics.trem.lastSeen = tremFrameTime; apiMetrics.trem.rtLastSeen = tremFrameTime; } catch (_) {}
-
-                let maxInt = -99, maxPga = 0, maxPgv = 0, activeCount = 0;
-                updateTaiwanRTS._activeBuf = [];
-                const currentTremIds=new Set(Object.keys(stations).map(String));
-                Object.keys(taiwanStationMeta).forEach(id => {
-                    const meta = taiwanStationMeta[id];
-                    let marker = taiwanMarkers[id];
-                    if (!meta) return;
-                    const rt = stations[id];
-                    if (!rt || !currentTremIds.has(String(id))) { if(marker){try{taiwanStationsLayer.removeLayer(marker)}catch(_){}} delete taiwanMarkers[id]; return; }
-                    const rawI = rt ? (rt.I != null ? rt.I : rt.i) : null;
-                    const I = rawI == null || rawI === '' ? NaN : Number(rawI);
-                    const pga = rt && rt.pga != null && rt.pga !== '' ? Number(rt.pga) : NaN;
-                    const pgv = rt && rt.pgv != null && rt.pgv !== '' ? Number(rt.pgv) : NaN;
-                    const pgd = rt && (rt.pgd ?? rt.PGD) != null ? Number(rt.pgd ?? rt.PGD) : NaN;
-                    const hasLiveData = !!rt && (Number.isFinite(I) || Number.isFinite(pga) || Number.isFinite(pgv) || Number.isFinite(pgd));
-                    if (!hasLiveData) {
-                        if (marker) { try { taiwanStationsLayer.removeLayer(marker); } catch (_) {} }
-                        delete taiwanMarkers[id]; meta._twMotionStreak = 0; meta._twWasActive = false;
-                        return;
-                    }
-                    if (!marker) {
-                        marker = L.circleMarker([meta.lat,meta.lon],{radius:6,color:'rgba(255,255,255,.45)',weight:1,fillColor:'#1428a0',fillOpacity:.9,pane:'stationsPane',interactive:true});
-                        marker.addTo(taiwanStationsLayer); taiwanMarkers[id]=marker;
-                    }
-                    const numI = Number.isFinite(I) ? I : NaN;
-                    if (numI > maxInt) maxInt = numI;
-                    if (Number.isFinite(pga) && pga > maxPga) maxPga = pga;
-                    if (Number.isFinite(pgv) && pgv > maxPgv) maxPgv = pgv;
-                    // Igual que Japón: intensidad instrumental >= 0 en dos tramas consecutivas.
-                    const aboveMotionThreshold = Number.isFinite(numI) && numI >= 0;
-                    if (newTremFrame && Number.isFinite(numI)) meta._twMotionStreak = aboveMotionThreshold ? (meta._twMotionStreak || 0) + 1 : 0;
-                    else if (newTremFrame) meta._twMotionStreak = 0;
-                    if ((meta._twMotionStreak || 0) >= 2) {
-                        activeCount++;
-                        if (!updateTaiwanRTS._activeBuf) updateTaiwanRTS._activeBuf = [];
-                        updateTaiwanRTS._activeBuf.push({
-                            id, lat: meta.lat, lon: meta.lon, intensity: numI,
-                            area: meta.area, name: meta.name, network: 'TREM',
-                            pga: Number.isFinite(pga) ? pga : null,
-                            pgv: Number.isFinite(pgv) ? pgv : null
-                        });
-                    }
-
-                    const fill = twColorByI(numI);
-                    const hi = numI >= 0;
+                if (!response || !response.ok || !response.body) throw lastError || new Error('TREM SSE no disponible');
+                reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                const processEvent = async eventText => {
+                    const eventName = (eventText.match(/^event:\s*(.+)$/m) || [])[1] || '';
+                    if (eventName && eventName !== 'trem.rts.v1') return;
+                    const dataText = eventText.split(/\r?\n/).filter(line => line.startsWith('data:')).map(line => line.slice(5).trim()).join('\n');
+                    if (!dataText) return;
+                    let compressed;
+                    try { const binary = atob(dataText); compressed = Uint8Array.from(binary, c => c.charCodeAt(0)); }
+                    catch (_) { throw new Error('Trama SSE TREM: base64 inválido'); }
+                    if (typeof DecompressionStream === 'undefined') throw new Error('Este navegador no admite descompresión gzip para TREM');
+                    const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'));
+                    const jsonText = await new Response(stream).text();
+                    const frame = JSON.parse(jsonText);
+                    const rawTs = Number(frame?.ts);
+                    const frameTime = rawTs < 1e12 ? rawTs * 1000 : rawTs;
+                    if (!Number.isFinite(frameTime) || Date.now() - frameTime > 60000 || frameTime > Date.now() + 10000) throw new Error('Trama TREM vencida o con sello ts inválido');
+                    const stamp = String(frame.ts);
+                    if (stamp === updateTaiwanRTS._lastMotionFrameStamp) return;
+                    updateTaiwanRTS._lastMotionFrameStamp = stamp;
+                    const stations = frame.stations;
+                    if (!stations || typeof stations !== 'object') throw new Error('RTS TREM sin objeto stations');
+                    // Solo los IDs exactos del catálogo y las métricas presentes en la trama.
+                    let maxInt = -99, maxPga = 0, maxPgv = 0;
+                    const active = [];
+                    Object.keys(taiwanStationMeta).forEach(id => {
+                        const meta = taiwanStationMeta[id], rt = stations[id];
+                        let marker = taiwanMarkers[id];
+                        if (!rt || typeof rt !== 'object') {
+                            if (marker) { try { taiwanStationsLayer.removeLayer(marker); } catch (_) {} }
+                            delete taiwanMarkers[id]; meta._twMotionStreak = 0; return;
+                        }
+                        const rawI = rt.i;
+                        const intensity = rawI == null || rawI === '' ? NaN : Number(rawI);
+                        const pga = rt.pga == null || rt.pga === '' ? NaN : Number(rt.pga);
+                        const hasMetric = Number.isFinite(intensity) || Number.isFinite(pga);
+                        if (!hasMetric) return;
+                        if (!marker) {
+                            marker = L.circleMarker([meta.lat, meta.lon], { radius: 6, color: 'rgba(255,255,255,.45)', weight: 1, fillColor: '#1428a0', fillOpacity: .9, pane: 'stationsPane', interactive: true });
+                            marker.addTo(taiwanStationsLayer); taiwanMarkers[id] = marker;
+                        }
+                        if (Number.isFinite(intensity)) maxInt = Math.max(maxInt, intensity);
+                        if (Number.isFinite(pga)) maxPga = Math.max(maxPga, pga);
+                        const moving = Number.isFinite(intensity) && intensity >= 0;
+                        meta._twMotionStreak = moving ? (meta._twMotionStreak || 0) + 1 : 0;
+                        if (meta._twMotionStreak >= 2) active.push({ id, lat: meta.lat, lon: meta.lon, intensity, area: meta.area, name: meta.name, network: 'TREM', pga: Number.isFinite(pga) ? pga : null, pgv: null });
+                        const fill = twColorByI(intensity), highlighted = Number.isFinite(intensity) && intensity >= 0;
+                        try {
+                            marker.setStyle({ fillColor: fill, color: highlighted ? '#ffffff' : 'rgba(255,255,255,.45)', weight: highlighted ? 2.5 : 1, radius: highlighted ? 7 : 6, fillOpacity: .95 });
+                            marker.setPopupContent(`<b>🇹🇼 TREM · ${id}</b><br>${meta.name || ''}<br>${meta.area || meta.net || ''}<br>Intensidad instrumental: <b>${Number.isFinite(intensity) ? intensity : '—'}</b><br>PGA: <b>${Number.isFinite(pga) ? pga.toFixed(2) + ' gal' : '—'}</b><br>PGV: <b>—</b>`);
+                        } catch (_) {}
+                    });
                     try {
-                        marker.setStyle({
-                            fillColor: fill,
-                            color: hi ? '#ffffff' : 'rgba(255,255,255,.45)',
-                            weight: hi ? 2.5 : 1,
-                            radius: hi ? 7 : 6,
-                            fillOpacity: 0.95
-                        });
-                        marker.setPopupContent(
-                            `<b>🇹🇼 TREM · ${id}</b><br>${meta.name || ''}<br>${meta.area || meta.net || ''}` +
-                            `<br>Intensidad: <b>${numI >= -2 ? numI.toFixed(1).replace(/\.0$/,'') : '—'}</b>` +
-                            `<br>PGA: <b>${Number.isFinite(pga) ? pga.toFixed(2) + ' gal' : '—'}</b>` +
-                            `<br>PGV: <b>${Number.isFinite(pgv) ? pgv.toFixed(2) + ' cm/s' : '—'}</b>`
-                        );
+                        const elI = document.getElementById('tremMaxInt'), elPga = document.getElementById('tremMaxPga'), elPgv = document.getElementById('tremMaxPgv');
+                        if (elI) elI.textContent = maxInt >= -2 ? String(maxInt) : '—';
+                        if (elPga) elPga.textContent = maxPga ? maxPga.toFixed(2) : '—';
+                        if (elPgv) elPgv.textContent = '—';
                     } catch (_) {}
-                });
-
-                // Métricas panel
-                try {
-                    const elI = document.getElementById('tremMaxInt');
-                    const elPga = document.getElementById('tremMaxPga');
-                    const elPgv = document.getElementById('tremMaxPgv');
-                    if (elI) elI.textContent = maxInt >= -2 ? String(maxInt.toFixed(1).replace(/\.0$/,'')) : '—';
-                    if (elPga) elPga.textContent = maxPga ? maxPga.toFixed(2) : '—';
-                    if (elPgv) elPgv.textContent = maxPgv ? maxPgv.toFixed(2) : '—';
-                } catch (_) {}
-
-                // Detección de movimiento como Japón: ≥2 estaciones cercanas con intensidad ≥ 0 en dos tramas.
-                try {
-                    const act = updateTaiwanRTS._activeBuf || [];
-                    const nearby = tremClusterActive(act, 300, 2);
-                    if (typeof syncTaiwanMovementView === 'function') {
-                        syncTaiwanMovementView('trem', nearby);
+                    apiMetrics.trem = apiMetrics.trem || {}; apiMetrics.trem.rtLastSeen = frameTime; apiMetrics.trem.lastSeen = frameTime; apiMetrics.trem.frameTimestamp = stamp;
+                    setApiState('trem', 'ok', Object.keys(taiwanStationMeta).length);
+                    try { if (typeof syncTaiwanMovementView === 'function') syncTaiwanMovementView('trem', tremClusterActive(active, 300, 2)); if (active.length >= 2) notifyLocalMotionEpisode(active, 'TREM'); else playSrevMotionSound([]); } catch (error) { console.warn('[TREM motion]', error); }
+                    twEnsureLayers();
+                };
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    let boundary;
+                    while ((boundary = buffer.search(/\r?\n\r?\n/)) >= 0) {
+                        const eventText = buffer.slice(0, boundary);
+                        const match = buffer.slice(boundary).match(/^\r?\n\r?\n/);
+                        buffer = buffer.slice(boundary + (match ? match[0].length : 2));
+                        await processEvent(eventText);
                     }
-                    if (nearby.length >= 2) {
-                        try { notifyLocalMotionEpisode(nearby, 'TREM'); } catch (_) {}
-                    } else {
-                        try { playSrevMotionSound([]); } catch (_) {} // marca reposo
-                    }
-                } catch (e) { console.warn('[TREM motion]', e); }
-
-                twEnsureLayers();
-            } catch (e) {
-                console.warn('[TREM] RTS', e);
-                try { taiwanStationsLayer.clearLayers(); } catch (_) {}
-                taiwanMarkers = {};
-                try {
-                    apiMetrics.trem = apiMetrics.trem || {};
-                    apiMetrics.trem.rtLastError = String(e && e.message || e || 'RTS sin respuesta');
-                    apiMetrics.trem.lastSeen = 0;
-                    apiMetrics.trem.rtLastSeen = 0;
-                    apiState.trem = 'bad';
-                    queueConnectionPanelRender();
-                } catch (_) { setApiState('trem', 'bad'); }
+                }
+                throw new Error('Conexión SSE TREM finalizada');
+            } catch (error) {
+                console.warn('[TREM] SSE RTS', error);
+                try { apiMetrics.trem = apiMetrics.trem || {}; apiMetrics.trem.rtLastError = String(error?.message || error); apiMetrics.trem.lastSeen = 0; apiMetrics.trem.rtLastSeen = 0; apiState.trem = 'bad'; queueConnectionPanelRender(); } catch (_) { setApiState('trem', 'bad'); }
             } finally {
+                try { reader?.cancel(); } catch (_) {}
                 taiwanRtsBusy = false;
             }
         }
@@ -27902,8 +27853,6 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         let ynMotionAutoClosePending = false;
         let ynMotionIdleCloseTimer = null;
         let ynLastMotionEpisodeClosedStamp = 0;
-        let ynAwaitFreshRestAfterClose = false;
-        let ynFreshRestFrameStreak = 0;
         let ynLastConfirmedMotionStamp = 0;
         let ynLastConfirmedMotionAt = 0;
         let ynLastMotionEvidenceAt = 0;
@@ -27934,21 +27883,17 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         // coherentes en dos lecturas consecutivas. No pide permisos del sistema.
         function ynActivateAutomatically(groups) {
             const layout = document.getElementById('mainLayout');
-            if (!layout || ynAwaitFreshRestAfterClose || !ynFeedIsFresh() || !ynAutoActivationReady || ynActiveFrameStreak < 2 ||
-                Number(ynLastObservedMs) <= Number(ynLastMotionEpisodeClosedStamp || 0) || !ynLastMotionEvidenceAt || Date.now()-Number(ynLastMotionEvidenceAt)>5000) return false;
-            const liveGroups=ynUpdateMotionGroupConfirmation(ynClusterActiveStations(ynCoherentActiveStations(ynActiveStations())));
-            if(!liveGroups.length||!liveGroups.some(g=>(g.stations||[]).length>=YN_MOTION_QUORUM))return false;
-            groups=liveGroups;
-            // Los callbacks de prioridad pueden intentar restaurar grupos guardados
-            // varios segundos tarde. Solo abrir si el feed aún muestra movimiento
-            // confirmado y posterior al último cierre por reposo.
-            const motionNow=ynFeedIsFresh()&&ynAutoActivationReady&&ynActiveFrameStreak>=2&&
-                Number(ynLastObservedMs)>Number(ynLastMotionEpisodeClosedStamp||0)&&
-                Number(ynLastMotionEvidenceAt)>0&&Date.now()-Number(ynLastMotionEvidenceAt)<=5000;
-            if(!motionNow)return false;
-            const liveGroups=ynUpdateMotionGroupConfirmation(ynClusterActiveStations(ynCoherentActiveStations(ynActiveStations())));
-            if(!liveGroups.length||!liveGroups.some(g=>(g.stations||[]).length>=YN_MOTION_QUORUM))return false;
-            groups=liveGroups;
+            if (!layout) return false;
+            // Una reapertura automática solo puede proceder de una trama NIED nueva,
+            // fresca y ya confirmada después del último cierre por reposo. Los grupos
+            // guardados en callbacks/timers nunca son evidencia suficiente.
+            const activationStamp = Number(ynLastObservedMs) || 0;
+            if (!activationStamp || !ynFeedIsFresh() ||
+                activationStamp <= (Number(ynLastMotionEpisodeClosedStamp) || 0) ||
+                activationStamp !== Number(ynLastConfirmedMotionStamp) ||
+                !ynLastConfirmedMotionAt || Date.now() - Number(ynLastConfirmedMotionAt) > 5000) {
+                return false;
+            }
             // El movimiento instrumental de NIED/Japón conserva prioridad visual.
             const wasAlreadyOpen = !!(ynMode || yahooNiedModeActive || layout.classList.contains('japan-focus'));
             if(!japanLiveStationsPinned)ynMotionAutoClosePending=true;
@@ -28271,7 +28216,6 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
             }
 
             if (!frameActive) {
-                if(ynAwaitFreshRestAfterClose){ynFreshRestFrameStreak++;if(ynFreshRestFrameStreak>=2)ynAwaitFreshRestAfterClose=false;}
                 ynInactiveSinceBaseline = true;
                 ynActiveFrameStreak = 0;
                 ynAutoActivationReady = false;
@@ -28279,7 +28223,6 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
                 ynWaveSoundPlayed = false;
                 ynDetectorState = 'armed';
             } else if (ynInactiveSinceBaseline) {
-                if(ynAwaitFreshRestAfterClose)ynFreshRestFrameStreak=0;
                 const overlapsPreviousFrame = [...frameStationIndices].some(index => ynPreviousActiveStationIndices.has(index));
                 ynActiveFrameStreak = ynPreviousFrameActive && overlapsPreviousFrame ? ynActiveFrameStreak + 1 : 1;
                 ynAutoActivationReady = ynActiveFrameStreak >= 2;
@@ -28469,8 +28412,6 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
         function ynCloseAutomatically() {
             if (!ynAutoOpened && !ynMotionAutoClosePending) return;
             const closingAfterMotionIdle = !!ynMotionAutoClosePending;
-            if(closingAfterMotionIdle){ynAwaitFreshRestAfterClose=true;ynFreshRestFrameStreak=0;}
-            if(closingAfterMotionIdle){ynAwaitFreshRestAfterClose=true;ynFreshRestFrameStreak=0;}
             const layout=document.getElementById('mainLayout');
             const wasJmaPriority=!!(typeof jmaWeatherAlertMode!=='undefined'&&jmaWeatherAlertMode);
             const otherFocusClasses=['jma-weather-focus','jma-volcano-focus','us-alerts-focus','tsunami-focus','hurricane-focus','typhoon-focus','taiwan-focus','taiwan-motion-focus','gdacs-focus'];
@@ -29059,7 +29000,7 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
             const groups = ynUpdateMotionGroupConfirmation(ynClusterActiveStations(current));
             ynPromoteConfirmedMotionEvidence(groups);
             const confirmed = ynFeedIsFresh() && ynLastMotionEvidenceAt>0 && Date.now()-ynLastMotionEvidenceAt<=5000 && Number(ynLastObservedMs)>ynLastMotionEpisodeClosedStamp && ynAutoActivationReady && ynActiveFrameStreak >= 2 && current.length >= YN_MOTION_QUORUM && groups.length>0;
-            if (!confirmed || ynStartupLocked() || ynAwaitFreshRestAfterClose) {
+            if (!confirmed || ynStartupLocked()) {
                 if (ynEarlyEpisode && !confirmed) {
                     ynScheduleMotionIdleClose();
                     return;
@@ -32528,12 +32469,8 @@ setTimeout(()=>{try{window.__eqApplyFaults?.(!!window.__eqShowFaults);}catch(_){
           if(newId && newId!=='ynEarlyAlert' && isOpen(document.getElementById(newId),newId)) closeOne(newId);
           busy=false;
           if(savedGroups && typeof ynActivateAutomatically==='function'){
-            const stillConfirmed=!ynAwaitFreshRestAfterClose&&typeof ynFeedIsFresh==='function'&&ynFeedIsFresh()&&ynAutoActivationReady&&ynActiveFrameStreak>=2&&
-              Number(ynLastObservedMs)>Number(ynLastMotionEpisodeClosedStamp||0)&&Number(ynLastMotionEvidenceAt)>0&&Date.now()-Number(ynLastMotionEvidenceAt)<=5000;
-            if(stillConfirmed){
-              const opened=ynActivateAutomatically(savedGroups);
-              if(!opened && typeof ynFocusEpisodeOnce==='function') ynFocusEpisodeOnce(savedGroups);
-            }
+            const opened=ynActivateAutomatically(savedGroups);
+            if(!opened && typeof ynFocusEpisodeOnce==='function') ynFocusEpisodeOnce(savedGroups);
           }
         } catch(_) { busy=false; }
       },5000);
