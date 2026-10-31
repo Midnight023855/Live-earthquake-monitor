@@ -8409,6 +8409,7 @@ global.TauPJS=api;
         let typhoonLayer = L.layerGroup().addTo(map);
         let typhoonData = [];
         let nmcTyphoonData = [];
+        let fanStudioTyphoonData = [];
         let typhoonInitialized = false;
         let typhoonAlertSignature = '';
         let nmcTyphoonAlertSignature = '';
@@ -8455,6 +8456,107 @@ global.TauPJS=api;
 
         // NMC/CMA typhoon tracker: public JSONP endpoints with CORS enabled.
         const NMC_TYPHOON_BASE = 'https://typhoon.nmc.cn/weatherservice/typhoon/jsons/';
+        // Fan Studio Weather (https://weather.fanstudio.tech/)
+        // El API exige origen fanstudio.tech (SOURCE_REQUIRED) + CORS cerrado.
+        // Se intenta: Worker proxy → allorigins → directo.
+        const FAN_STUDIO_TYPHOON_URL = 'https://weather.fanstudio.tech/api/typhoon.php';
+        const FAN_STUDIO_TYPHOON_PROXY_DEFAULT = (typeof localStorage !== 'undefined' && localStorage.getItem('EQ_FAN_STUDIO_TYPHOON_PROXY'))
+            || (typeof window !== 'undefined' && window.EQ_FAN_STUDIO_TYPHOON_PROXY)
+            || 'https://fanstudio-tifones.terremotis123.workers.dev/';
+        function fanStudioTyphoonColor(power) {
+            const p = parseFloat(power);
+            if (!Number.isFinite(p)) return '#00d5d5';
+            if (p >= 16) return '#ff0000';
+            if (p >= 14) return '#ff00ff';
+            if (p >= 12) return '#ffaa00';
+            if (p >= 10) return '#ffff00';
+            if (p >= 8) return '#0000ff';
+            return '#00d5d5';
+        }
+        function fanStudioPowerFromWindMps(mps) {
+            const v = Number(mps);
+            if (!Number.isFinite(v)) return null;
+            if (v >= 52) return 16;
+            if (v >= 48) return 15;
+            if (v >= 42) return 14;
+            if (v >= 38) return 13;
+            if (v >= 33) return 12;
+            if (v >= 30) return 11;
+            if (v >= 25) return 10;
+            if (v >= 23) return 9;
+            if (v >= 18) return 8;
+            if (v >= 10) return 6;
+            return 4;
+        }
+        function fanStudioColorFromWindMps(mps) {
+            const p = fanStudioPowerFromWindMps(mps);
+            return p == null ? '#00d5d5' : fanStudioTyphoonColor(p);
+        }
+        function fanStudioColorFromJmaCategory(cat) {
+            const c = String(cat || '').toUpperCase();
+            if (/STY|SUPER/.test(c)) return fanStudioTyphoonColor(16);
+            if (/^TY|TYPHOON|HURRICANE/.test(c)) return fanStudioTyphoonColor(14);
+            if (/STS|SEVERE/.test(c)) return fanStudioTyphoonColor(12);
+            if (/^TS|TROPICAL STORM/.test(c)) return fanStudioTyphoonColor(10);
+            if (/TD|DEPRESSION/.test(c)) return fanStudioTyphoonColor(8);
+            return '#00d5d5';
+        }
+        function normalizeFanStudioTyphoon(raw) {
+            if (!raw || typeof raw !== 'object') return null;
+            const tfid = String(raw.tfid || '').trim();
+            if (!tfid) return null;
+            const points = Array.isArray(raw.points) ? raw.points.map(p => ({
+                time: p.time, lng: p.lng, lat: p.lat, strong: p.strong, power: p.power,
+                speed: p.speed, pressure: p.pressure, movespeed: p.movespeed, movedirection: p.movedirection,
+                radius7: p.radius7, radius10: p.radius10, radius12: p.radius12, forecast: p.forecast,
+                windMps: p.speed != null ? Number(p.speed) : null,
+                moveDir: p.movedirection || ''
+            })) : [];
+            return {
+                tfid, name: raw.name || raw.enname || tfid, enname: raw.enname || '', cname: raw.name || '',
+                source: 'Fan Studio', isactive: String(raw.isactive != null ? raw.isactive : '1'),
+                starttime: raw.starttime, endtime: raw.endtime,
+                centerlat: raw.centerlat, centerlng: raw.centerlng,
+                land: Array.isArray(raw.land) ? raw.land : [], points, fanStudio: true
+            };
+        }
+        function parseFanStudioTyphoonPayload(json) {
+            if (!json || typeof json !== 'object') return [];
+            if (json.success === false) throw new Error(json.message || json.code || 'Fan Studio error');
+            const rows = Array.isArray(json.data) ? json.data : (Array.isArray(json) ? json : []);
+            return rows.map(normalizeFanStudioTyphoon).filter(Boolean);
+        }
+        async function fetchFanStudioTyphoonJson(url) {
+            const response = await fetch(url, { cache: 'no-store', headers: { 'Accept': 'application/json' } });
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            const json = await response.json();
+            if (json && typeof json.contents === 'string') return JSON.parse(json.contents);
+            return json;
+        }
+        async function loadFanStudioTyphoons() {
+            const proxy = String(FAN_STUDIO_TYPHOON_PROXY_DEFAULT || '').trim();
+            const candidates = [];
+            if (proxy) candidates.push(proxy);
+            // Worker del usuario (raíz y /api/typhoon) — ya devuelve JSON de tifones
+            candidates.push('https://fanstudio-tifones.terremotis123.workers.dev/');
+            candidates.push('https://fanstudio-tifones.terremotis123.workers.dev/api/typhoon');
+            candidates.push('https://api.allorigins.win/raw?url=' + encodeURIComponent(FAN_STUDIO_TYPHOON_URL));
+            candidates.push(FAN_STUDIO_TYPHOON_URL);
+            let lastErr = null;
+            for (const url of candidates) {
+                try {
+                    const json = await fetchFanStudioTyphoonJson(url);
+                    const loaded = parseFanStudioTyphoonPayload(json);
+                    fanStudioTyphoonData = loaded;
+                    return fanStudioTyphoonData;
+                } catch (e) {
+                    lastErr = e;
+                    try { console.warn('[Fan Studio typhoon] falló', url, e && e.message); } catch (_) {}
+                }
+            }
+            throw lastErr || new Error('Fan Studio typhoon no disponible (CORS / SOURCE_REQUIRED). Despliega el Worker proxy.');
+        }
+
         function parseNmcTyphoonPayload(text) {
             let value = String(text || '').trim();
             if (!value) throw new Error('NMC respondió vacío');
@@ -8540,7 +8642,10 @@ global.TauPJS=api;
             return [t?.enname, t?.name, t?.cname].map(value => String(value || '').toUpperCase().replace(/[^A-Z0-9\u4e00-\u9fff]/g, '')).filter(Boolean);
         }
         function mergeActiveTyphoonSources() {
-            const candidates = nmcTyphoonData.filter(t => String(t.isactive) === '1');
+            const candidates = [
+                ...fanStudioTyphoonData.filter(t => String(t.isactive) === '1'),
+                ...nmcTyphoonData.filter(t => String(t.isactive) === '1')
+            ];
             const seen = new Set();
             return candidates.filter(t => {
                 const keys = typhoonNameKeys(t);
@@ -8663,14 +8768,13 @@ global.TauPJS=api;
         function renderJmaTyphoonMap() {
             jmaTyphoonData.forEach(t => {
                 const points=(Array.isArray(t.points)?t.points:[]).filter(p=>Number.isFinite(Number(p.lat))&&Number.isFinite(Number(p.lon)));
-                if(points.length>1) L.polyline(points.map(p=>[p.lat,p.lon]), {renderer:typhoonSvgRenderer,color:'#30d8ff',weight:3.2,dashArray:null,lineCap:'round',opacity:1,className:'typhoon-track-jma'}).addTo(typhoonLayer);
-                // El mapa de Kanameishi usa un recorrido fino con puntos; no se
-                // dibujan radios de viento inferidos ni grandes círculos genéricos.
-                points.slice(0,-1).forEach(p=>L.circleMarker([p.lat,p.lon],{renderer:typhoonSvgRenderer,radius:1.8,color:'#c9eef7',weight:.8,fillColor:'#73cde4',fillOpacity:.95,className:'typhoon-point-observed',interactive:false}).addTo(typhoonLayer));
+                const color = fanStudioColorFromJmaCategory(t.category);
+                if(points.length>1) L.polyline(points.map(p=>[p.lat,p.lon]), {renderer:typhoonSvgRenderer,color,weight:3.2,dashArray:null,lineCap:'round',opacity:1,className:'typhoon-track-jma'}).addTo(typhoonLayer);
+                points.slice(0,-1).forEach(p=>L.circleMarker([p.lat,p.lon],{renderer:typhoonSvgRenderer,radius:1.8,color:'#fff',weight:.8,fillColor:color,fillOpacity:.9,className:'typhoon-point-observed',interactive:false}).addTo(typhoonLayer));
                 const last=points[points.length-1];
                 if(last){
-                    L.circleMarker([last.lat,last.lon],{renderer:typhoonSvgRenderer,radius:8,color:'#75d9f2',weight:1.1,opacity:.72,fillColor:'#49bede',fillOpacity:.06,className:'typhoon-center-halo',interactive:false}).addTo(typhoonLayer);
-                    L.circleMarker([last.lat,last.lon],{renderer:typhoonSvgRenderer,radius:3.1,color:'#f5e6c7',weight:1.2,fillColor:'#f1bd72',fillOpacity:1,className:'typhoon-point-current'})
+                    L.circleMarker([last.lat,last.lon],{renderer:typhoonSvgRenderer,radius:9,color:color,weight:1.2,opacity:.65,fillColor:color,fillOpacity:.08,className:'typhoon-center-halo',interactive:false}).addTo(typhoonLayer);
+                    L.circleMarker([last.lat,last.lon],{renderer:typhoonSvgRenderer,radius:3.4,color:'#fff',weight:1.4,fillColor:color,fillOpacity:1,className:'typhoon-point-current'})
                         .bindPopup(`<b>🇯🇵 ${t.name}</b><br>${jmaCategoryLabel(t.category)}<br>Presión: ${jmaTyphoonDetails(t).pressure}<br>Viento: ${jmaTyphoonDetails(t).wind}`).addTo(typhoonLayer);
                 }
             });
@@ -8679,7 +8783,7 @@ global.TauPJS=api;
         function typhoonDisplayName(t) {
             const en = String(t.enname || '').trim();
             const local = String(t.name || '').trim();
-            if (t.source === 'NMC / CMA' && en && local && en !== local) return `${en} (${local})`;
+            if ((t.source === 'NMC / CMA' || t.source === 'Fan Studio') && en && local && en !== local) return `${en} (${local})`;
             return en && en !== 'NAMELESS' ? en : (local || `Tifón ${t.tfid || ''}`);
         }
 
@@ -8714,7 +8818,7 @@ global.TauPJS=api;
             if (!totalSystems) {
                 status.textContent = '● Sin sistemas reportados';
                 status.style.color = '#8bd8ff';
-                info.innerHTML = 'No hay sistemas reportados ahora por JMA o NMC / CMA.';
+                info.innerHTML = 'No hay sistemas reportados ahora por JMA, NMC / CMA o Fan Studio.';
                 return;
             }
             status.textContent = `● ${totalSystems} sistema${totalSystems > 1 ? 's' : ''} en seguimiento`;
@@ -8725,28 +8829,37 @@ global.TauPJS=api;
                 const forecast = forecastTyphoonPoints(t);
                 const when = last.time ? formatTime(typhoonTime(last.time)) : '—';
                 const pos = Number.isFinite(Number(t.centerlat)) ? `${Number(t.centerlat).toFixed(1)}°, ${Number(t.centerlng).toFixed(1)}°` : '—';
-                const cat = t.source === 'NMC / CMA'
-                    ? jmaCategoryLabel(last.strong)
+                const cat = (t.source === 'Fan Studio' || t.source === 'NMC / CMA')
+                    ? (last.strong || jmaCategoryLabel(last.strong) || 'Activo')
                     : (last.strong || 'Activo');
                 const wind = last.windMps != null ? `${last.windMps} m/s` : (last.power != null ? `M${last.power}` : '—');
                 const pressure = last.pressure != null ? `${last.pressure} hPa` : '—';
                 const move = last.moveDir || last.movement || last.dir || '—';
                 const strong = /typhoon|huracán|hurricane|intense|super|violent/i.test(String(cat)) || Number(last.windMps) >= 33;
                 const src = t.source || 'NMC / CMA';
-                return `<div class="typhoon-card">
+                const power = Number(last.power);
+                const powerColor = (typeof fanStudioTyphoonColor === 'function') ? fanStudioTyphoonColor(power) : '#58ddff';
+                const powerDots = Number.isFinite(power) ? Math.max(1, Math.min(8, Math.round(power / 2))) : 0;
+                const dotsHtml = Array.from({length:8}, (_,i) => `<i style="background:${i < powerDots ? powerColor : 'rgba(255,255,255,.12)'}"></i>`).join('');
+                const en = String(t.enname || '').trim();
+                const localName = String(t.name || t.cname || '').trim();
+                const subtitle = [t.tfid, en && en !== localName ? en : ''].filter(Boolean).join(' · ');
+                return `<div class="typhoon-card${String(t.tfid)===String(typhoonFocusId)?' is-focused':''}">
                   <div class="typhoon-card-head">
-                    <div class="typhoon-name">🌀 ${typhoonDisplayName(t)}</div>
-                    <span class="typhoon-badge${strong ? ' cat-strong' : ''}">${cat}</span>
+                    <span class="typhoon-status-dot is-active" title="activo"></span>
+                    <div class="typhoon-name">${typhoonDisplayName(t)}${subtitle ? `<small>${subtitle}</small>` : ''}</div>
+                    <span class="typhoon-badge${strong ? ' cat-strong' : ''}" style="${Number.isFinite(power) ? `border-color:${powerColor}55;color:${powerColor}` : ''}">${cat}</span>
                   </div>
                   <div class="typhoon-meta">
-                    <div><span class="label">Centro</span>${pos}</div>
-                    <div><span class="label">Hora</span>${when}</div>
-                    <div><span class="label">Viento</span>${wind}</div>
-                    <div><span class="label">Presión</span>${pressure}</div>
-                    <div><span class="label">Movimiento</span>${move}</div>
-                    <div><span class="label">Pronóstico</span>${forecast.length ? forecast.length + ' puntos' : '—'}</div>
+                    <span>🕒 ${when}</span>
+                    <span>💨 ${wind}</span>
+                    <span>📉 ${pressure}</span>
+                    <span>➡️ ${move}</span>
+                    <span>📍 ${forecast.length ? forecast.length + ' pts pronóstico' : 'sin pronóstico'}</span>
                   </div>
-                  <div class="typhoon-source">Fuente: ${src}</div>
+                  <div class="typhoon-position">Centro ${pos}</div>
+                  <div class="typhoon-power-bar" title="Potencia (escala Fan Studio)">${dotsHtml}</div>
+                  <div class="typhoon-source">${src}</div>
                 </div>`;
             }).join('');
         }
@@ -8765,19 +8878,24 @@ global.TauPJS=api;
             (active || []).forEach(t => {
                 const actual=activeTyphoonPoints(t),forecast=forecastTyphoonPoints(t),name=typhoonDisplayName(t);
                 const latest=actual[actual.length-1]||null,kind=typhoonTrackClass(latest?.raw?.strong||latest?.raw?.class||t.category);
-                // Observación: línea cian fina y punteada, con puntos pequeños en
-                // cada reporte para recordar el estilo del mapa de referencia.
-                if(actual.length>1)L.polyline(actual.map(p=>[p.lat,p.lon]),{renderer:typhoonSvgRenderer,color:'#30d8ff',weight:3.2,opacity:1,dashArray:null,lineCap:'round',className:`typhoon-track-observed ${kind}`}).addTo(typhoonLayer);
-                actual.slice(0,-1).forEach(p=>L.circleMarker([p.lat,p.lon],{renderer:typhoonSvgRenderer,radius:1.8,color:'#c9eef7',weight:.8,fillColor:'#73cde4',fillOpacity:.95,className:'typhoon-point-observed',interactive:false}).addTo(typhoonLayer));
+                // Colores estilo Fan Studio (por potencia / viento)
+                const color = (latest?.raw?.power != null)
+                    ? fanStudioTyphoonColor(latest.raw.power)
+                    : fanStudioColorFromWindMps(latest?.raw?.windMps);
+                if(actual.length>1)L.polyline(actual.map(p=>[p.lat,p.lon]),{renderer:typhoonSvgRenderer,color,weight:3.2,opacity:1,dashArray:null,lineCap:'round',className:`typhoon-track-observed ${kind}`}).addTo(typhoonLayer);
+                actual.slice(0,-1).forEach(p=>{
+                    const pc = (p.raw?.power != null) ? fanStudioTyphoonColor(p.raw.power) : fanStudioColorFromWindMps(p.raw?.windMps);
+                    L.circleMarker([p.lat,p.lon],{renderer:typhoonSvgRenderer,radius:2.1,color:'#fff',weight:.8,fillColor:pc,fillOpacity:.95,className:'typhoon-point-observed',interactive:false}).addTo(typhoonLayer);
+                });
                 if(forecast.length){
                     const start=latest||forecast[0],line=[[start.lat,start.lon],...forecast.map(p=>[p.lat,p.lon])];
-                    L.polyline(line,{renderer:typhoonSvgRenderer,color:'#ff9f1c',weight:3,opacity:1,dashArray:'1 9',lineCap:'round',className:`typhoon-track-forecast ${kind}`}).addTo(typhoonLayer);
-                    forecast.forEach(p=>L.circleMarker([p.lat,p.lon],{renderer:typhoonSvgRenderer,radius:2,color:'#f4e1bd',weight:.8,fillColor:'#d6ad70',fillOpacity:1,className:'typhoon-point-forecast',interactive:false}).addTo(typhoonLayer));
+                    L.polyline(line,{renderer:typhoonSvgRenderer,color,weight:2.8,opacity:.95,dashArray:'1 9',lineCap:'round',className:`typhoon-track-forecast ${kind}`}).addTo(typhoonLayer);
+                    forecast.forEach(p=>L.circleMarker([p.lat,p.lon],{renderer:typhoonSvgRenderer,radius:2,color:'#fff',weight:.7,fillColor:color,fillOpacity:.75,className:'typhoon-point-forecast',interactive:false}).addTo(typhoonLayer));
                 }
                 const center=latest||forecast[0];
                 if(center){
-                    L.circleMarker([center.lat,center.lon],{renderer:typhoonSvgRenderer,radius:8,color:'#75d9f2',weight:1.1,opacity:.72,fillColor:'#49bede',fillOpacity:.06,className:'typhoon-center-halo',interactive:false}).addTo(typhoonLayer);
-                    L.circleMarker([center.lat,center.lon],{renderer:typhoonSvgRenderer,radius:3.1,color:'#f5e6c7',weight:1.2,fillColor:'#f1bd72',fillOpacity:1,className:'typhoon-point-current'})
+                    L.circleMarker([center.lat,center.lon],{renderer:typhoonSvgRenderer,radius:9,color,weight:1.2,opacity:.65,fillColor:color,fillOpacity:.08,className:'typhoon-center-halo',interactive:false}).addTo(typhoonLayer);
+                    L.circleMarker([center.lat,center.lon],{renderer:typhoonSvgRenderer,radius:3.4,color:'#fff',weight:1.4,fillColor:color,fillOpacity:1,className:'typhoon-point-current'})
                         .bindPopup(`<b>🌀 ${name}</b><br>${latest?.raw?.strong||latest?.raw?.class||t.category||'Sistema tropical'}<br>`+
                             (latest?.raw?.source?`Fuente: ${latest.raw.source}<br>`:'')+
                             (latest?.raw?.pressure?`Presión: ${latest.raw.pressure} hPa<br>`:'')+
@@ -8791,11 +8909,14 @@ global.TauPJS=api;
 
         async function loadTyphoons() {
             try {
-                const [jmaResult, nmcResult] = await Promise.allSettled([
+                const [jmaResult, nmcResult, fanResult] = await Promise.allSettled([
                     loadJmaTyphoons(),
-                    loadNmcTyphoons()
+                    loadNmcTyphoons(),
+                    loadFanStudioTyphoons()
                 ]);
                 if (nmcResult.status === 'fulfilled') nmcTyphoonData = Array.isArray(nmcResult.value) ? nmcResult.value : [];
+                if (fanResult.status === 'fulfilled') fanStudioTyphoonData = Array.isArray(fanResult.value) ? fanResult.value : [];
+                else if (fanResult.status === 'rejected') { try { console.warn('[Fan Studio typhoon]', fanResult.reason); } catch (_) {} }
                 const active = mergeActiveTyphoonSources();
                 typhoonData = active;
                 const jmaActive = jmaResult.status === 'fulfilled' ? jmaResult.value : jmaTyphoonData;
@@ -8813,6 +8934,7 @@ global.TauPJS=api;
                 setApiState('typhoon', (nmcResult.status === 'fulfilled' || jmaResult.status === 'fulfilled') ? 'ok' : 'bad', active.length + jmaActive.length);
                 setApiState('jmaTyphoon', jmaResult.status === 'fulfilled' ? 'ok' : (jmaTyphoonData.length ? 'stale' : 'bad'), jmaActive.length);
                 setApiState('nmcTyphoon', nmcResult.status === 'fulfilled' ? 'ok' : (nmcTyphoonData.length ? 'stale' : 'bad'), nmcTyphoonData.length);
+                setApiState('fanStudioTyphoon', fanResult.status === 'fulfilled' ? 'ok' : (fanStudioTyphoonData.length ? 'stale' : 'bad'), fanStudioTyphoonData.length);
                 const nmcSignature = nmcTyphoonData.map(t => { const last = t.points?.[t.points.length - 1] || {}; return `${t.tfid}:${last.time || ''}:${forecastTyphoonPoints(t).map(p => p.time).join(',')}`; }).join('|');
                 const jmaSignature = jmaActive.map(t => `${t.id}:${t.issue || ''}:${t.points.map(p => p.time).join(',')}`).join('|');
                 const signature = `NMC|${nmcSignature}||JMA|${jmaSignature}`;
@@ -8961,10 +9083,14 @@ global.TauPJS=api;
                     .filter(t => String(t.isactive) === '1')
                     .forEach(t => {
                         const pts = [...activeTyphoonPoints(t), ...forecastTyphoonPoints(t)];
-                        addStorm(typhoonDisplayName(t), pts, '#ff9d43', 'NMC/CMA');
+                        const lastRaw = (pts[pts.length-1]?.raw) || {};
+                        const trackColor = t.source === 'Fan Studio'
+                            ? fanStudioTyphoonColor(lastRaw.power)
+                            : fanStudioColorFromWindMps(lastRaw.windMps);
+                        addStorm(typhoonDisplayName(t), pts, trackColor, t.source || 'NMC/CMA');
                     });
                 (Array.isArray(jmaTyphoonData) ? jmaTyphoonData : [])
-                    .forEach(t => addStorm(t.name || `JMA ${t.id || ''}`, t.points, '#5ddcff', 'JMA'));
+                    .forEach(t => addStorm(t.name || `JMA ${t.id || ''}`, t.points, fanStudioColorFromJmaCategory(t.category), 'JMA'));
             } catch(error) {
                 console.warn('[EarthQuake persistent typhoons]', error);
             }
@@ -21374,8 +21500,27 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             const id=String(live.id||'');
             let state=wolfxEewLifecycle.get(id);
             if(!state)state=trackWolfxEew(live,true);
-            if(state){state.status='final-official';state.finalizedAt=state.finalizedAt||Date.now();state.event={...state.event,reportConfidence:'final'};wolfxEewLifecycle.set(id,state);return true;}
-            return false;
+            if(state){
+                state.status='final-official';
+                state.finalizedAt=state.finalizedAt||Date.now();
+                state.event={...state.event,reportConfidence:'final',isFinal:true};
+                wolfxEewLifecycle.set(id,state);
+            }
+            // El informe de intensidad final es el cierre oficial del EEW:
+            // retirar inmediatamente la tarjeta/ondas activas, sin esperar
+            // a que el detector NIED confirme reposo. El informe confirmado
+            // permanece en `events` como sismo normal.
+            try {
+                const activeEventId=String(live.eewEventId||live.EventID||live.eventId||live.id||'');
+                if(Array.isArray(events)) events=events.map(item=>{
+                    if(!item)return item;
+                    const itemId=String(item.eewEventId||item.EventID||item.eventId||item.id||'');
+                    return itemId===activeEventId ? {...item,isFinal:true,isEew:false,isTaupEew:false,reportConfidence:'final'} : item;
+                });
+            } catch (_) {}
+            try { closeJapanAfterJmaQuake('Intensidad final en lista JMA'); } catch (_) {}
+            try { window.__sesnaEewBannerSync?.(); } catch (_) {}
+            return true;
         }
         function trackWolfxEew(ev,officialFinal=false) {
             const id=String(ev?.id||'');if(!id||!Number(ev.waveOriginTs))return null;
@@ -21782,9 +21927,10 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
             ['BMKG','bmkg'], ['GeoNet','geonet'], ['INGV','ingv'], ['IPGP','ipgp'],
             ['JMA EEW','jmaEew'], ['Wolfx EEW','wolfxAll'], ['Sichuan EEW (Wolfx)','scEew'], ['Volcanes','volcanoes'], ['SED','sed'],
             ['PHIVOLCS','phivolcs'], ['CWA','cwa'],
-            ['Early-Est','earlyEst'], ['GDACS','gdacs'], ['NHC','nhc'], ['NWS','nws'], ['NOAA','tsunami'], ['JMA · Tifones','jmaTyphoon'], ['NMC · Tifones','nmcTyphoon'], ['HKO','hko'], ['VMGD','vmgd'],
+            ['Early-Est','earlyEst'], ['GDACS','gdacs'], ['NHC','nhc'], ['NWS','nws'], ['NOAA','tsunami'], ['JMA · Tifones','jmaTyphoon'], ['NMC · Tifones','nmcTyphoon'], ['Fan Studio · Tifones','fanStudioTyphoon'], ['HKO','hko'], ['VMGD','vmgd'],
             ['NOA','noa'], ['KOERI','koeri'], ['SGC','sgc'],
-['IDEAM','ideam'], ['UNGRD','ungrd']
+['IDEAM','ideam'], ['UNGRD','ungrd'],
+            ['ShakeAlert (Mangxu)','mangxuSa'], ['FSSN','fssn'], ['PancakesAPI (GlobalQuake)','pancakesGq']
         ];
 
         function ageLabel(timestamp) {
@@ -21953,6 +22099,687 @@ function playSrevVerifiedRemoteSound(assetKey, dedupeKey = '') {
         window.addEventListener('online',() => Object.keys(WOLFX_REGIONAL_EEW).forEach(connectWolfxRegionalEew));
         // Wolfx All_EEW se conserva como respaldo agregado.
         setTimeout(connectWolfxAllEew, 10000);
+
+        // ——— Mangxu ShakeAlert (SA) + FSSN (Fan Studio) — fuentes independientes verificadas ———
+        // Mangxu WS: wss://ws.mangxufurry.cc.cd/ws/agency/sa_eew  (REST: /agency/sa_eew/json)
+        // FSSN WS:   wss://fssn-api.fanstudio.tech/fssn           (catálogo/sismo, NO EEW)
+        // Cada fuente falla sola; no modifica Wolfx/JMA ni otros conectores.
+        (function initMangxuSaAndFssn() {
+            const MANGXU_SA_WS = 'wss://ws.mangxufurry.cc.cd/ws/agency/sa_eew';
+            const MANGXU_SA_HTTP = 'https://ws.mangxufurry.cc.cd/agency/sa_eew/json';
+            const FSSN_WS = 'wss://fssn-api.fanstudio.tech/fssn';
+            // Ventana para considerar un SA como EEW "en vivo" (origen reciente).
+            // Si el origen es más viejo, se trata como catálogo (sin ondas EEW).
+            const SA_EEW_FRESH_MS = 15 * 60 * 1000;
+
+            let mangxuSaSocket = null, mangxuSaReconnect = null, mangxuSaHttpTimer = null;
+            let fssnSocket = null, fssnReconnect = null;
+
+            function safeParseTs(value) {
+                try {
+                    if (typeof parseUtcTimestamp === 'function') {
+                        const t = parseUtcTimestamp(value);
+                        if (Number.isFinite(t) && t > 0) return t;
+                    }
+                } catch (_) {}
+                const n = Number(value);
+                if (Number.isFinite(n) && n > 1e11) return n;
+                if (Number.isFinite(n) && n > 1e9) return n * 1000;
+                const d = Date.parse(String(value || '').replace(' ', 'T') + (String(value || '').includes('Z') || String(value || '').includes('+') ? '' : 'Z'));
+                return Number.isFinite(d) ? d : NaN;
+            }
+
+            function upsertNormalizedEvent(ev, { asEew = false } = {}) {
+                if (!ev || !ev.id || !Number.isFinite(ev.lat) || !Number.isFinite(ev.lon)) return null;
+                try {
+                    const idx = events.findIndex(x => String(x.id) === String(ev.id));
+                    if (idx >= 0) {
+                        const prev = events[idx];
+                        const merged = { ...prev, ...ev, id: prev.id, agency: ev.agency || prev.agency, source: ev.source || prev.source };
+                        events[idx] = merged;
+                        try { renderEvents(); } catch (_) {}
+                        return merged;
+                    }
+                    events.unshift(ev);
+                    try { renderEvents(); } catch (_) {}
+                    return ev;
+                } catch (err) {
+                    console.warn('[upsert-event]', err);
+                    return null;
+                }
+            }
+
+            function normalizeMangxuSaItem(row) {
+                if (!row || typeof row !== 'object') return null;
+                const id = String(row.id || (row.sa_raw && row.sa_raw.code ? 'sa_' + row.sa_raw.code : '') || '').trim();
+                if (!id) return null;
+                const lat = Number(row.latitude ?? row.lat ?? row.sa_raw?.latitude);
+                const lon = Number(row.longitude ?? row.lon ?? row.sa_raw?.longitude);
+                const mag = Number(row.magnitude ?? row.mag ?? row.sa_raw?.mag);
+                const depthRaw = Number(row.depth_km ?? row.depth ?? row.sa_raw?.depth);
+                const originTs = safeParseTs(row.time_utc || row.timestamp || row.sa_raw?.time);
+                if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(mag)) return null;
+                const age = Number.isFinite(originTs) ? (Date.now() - originTs) : Infinity;
+                const isFreshEew = age >= 0 && age <= SA_EEW_FRESH_MS;
+                const intensity = (typeof magToMMI === 'function') ? magToMMI(mag) : '—';
+                const place = row.location || row.sa_raw?.place || 'ShakeAlert · US West';
+                return {
+                    id,
+                    agency: 'ShakeAlert (Mangxu)',
+                    source: 'mangxu_sa',
+                    place,
+                    displayPlace: place,
+                    time: (typeof formatTime === 'function' && Number.isFinite(originTs)) ? formatTime(originTs) : String(row.time_utc || ''),
+                    mag: (typeof magnitudeDisplay === 'function') ? magnitudeDisplay(mag) : ('M' + mag),
+                    depth: Number.isFinite(depthRaw) ? (Math.abs(depthRaw).toFixed(1) + ' km') : '—',
+                    ts: Number.isFinite(originTs) ? originTs : Date.now(),
+                    lat, lon,
+                    intensity,
+                    colorClass: (typeof intensityClass === 'function') ? intensityClass(intensity) : '',
+                    reportConfidence: isFreshEew ? 'preliminar' : (row.sa_raw?.status || 'reviewed'),
+                    isTaupEew: isFreshEew,
+                    isFinal: !isFreshEew,
+                    isCancel: false,
+                    waveOriginTs: isFreshEew && Number.isFinite(originTs) ? originTs : undefined,
+                    eewMaxAgeMs: SA_EEW_FRESH_MS,
+                    mangxuChannel: 'sa_eew',
+                    saRaw: row.sa_raw || null
+                };
+            }
+
+            function handleMangxuSaPayload(raw) {
+                if (!raw) return;
+                let msg = raw;
+                if (typeof raw === 'string') {
+                    try { msg = JSON.parse(raw); } catch (_) { return; }
+                }
+                if (Array.isArray(msg)) {
+                    msg.forEach(item => {
+                        const ev = normalizeMangxuSaItem(item);
+                        if (ev) {
+                            const stored = upsertNormalizedEvent(ev, { asEew: !!ev.isTaupEew });
+                            if (stored && stored.isTaupEew) {
+                                try {
+                                    if (typeof showWolfxAllEewWaves === 'function') showWolfxAllEewWaves(stored);
+                                    else if (typeof activateWaveMode === 'function' && stored.waveOriginTs) {
+                                        taupEewWaveEvent = stored; waveMode = true;
+                                        document.getElementById('mainLayout')?.classList.add('wave-focus');
+                                        renderWaveMode?.();
+                                    }
+                                } catch (_) {}
+                            }
+                        }
+                    });
+                    return;
+                }
+                if (typeof msg !== 'object') return;
+                const type = String(msg.type || '').toLowerCase();
+                if (type === 'heartbeat' || type === 'pong') {
+                    try {
+                        apiMetrics.mangxuSa = apiMetrics.mangxuSa || {};
+                        apiMetrics.mangxuSa.wsState = 'activo';
+                        apiMetrics.mangxuSa.lastSeen = Date.now();
+                        setApiState('mangxuSa', 'ok');
+                    } catch (_) {}
+                    return;
+                }
+                const list = Array.isArray(msg.earthquakes) ? msg.earthquakes
+                    : (msg.data && Array.isArray(msg.data.earthquakes) ? msg.data.earthquakes
+                    : (msg.Data && Array.isArray(msg.Data) ? msg.Data : null));
+                if (list) {
+                    list.forEach(item => {
+                        const ev = normalizeMangxuSaItem(item);
+                        if (!ev) return;
+                        const stored = upsertNormalizedEvent(ev);
+                        if (stored && stored.isTaupEew) {
+                            try { showWolfxAllEewWaves?.(stored); } catch (_) {}
+                        }
+                    });
+                    try {
+                        apiMetrics.mangxuSa = apiMetrics.mangxuSa || {};
+                        apiMetrics.mangxuSa.wsState = 'activo';
+                        apiMetrics.mangxuSa.lastSeen = Date.now();
+                        setApiState('mangxuSa', 'ok', list.length);
+                    } catch (_) {}
+                    return;
+                }
+                // Mensaje individual con campos de sismo
+                const single = normalizeMangxuSaItem(msg.earthquake || msg.data || msg.Data || msg);
+                if (single) {
+                    const stored = upsertNormalizedEvent(single);
+                    if (stored && stored.isTaupEew) {
+                        try { showWolfxAllEewWaves?.(stored); } catch (_) {}
+                    }
+                    try { setApiState('mangxuSa', 'ok'); } catch (_) {}
+                }
+            }
+
+            function connectMangxuSa() {
+                if (!window.WebSocket) {
+                    try { setApiState('mangxuSa', 'bad'); } catch (_) {}
+                    return;
+                }
+                try {
+                    if (mangxuSaSocket && (mangxuSaSocket.readyState === WebSocket.OPEN || mangxuSaSocket.readyState === WebSocket.CONNECTING)) return;
+                } catch (_) {}
+                try { if (mangxuSaSocket) mangxuSaSocket.close(); } catch (_) {}
+                try {
+                    setApiState('mangxuSa', 'wait');
+                    const ws = new WebSocket(MANGXU_SA_WS);
+                    mangxuSaSocket = ws;
+                    ws.onopen = () => {
+                        try {
+                            apiMetrics.mangxuSa = apiMetrics.mangxuSa || {};
+                            apiMetrics.mangxuSa.wsState = 'activo';
+                            apiMetrics.mangxuSa.lastSeen = Date.now();
+                            setApiState('mangxuSa', 'ok');
+                        } catch (_) {}
+                    };
+                    ws.onmessage = (e) => {
+                        try { handleMangxuSaPayload(e.data); } catch (err) { console.warn('[mangxu-sa]', err); }
+                    };
+                    ws.onclose = () => {
+                        try {
+                            apiMetrics.mangxuSa = apiMetrics.mangxuSa || {};
+                            apiMetrics.mangxuSa.wsState = 'cerrado';
+                            setApiState('mangxuSa', 'bad');
+                        } catch (_) {}
+                        clearTimeout(mangxuSaReconnect);
+                        mangxuSaReconnect = setTimeout(connectMangxuSa, 8000);
+                    };
+                    ws.onerror = () => { try { ws.close(); } catch (_) {} };
+                } catch (err) {
+                    console.warn('[mangxu-sa-connect]', err);
+                    try { setApiState('mangxuSa', 'bad'); } catch (_) {}
+                    clearTimeout(mangxuSaReconnect);
+                    mangxuSaReconnect = setTimeout(connectMangxuSa, 12000);
+                }
+            }
+
+            async function pollMangxuSaHttp() {
+                try {
+                    const res = await fetch(MANGXU_SA_HTTP, { cache: 'no-store' });
+                    if (!res.ok) throw new Error('http ' + res.status);
+                    const data = await res.json();
+                    handleMangxuSaPayload(data);
+                    try {
+                        apiMetrics.mangxuSa = apiMetrics.mangxuSa || {};
+                        apiMetrics.mangxuSa.httpOk = true;
+                        apiMetrics.mangxuSa.httpLastSeen = Date.now();
+                    } catch (_) {}
+                } catch (err) {
+                    try {
+                        apiMetrics.mangxuSa = apiMetrics.mangxuSa || {};
+                        apiMetrics.mangxuSa.httpOk = false;
+                    } catch (_) {}
+                }
+            }
+
+            /** FSSN shockTime suele venir como hora de China (UTC+8) sin zona.
+             *  Convertir a epoch UTC real; formatTime lo muestra en UTC-5 (Bogotá). */
+            function parseFssnOriginTs(value) {
+                if (value == null || value === '') return NaN;
+                if (typeof value === 'number' && Number.isFinite(value)) {
+                    return value > 1e12 ? value : (value > 1e9 ? value * 1000 : NaN);
+                }
+                const text = String(value).trim();
+                if (!text) return NaN;
+                // Si ya trae Z u offset, respetarlo.
+                if (/Z$|[+-]\d{2}:?\d{2}$/i.test(text)) {
+                    const ms = Date.parse(text);
+                    return Number.isFinite(ms) ? ms : NaN;
+                }
+                const m = text.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+                if (m) {
+                    const y = +m[1], mo = +m[2], d = +m[3], h = +m[4], mi = +m[5], s = +(m[6] || 0);
+                    // China Standard Time = UTC+8 → restar 8 h para obtener UTC.
+                    return Date.UTC(y, mo - 1, d, h - 8, mi, s);
+                }
+                // Fallback: no asumir UTC a ciegas para FSSN.
+                try {
+                    if (typeof safeParseTs === 'function') {
+                        const t = safeParseTs(text);
+                        if (Number.isFinite(t) && t > 0) return t;
+                    }
+                } catch (_) {}
+                return NaN;
+            }
+            function normalizeFssnItem(row) {
+                if (!row || typeof row !== 'object') return null;
+                const id = String(row.id || '').trim();
+                if (!id) return null;
+                const lat = Number(row.latitude ?? row.lat);
+                const lon = Number(row.longitude ?? row.lon);
+                const mag = Number(row.magnitude ?? row.mag);
+                let depthRaw = row.depth;
+                if (typeof depthRaw === 'string') depthRaw = parseFloat(depthRaw);
+                depthRaw = Number(depthRaw);
+                const originTs = parseFssnOriginTs(row.shockTime || row.createTime || row.time);
+                if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(mag)) return null;
+                const place = row.placeName_zh || row.placeName || 'FSSN';
+                const intensity = (typeof magToMMI === 'function') ? magToMMI(mag) : '—';
+                // Catálogo / informe: NO EEW. Hora siempre vía formatTime → America/Bogota (UTC-5).
+                return {
+                    id: id.startsWith('fssn-') ? id : ('fssn-' + id),
+                    agency: 'FSSN',
+                    source: 'fssn',
+                    place,
+                    displayPlace: place,
+                    time: (typeof formatTime === 'function' && Number.isFinite(originTs)) ? formatTime(originTs) : String(row.shockTime || ''),
+                    mag: (typeof magnitudeDisplay === 'function') ? magnitudeDisplay(mag) : ('M' + mag),
+                    depth: Number.isFinite(depthRaw) ? (Math.abs(depthRaw).toFixed(1) + ' km') : '—',
+                    ts: Number.isFinite(originTs) ? originTs : Date.now(),
+                    lat, lon,
+                    intensity,
+                    colorClass: (typeof intensityClass === 'function') ? intensityClass(intensity) : '',
+                    reportConfidence: String(row.infoTypeName || 'preliminar'),
+                    isTaupEew: false,
+                    isFinal: /正式|核实|final/i.test(String(row.infoTypeName || '')),
+                    isCancel: false,
+                    fssnId: id
+                };
+            }
+
+            function handleFssnPayload(raw) {
+                if (!raw) return;
+                let msg = raw;
+                if (typeof raw === 'string') {
+                    try { msg = JSON.parse(raw); } catch (_) { return; }
+                }
+                if (typeof msg !== 'object') return;
+                const type = String(msg.type || '').toLowerCase();
+                if (type === 'heartbeat') {
+                    try {
+                        apiMetrics.fssn = apiMetrics.fssn || {};
+                        apiMetrics.fssn.wsState = 'activo';
+                        apiMetrics.fssn.lastSeen = Date.now();
+                        setApiState('fssn', 'ok');
+                    } catch (_) {}
+                    return;
+                }
+                if (type === 'pong') return;
+                if (type === 'error') {
+                    console.warn('[fssn]', msg.message || msg);
+                    return;
+                }
+                // initial | query_response | update-like: Data object
+                if (msg.Data && typeof msg.Data === 'object' && !Array.isArray(msg.Data)) {
+                    const ev = normalizeFssnItem(msg.Data);
+                    if (ev) upsertNormalizedEvent(ev);
+                    try { setApiState('fssn', 'ok'); } catch (_) {}
+                    return;
+                }
+                // fssnlist_response: Data array
+                if (Array.isArray(msg.Data)) {
+                    msg.Data.forEach(row => {
+                        const ev = normalizeFssnItem(row);
+                        if (ev) upsertNormalizedEvent(ev);
+                    });
+                    try { setApiState('fssn', 'ok', msg.Data.length); } catch (_) {}
+                    return;
+                }
+                // fallback: plain event object
+                const single = normalizeFssnItem(msg);
+                if (single) {
+                    upsertNormalizedEvent(single);
+                    try { setApiState('fssn', 'ok'); } catch (_) {}
+                }
+            }
+
+            function connectFssn() {
+                if (!window.WebSocket) {
+                    try { setApiState('fssn', 'bad'); } catch (_) {}
+                    return;
+                }
+                try {
+                    if (fssnSocket && (fssnSocket.readyState === WebSocket.OPEN || fssnSocket.readyState === WebSocket.CONNECTING)) return;
+                } catch (_) {}
+                try { if (fssnSocket) fssnSocket.close(); } catch (_) {}
+                try {
+                    setApiState('fssn', 'wait');
+                    const ws = new WebSocket(FSSN_WS);
+                    fssnSocket = ws;
+                    ws.onopen = () => {
+                        try {
+                            apiMetrics.fssn = apiMetrics.fssn || {};
+                            apiMetrics.fssn.wsState = 'activo';
+                            apiMetrics.fssn.lastSeen = Date.now();
+                            setApiState('fssn', 'ok');
+                        } catch (_) {}
+                        // Lista inicial opcional (documentada en la API FSSN)
+                        try { ws.send('fssnlist'); } catch (_) {}
+                    };
+                    ws.onmessage = (e) => {
+                        try { handleFssnPayload(e.data); } catch (err) { console.warn('[fssn]', err); }
+                    };
+                    ws.onclose = () => {
+                        try {
+                            apiMetrics.fssn = apiMetrics.fssn || {};
+                            apiMetrics.fssn.wsState = 'cerrado';
+                            setApiState('fssn', 'bad');
+                        } catch (_) {}
+                        clearTimeout(fssnReconnect);
+                        fssnReconnect = setTimeout(connectFssn, 8000);
+                    };
+                    ws.onerror = () => { try { ws.close(); } catch (_) {} };
+                } catch (err) {
+                    console.warn('[fssn-connect]', err);
+                    try { setApiState('fssn', 'bad'); } catch (_) {}
+                    clearTimeout(fssnReconnect);
+                    fssnReconnect = setTimeout(connectFssn, 12000);
+                }
+            }
+
+            // Arranque escalonado para no competir con Wolfx/JMA al cargar.
+            setTimeout(connectMangxuSa, 12000);
+            setTimeout(pollMangxuSaHttp, 14000);
+            mangxuSaHttpTimer = setInterval(pollMangxuSaHttp, 120000);
+            setTimeout(connectFssn, 13000);
+
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    connectMangxuSa();
+                    connectFssn();
+                    pollMangxuSaHttp();
+                }
+            });
+            window.addEventListener('online', () => {
+                connectMangxuSa();
+                connectFssn();
+            });
+        })();
+
+        // PancakesAPI · GlobalQuake (wss://api.aloys23.link/api/v1/alert/ws/quake/gq)
+        // Parser alineado con Pancakes.CysTerra LineParser / EventModel / LineWsWorker.
+        // Prueba desde este entorno: el handshake WS respondió HTTP 403 (servidor rechaza).
+        // La integración queda lista; si el navegador también recibe 403, el estado será "bad"
+        // y se reintenta con backoff sin afectar otras fuentes.
+        (function initPancakesGlobalQuake() {
+            const GQ_WS = 'wss://api.aloys23.link/api/v1/alert/ws/quake/gq';
+            let gqSocket = null;
+            let gqReconnectTimer = null;
+            let gqBackoffMs = 5000;
+            const GQ_BACKOFF_MAX = 120000;
+            const gqSeen = new Map(); // unitId -> fingerprint
+
+            function gqText(obj, ...keys) {
+                if (!obj || typeof obj !== 'object') return null;
+                for (const k of keys) {
+                    if (obj[k] == null) continue;
+                    const s = String(obj[k]).trim();
+                    if (s) return s;
+                }
+                return null;
+            }
+            function gqNum(obj, ...keys) {
+                if (!obj || typeof obj !== 'object') return null;
+                for (const k of keys) {
+                    if (obj[k] == null || obj[k] === '') continue;
+                    const n = Number(obj[k]);
+                    if (Number.isFinite(n)) return n;
+                }
+                return null;
+            }
+            function gqFlag(obj, ...keys) {
+                if (!obj || typeof obj !== 'object') return false;
+                for (const k of keys) {
+                    if (!(k in obj)) continue;
+                    const v = obj[k];
+                    if (v === true) return true;
+                    if (typeof v === 'number' && v !== 0) return true;
+                    if (typeof v === 'string') {
+                        const s = v.trim().toLowerCase();
+                        if (s === '1' || s === 'true' || s === 'cancelled' || s === 'canceled' || s === 'archived') return true;
+                    }
+                }
+                return false;
+            }
+            function gqTime(obj, ...keys) {
+                if (!obj || typeof obj !== 'object') return NaN;
+                for (const k of keys) {
+                    if (obj[k] == null || obj[k] === '') continue;
+                    const v = obj[k];
+                    if (typeof v === 'number' && Number.isFinite(v)) {
+                        return v > 1e12 ? v : (v > 1e9 ? v * 1000 : NaN);
+                    }
+                    const text = String(v).trim();
+                    if (/^\d{10,13}$/.test(text)) {
+                        const n = Number(text);
+                        return text.length >= 13 ? n : n * 1000;
+                    }
+                    const ms = Date.parse(text);
+                    if (Number.isFinite(ms)) return ms;
+                }
+                return NaN;
+            }
+            function gqRevision(data) {
+                const n = gqNum(data, 'revision', 'revisionId', 'revisionID', 'serial', 'report_num', 'count');
+                return n != null ? Math.max(0, Math.round(n)) : null;
+            }
+
+            /** Alineado con LineParser.Parse (Pancakes.CysTerra). */
+            function parsePancakesGqMessage(root) {
+                if (!root || typeof root !== 'object') return null;
+                const type = gqText(root, 'type');
+                if (type === 'heartbeat' || type === 'pong' || type === 'error' || type === 'ping') {
+                    return { __meta: type, raw: root };
+                }
+                const action = gqText(root, 'action');
+                let data = root;
+                if (root.payload && typeof root.payload === 'object') {
+                    data = root.payload;
+                    if (type && type !== 'earthquake') return null;
+                } else if (root.Data && typeof root.Data === 'object' && !Array.isArray(root.Data)) {
+                    data = root.Data;
+                }
+                const status = gqText(data, 'status') || gqText(root, 'status');
+                const cancel = /^(cancelled|canceled)$/i.test(action || '')
+                    || /^(cancelled|canceled)$/i.test(status || '')
+                    || gqFlag(data, 'isCancel', 'cancelled', 'canceled');
+                const final = /^archived$/i.test(action || '')
+                    || /^archived$/i.test(status || '')
+                    || gqFlag(data, 'isFinal');
+                const mag = gqNum(data, 'magnitude');
+                const lat = gqNum(data, 'latitude');
+                const lon = gqNum(data, 'longitude');
+                const depth = gqNum(data, 'depth', 'depthKm');
+                const place = gqText(data, 'region', 'place', 'placeName');
+                let serial = gqRevision(data);
+                if (serial == null && !cancel && !final) serial = 1;
+                const idRaw = gqText(data, 'id', 'eventId', 'EventID', 'uuid')
+                    || [place || '', lat, lon, mag].map(x => x == null ? '' : String(x)).join('|');
+                const originTs = gqTime(data, 'originTimeMs', 'originTime', 'originTimeIso', 'time', 'startAt', 'origin');
+                const lastUp = gqTime(data, 'lastUpdate', 'lastUpdated', 'lastUpdateMs', 'updatedAt', 'finalUpdateMillis')
+                    || gqTime(root, 'timestampMs', 'timestamp')
+                    || originTs;
+                const intensity = gqText(data, 'intensity', 'maxIntensity', 'Intensity', 'mmi', 'MMI');
+                if (!cancel && (mag == null || lat == null || lon == null || depth == null || !Number.isFinite(originTs))) {
+                    return null;
+                }
+                const unitId = String(idRaw || '').trim();
+                if (!unitId) return null;
+                const fingerprint = [unitId, serial, cancel ? 1 : 0, final ? 1 : 0, mag, lat, lon, depth, intensity || ''].join('|');
+                return {
+                    unitId,
+                    serial,
+                    cancel,
+                    final,
+                    place: place || null,
+                    mag,
+                    depth,
+                    lat,
+                    lon,
+                    originTs: Number.isFinite(originTs) ? originTs : NaN,
+                    lastUp: Number.isFinite(lastUp) ? lastUp : NaN,
+                    intensity: intensity || null,
+                    fingerprint
+                };
+            }
+
+            function normalizePancakesGqEvent(p) {
+                if (!p || !p.unitId) return null;
+                const id = p.unitId.startsWith('gq-') ? p.unitId : ('gq-' + p.unitId);
+                const place = p.place || 'GlobalQuake';
+                // Solo intensidad si el protocolo la trae; no inventar MMI desde magnitud.
+                let intensity = '—';
+                if (p.intensity) {
+                    intensity = String(p.intensity);
+                }
+                const ts = Number.isFinite(p.originTs) ? p.originTs : Date.now();
+                return {
+                    id,
+                    agency: 'PancakesAPI (GlobalQuake)',
+                    source: 'pancakes_gq',
+                    place,
+                    displayPlace: place,
+                    time: (typeof formatTime === 'function') ? formatTime(ts) : String(ts),
+                    mag: (p.mag != null && typeof magnitudeDisplay === 'function') ? magnitudeDisplay(p.mag)
+                        : (p.mag != null ? ('M' + p.mag) : '—'),
+                    depth: (p.depth != null && Number.isFinite(p.depth)) ? (Math.abs(p.depth).toFixed(1) + ' km') : '—',
+                    ts,
+                    lat: p.lat,
+                    lon: p.lon,
+                    intensity,
+                    colorClass: (typeof intensityClass === 'function' && intensity !== '—') ? intensityClass(intensity) : '',
+                    reportConfidence: p.final ? 'final' : (p.cancel ? 'cancelado' : ('rev ' + (p.serial != null ? p.serial : '?'))),
+                    isTaupEew: false,
+                    isFinal: !!p.final,
+                    isCancel: !!p.cancel,
+                    gqSerial: p.serial,
+                    gqFingerprint: p.fingerprint
+                };
+            }
+
+            function handlePancakesGqPayload(raw) {
+                let msg = raw;
+                if (typeof raw === 'string') {
+                    try { msg = JSON.parse(raw); } catch (_) { return; }
+                }
+                const parsed = parsePancakesGqMessage(msg);
+                if (!parsed) return;
+                if (parsed.__meta === 'heartbeat' || parsed.__meta === 'pong' || parsed.__meta === 'ping') {
+                    try {
+                        apiMetrics.pancakesGq = apiMetrics.pancakesGq || {};
+                        apiMetrics.pancakesGq.wsState = 'activo';
+                        apiMetrics.pancakesGq.lastSeen = Date.now();
+                        setApiState('pancakesGq', 'ok');
+                    } catch (_) {}
+                    return;
+                }
+                if (parsed.__meta === 'error') {
+                    try { console.warn('[PancakesAPI/GQ]', msg.message || msg); } catch (_) {}
+                    return;
+                }
+                if (gqSeen.get(parsed.unitId) === parsed.fingerprint) return;
+                gqSeen.set(parsed.unitId, parsed.fingerprint);
+                const ev = normalizePancakesGqEvent(parsed);
+                if (!ev) return;
+                if (!Number.isFinite(ev.lat) || !Number.isFinite(ev.lon)) return;
+                try {
+                    upsertNormalizedEvent(ev, { asEew: false });
+                    apiMetrics.pancakesGq = apiMetrics.pancakesGq || {};
+                    apiMetrics.pancakesGq.lastSeen = Date.now();
+                    apiMetrics.pancakesGq.wsState = 'activo';
+                    setApiState('pancakesGq', 'ok');
+                } catch (e) {
+                    try { console.warn('[PancakesAPI/GQ] upsert', e); } catch (_) {}
+                }
+            }
+
+            function scheduleGqReconnect(reason) {
+                try {
+                    if (gqReconnectTimer) clearTimeout(gqReconnectTimer);
+                } catch (_) {}
+                const wait = gqBackoffMs;
+                gqBackoffMs = Math.min(GQ_BACKOFF_MAX, Math.round(gqBackoffMs * 1.6));
+                gqReconnectTimer = setTimeout(() => {
+                    gqReconnectTimer = null;
+                    connectPancakesGq();
+                }, wait);
+                try {
+                    setApiState('pancakesGq', 'bad');
+                    apiMetrics.pancakesGq = apiMetrics.pancakesGq || {};
+                    apiMetrics.pancakesGq.wsState = 'error';
+                    apiMetrics.pancakesGq.lastError = String(reason || 'disconnect');
+                } catch (_) {}
+            }
+
+            function connectPancakesGq() {
+                if (!window.WebSocket) {
+                    try { setApiState('pancakesGq', 'bad'); } catch (_) {}
+                    return;
+                }
+                try {
+                    if (gqSocket && (gqSocket.readyState === WebSocket.OPEN || gqSocket.readyState === WebSocket.CONNECTING)) return;
+                } catch (_) {}
+                try { if (gqSocket) gqSocket.close(); } catch (_) {}
+                let socket;
+                try {
+                    socket = new WebSocket(GQ_WS);
+                } catch (e) {
+                    scheduleGqReconnect(e && e.message || 'construct');
+                    return;
+                }
+                gqSocket = socket;
+                try {
+                    setApiState('pancakesGq', 'stale');
+                    apiMetrics.pancakesGq = apiMetrics.pancakesGq || {};
+                    apiMetrics.pancakesGq.wsState = 'conectando';
+                } catch (_) {}
+                socket.onopen = function () {
+                    gqBackoffMs = 5000;
+                    try {
+                        apiMetrics.pancakesGq = apiMetrics.pancakesGq || {};
+                        apiMetrics.pancakesGq.wsState = 'activo';
+                        apiMetrics.pancakesGq.lastSeen = Date.now();
+                        setApiState('pancakesGq', 'ok');
+                    } catch (_) {}
+                };
+                socket.onmessage = function (ev) {
+                    try { handlePancakesGqPayload(ev.data); } catch (e) {
+                        try { console.warn('[PancakesAPI/GQ] message', e); } catch (_) {}
+                    }
+                };
+                socket.onerror = function () {
+                    // onclose will schedule reconnect; note possible 403 handshake
+                    try {
+                        apiMetrics.pancakesGq = apiMetrics.pancakesGq || {};
+                        apiMetrics.pancakesGq.lastError = 'ws error (posible HTTP 403 en handshake)';
+                    } catch (_) {}
+                };
+                socket.onclose = function (ev) {
+                    const reason = 'close ' + (ev && ev.code) + (ev && ev.reason ? (' ' + ev.reason) : '');
+                    try {
+                        if (gqSocket === socket) gqSocket = null;
+                    } catch (_) {}
+                    scheduleGqReconnect(reason);
+                };
+            }
+
+            function startPancakesGq() {
+                connectPancakesGq();
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', startPancakesGq, { once: true });
+            } else {
+                setTimeout(startPancakesGq, 1200);
+            }
+            window.addEventListener('online', () => {
+                gqBackoffMs = 5000;
+                connectPancakesGq();
+            });
+            window.__eqPancakesGq = {
+                connect: connectPancakesGq,
+                url: GQ_WS,
+                snapshot: () => ({
+                    backoff: gqBackoffMs,
+                    seen: gqSeen.size,
+                    state: (apiMetrics.pancakesGq && apiMetrics.pancakesGq.wsState) || null,
+                    lastError: (apiMetrics.pancakesGq && apiMetrics.pancakesGq.lastError) || null
+                })
+            };
+        })();
+
 
         // X de epicentro oficial SREV (epc00 · kotoho7, CC BY-SA 2.0)
         const SREV_EPC_SVG = '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="140" height="140" viewBox="0,0,140,140"><defs><radialGradient cx="239.9984" cy="179.9992" r="69.9992" gradientUnits="userSpaceOnUse" id="color-1"><stop offset="0" stop-color="#ff0000"/><stop offset="0.4" stop-color="#ff0000"/><stop offset="0.55" stop-color="#ff0000" stop-opacity="0.56078"/><stop offset="0.7" stop-color="#ff0000" stop-opacity="0.25098"/><stop offset="0.85" stop-color="#ff0000" stop-opacity="0.05882"/><stop offset="1" stop-color="#ff0000" stop-opacity="0"/></radialGradient></defs><g transform="translate(-170,-110)"><g data-paper-data="{&quot;isPaintingLayer&quot;:true}" stroke="none" stroke-width="1" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" stroke-dasharray="" stroke-dashoffset="0" style="mix-blend-mode: normal"><path d="M170,250v-140h140v140z" fill="none" fill-rule="nonzero"/><path d="M170,180c0,-38.65993 31.34007,-70 70,-70c38.65993,0 70,31.34007 70,70c0,38.65993 -31.34007,70 -70,70c-38.65993,0 -70,-31.34007 -70,-70z" fill="url(#color-1)" fill-rule="evenodd" opacity="0.5"/><path d="M210.3814,133.033c3.71929,-0.00504 7.28775,1.46998 9.918,4.0996l19.615,19.617l19.617,-19.617c2.63025,-2.62962 6.19871,-4.10464 9.918,-4.0996c3.70709,0.00429 7.26117,1.4786 9.8828,4.0996l3.5352,3.5352c2.62588,2.62572 4.1011,6.18706 4.1011,9.9005c0,3.71344 -1.47522,7.27478 -4.1011,9.9005l-19.617,19.617l19.617,19.615c2.62588,2.62572 4.1011,6.18706 4.1011,9.9005c0,3.71344 -1.47522,7.27478 -4.1011,9.9005l-3.5352,3.5352c-2.62572,2.62588 -6.18706,4.1011 -9.9005,4.1011c-3.71344,0 -7.27478,-1.47522 -9.9005,-4.1011l-19.617,-19.615l-19.615,19.615c-2.62572,2.62588 -6.18706,4.1011 -9.9005,4.1011c-3.71344,0 -7.27478,-1.47522 -9.9005,-4.1011l-3.5352,-3.5352c-2.62588,-2.62572 -4.1011,-6.18706 -4.1011,-9.9005c0,-3.71344 1.47522,-7.27478 4.1011,-9.9005l19.615,-19.615l-19.615,-19.617c-2.62588,-2.62572 -4.1011,-6.18706 -4.1011,-9.9005c0,-3.71344 1.47522,-7.27478 4.1011,-9.9005l3.5352,-3.5352c2.62163,-2.621 6.17571,-4.09531 9.8828,-4.0996z" fill="#ffffff" fill-rule="nonzero"/><path d="M210.4722,143.533c0.90241,0.01953 1.7624,0.3869 2.4004,1.0254l27.041,27.043l27.043,-27.043c0.638,-0.6385 1.49799,-1.00587 2.4004,-1.0254c0.05273,-0.00119 0.10547,-0.00119 0.1582,0c0.899,0.02203 1.75503,0.38921 2.3906,1.0254l3.5352,3.5352c1.36625,1.36686 1.36625,3.58234 0,4.9492l-27.043,27.043l27.043,27.041c1.36625,1.36686 1.36625,3.58234 0,4.9492l-3.5352,3.5352c-1.36686,1.36625 -3.58234,1.36625 -4.9492,0l-27.043,-27.041l-27.041,27.041c-1.36686,1.36625 -3.58234,1.36625 -4.9492,0l-3.5352,-3.5352c-1.36625,-1.36686 -1.36625,-3.58234 0,-4.9492l27.041,-27.041l-27.041,-27.043c-1.36625,-1.36686 -1.36625,-3.58234 0,-4.9492l3.5352,-3.5352c0.63557,-0.63619 1.4916,-1.00337 2.3906,-1.0254c0.05273,-0.00119 0.10547,-0.00119 0.1582,0z" fill="#e21d1d" fill-rule="nonzero"/></g></g></svg>';
@@ -28721,7 +29548,9 @@ function ynRenderMotionGroups(groups,primaryAlert=document.getElementById('ynEar
             return false;
         }
         function ynShouldKeepJapanApartadoOpen() {
-            return ynLocalEstimateWavesActive() || ynMotionBoxesStillVisible();
+            // Las ondas estimadas/EEW son independientes del apartado de estaciones.
+            // Solo las cajas de movimiento visibles pueden retrasar su cierre.
+            return ynMotionBoxesStillVisible();
         }
         function ynForceCloseJapanApartado() {
             try {
@@ -30591,15 +31420,16 @@ function ynBuildLeafletMarkers() {
                     const finalIntensity=[...events].find(jmaIntensityReportMatchesActiveEew);
                     const lifecycle=wolfxEewLifecycle.get(nextWaveEventId);
                     if(finalIntensity){
-                        if(lifecycle){lifecycle.status='final-official';lifecycle.finalizedAt=lifecycle.finalizedAt||Date.now();}
-                        else trackWolfxEew(ynLiveJmaEvent,true);
-                    }else if(lifecycle&&lifecycle.status==='active'){
-                        lifecycle.status='final-timeout';lifecycle.finalizedAt=Date.now();
-                    }else if(!lifecycle){
-                        // No hay detector NIED utilizable para aplicar el cierre
-                        // por reposo; conservar el antiguo fallback por plazo.
+                        markWolfxLifecycleFinalForJmaReport(finalIntensity);
+                    }else{
+                        // El plazo por magnitud es un límite real de vigencia
+                        // del EEW, no solo el inicio de una espera adicional
+                        // por reposo de estaciones.
+                        if(lifecycle){lifecycle.status='final-timeout';lifecycle.finalizedAt=Date.now();wolfxEewLifecycle.delete(nextWaveEventId);}
                         jmaWaveSuppressedEventId=nextWaveEventId;
-                        returnToNormalAfterMissingJmaIntensity('Sin señal de estaciones para continuar el seguimiento');
+                        if(String(taupEewWaveEvent?.id||'')===nextWaveEventId){taupEewWaveEvent=null;clearTimeout(genericTaupWaveExpiryTimer);genericTaupWaveExpiryTimer=null;genericTaupWaveExpiryId='';}
+                        returnToNormalAfterMissingJmaIntensity('EEW vencido · sin informe final de intensidad');
+                        try { window.__sesnaEewBannerSync?.(); } catch (_) {}
                     }
                 }, remaining);
             }
@@ -30753,6 +31583,8 @@ function ynBuildLeafletMarkers() {
             function closeIfIdle(){
                 if(motionActive())return false;
                 if(!detectorNoticeOpen())return true;
+                // Una vez que el feed está fresco y no hay movimiento reciente,
+                // no mantener la vista abierta por un panel/aviso residual.
                 // Sin una trama reciente no se puede confirmar reposo ni cerrar
                 // un apartado automático por una interrupción del feed.
                 if(typeof ynFeedIsFresh==='function'&&!ynFeedIsFresh())return false;
@@ -32240,7 +33072,7 @@ function ynBuildLeafletMarkers() {
 <div class="eqs-agencies" id="eqsAgencies"></div>
 <div class="eqs-muted">Desactivarlas las oculta de la lista, pero no elimina su conexión.</div>
 </div>
-<div class="eqs-section" id="eqsCostaRicaStations"><div class="eqs-title">🇨🇷 Estaciones de Costa Rica</div><label class="eqs-row">Mostrar estaciones con muestras recientes <input class="eqs-switch" id="crStationsToggle" type="checkbox" checked></label><div class="eqs-muted" id="crStationStatus">Consultando…</div><div class="eqs-muted">RSN (TC) y OVSICORI (OV) · muestras consultadas en EarthScope, con retraso. No representa intensidad ni constituye una alerta temprana. La ausencia de datos no demuestra que una estación esté desconectada.</div></div>
+<div class="eqs-section" id="eqsCostaRicaStations"><div class="eqs-title">🇨🇷 Estaciones de Costa Rica</div><label class="eqs-row">Mostrar estaciones Costa Rica + Colombia (EarthScope) <input class="eqs-switch" id="crStationsToggle" type="checkbox" checked></label><div class="eqs-muted" id="crStationStatus">Consultando…</div><div class="eqs-muted">RSN (TC) y OVSICORI (OV) · muestras consultadas en EarthScope, con retraso. No representa intensidad ni constituye una alerta temprana. La ausencia de datos no demuestra que una estación esté desconectada.</div></div>
 <details class="eqs-section" id="eqsOpenSourceNotice"><summary class="eqs-title">📜 Código fuente, créditos y licencias</summary><div class="eqs-muted" style="margin-top:10px">EarthQuake adapta componentes de EventPanel, selección de EEW, mapa, estaciones y simbología de <a href="https://github.com/Domiko7/SesnaQuake" target="_blank" rel="noopener noreferrer">SesnaQuake, de Domiko7 (incluidos sus iconos SVG oficiales de intensidad MMI y Shindo, paletas y gradientes PGA/PGV), bajo GNU AGPL-3.0. Este HTML independiente es el código fuente correspondiente de esta copia. Si publicas una versión modificada como servicio web, ofrece a sus usuarios el código fuente completo correspondiente bajo AGPL-3.0. <a href="https://github.com/Domiko7/SesnaQuake/blob/dev/LICENSE" target="_blank" rel="noopener noreferrer">Licencia AGPL-3.0</a>. La base satelital es EOX Sentinel-2 cloudless; los datos Strong Motion y estaciones son de <a href="https://www.geonet.org.nz/strong" target="_blank" rel="noopener noreferrer">GeoNet</a>; los datos de intensidad y estaciones JMA son de <a href="https://www.jma.go.jp/jma/kishou/know/jishin/intens-st/index.html" target="_blank" rel="noopener noreferrer">JMA</a>. Los datos conservan la atribución de sus proveedores.</div></details>
 <div class="eqs-muted eqs-foot">Las preferencias se guardan en este navegador.</div>
 <div class="eqs-actions"><button class="eqs-control" id="eqsReset" type="button" data-i18n="settingsReset">Restablecer</button><button class="eqs-save" id="eqsSave" type="button" data-i18n="settingsSave">Guardar</button></div>
@@ -36359,19 +37191,23 @@ document.addEventListener('click',function(e){
     return {d:+g('day'),m:+g('month'),y:+g('year'),weekday:String(g('weekday')||'').toLowerCase()};
   }
   function articleUrlCandidates(dt){
-    // bogota.gov.co cambió el patrón de URL (2025/2026):
-    // /mi-ciudad/movilidad/YYYY-MM/en-vivo-movilidad-bogota-y-transmilenio-hoy-{weekday}-{d}-de-{mes}-{y}
-    // Se conservan patrones antiguos como respaldo.
+    // Patrones reales 2026 en bogota.gov.co:
+    // /mi-ciudad/movilidad/YYYY-MM/en-vivo-movilidad-en-bogota-y-transmilenio-hoy-{d}-de-{mes}-{y}
+    // y variantes con weekday / sin "en-" / "para-hoy".
     const mes=MESES[(dt.m||1)-1];
     const ym=dt.y+'-'+String(dt.m).padStart(2,'0');
     const wd=String(dt.weekday||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const list=[];
+    // Preferido actual (sin weekday): en-vivo-movilidad-en-bogota-...
+    list.push('https://bogota.gov.co/mi-ciudad/movilidad/'+ym+'/en-vivo-movilidad-en-bogota-y-transmilenio-hoy-'+dt.d+'-de-'+mes+'-'+dt.y);
+    list.push('https://bogota.gov.co/mi-ciudad/movilidad/en-vivo-movilidad-en-bogota-y-transmilenio-hoy-'+dt.d+'-de-'+mes+'-'+dt.y);
     if(wd){
+      list.push('https://bogota.gov.co/mi-ciudad/movilidad/'+ym+'/en-vivo-movilidad-en-bogota-y-transmilenio-hoy-'+wd+'-'+dt.d+'-de-'+mes+'-'+dt.y);
       list.push('https://bogota.gov.co/mi-ciudad/movilidad/'+ym+'/en-vivo-movilidad-bogota-y-transmilenio-hoy-'+wd+'-'+dt.d+'-de-'+mes+'-'+dt.y);
       list.push('https://bogota.gov.co/mi-ciudad/movilidad/en-vivo-movilidad-bogota-y-transmilenio-hoy-'+wd+'-'+dt.d+'-de-'+mes+'-'+dt.y);
     }
+    list.push('https://bogota.gov.co/mi-ciudad/movilidad/'+ym+'/en-vivo-movilidad-bogota-y-transmilenio-hoy-'+dt.d+'-de-'+mes+'-'+dt.y);
     list.push('https://bogota.gov.co/mi-ciudad/movilidad/'+ym+'/en-vivo-movilidad-bogota-y-transmilenio-para-hoy-'+dt.d+'-de-'+mes+'-'+dt.y);
-    list.push('https://bogota.gov.co/mi-ciudad/movilidad/en-vivo-movilidad-bogota-y-transmilenio-para-hoy-'+dt.d+'-de-'+mes+'-'+dt.y);
     list.push('https://bogota.gov.co/mi-ciudad/movilidad/en-vivo-movilidad-bogota-y-transmilenio-para-hoy-'+dt.d+'-de-'+mes+'-'+dt.y);
     return list;
   }
@@ -36383,24 +37219,28 @@ document.addEventListener('click',function(e){
     finally{if(timer)clearTimeout(timer);}
   }
   function looksLikeMovilidadReport(t){
-    if(!t||t.length<1200)return false;
-    // "corte" sigue en muchos reportes; también aceptar accidentes/cierres/transmilenio.
-    return /corte|accidente|transmilenio|manifestaci|cierre vial|movilidad bogot/i.test(t);
+    if(!t||t.length<800)return false;
+    // Exigir señales del reporte del día (evita aceptar solo la portada de Movilidad).
+    const hasCorte=/corte\s*:\s*\d{1,2}\s*[:.]\s*\d{2}\s*[ap]\.\s*m/i.test(t);
+    const hasBody=/en vivo|reportes durante|así van las vías|manifestaci/i.test(t);
+    return hasCorte || (hasBody && /transmilenio|accidente|cierre/i.test(t));
   }
   async function discoverLatestEnVivoUrl(){
     // Si la URL del día falla, buscar el enlace "en vivo" más reciente en la sección Movilidad.
     const page='https://bogota.gov.co/mi-ciudad/movilidad';
     const enc=encodeURIComponent(page);
-    const tries=[page,'https://corsproxy.io/?url='+enc,'https://api.allorigins.win/raw?url='+enc,'https://r.jina.ai/'+page];
+    const tries=[];
+    if(CFG.worker){const w=CFG.worker.replace(/\/$/,'');tries.push(w+'/movilidad?url='+enc);}
+    tries.push(page,'https://corsproxy.io/?url='+enc,'https://api.allorigins.win/raw?url='+enc);
     for(const u of tries){
       try{
         const t=await fetchWithTimeout(u,12000);
         if(!t||t.length<500)continue;
-        const re=/href="(\/mi-ciudad\/movilidad\/[^"]*en-vivo-movilidad-bogota[^"]*)"/ig;
+        const re=/href="(\/mi-ciudad\/movilidad\/[^"]*en-vivo-movilidad-(?:en-)?bogota[^"]*)"/ig;
         let m,found=[];
         while((m=re.exec(t))){found.push(m[1]);}
         if(!found.length){
-          const re2=/https?:\/\/bogota\.gov\.co(\/mi-ciudad\/movilidad\/[^"\s]*en-vivo-movilidad-bogota[^"\s]*)/ig;
+          const re2=/https?:\/\/bogota\.gov\.co(\/mi-ciudad\/movilidad\/[^"\s]*en-vivo-movilidad-(?:en-)?bogota[^"\s]*)/ig;
           while((m=re2.exec(t))){found.push(m[1]);}
         }
         if(found.length){
@@ -36415,17 +37255,27 @@ document.addEventListener('click',function(e){
     const urls=[url].filter(Boolean);
     const enc0=encodeURIComponent(url);
     const tries=[];
-    // Worker a menudo 403 desde algunos orígenes; se intenta pero no es obligatorio.
-    if(CFG.worker){const w=CFG.worker.replace(/\/$/,'');tries.push(w+'/movilidad?url='+enc0,w+'/?url='+enc0);}
+    // Worker /movilidad?url= (CORS *) — la raíz del worker responde 403, no usarla.
+    if(CFG.worker){
+      const w=CFG.worker.replace(/\/$/,'');
+      tries.push(w+'/movilidad?url='+enc0);
+    }
     for(const u of urls){
       const enc=encodeURIComponent(u);
-      tries.push(u,'https://corsproxy.io/?url='+enc,'https://api.allorigins.win/raw?url='+enc,'https://r.jina.ai/'+u,'https://api.codetabs.com/v1/proxy?quest='+enc);
+      tries.push(
+        u,
+        'https://corsproxy.io/?url='+enc,
+        'https://api.allorigins.win/raw?url='+enc,
+        'https://api.codetabs.com/v1/proxy?quest='+enc
+      );
     }
     let lastErr=null;
     for(const u of tries){
       try{
-        const t=await fetchWithTimeout(u,14000);
+        const t=await fetchWithTimeout(u,18000);
         if(looksLikeMovilidadReport(t))return t;
+        // Si el worker devolvió HTML largo con "Corte", aceptar aunque el regex falle
+        if(t&&t.length>3000&&/Corte\s*:\s*\d{1,2}/i.test(t))return t;
         lastErr=new Error('respuesta sin reporte');
       }catch(e){lastErr=e;}
     }
@@ -36557,6 +37407,9 @@ document.addEventListener('click',function(e){
     prevView={center:map.getCenter(),zoom:map.getZoom()};revAtOpen=manualRev;userPinned=false;
     document.getElementById('mainLayout')?.classList.add('bog-focus');
     section.classList.add('active');section.setAttribute('aria-hidden','false');
+    // Siempre pedir el reporte al abrir (manual o automático). Sin esto, Android
+    // content:// mostraba "sin avisos" con la lista vacía de una carga previa fallida.
+    try{ refresh(true); }catch(_){}
     renderList();renderMarkers();
     try{loadLocalidades();}catch(_){}
     try{map.invalidateSize({pan:false});}catch(_){}
@@ -36924,8 +37777,20 @@ document.addEventListener('click',function(e){
     return {parsed:parsed.length,fresh:toOpen.length};
   }
   async function refresh(manual){
-    if(busy||(document.hidden&&!manual))return;busy=true;
+    if(document.hidden&&!manual)return;
+    if(busy&&!manual)return;
+    if(manual) busy=false; // forzar reintento manual
+    if(busy)return;busy=true;
     try{
+      if(manual||!entries.length){
+        lastError='';
+        try{
+          const body=el('bogMovList');
+          if(body&&!entries.length) body.innerHTML='<div class="bogmov-empty">Cargando reporte «En vivo» de Movilidad…</div>';
+          const sub=el('bogMovSub');
+          if(sub) sub.textContent='Consultando Secretaría de Movilidad…';
+        }catch(_){}
+      }
       let dt=bogotaToday(),key=dt.y+'-'+dt.m+'-'+dt.d,html=null,lastE=null;
       const tryDay=async (dayDt)=>{
         const candidates=articleUrlCandidates(dayDt);
@@ -37264,11 +38129,10 @@ document.addEventListener('click',function(e){
       const jmaOrigin=(d&&typeof parseJmaEewTime==='function')?(parseJmaEewTime(d.OriginTime||d.originTime||d.AnnouncedTime)||0):0;
       const jmaOriginAge=jmaOrigin?Date.now()-jmaOrigin:Infinity;
       let japanStationView=false;try{japanStationView=!!document.getElementById('mainLayout')?.classList.contains('japan-focus')}catch(_){}
-      // A terminal JMA EEW packet is a final revision, not a cancellation.
-      // In Japan station view keep that report card available for late opens
-      // while clearly distinguishing it from a currently active warning.
-      const recentFinalReport=!!(d&&d.isFinal&&!d.isCancel&&japanStationView&&jmaOriginAge>=-120000&&jmaOriginAge<=30*60*1000);
-      if (d && fresh && !d.isCancel && (recentFinalReport || (!d.isFinal && wavesActive(jmaOrigin,d.Magnitude??d.Magunitude)))) {
+      // Los informes finales no representan un EEW activo. Se descartan de
+      // la tarjeta viva incluso si el objeto JMA permanece en memoria.
+      const recentFinalReport=false;
+      if (d && fresh && !d.isCancel && !d.isFinal && wavesActive(jmaOrigin,d.Magnitude??d.Magunitude)) {
         const place = String(d.Hypocenter || d.hypocenter || 'Japón');
         const mag = d.Magnitude ?? d.Magunitude;
         const depth=d.Depth ?? d.depth;
@@ -39091,21 +39955,155 @@ html body #mainLayout > .left-panel #currentEvent.jma-prelim-card .location-labe
 })();
 </script>
 <script id="costa-rica-live-stations">
-/* Costa Rica: registros de muestras recientes de EarthScope para TC (RSN) y OV (OVSICORI).
- * Es un monitor experimental con retraso; no crea EEW ni convierte muestras en intensidades. */
+/* EarthScope EN VIVO solamente: Costa Rica (OV, TC) + Colombia (CM).
+ * No se dibuja catálogo estático: solo estaciones con muestra reciente real.
+ * Iconos NIED/SREV. Poll cada 2 s. Visibles en todos los apartados. */
 (function () {
   'use strict';
-  const API = 'https://service.earthscope.org/fdsnws/dataselect/1/query';
-  const POLL_MS = 15000, DELAY_MS = 40000, WINDOW_MS = 6000, FRESH_MS = 110000;
-  const KEY = 'earthquake.costaRicaStations.enabled.v1';
-  let enabled = true, layer = null, busy = false, lastError = '', lastResponse = 0;
+  const DATASELECT = 'https://service.earthscope.org/fdsnws/dataselect/1/query';
+  const POLL_MS = 2000;
+  const DELAY_MS = 35000;   // datos con ~35 s de retraso (típico EarthScope)
+  const WINDOW_MS = 6000;   // ventana corta de muestras
+  const FRESH_MS = 12000;   // si no hay muestra en 12 s → se quita del mapa
+  const KEY = 'earthquake.crCoStations.enabled.v1';
+  const KEY_LEGACY = 'earthquake.costaRicaStations.enabled.v1';
+  let enabled = true, layer = null, busy = false;
+  let lastError = '', lastResponse = 0, lastLiveCount = 0;
   const stations = new Map();
-  const colors = { TC: '#51cffa', OV: '#9ce880' };
-  const network = { TC: 'RSN · UCR / ICE', OV: 'OVSICORI · UNA' };
-  try { enabled = localStorage.getItem(KEY) !== 'false'; } catch (_) {}
+  const network = {
+    TC: 'RSN · UCR / ICE (Costa Rica)',
+    OV: 'OVSICORI · UNA (Costa Rica)',
+    CM: 'RSNC · SGC (Colombia)'
+  };
+  try {
+    const v = localStorage.getItem(KEY);
+    if (v != null) enabled = v !== 'false';
+    else {
+      const leg = localStorage.getItem(KEY_LEGACY);
+      if (leg != null) enabled = leg !== 'false';
+    }
+  } catch (_) {}
+
   function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
   }
+  function mapForStations() {
+    try { return (typeof map !== 'undefined' && map) ? map : null; } catch (_) { return null; }
+  }
+  function inRegion(net, lat, lon) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
+    if (net === 'CM') return lat >= -5 && lat <= 15 && lon >= -82 && lon <= -66;
+    return lat >= 5 && lat <= 12 && lon >= -88 && lon <= -81;
+  }
+  function ensureLayer() {
+    const m = mapForStations();
+    if (!m || typeof L === 'undefined') return null;
+    try {
+      if (!m.getPane('stationsPane')) {
+        const p = m.createPane('stationsPane');
+        p.style.zIndex = 650;
+      }
+    } catch (_) {}
+    if (!layer) layer = L.layerGroup();
+    if (enabled) {
+      if (!m.hasLayer(layer)) layer.addTo(m);
+    } else if (m.hasLayer(layer)) {
+      m.removeLayer(layer);
+    }
+    return layer;
+  }
+
+  function crColorFromRaw(raw) {
+    try {
+      if (typeof srevStationColorFromRaw === 'function') return srevStationColorFromRaw(raw);
+      if (typeof srevPaletteColorFromRaw === 'function') return srevPaletteColorFromRaw(raw);
+      if (typeof niedColorBar === 'function') return niedColorBar(raw);
+    } catch (_) {}
+    return '#1428a0';
+  }
+  function crLabelFromRaw(raw) {
+    if (!(raw >= 0)) return null;
+    try {
+      if (typeof srevIntensityLabelFromRaw === 'function') return srevIntensityLabelFromRaw(raw);
+    } catch (_) {}
+    return String(Math.round(raw));
+  }
+  function crMakeIcon(raw, pulse) {
+    const color = crColorFromRaw(raw);
+    const label = crLabelFromRaw(raw);
+    try {
+      if (typeof makeSrevIntensityIcon === 'function') {
+        return makeSrevIntensityIcon(label, color, { small: true, pulse: !!pulse && raw >= 1 });
+      }
+    } catch (_) {}
+    return L.divIcon({
+      className: 'srev-int-dot',
+      html: '<div style="width:12px;height:12px;border-radius:50%;background:' + color +
+        ';border:1.5px solid rgba(255,255,255,.9);box-shadow:0 0 0 2px ' + color + '55"></div>',
+      iconSize: [14, 14], iconAnchor: [7, 7]
+    });
+  }
+  function rawFromPeakCounts(peak) {
+    const p = Math.abs(Number(peak) || 0);
+    if (p < 80) return -3;
+    if (p < 200) return -2;
+    if (p < 500) return -1;
+    if (p < 1500) return 0;
+    if (p < 4000) return 1;
+    if (p < 10000) return 2;
+    if (p < 25000) return 3;
+    return 4;
+  }
+
+  function popup(st) {
+    const netLabel = network[st.net] || st.net;
+    const age = st.last ? Math.max(0, Math.round((Date.now() - st.last) / 1000)) : null;
+    const raw = Number.isFinite(st.raw) ? st.raw : -3;
+    const intenTxt = raw >= 0
+      ? ('Intensidad est. ' + (crLabelFromRaw(raw) || raw))
+      : 'Reposo / instrumental';
+    return '<div style="min-width:180px"><b>' + escapeHtml(st.net + '.' + st.code) + '</b><br>' +
+      escapeHtml(netLabel) + '<br>' +
+      '● En vivo EarthScope' + (age != null ? ' · muestra hace ' + age + ' s' : '') + '<br>' +
+      intenTxt + '<br>' +
+      Number(st.lat).toFixed(3) + ', ' + Number(st.lon).toFixed(3) + '</div>';
+  }
+
+  function upsertLiveStation(info) {
+    const lg = ensureLayer();
+    if (!lg) return;
+    const raw = Number.isFinite(info.raw) ? info.raw : -3;
+    let st = stations.get(info.key);
+    if (!st) {
+      const marker = L.marker([info.lat, info.lon], {
+        icon: crMakeIcon(raw, raw >= 1),
+        pane: 'stationsPane',
+        interactive: true,
+        keyboard: false
+      });
+      st = Object.assign({}, info, { raw, marker });
+      marker.bindPopup(popup(st));
+      marker.addTo(lg);
+      stations.set(info.key, st);
+    } else {
+      Object.assign(st, info, { raw });
+      try { st.marker.setLatLng([st.lat, st.lon]); } catch (_) {}
+      try { st.marker.setIcon(crMakeIcon(st.raw, st.raw >= 1)); } catch (_) {}
+      try { st.marker.setPopupContent(popup(st)); } catch (_) {}
+    }
+  }
+
+  function removeStation(key) {
+    const st = stations.get(key);
+    if (!st) return;
+    try { if (layer) layer.removeLayer(st.marker); } catch (_) {}
+    stations.delete(key);
+  }
+
+  function clearAllStations() {
+    for (const key of Array.from(stations.keys())) removeStation(key);
+  }
+
   function parseGeoCsv(text) {
     const parsed = new Map();
     let current = null;
@@ -39114,13 +40112,25 @@ html body #mainLayout > .left-panel #currentEvent.jma-prelim-card .location-labe
       const parts = current.sid.split('_');
       const n = parts[0], code = parts[1], ch = parts[parts.length - 1];
       if (!network[n] || !code || !/^(?:HHZ|BHZ|HNZ|EHZ)$/.test(ch)) return;
-      if (current.lat < 5 || current.lat > 12 || current.lon < -88 || current.lon > -81) return;
-      const key = n + '.' + code, previous = parsed.get(key);
-      if (!previous || current.last > previous.last) parsed.set(key, {key, net:n, code, channel:ch, lat:current.lat, lon:current.lon, last:current.last});
+      if (!inRegion(n, current.lat, current.lon)) return;
+      const key = n + '.' + code;
+      const raw = rawFromPeakCounts(current.peak);
+      const previous = parsed.get(key);
+      if (!previous || current.last > previous.last) {
+        parsed.set(key, {
+          key, net: n, code, channel: ch,
+          lat: current.lat, lon: current.lon,
+          last: current.last, live: true, raw, peak: current.peak
+        });
+      }
     }
-    for (const raw of String(text || '').split(/\r?\n/)) {
-      const line = raw.trim();
-      if (line.startsWith('# dataset:')) { finish(); current = {samples:0,last:0,lat:NaN,lon:NaN,sid:''}; continue; }
+    for (const lineRaw of String(text || '').split(/\r?\n/)) {
+      const line = lineRaw.trim();
+      if (line.startsWith('# dataset:')) {
+        finish();
+        current = { samples: 0, last: 0, lat: NaN, lon: NaN, sid: '', peak: 0 };
+        continue;
+      }
       if (!current) continue;
       if (line.startsWith('# SID:')) current.sid = line.slice(6).trim();
       else if (line.startsWith('# latitude_deg:')) current.lat = Number(line.slice(15).trim());
@@ -39128,112 +40138,145 @@ html body #mainLayout > .left-panel #currentEvent.jma-prelim-card .location-labe
       else if (line && !line.startsWith('#') && !/^time\s*,/i.test(line)) {
         const comma = line.indexOf(',');
         if (comma < 0) continue;
-        const t = Date.parse(line.slice(0, comma).trim());
-        const sample = line.slice(comma + 1).trim();
-        const value = sample ? Number(sample) : NaN;
-        if (Number.isFinite(t) && Number.isFinite(value)) { current.samples++; if (t > current.last) current.last = t; }
+        const ts = Date.parse(line.slice(0, comma).trim());
+        const value = Number(line.slice(comma + 1).trim());
+        if (Number.isFinite(ts) && Number.isFinite(value)) {
+          current.samples++;
+          if (ts > current.last) current.last = ts;
+          const a = Math.abs(value);
+          if (a > current.peak) current.peak = a;
+        }
       }
     }
     finish();
     return Array.from(parsed.values());
   }
-  function ageLabel(ts) {
-    const sec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
-    return sec + ' s de retraso';
-  }
-  function nowSafeAge(ts) { const age=Date.now()-Number(ts); return Number.isFinite(age)?age:Infinity; }
-  function popup(st) {
-    return '<b>Estación ' + escapeHtml(st.code) + '</b><br>' + escapeHtml(network[st.net]) +
-      '<br>Canal: ' + escapeHtml(st.channel) + '<br>Última muestra: ' + escapeHtml(new Date(st.last).toISOString()) +
-      '<br>' + ageLabel(st.last) + '<br><small>Datos: EarthScope · No es intensidad ni una alerta EEW.</small>';
-  }
-  function mapForStations() {
-    try { return typeof map !== 'undefined' && map ? map : null; } catch (_) { return null; }
-  }
-  function canShowLayer() {
-    const layout = document.getElementById('mainLayout');
-    if (!layout) return false;
-    return !['japan-focus','taiwan-focus','taiwan-motion-focus','typhoon-focus','hurricane-focus','us-alerts-focus','tsunami-focus','jma-weather-focus','jma-volcano-focus','volc-focus','gdacs-focus','bog-focus','siat-focus','korea-focus'].some(x => layout.classList.contains(x));
-  }
-  function pruneAndRender() {
-    const leafletMap = mapForStations();
-    if (!leafletMap || typeof L === 'undefined') return;
-    if (!layer) layer = L.layerGroup();
-    if (enabled && canShowLayer()) { if (!leafletMap.hasLayer(layer)) layer.addTo(leafletMap); }
-    else if (leafletMap.hasLayer(layer)) leafletMap.removeLayer(layer);
-    const now = Date.now();
-    for (const [key, st] of stations) {
-      if (now - st.last > FRESH_MS || st.last > now + 5000) { try { layer.removeLayer(st.marker); } catch (_) {} stations.delete(key); }
-    }
-    if (!enabled) return;
-    for (const st of stations.values()) if (st.marker) st.marker.setPopupContent(popup(st));
-    updateStatus();
-  }
+
   function updateStatus() {
     const status = document.getElementById('crStationStatus');
     if (!status) return;
     if (!enabled) { status.textContent = 'Desactivadas.'; return; }
-    let tc = 0, ov = 0;
-    stations.forEach(s => { if (s.net === 'TC') tc++; if (s.net === 'OV') ov++; });
-    const detail = lastError ? ' · consulta no disponible' : lastResponse ? '' : ' · consultando…';
-    status.textContent = 'Muestras recientes: RSN ' + tc + ' · OVSICORI ' + ov + detail + '. Retraso aproximado: 40–110 s.';
+    let tc = 0, ov = 0, cm = 0;
+    stations.forEach(s => {
+      if (s.net === 'TC') tc++;
+      if (s.net === 'OV') ov++;
+      if (s.net === 'CM') cm++;
+    });
+    if (lastError && !stations.size) {
+      status.textContent = 'EarthScope en vivo: sin estaciones ( ' + lastError + ' ). No se muestran puntos fijos.';
+      return;
+    }
+    const detail = lastError ? (' · ' + lastError) : (lastResponse ? ' · act. ' + new Date(lastResponse).toLocaleTimeString() : ' · consultando…');
+    status.textContent = 'EarthScope EN VIVO: CR RSN ' + tc + ' · OVSICORI ' + ov + ' · CO SGC ' + cm +
+      ' (' + stations.size + ')' + detail + '. Cada ' + (POLL_MS / 1000) + 's.';
   }
-  async function poll() {
-    if (!enabled || busy || document.hidden || !mapForStations()) return;
+
+  async function pollLive() {
+    if (!enabled || document.hidden) return;
+    if (busy) return; // no acumular peticiones si la anterior sigue
     busy = true;
-    const end = Date.now() - DELAY_MS, start = end - WINDOW_MS;
-    const params = new URLSearchParams({network:'TC,OV',station:'*',location:'*',channel:'HHZ,BHZ,HNZ,EHZ',starttime:new Date(start).toISOString(),endtime:new Date(end).toISOString(),format:'geocsv'});
-    const abort = new AbortController(), timer = setTimeout(() => abort.abort(), 12000);
+    const end = Date.now() - DELAY_MS;
+    const start = end - WINDOW_MS;
+    const params = new URLSearchParams({
+      network: 'OV,TC,CM',
+      station: '*',
+      location: '*',
+      channel: 'HHZ,BHZ,HNZ,EHZ',
+      starttime: new Date(start).toISOString(),
+      endtime: new Date(end).toISOString(),
+      format: 'geocsv'
+    });
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), Math.max(15000, POLL_MS * 4));
     try {
-      const response = await fetch(API + '?' + params.toString(), {cache:'no-store',signal:abort.signal});
-      if (response.status === 204) { if(layer)layer.clearLayers();stations.clear();lastResponse = Date.now(); lastError = ''; pruneAndRender(); return; }
-      if (!response.ok) throw new Error('HTTP ' + response.status);
-      const text = await response.text(), rows = parseGeoCsv(text), now = Date.now();
-      if (!/^#\s*dataset:\s*GeoCSV/m.test(text)) throw new Error('Respuesta no reconocida');
-      const m = mapForStations();
-      if (!layer) layer = L.layerGroup();
-      const seenThisFrame = new Set();
-      for (const row of rows) {
-        if (row.last > now + 5000 || now - row.last > FRESH_MS) continue;
-        seenThisFrame.add(row.key);
-        let st = stations.get(row.key);
-        if (!st) {
-          const marker = L.marker([row.lat,row.lon], {icon:makeSrevIntensityIcon(null,srevStationColorFromRaw(-3),{small:true}),pane:'stationsPane',interactive:true,keyboard:false});
-          st = {...row, marker}; marker.bindPopup(popup(st)); marker.addTo(layer); stations.set(row.key,st);
-        } else if (row.last > st.last) {
-          Object.assign(st,row); st.marker.setLatLng([row.lat,row.lon]); st.marker.setPopupContent(popup(st));
-        }
+      const response = await fetch(DATASELECT + '?' + params.toString(), { cache: 'no-store', signal: abort.signal });
+      if (response.status === 204) {
+        // Sin datos en la ventana → quitar todo (no puntos falsos)
+        clearAllStations();
+        lastResponse = Date.now();
+        lastError = '';
+        lastLiveCount = 0;
+        return;
       }
-      for (const [key,st] of stations) if (!seenThisFrame.has(key)) { try { layer.removeLayer(st.marker); } catch (_) {} stations.delete(key); }
-      lastResponse = now; lastError = ''; pruneAndRender();
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const text = await response.text();
+      if (!/#\s*dataset:\s*GeoCSV/m.test(text)) throw new Error('respuesta no GeoCSV');
+      const rows = parseGeoCsv(text);
+      const now = Date.now();
+      const seen = new Set();
+      lastLiveCount = 0;
+      for (const row of rows) {
+        // Solo muestras realmente recientes respecto al reloj
+        if (row.last > now + 5000) continue;
+        if (now - row.last > FRESH_MS + DELAY_MS) continue;
+        seen.add(row.key);
+        lastLiveCount++;
+        upsertLiveStation(row);
+      }
+      // Quitar las que ya no trajeron muestra en esta ronda
+      for (const key of Array.from(stations.keys())) {
+        if (!seen.has(key)) removeStation(key);
+      }
+      lastResponse = now;
+      lastError = '';
     } catch (e) {
       lastError = String(e && e.message || e || 'sin conexión');
-      // A failed live query invalidates the claim that listed stations are currently online.
-      if (layer) layer.clearLayers();
-      stations.clear();
-      pruneAndRender();
+      // Si EarthScope no conecta: no dejar puntos viejos/falsos
+      clearAllStations();
+      lastLiveCount = 0;
+    } finally {
+      clearTimeout(timer);
+      busy = false;
+      ensureLayer();
+      updateStatus();
     }
-    finally { clearTimeout(timer); busy = false; updateStatus(); }
   }
+
   function start() {
     const toggle = document.getElementById('crStationsToggle');
     if (toggle) {
       toggle.checked = enabled;
       toggle.addEventListener('change', () => {
         enabled = !!toggle.checked;
-        try { localStorage.setItem(KEY, String(enabled)); } catch (_) {}
-        if (!enabled && layer) { layer.clearLayers(); stations.clear(); }
-        pruneAndRender(); updateStatus(); if (enabled) poll();
+        try {
+          localStorage.setItem(KEY, String(enabled));
+          localStorage.setItem(KEY_LEGACY, String(enabled));
+        } catch (_) {}
+        if (!enabled) {
+          clearAllStations();
+          const m = mapForStations();
+          if (m && layer && m.hasLayer(layer)) m.removeLayer(layer);
+        } else {
+          pollLive();
+        }
+        updateStatus();
       });
     }
-    const layout = document.getElementById('mainLayout');
-    if (layout && typeof MutationObserver !== 'undefined') new MutationObserver(pruneAndRender).observe(layout,{attributes:true,attributeFilter:['class']});
-    pruneAndRender(); updateStatus(); poll();
-    setInterval(() => { pruneAndRender(); poll(); }, POLL_MS);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) { pruneAndRender(); poll(); } });
+    updateStatus();
+    let tries = 0;
+    const boot = setInterval(() => {
+      tries++;
+      if (mapForStations() || tries > 40) {
+        clearInterval(boot);
+        if (enabled) pollLive();
+        setInterval(() => { if (enabled) pollLive(); }, POLL_MS);
+      }
+    }, 400);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && enabled) pollLive();
+    });
   }
-  window.__eqCostaRicaStations = { parseGeoCsv, refresh:poll, snapshot:() => ({enabled,count:stations.size,lastResponse,lastError,stations:Array.from(stations.values()).map(s=>({key:s.key,last:s.last,channel:s.channel}))}) };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once:true}); else start();
+
+  window.__eqCostaRicaStations = {
+    refresh: pollLive,
+    snapshot: () => ({
+      enabled, count: stations.size, live: lastLiveCount,
+      lastResponse, lastError,
+      stations: Array.from(stations.values()).map(s => ({ key: s.key, raw: s.raw, last: s.last }))
+    })
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
+  else start();
 })();
 </script>
 
